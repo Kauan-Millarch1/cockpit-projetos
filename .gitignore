@@ -1,0 +1,34 @@
+# Secrets — the n8n API key lives here and must never be committed.
+.env
+.env.local
+
+# Disposable caches. The n8n cache holds error messages pulled from live
+# executions; keep it out of history for the same reason as .env.
+.cache-scan.json
+.cache-n8n-exec.json
+scan.json
+
+# Claude fix runs. Each one holds the RAW workflow (credential ids, node
+# parameters with session keys) plus the pre-apply backup. Local scratch, never
+# committed — proposals.json carries the part worth keeping.
+.claude-runs/
+
+# Tester (PLAN.md). The catalog holds only sanitized parameter SHAPES, but it is
+# regenerable in one command, so it is a cache. The run dirs are scratch. The
+# docs cache is third-party web text with a TTL — deliberately NOT tracked
+# knowledge, so a poisoned or stale fetch can never become permanent.
+.cache-catalog.json
+.cache-catalog.json.tmp
+.tester-runs/
+.cache-tester-docs/
+
+# Screenshots produced while iterating on the design. The preview .html files
+# are kept (they are the record of what was chosen); the PNGs are regenerable.
+preview/*.png
+*.png
+
+# fixes.json and proposals.json are NOT caches — they are knowledge that exists
+# nowhere else and cannot be regenerated from the API, so they stay tracked.
+# Only the atomic-write temp files are disposable.
+fixes.json.tmp
+proposals.json.tmp

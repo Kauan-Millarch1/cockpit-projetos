@@ -1,0 +1,144 @@
+{
+  "fixes": [
+    {
+      "key": "azwM3PgGtSbGTCsn|Convert text to speech|NodeApiError",
+      "markedAt": "2026-08-06T13:36:54.131Z",
+      "maxExecIdAtFix": "171447",
+      "note": "Ajustei as credenciais do ElevenLabs, teve uma atualização nova e mudou a API"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "markedAt": "2026-08-06T17:19:47.069Z",
+      "maxExecIdAtFix": "171860",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "markedAt": "2026-08-06T17:20:54.736Z",
+      "maxExecIdAtFix": "171370",
+      "note": "Ja ajustei esse subfluxo, era problema no N8N"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|AI Agent1|NodeOperationError",
+      "markedAt": "2026-08-06T17:40:54.680Z",
+      "maxExecIdAtFix": "171859",
+      "note": "Claude ajustou o erro do node AI Agent1"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|memoria_redis_roberto|NodeOperationError",
+      "markedAt": "2026-08-06T18:28:49.226Z",
+      "maxExecIdAtFix": "172024",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|memoria_redis_roberto|NodeOperationError",
+      "markedAt": "2026-08-06T18:37:24.614Z",
+      "maxExecIdAtFix": "172022",
+      "note": "Claude ajustou o node memoria_redis_roberto"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-07T11:31:51.231Z",
+      "maxExecIdAtFix": "172571",
+      "note": "Exclui o fluxo"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError",
+      "markedAt": "2026-08-07T18:03:25.572Z",
+      "maxExecIdAtFix": "173265",
+      "note": "Aplicado pelo cockpit sem explicação do Claude — 3 nó(s) alterado(s), 0 novo(s)"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Call 'Roberto Comercial'|Error",
+      "markedAt": "2026-08-07T18:05:37.482Z",
+      "maxExecIdAtFix": "173264",
+      "note": "Claude ajustou o fluxo do Iago que estava causando esse erro"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|memoria_buffer_roberto|NodeOperationError",
+      "markedAt": "2026-08-07T18:24:10.930Z",
+      "maxExecIdAtFix": "173366",
+      "note": "Aplicado pelo cockpit sem explicação do Claude — 1 nó(s) alterado(s), 0 novo(s)"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|memoria_buffer_roberto|NodeOperationError",
+      "markedAt": "2026-08-07T18:24:29.190Z",
+      "maxExecIdAtFix": "173364",
+      "note": "Claude ajustou o fluxo do Iago"
+    }
+  ],
+  "history": [
+    {
+      "key": "azwM3PgGtSbGTCsn|Convert text to speech|NodeApiError",
+      "markedAt": "2026-08-06T13:36:54.131Z",
+      "maxExecIdAtFix": "171447",
+      "note": "Ajustei as credenciais do ElevenLabs, teve uma atualização nova e mudou a API"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "markedAt": "2026-08-06T17:19:47.069Z",
+      "maxExecIdAtFix": "171860",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "markedAt": "2026-08-06T17:20:54.736Z",
+      "maxExecIdAtFix": "171370",
+      "note": "Ja ajustei esse subfluxo, era problema no N8N"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|AI Agent1|NodeOperationError",
+      "markedAt": "2026-08-06T17:40:54.680Z",
+      "maxExecIdAtFix": "171859",
+      "note": "Claude ajustou o erro do node AI Agent1"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|memoria_redis_roberto|NodeOperationError",
+      "markedAt": "2026-08-06T18:28:49.226Z",
+      "maxExecIdAtFix": "172024",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|memoria_redis_roberto|NodeOperationError",
+      "markedAt": "2026-08-06T18:37:24.614Z",
+      "maxExecIdAtFix": "172022",
+      "note": "Claude ajustou o node memoria_redis_roberto"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-06T18:51:05.813Z",
+      "maxExecIdAtFix": "171861",
+      "note": "Desativei esse fluxo"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-07T11:31:51.231Z",
+      "maxExecIdAtFix": "172571",
+      "note": "Exclui o fluxo"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError",
+      "markedAt": "2026-08-07T18:03:25.572Z",
+      "maxExecIdAtFix": "173265",
+      "note": "Aplicado pelo cockpit sem explicação do Claude — 3 nó(s) alterado(s), 0 novo(s)"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Call 'Roberto Comercial'|Error",
+      "markedAt": "2026-08-07T18:05:37.482Z",
+      "maxExecIdAtFix": "173264",
+      "note": "Claude ajustou o fluxo do Iago que estava causando esse erro"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|memoria_buffer_roberto|NodeOperationError",
+      "markedAt": "2026-08-07T18:24:10.930Z",
+      "maxExecIdAtFix": "173366",
+      "note": "Aplicado pelo cockpit sem explicação do Claude — 1 nó(s) alterado(s), 0 novo(s)"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|memoria_buffer_roberto|NodeOperationError",
+      "markedAt": "2026-08-07T18:24:29.190Z",
+      "maxExecIdAtFix": "173364",
+      "note": "Claude ajustou o fluxo do Iago"
+    }
+  ]
+}

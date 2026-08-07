@@ -1,0 +1,4033 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview — palco no vocabulário do n8n</title>
+<style>
+/* ==========================================================================
+   PREVIEW ISOLADO. Nada aqui está no cockpit ainda.
+   O objetivo é uma decisão visual: o palco deixa de ser retângulo com texto e
+   passa a falar o mesmo vocabulário do editor do n8n — nó quadrado com ícone,
+   rótulo embaixo, portas, curva com seta, e as sticky notes ao fundo dando o
+   nome da seção. Os tokens são os MESMOS do flows.html, copiados sem alteração,
+   porque a decisão precisa ser tomada sobre as cores reais do painel.
+   ========================================================================== */
+:root {
+  --bg: #06060B; --bg-deep: #040408; --surface: #0E0F1A; --surface-2: #14162454; --raised: #171A2B;
+  --line: rgba(255,255,255,.09); --line-soft: rgba(255,255,255,.05);
+  --grid: rgba(255,255,255,.028); --grid-bold: rgba(255,255,255,.055);
+  --txt: #E9EBF5; --txt-dim: #AAAFC2; --txt-faint: #777D92;
+  --accent: #5865F5; --accent-soft: #5865F51f; --accent-line: #5865F55c; --brand: #FF5A1F;
+  --ok: #2FD48F; --warn: #F5A524; --risk: #FF4F5E; --cold: #59617D;
+  --ok-soft: #2FD48F1a; --warn-soft: #F5A5241a; --risk-soft: #FF4F5E1a; --cold-soft: #59617D1a;
+  --ok-txt: #2FD48F; --warn-txt: #F5A524; --risk-txt: #FF4F5E; --cold-txt: #798096;
+  --accent-txt: #606CF5; --brand-txt: #FF5A1F;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --font: "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --font-num: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", ui-monospace, monospace;
+  --r: 12px;
+
+  /* ---------------------------------------------------------------- NOVOS
+     A cor do ícone é do serviço, não do estado. Elas convivem com os tokens de
+     status porque nunca ocupam o mesmo lugar: estado mora na BORDA do nó, no
+     badge e na linha; identidade mora no glifo, 22px, dentro da caixa. */
+  --node-face:   #1B1D2E;
+  --node-edge:   rgba(255,255,255,.14);
+  --node-label:  var(--txt);
+  --port:        #6E7590;
+  --wire:        #6A7089;
+}
+:root[data-theme="light"] {
+  --bg: #FAFAF9; --bg-deep: #F4F4F2; --surface: #FFFFFF; --surface-2: #00000005; --raised: #FFFFFF;
+  --line: rgba(10,10,20,.11); --line-soft: rgba(10,10,20,.06);
+  --grid: rgba(10,10,20,.045); --grid-bold: rgba(10,10,20,.08);
+  --txt: #14151C; --txt-dim: #3F424D; --txt-faint: #666973;
+  --accent: #3B48E0; --accent-soft: #3B48E014; --accent-line: #3B48E055;
+  --ok: #0E9F6E; --warn: #B7791F; --risk: #DC2B3A; --cold: #8B90A0;
+  --ok-soft: #0E9F6E14; --warn-soft: #B7791F14; --risk-soft: #DC2B3A14; --cold-soft: #8B90A014;
+  --ok-txt: #0B8159; --warn-txt: #9A661A; --risk-txt: #D02937; --cold-txt: #6D717E;
+  --accent-txt: #3B48E0; --brand-txt: #D04919;
+  --node-face: #FFFFFF; --node-edge: rgba(10,10,20,.16); --node-label: #14151C;
+  --port: #9AA0B4; --wire: #A8AEC0;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--txt); font-family: var(--font); font-size: 15px;
+  display: grid; grid-template-rows: auto 1fr auto; height: 100vh; -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------------ chrome */
+.bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.bar .idx { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em; color: var(--brand-txt); }
+.bar h1 { margin: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+.bar .sub { font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); }
+.bar .spacer { flex: 1; }
+.btn {
+  font-family: inherit; font-size: 12.5px; color: var(--txt); cursor: pointer;
+  padding: 7px 12px; border-radius: 9px; min-height: 34px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+    linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+  transition: background .16s, box-shadow .18s, transform .09s;
+}
+.btn:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 13%, var(--raised)), var(--raised)) padding-box,
+    linear-gradient(180deg, var(--accent-line), var(--line)) border-box;
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.on { background: var(--accent-soft) padding-box, linear-gradient(180deg, var(--accent-line), var(--line)) border-box; color: var(--accent-txt); }
+
+/* ------------------------------------------------------------------- palco */
+.stage {
+  position: relative; overflow: hidden; background: var(--bg-deep);
+  /* Malha de pontos do editor do n8n. Fixa em coordenadas de tela: seguir o
+     zoom faria o fundo pulsar em cada animação de câmera. */
+  background-image: radial-gradient(circle at 1px 1px, var(--grid-bold) 1px, transparent 0);
+  background-size: 22px 22px;
+  cursor: grab;
+}
+.stage.drag { cursor: grabbing; }
+#svg { display: block; width: 100%; height: 100%; }
+.corner {
+  position: absolute; top: 12px; left: 14px; z-index: 2;
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .12em; color: var(--txt-dim);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line-soft); border-radius: 6px; padding: 3px 8px;
+}
+.corner.br { top: auto; left: auto; bottom: 12px; right: 14px; }
+
+/* ------------------------------------------------------------------- sticky
+   A sticky note do n8n é conteúdo do fluxo: é onde está escrito o nome da
+   etapa. Ela entra ATRÁS de tudo e continua fora do bounding box da câmera —
+   a regra do cockpit (`isAnnotation`) não muda, ela só deixa de ser invisível. */
+.sticky rect { rx: 8; }
+.sticky .bg { fill: var(--sticky, #F5A524); fill-opacity: .10; stroke: var(--sticky, #F5A524); stroke-opacity: .38; stroke-width: 1; }
+/* O título da nota é a cor dela puxada na direção do texto do tema: puro, o
+   amarelo da sticky sobre o bege do tema claro fica em ~2,5:1 e deixa de ser
+   legível. Misturar com `--txt` escurece no claro e clareia no escuro sem
+   perder a identidade da cor. */
+.sticky .ttl {
+  fill: color-mix(in srgb, var(--sticky, #F5A524) 62%, var(--txt));
+  font-family: var(--font); font-weight: 700; font-size: 11px; letter-spacing: .04em;
+}
+.sticky .bdy { fill: var(--txt-faint); font-family: var(--font); font-size: 8.5px; }
+
+/* --------------------------------------------------------------------- fios
+   Curva de Bézier horizontal com seta no destino, como no editor. A espessura
+   é 1.6 porque em zoom afastado 1px some, e o fio é o que conta a história do
+   caminho percorrido. */
+.edge { fill: none; stroke: var(--wire); stroke-width: 1.6; stroke-linecap: round; }
+.edge.aux { stroke-dasharray: 4 4; opacity: .7; }
+.edge.ran { stroke: var(--ok); }
+.edge.flowing { stroke: var(--accent); stroke-dasharray: 7 8; animation: drift 1.1s linear infinite; }
+@keyframes drift { to { stroke-dashoffset: -30; } }
+.edge.lit { stroke: var(--accent); stroke-width: 2.4; }
+.tip { fill: var(--wire); }
+.tip.ran { fill: var(--ok); }
+.tip.lit { fill: var(--accent); }
+.elabel {
+  fill: var(--txt-faint); font-family: var(--font-num); font-size: 7.5px; text-anchor: middle;
+  paint-order: stroke; stroke: var(--bg-deep); stroke-width: 3px; stroke-linejoin: round;
+}
+.elabel.ran { fill: var(--ok-txt); }
+
+/* ----------------------------------------------------------------- os nós */
+.nd { cursor: pointer; }
+.nd .face { fill: var(--node-face); stroke: var(--node-edge); stroke-width: 1.2; }
+.nd .glyph { stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.nd .nm {
+  fill: var(--node-label); font-family: var(--font); font-size: 9.5px; font-weight: 600; text-anchor: middle;
+}
+.nd .ty { fill: var(--txt-faint); font-family: var(--font-num); font-size: 7.5px; text-anchor: middle; }
+/* Tempo medido do nó, acima da caixa. Só aparece quando o nó rodou de fato —
+   é o número que transforma o desenho em telemetria. */
+.nd .ms {
+  fill: var(--txt-faint); font-family: var(--font-num); font-size: 7.5px; text-anchor: middle;
+  opacity: 0; transition: opacity .2s;
+}
+.nd.ran .ms, .nd.failed .ms, .nd.hot .ms { opacity: 1; }
+.nd.ran .ms { fill: var(--ok-txt); }
+.nd.failed .ms { fill: var(--risk-txt); }
+.nd .port { fill: var(--node-face); stroke: var(--port); stroke-width: 1.3; }
+.nd .plabel { fill: var(--txt-faint); font-family: var(--font-num); font-size: 7px; }
+
+.nd.pending { opacity: .5; }
+.nd.disabled .face { stroke-dasharray: 4 3; }
+.nd.disabled .nm { fill: var(--txt-faint); }
+
+/* Executado: o editor do n8n marca com a borda verde e o check embaixo. Aqui é
+   igual, e o check é desenhado (não é glifo de fonte) para não depender de
+   emoji nem de família instalada. */
+.nd.ran .face { stroke: var(--ok); stroke-width: 1.6; }
+.nd.ran .badge { opacity: 1; }
+.nd.failed .face { stroke: var(--risk); stroke-width: 2.2; fill: color-mix(in srgb, var(--risk) 12%, var(--node-face)); }
+.nd.failed .badge-bad { opacity: 1; }
+.nd.failed { animation: alarm 1.6s ease-in-out infinite; }
+@keyframes alarm { 50% { filter: drop-shadow(0 0 7px var(--risk)); } }
+.nd.hot .face { stroke: var(--accent); stroke-width: 2.4; filter: drop-shadow(0 0 8px var(--accent)); }
+.nd .badge, .nd .badge-bad { opacity: 0; transition: opacity .2s; }
+.nd .badge circle { fill: var(--ok); }
+.nd .badge path { stroke: var(--bg-deep); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.nd .badge-bad circle { fill: var(--risk); }
+.nd .badge-bad path { stroke: var(--bg-deep); stroke-width: 2; fill: none; stroke-linecap: round; }
+
+.legend {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  padding: 9px 16px; border-top: 1px solid var(--line); background: var(--surface);
+  font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint);
+}
+.legend b { color: var(--txt-dim); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .edge.flowing { animation: none; }
+  .nd.failed { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="idx">[ PREVIEW ]</span>
+  <h1>Palco no vocabulário do n8n</h1>
+  <span class="sub" id="meta">—</span>
+  <span class="spacer"></span>
+  <button class="btn" id="b-sim">▶ Simular execução</button>
+  <button class="btn" id="b-fail">✕ Simular falha</button>
+  <button class="btn" id="b-reset">↺ Limpar</button>
+  <button class="btn" id="b-fit">⤢ Enquadrar</button>
+  <button class="btn" id="b-sticky">Sticky notes</button>
+  <button class="btn" id="b-theme">Tema</button>
+</div>
+
+<div class="stage" id="stage">
+  <span class="corner" id="corner-tl">—</span>
+  <span class="corner br" id="corner-br">—</span>
+  <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<div class="legend">
+  <span><b>arrastar</b> move · <b>roda</b> dá zoom · <b>clique num nó</b> acende o caminho</span>
+  <span class="spacer" style="flex:1"></span>
+  <span>a cor do ícone é do serviço · a cor da <b>borda</b> é do estado</span>
+</div>
+
+<script>
+const GRAPH = {
+ "name": "Agente Iago Comercial",
+ "active": false,
+ "nodes": [
+  {
+   "name": "openAI_audio",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -20480,
+   "y": 560,
+   "disabled": false,
+   "sub": "transcribe: audio",
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields1",
+   "type": "n8n-nodes-base.set",
+   "x": -20064,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "No Operation, do nothing",
+   "type": "n8n-nodes-base.noOp",
+   "x": -21152,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note2",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -21504,
+   "y": 128,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## FILTRAGEM DE MENSAGEM (AUDIO OU TEXTO)\n\nRoteia por tipo de mídia, transcreve áudio (Whisper), OCR de imagem, e unifica em texto.",
+    "w": 1608,
+    "h": 1000,
+    "color": 1
+   }
+  },
+  {
+   "name": "total_mensagens",
+   "type": "n8n-nodes-base.code",
+   "x": -11040,
+   "y": 256,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "selecionar_mensagem",
+   "type": "n8n-nodes-base.code",
+   "x": -10864,
+   "y": 256,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "incrementar_indice",
+   "type": "n8n-nodes-base.code",
+   "x": -9776,
+   "y": 272,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Merge1",
+   "type": "n8n-nodes-base.merge",
+   "x": -10192,
+   "y": 272,
+   "disabled": false,
+   "sub": "combine",
+   "sticky": null
+  },
+  {
+   "name": "If1",
+   "type": "n8n-nodes-base.if",
+   "x": -9600,
+   "y": 272,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "No Operation, do nothing1",
+   "type": "n8n-nodes-base.noOp",
+   "x": -9312,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Code in JavaScript1",
+   "type": "n8n-nodes-base.code",
+   "x": -11200,
+   "y": 256,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Tempo de mensagem1",
+   "type": "n8n-nodes-base.wait",
+   "x": -10000,
+   "y": 272,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note4",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -11456,
+   "y": -80,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## MÉTODO DE ENVIO TEXTO\n\nLoop de envio de mensagens com delay humanizado entre bubbles.",
+    "w": 2532,
+    "h": 700,
+    "color": 7
+   }
+  },
+  {
+   "name": "Edit Fields",
+   "type": "n8n-nodes-base.set",
+   "x": -21680,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields2",
+   "type": "n8n-nodes-base.set",
+   "x": -20320,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "parametros",
+   "type": "n8n-nodes-base.set",
+   "x": -26960,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "trocar",
+   "type": "n8n-nodes-base.switch",
+   "x": -21456,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields3",
+   "type": "n8n-nodes-base.set",
+   "x": -21200,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "buscar_lead",
+   "type": "n8n-nodes-base.supabase",
+   "x": -23600,
+   "y": 544,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "pegar_id1",
+   "type": "n8n-nodes-base.set",
+   "x": -22000,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields4",
+   "type": "n8n-nodes-base.set",
+   "x": -20304,
+   "y": 944,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Analyze image",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -20560,
+   "y": 944,
+   "disabled": false,
+   "sub": "analyze: image",
+   "sticky": null
+  },
+  {
+   "name": "imagem",
+   "type": "n8n-nodes-base.set",
+   "x": -21264,
+   "y": 944,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Wait3",
+   "type": "n8n-nodes-base.wait",
+   "x": -10032,
+   "y": 480,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "openAI_audio1",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -11328,
+   "y": 1472,
+   "disabled": false,
+   "sub": "transcribe: audio",
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note6",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -12304,
+   "y": 928,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## MÉTODO ENVIO ÁUDIO\n\nHumanização (GPT-4.1-mini) → ElevenLabs TTS → Upload Meta → Envio WABA.",
+    "w": 1660,
+    "h": 964,
+    "color": 1
+   }
+  },
+  {
+   "name": "Merge2",
+   "type": "n8n-nodes-base.merge",
+   "x": -8704,
+   "y": 1248,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "No Operation, do nothing3",
+   "type": "n8n-nodes-base.noOp",
+   "x": -8176,
+   "y": 1600,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Message a model",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -8496,
+   "y": 1280,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Switch5",
+   "type": "n8n-nodes-base.switch",
+   "x": -8176,
+   "y": 1280,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note8",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -27632,
+   "y": -16,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## ENTRADA + PRÉ-PROCESSAMENTO\n\nWebhook WABA → Verificação → Filtragem → Parâmetros → Lock Redis",
+    "w": 1140,
+    "h": 400,
+    "color": 1
+   }
+  },
+  {
+   "name": "Code in JavaScript10",
+   "type": "n8n-nodes-base.code",
+   "x": -11312,
+   "y": 1696,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Get a row3",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11104,
+   "y": 1696,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "tokens e output",
+   "type": "n8n-nodes-base.set",
+   "x": -11408,
+   "y": 2464,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "custo_elevenlabs",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11328,
+   "y": 960,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "audio_gerado",
+   "type": "n8n-nodes-base.supabase",
+   "x": -10896,
+   "y": 1696,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "Update a row5",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11136,
+   "y": 2288,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "id_clickup",
+   "type": "n8n-nodes-base.set",
+   "x": -19184,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "AI Agent",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "x": -12032,
+   "y": 1168,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "OpenAI Chat Model",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "x": -12128,
+   "y": 1424,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Simple Memory",
+   "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+   "x": -11968,
+   "y": 1424,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "execução",
+   "type": "n8n-nodes-base.supabase",
+   "x": -24544,
+   "y": 192,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Verificação_numero",
+   "type": "n8n-nodes-base.code",
+   "x": -27264,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields5",
+   "type": "n8n-nodes-base.set",
+   "x": -11376,
+   "y": 256,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note1",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -14752,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## CÉREBRO DO AGENTE\n\nAI Roberto (GPT-5.1) + Tools + Memory Redis + Structured Output",
+    "w": 1912,
+    "h": 700,
+    "color": 5
+   }
+  },
+  {
+   "name": "Think",
+   "type": "@n8n/n8n-nodes-langchain.toolThink",
+   "x": -14080,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Code in JavaScript11",
+   "type": "n8n-nodes-base.code",
+   "x": -12144,
+   "y": 2464,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Redis_GET_temperamento",
+   "type": "n8n-nodes-base.redis",
+   "x": -18864,
+   "y": 560,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "Code_verifica_temperamento",
+   "type": "n8n-nodes-base.code",
+   "x": -18368,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Redis_INCR_msg_count",
+   "type": "n8n-nodes-base.redis",
+   "x": -18608,
+   "y": 560,
+   "disabled": false,
+   "sub": "incr",
+   "sticky": null
+  },
+  {
+   "name": "cancelar_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -26352,
+   "y": -80,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "buscar_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -7856,
+   "y": 1264,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "vacuo_existe",
+   "type": "n8n-nodes-base.if",
+   "x": -7472,
+   "y": 1216,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "resetar_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -7216,
+   "y": 1056,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "criar_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -7216,
+   "y": 1360,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "espera_vacuo_1",
+   "type": "n8n-nodes-base.wait",
+   "x": -6960,
+   "y": 1216,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "ler_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -6704,
+   "y": 1456,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "vacuo_ainda_ativo",
+   "type": "n8n-nodes-base.if",
+   "x": -6128,
+   "y": 1456,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "vacuo_cancelado",
+   "type": "n8n-nodes-base.noOp",
+   "x": -6064,
+   "y": 1728,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "verificar_limite",
+   "type": "n8n-nodes-base.if",
+   "x": -5920,
+   "y": 1376,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "escolher_mensagem",
+   "type": "n8n-nodes-base.code",
+   "x": -5648,
+   "y": 1360,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "incrementar_vacuo",
+   "type": "n8n-nodes-base.supabase",
+   "x": -5120,
+   "y": 1360,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "tempo_por_tentativa",
+   "type": "n8n-nodes-base.switch",
+   "x": -4848,
+   "y": 1344,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "espera_vacuo_2",
+   "type": "n8n-nodes-base.wait",
+   "x": -4608,
+   "y": 1120,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "espera_vacuo_3",
+   "type": "n8n-nodes-base.wait",
+   "x": -4592,
+   "y": 1488,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "marcar_esgotado",
+   "type": "n8n-nodes-base.supabase",
+   "x": -5712,
+   "y": 1552,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "atualizar_lead_perdido",
+   "type": "n8n-nodes-base.supabase",
+   "x": -5504,
+   "y": 1552,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note Vacuo v2",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -9008,
+   "y": 992,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## MÉTODO DE VÁCUO v2.0\n\nFollow-up inteligente: 15min → 1h → 24h.\nClassificador decide se envia vácuo ou encerra.",
+    "w": 4388,
+    "h": 1000,
+    "color": 4
+   }
+  },
+  {
+   "name": "Redis_GET_lock",
+   "type": "n8n-nodes-base.redis",
+   "x": -26640,
+   "y": 176,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "Code_verificar_lock",
+   "type": "n8n-nodes-base.code",
+   "x": -26048,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "If_lock",
+   "type": "n8n-nodes-base.if",
+   "x": -25888,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Redis_SET_lock",
+   "type": "n8n-nodes-base.redis",
+   "x": -25488,
+   "y": 160,
+   "disabled": false,
+   "sub": "set",
+   "sticky": null
+  },
+  {
+   "name": "No Operation, lock_drop",
+   "type": "n8n-nodes-base.noOp",
+   "x": -25680,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "vacuo_existe1",
+   "type": "n8n-nodes-base.if",
+   "x": -7472,
+   "y": 1712,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "resetar_vacuo1",
+   "type": "n8n-nodes-base.supabase",
+   "x": -7216,
+   "y": 1616,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "criar_vacuo1",
+   "type": "n8n-nodes-base.supabase",
+   "x": -7216,
+   "y": 1808,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "espera_vacuo_",
+   "type": "n8n-nodes-base.wait",
+   "x": -6960,
+   "y": 1712,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "audio/texto",
+   "type": "n8n-nodes-base.switch",
+   "x": -7664,
+   "y": 1536,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Redis_DEL_lock",
+   "type": "n8n-nodes-base.redis",
+   "x": -11136,
+   "y": 2464,
+   "disabled": false,
+   "sub": "delete",
+   "sticky": null
+  },
+  {
+   "name": "AI_Roberto",
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "x": -13984,
+   "y": 672,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "modelo_openai_roberto",
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "x": -14688,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "memoria_redis_roberto",
+   "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+   "x": -14480,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "parser_output_roberto",
+   "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+   "x": -14272,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "temperamento_comportamental1",
+   "type": "@n8n/n8n-nodes-langchain.toolCode",
+   "x": -13728,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "switch_tem_tag",
+   "type": "n8n-nodes-base.if",
+   "x": -16992,
+   "y": 912,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "redis_get_evento_detalhe",
+   "type": "n8n-nodes-base.redis",
+   "x": -17744,
+   "y": 576,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "switch_cache_evento",
+   "type": "n8n-nodes-base.if",
+   "x": -17456,
+   "y": 576,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "parse_cache_evento",
+   "type": "n8n-nodes-base.code",
+   "x": -16944,
+   "y": 368,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "api_get_evento_detalhe",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -17056,
+   "y": 704,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "redis_set_evento_detalhe",
+   "type": "n8n-nodes-base.redis",
+   "x": -16560,
+   "y": 704,
+   "disabled": false,
+   "sub": "set",
+   "sticky": null
+  },
+  {
+   "name": "redis_get_eventos_lista",
+   "type": "n8n-nodes-base.redis",
+   "x": -16208,
+   "y": 928,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "switch_cache_lista",
+   "type": "n8n-nodes-base.if",
+   "x": -15968,
+   "y": 928,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "parse_cache_lista",
+   "type": "n8n-nodes-base.code",
+   "x": -15376,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "api_get_eventos_lista",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -15520,
+   "y": 944,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "redis_set_eventos_lista",
+   "type": "n8n-nodes-base.redis",
+   "x": -15152,
+   "y": 944,
+   "disabled": false,
+   "sub": "set",
+   "sticky": null
+  },
+  {
+   "name": "merge_eventos_lista",
+   "type": "n8n-nodes-base.merge",
+   "x": -14704,
+   "y": 672,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "buscar_evento",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "x": -13376,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Sticky Note KB",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -18336,
+   "y": 352,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## KNOWLEDGE BASE (CONTEXTO DO EVENTO)\n\nCache Redis (1h) + API Admin.\nCom tag → carrega KB + ofertas (venda direta).\nSem tag → apenas listagem (discovery).",
+    "w": 2292,
+    "h": 908,
+    "color": 3
+   }
+  },
+  {
+   "name": "Sticky Note Lock",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -26432,
+   "y": -224,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## LOCK + CANCELAR VÁCUO\n\nRedis lock para evitar processamento paralelo da mesma mensagem.",
+    "w": 1140,
+    "h": 650,
+    "color": 5
+   }
+  },
+  {
+   "name": "Sticky Note Lead",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -25248,
+   "y": -32,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## REGISTRO DO LEAD\n\nBusca lead no Supabase, verifica primeiro contato, registra execução.",
+    "w": 1400,
+    "h": 500,
+    "color": 4
+   }
+  },
+  {
+   "name": "Sticky Note Post",
+   "type": "n8n-nodes-base.stickyNote",
+   "x": -12272,
+   "y": 1968,
+   "disabled": false,
+   "sub": null,
+   "sticky": {
+    "content": "## PÓS-PROCESSAMENTO\n\nSalvar mensagem, extrair tokens, perfil comportamental, métricas.",
+    "w": 1472,
+    "h": 1000,
+    "color": 6
+   }
+  },
+  {
+   "name": "Send message and wait for response1",
+   "type": "n8n-nodes-base.whatsApp",
+   "x": -11072,
+   "y": 1168,
+   "disabled": false,
+   "sub": "send",
+   "sticky": null
+  },
+  {
+   "name": "redis_get_conv_summary",
+   "type": "n8n-nodes-base.redis",
+   "x": -18416,
+   "y": 912,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "parse_conv_summary",
+   "type": "n8n-nodes-base.code",
+   "x": -18224,
+   "y": 912,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_resumo",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "x": -13920,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "agendar_call_closer",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "x": -13536,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "verificar_lead_supabase",
+   "type": "n8n-nodes-base.supabase",
+   "x": -25184,
+   "y": 208,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "switch_lead_existe",
+   "type": "n8n-nodes-base.if",
+   "x": -24944,
+   "y": 208,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_lead_supabase",
+   "type": "n8n-nodes-base.supabase",
+   "x": -24736,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "When Executed by Another Workflow",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "x": -27520,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "handoff_humano",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "x": -13232,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "build_system_prompt",
+   "type": "n8n-nodes-base.code",
+   "x": -14176,
+   "y": 672,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "preparar_mensagem",
+   "type": "n8n-nodes-base.code",
+   "x": -10688,
+   "y": 256,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "tipo_envio",
+   "type": "n8n-nodes-base.switch",
+   "x": -10544,
+   "y": 96,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "enviar_botao_cta",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -10320,
+   "y": 80,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Switch",
+   "type": "n8n-nodes-base.switch",
+   "x": -12624,
+   "y": 896,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Code in JavaScript",
+   "type": "n8n-nodes-base.code",
+   "x": -11328,
+   "y": 1168,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "lembrete_link",
+   "type": "n8n-nodes-base.slack",
+   "x": -10096,
+   "y": -96,
+   "disabled": true,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "HTTP Request",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -21008,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "download_audio",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -20800,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Send message and wait for response2",
+   "type": "n8n-nodes-base.whatsApp",
+   "x": -5296,
+   "y": 1360,
+   "disabled": false,
+   "sub": "send",
+   "sticky": null
+  },
+  {
+   "name": "verificar_dono_vacuo",
+   "type": "n8n-nodes-base.code",
+   "x": -6432,
+   "y": 1456,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "api_get_eventos_lista1",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -17248,
+   "y": 704,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "marcar_contacted_event_leads",
+   "type": "n8n-nodes-base.supabase",
+   "x": -26400,
+   "y": 176,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "buscar_event_lead_dados",
+   "type": "n8n-nodes-base.supabase",
+   "x": -14528,
+   "y": 672,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_inbound_texto",
+   "type": "n8n-nodes-base.supabase",
+   "x": -20720,
+   "y": 288,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_inbound_audio",
+   "type": "n8n-nodes-base.supabase",
+   "x": -20240,
+   "y": 560,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "msg",
+   "type": "n8n-nodes-base.whatsApp",
+   "x": -10592,
+   "y": 368,
+   "disabled": false,
+   "sub": "send",
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_outbound_texto",
+   "type": "n8n-nodes-base.supabase",
+   "x": -10336,
+   "y": 368,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_outbound_audio",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11088,
+   "y": 1472,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "If",
+   "type": "n8n-nodes-base.if",
+   "x": -23440,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "No Operation, do nothing2",
+   "type": "n8n-nodes-base.noOp",
+   "x": -23424,
+   "y": 352,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_inbound_texto1",
+   "type": "n8n-nodes-base.supabase",
+   "x": -22976,
+   "y": 416,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "detectar_atencao_humana",
+   "type": "n8n-nodes-base.code",
+   "x": -12000,
+   "y": 2672,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "if_alertaLnecessario",
+   "type": "n8n-nodes-base.if",
+   "x": -11792,
+   "y": 2672,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "iago_attention_alerts",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11488,
+   "y": 2656,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "if_deve_pausar",
+   "type": "n8n-nodes-base.if",
+   "x": -11280,
+   "y": 2656,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "pausar_ia_se_necessario",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11024,
+   "y": 2608,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "resolver_event_id",
+   "type": "n8n-nodes-base.code",
+   "x": -26208,
+   "y": 176,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Merge3",
+   "type": "n8n-nodes-base.merge",
+   "x": -16416,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "cupom",
+   "type": "n8n-nodes-base.googleSheetsTool",
+   "x": -12944,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "If3",
+   "type": "n8n-nodes-base.if",
+   "x": -23216,
+   "y": 352,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Edit Fields6",
+   "type": "n8n-nodes-base.set",
+   "x": -22880,
+   "y": 224,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "HTTP Request1",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -22672,
+   "y": 224,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "openAI_audio2",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -22112,
+   "y": 224,
+   "disabled": false,
+   "sub": "transcribe: audio",
+   "sticky": null
+  },
+  {
+   "name": "download_audio1",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -22496,
+   "y": 224,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_msg_inbound_texto2",
+   "type": "n8n-nodes-base.supabase",
+   "x": -21920,
+   "y": 224,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Get many rows",
+   "type": "n8n-nodes-base.supabase",
+   "x": -16880,
+   "y": 704,
+   "disabled": false,
+   "sub": "getAll",
+   "sticky": null
+  },
+  {
+   "name": "Revisao",
+   "type": "n8n-nodes-base.code",
+   "x": -16720,
+   "y": 704,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Convert text to speech",
+   "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+   "x": -11712,
+   "y": 1168,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Code in JavaScript2",
+   "type": "n8n-nodes-base.code",
+   "x": -10464,
+   "y": 368,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "If4",
+   "type": "n8n-nodes-base.if",
+   "x": -11760,
+   "y": 2128,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Create a row",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11520,
+   "y": 2240,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "verificar_status",
+   "type": "n8n-nodes-base.supabase",
+   "x": -12144,
+   "y": 2128,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "Update a row1",
+   "type": "n8n-nodes-base.supabase",
+   "x": -11520,
+   "y": 2048,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "Code in JavaScript3",
+   "type": "n8n-nodes-base.code",
+   "x": -11952,
+   "y": 2128,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "Mesclar Mensagem",
+   "type": "n8n-nodes-base.merge",
+   "x": -19504,
+   "y": 544,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "upload_audio_storage",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -20640,
+   "y": 688,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "upload_audio_storage1",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -22304,
+   "y": 368,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "upload_audio_storage2",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -11328,
+   "y": 1312,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "get_image_url",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -20992,
+   "y": 944,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "download_image",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -20784,
+   "y": 944,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "montar_contexto_revisao",
+   "type": "n8n-nodes-base.code",
+   "x": -14896,
+   "y": 1632,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "revisor_iago",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -14656,
+   "y": 1680,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "interpretar_revisao",
+   "type": "n8n-nodes-base.code",
+   "x": -14288,
+   "y": 1680,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "if_aprovado",
+   "type": "n8n-nodes-base.if",
+   "x": -14144,
+   "y": 1680,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "regenerar_resposta",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -13680,
+   "y": 1904,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "atualizar_candidato",
+   "type": "n8n-nodes-base.code",
+   "x": -14480,
+   "y": 1888,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "resposta_final",
+   "type": "n8n-nodes-base.code",
+   "x": -13376,
+   "y": 1552,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "verificacao_tecnica",
+   "type": "n8n-nodes-base.code",
+   "x": -14368,
+   "y": 1376,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "if_tecnica_ok",
+   "type": "n8n-nodes-base.if",
+   "x": -13984,
+   "y": 1376,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "preparar_regeneracao",
+   "type": "n8n-nodes-base.code",
+   "x": -13584,
+   "y": 1696,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "polir_resposta",
+   "type": "n8n-nodes-base.code",
+   "x": -13920,
+   "y": 1552,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "registrar_decisao",
+   "type": "n8n-nodes-base.supabase",
+   "x": -13376,
+   "y": 1904,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "preparar_pos_resposta",
+   "type": "n8n-nodes-base.code",
+   "x": -13216,
+   "y": 1904,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_mapa_pos_resposta",
+   "type": "n8n-nodes-base.redis",
+   "x": -13024,
+   "y": 1904,
+   "disabled": false,
+   "sub": "set",
+   "sticky": null
+  },
+  {
+   "name": "atualizar_lead_mapa",
+   "type": "n8n-nodes-base.supabase",
+   "x": -12832,
+   "y": 1904,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "redis_get_mapa",
+   "type": "n8n-nodes-base.redis",
+   "x": -18064,
+   "y": 912,
+   "disabled": false,
+   "sub": "get",
+   "sticky": null
+  },
+  {
+   "name": "mapear_lead",
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "x": -17888,
+   "y": 912,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "interpretar_mapa",
+   "type": "n8n-nodes-base.code",
+   "x": -17584,
+   "y": 912,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "salvar_mapa_redis",
+   "type": "n8n-nodes-base.redis",
+   "x": -17392,
+   "y": 912,
+   "disabled": false,
+   "sub": "set",
+   "sticky": null
+  },
+  {
+   "name": "repassar_contexto",
+   "type": "n8n-nodes-base.code",
+   "x": -17184,
+   "y": 912,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "buscar_treinamento",
+   "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+   "x": -13072,
+   "y": 976,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "ler_kb_institucional",
+   "type": "n8n-nodes-base.supabase",
+   "x": -14352,
+   "y": 672,
+   "disabled": false,
+   "sub": "getAll",
+   "sticky": null
+  },
+  {
+   "name": "montar_funil_flags",
+   "type": "n8n-nodes-base.code",
+   "x": -12896,
+   "y": 1552,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "atualizar_funil_lead",
+   "type": "n8n-nodes-base.supabase",
+   "x": -12640,
+   "y": 1552,
+   "disabled": false,
+   "sub": "update",
+   "sticky": null
+  },
+  {
+   "name": "expandir_flags",
+   "type": "n8n-nodes-base.code",
+   "x": -12640,
+   "y": 1744,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "upsert_flags_lead",
+   "type": "n8n-nodes-base.httpRequest",
+   "x": -12480,
+   "y": 1744,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  },
+  {
+   "name": "memoria_buffer_roberto",
+   "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+   "x": -14480,
+   "y": 1152,
+   "disabled": false,
+   "sub": null,
+   "sticky": null
+  }
+ ],
+ "edges": [
+  {
+   "from": "openAI_audio",
+   "to": "salvar_msg_inbound_audio",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Edit Fields1",
+   "to": "Mesclar Mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "No Operation, do nothing",
+   "to": "salvar_msg_inbound_texto",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "total_mensagens",
+   "to": "selecionar_mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "selecionar_mensagem",
+   "to": "Merge1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "selecionar_mensagem",
+   "to": "preparar_mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "incrementar_indice",
+   "to": "If1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Merge1",
+   "to": "Tempo de mensagem1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If1",
+   "to": "Wait3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If1",
+   "to": "No Operation, do nothing1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "Code in JavaScript1",
+   "to": "total_mensagens",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Tempo de mensagem1",
+   "to": "incrementar_indice",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "No Operation, do nothing1",
+   "to": "Merge2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Edit Fields",
+   "to": "trocar",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Edit Fields2",
+   "to": "Mesclar Mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "parametros",
+   "to": "cancelar_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "parametros",
+   "to": "Redis_GET_lock",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "trocar",
+   "to": "No Operation, do nothing",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "trocar",
+   "to": "Edit Fields3",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "trocar",
+   "to": "imagem",
+   "port": "main",
+   "branch": 2
+  },
+  {
+   "from": "Edit Fields3",
+   "to": "HTTP Request",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "buscar_lead",
+   "to": "If",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "pegar_id1",
+   "to": "Edit Fields",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Analyze image",
+   "to": "Edit Fields4",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Edit Fields4",
+   "to": "Mesclar Mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "imagem",
+   "to": "get_image_url",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Wait3",
+   "to": "selecionar_mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "openAI_audio1",
+   "to": "salvar_msg_outbound_audio",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Merge2",
+   "to": "Message a model",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Message a model",
+   "to": "Switch5",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Switch5",
+   "to": "buscar_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Switch5",
+   "to": "No Operation, do nothing3",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "Code in JavaScript10",
+   "to": "Get a row3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Get a row3",
+   "to": "audio_gerado",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "tokens e output",
+   "to": "Redis_DEL_lock",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "tokens e output",
+   "to": "Update a row5",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "id_clickup",
+   "to": "Redis_GET_temperamento",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "AI Agent",
+   "to": "Convert text to speech",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "OpenAI Chat Model",
+   "to": "AI Agent",
+   "port": "ai_languageModel",
+   "branch": 0
+  },
+  {
+   "from": "Simple Memory",
+   "to": "AI Agent",
+   "port": "ai_memory",
+   "branch": 0
+  },
+  {
+   "from": "execução",
+   "to": "buscar_lead",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Verificação_numero",
+   "to": "parametros",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Edit Fields5",
+   "to": "Code in JavaScript1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Think",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "Redis_GET_temperamento",
+   "to": "Redis_INCR_msg_count",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Redis_INCR_msg_count",
+   "to": "Code_verifica_temperamento",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code_verifica_temperamento",
+   "to": "redis_get_conv_summary",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code in JavaScript11",
+   "to": "detectar_atencao_humana",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code in JavaScript11",
+   "to": "tokens e output",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "buscar_vacuo",
+   "to": "audio/texto",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_existe",
+   "to": "resetar_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_existe",
+   "to": "criar_vacuo",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "resetar_vacuo",
+   "to": "espera_vacuo_1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "criar_vacuo",
+   "to": "espera_vacuo_1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "espera_vacuo_1",
+   "to": "ler_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "ler_vacuo",
+   "to": "verificar_dono_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_ainda_ativo",
+   "to": "verificar_limite",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_ainda_ativo",
+   "to": "vacuo_cancelado",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "verificar_limite",
+   "to": "escolher_mensagem",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "verificar_limite",
+   "to": "marcar_esgotado",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "escolher_mensagem",
+   "to": "Send message and wait for response2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "incrementar_vacuo",
+   "to": "tempo_por_tentativa",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "tempo_por_tentativa",
+   "to": "espera_vacuo_2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "tempo_por_tentativa",
+   "to": "espera_vacuo_3",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "tempo_por_tentativa",
+   "to": "marcar_esgotado",
+   "port": "main",
+   "branch": 2
+  },
+  {
+   "from": "espera_vacuo_2",
+   "to": "ler_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "espera_vacuo_3",
+   "to": "ler_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "marcar_esgotado",
+   "to": "atualizar_lead_perdido",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Redis_GET_lock",
+   "to": "marcar_contacted_event_leads",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code_verificar_lock",
+   "to": "If_lock",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If_lock",
+   "to": "Redis_SET_lock",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If_lock",
+   "to": "No Operation, lock_drop",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "Redis_SET_lock",
+   "to": "verificar_lead_supabase",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_existe1",
+   "to": "resetar_vacuo1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "vacuo_existe1",
+   "to": "criar_vacuo1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "resetar_vacuo1",
+   "to": "espera_vacuo_",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "criar_vacuo1",
+   "to": "espera_vacuo_",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "espera_vacuo_",
+   "to": "ler_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "audio/texto",
+   "to": "vacuo_existe",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "audio/texto",
+   "to": "vacuo_existe1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "modelo_openai_roberto",
+   "to": "AI_Roberto",
+   "port": "ai_languageModel",
+   "branch": 0
+  },
+  {
+   "from": "parser_output_roberto",
+   "to": "AI_Roberto",
+   "port": "ai_outputParser",
+   "branch": 0
+  },
+  {
+   "from": "temperamento_comportamental1",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "AI_Roberto",
+   "to": "montar_contexto_revisao",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_tem_tag",
+   "to": "redis_get_evento_detalhe",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_tem_tag",
+   "to": "redis_get_eventos_lista",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "redis_get_evento_detalhe",
+   "to": "switch_cache_evento",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_cache_evento",
+   "to": "parse_cache_evento",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_cache_evento",
+   "to": "api_get_eventos_lista1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "api_get_evento_detalhe",
+   "to": "Get many rows",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "parse_cache_evento",
+   "to": "Merge3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "redis_set_evento_detalhe",
+   "to": "Merge3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "redis_get_eventos_lista",
+   "to": "switch_cache_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_cache_lista",
+   "to": "parse_cache_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_cache_lista",
+   "to": "api_get_eventos_lista",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "api_get_eventos_lista",
+   "to": "redis_set_eventos_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "parse_cache_lista",
+   "to": "merge_eventos_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "redis_set_eventos_lista",
+   "to": "merge_eventos_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "merge_eventos_lista",
+   "to": "buscar_event_lead_dados",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "build_system_prompt",
+   "to": "AI_Roberto",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "buscar_evento",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "Send message and wait for response1",
+   "to": "Merge2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "redis_get_conv_summary",
+   "to": "parse_conv_summary",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "parse_conv_summary",
+   "to": "redis_get_mapa",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_resumo",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "agendar_call_closer",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "verificar_lead_supabase",
+   "to": "switch_lead_existe",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_lead_existe",
+   "to": "execução",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "switch_lead_existe",
+   "to": "salvar_lead_supabase",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "salvar_lead_supabase",
+   "to": "execução",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "When Executed by Another Workflow",
+   "to": "Verificação_numero",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "handoff_humano",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "tipo_envio",
+   "to": "enviar_botao_cta",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "tipo_envio",
+   "to": "msg",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "preparar_mensagem",
+   "to": "tipo_envio",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "enviar_botao_cta",
+   "to": "Merge1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "enviar_botao_cta",
+   "to": "lembrete_link",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Switch",
+   "to": "Edit Fields5",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Switch",
+   "to": "AI Agent",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "Code in JavaScript",
+   "to": "Send message and wait for response1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "HTTP Request",
+   "to": "download_audio",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "download_audio",
+   "to": "openAI_audio",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "download_audio",
+   "to": "upload_audio_storage",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Send message and wait for response2",
+   "to": "incrementar_vacuo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "verificar_dono_vacuo",
+   "to": "vacuo_ainda_ativo",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "api_get_eventos_lista1",
+   "to": "api_get_evento_detalhe",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "marcar_contacted_event_leads",
+   "to": "resolver_event_id",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "buscar_event_lead_dados",
+   "to": "ler_kb_institucional",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_msg_inbound_texto",
+   "to": "Edit Fields2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_msg_inbound_audio",
+   "to": "Edit Fields1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "msg",
+   "to": "Code in JavaScript2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_msg_outbound_texto",
+   "to": "Merge1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_msg_outbound_audio",
+   "to": "Merge2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If",
+   "to": "No Operation, do nothing2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If",
+   "to": "pegar_id1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "No Operation, do nothing2",
+   "to": "If3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "detectar_atencao_humana",
+   "to": "if_alertaLnecessario",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_alertaLnecessario",
+   "to": "iago_attention_alerts",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "iago_attention_alerts",
+   "to": "if_deve_pausar",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_deve_pausar",
+   "to": "pausar_ia_se_necessario",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resolver_event_id",
+   "to": "Code_verificar_lock",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Merge3",
+   "to": "redis_get_eventos_lista",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "cupom",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "If3",
+   "to": "Edit Fields6",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If3",
+   "to": "salvar_msg_inbound_texto1",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "Edit Fields6",
+   "to": "HTTP Request1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "HTTP Request1",
+   "to": "download_audio1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "download_audio1",
+   "to": "openAI_audio2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "download_audio1",
+   "to": "upload_audio_storage1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "openAI_audio2",
+   "to": "salvar_msg_inbound_texto2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Get many rows",
+   "to": "Revisao",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Revisao",
+   "to": "redis_set_evento_detalhe",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Convert text to speech",
+   "to": "Code in JavaScript10",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Convert text to speech",
+   "to": "custo_elevenlabs",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Convert text to speech",
+   "to": "Code in JavaScript",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Convert text to speech",
+   "to": "upload_audio_storage2",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Convert text to speech",
+   "to": "openAI_audio1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code in JavaScript2",
+   "to": "salvar_msg_outbound_texto",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If4",
+   "to": "Update a row1",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "If4",
+   "to": "Create a row",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "verificar_status",
+   "to": "Code in JavaScript3",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Code in JavaScript3",
+   "to": "If4",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "Mesclar Mensagem",
+   "to": "id_clickup",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "get_image_url",
+   "to": "download_image",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "download_image",
+   "to": "Analyze image",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "montar_contexto_revisao",
+   "to": "verificacao_tecnica",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "revisor_iago",
+   "to": "interpretar_revisao",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "interpretar_revisao",
+   "to": "if_aprovado",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_aprovado",
+   "to": "polir_resposta",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_aprovado",
+   "to": "preparar_regeneracao",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "regenerar_resposta",
+   "to": "atualizar_candidato",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "atualizar_candidato",
+   "to": "verificacao_tecnica",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resposta_final",
+   "to": "registrar_decisao",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resposta_final",
+   "to": "Switch",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resposta_final",
+   "to": "verificar_status",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resposta_final",
+   "to": "Code in JavaScript11",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "resposta_final",
+   "to": "montar_funil_flags",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "verificacao_tecnica",
+   "to": "if_tecnica_ok",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_tecnica_ok",
+   "to": "revisor_iago",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "if_tecnica_ok",
+   "to": "preparar_regeneracao",
+   "port": "main",
+   "branch": 1
+  },
+  {
+   "from": "preparar_regeneracao",
+   "to": "regenerar_resposta",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "polir_resposta",
+   "to": "resposta_final",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "registrar_decisao",
+   "to": "preparar_pos_resposta",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "preparar_pos_resposta",
+   "to": "salvar_mapa_pos_resposta",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_mapa_pos_resposta",
+   "to": "atualizar_lead_mapa",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "redis_get_mapa",
+   "to": "mapear_lead",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "mapear_lead",
+   "to": "interpretar_mapa",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "interpretar_mapa",
+   "to": "salvar_mapa_redis",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "salvar_mapa_redis",
+   "to": "repassar_contexto",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "repassar_contexto",
+   "to": "switch_tem_tag",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "buscar_treinamento",
+   "to": "AI_Roberto",
+   "port": "ai_tool",
+   "branch": 0
+  },
+  {
+   "from": "ler_kb_institucional",
+   "to": "build_system_prompt",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "montar_funil_flags",
+   "to": "atualizar_funil_lead",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "montar_funil_flags",
+   "to": "expandir_flags",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "expandir_flags",
+   "to": "upsert_flags_lead",
+   "port": "main",
+   "branch": 0
+  },
+  {
+   "from": "memoria_buffer_roberto",
+   "to": "AI_Roberto",
+   "port": "ai_memory",
+   "branch": 0
+  }
+ ],
+ "execId": "172912",
+ "runs": {
+  "When Executed by Another Workflow": {
+   "ms": 1,
+   "status": "success",
+   "i": 0
+  },
+  "Verificação_numero": {
+   "ms": 25,
+   "status": "success",
+   "i": 1
+  },
+  "parametros": {
+   "ms": 12,
+   "status": "success",
+   "i": 2
+  },
+  "cancelar_vacuo": {
+   "ms": 1244,
+   "status": "success",
+   "i": 3
+  },
+  "Redis_GET_lock": {
+   "ms": 575,
+   "status": "success",
+   "i": 4
+  },
+  "marcar_contacted_event_leads": {
+   "ms": 738,
+   "status": "success",
+   "i": 5
+  },
+  "resolver_event_id": {
+   "ms": 1150,
+   "status": "success",
+   "i": 6
+  },
+  "Code_verificar_lock": {
+   "ms": 12,
+   "status": "success",
+   "i": 7
+  },
+  "If_lock": {
+   "ms": 1,
+   "status": "success",
+   "i": 8
+  },
+  "Redis_SET_lock": {
+   "ms": 677,
+   "status": "success",
+   "i": 9
+  },
+  "verificar_lead_supabase": {
+   "ms": 698,
+   "status": "success",
+   "i": 10
+  },
+  "switch_lead_existe": {
+   "ms": 2,
+   "status": "success",
+   "i": 11
+  },
+  "salvar_lead_supabase": {
+   "ms": 347,
+   "status": "success",
+   "i": 12
+  },
+  "execução": {
+   "ms": 286,
+   "status": "success",
+   "i": 13
+  },
+  "buscar_lead": {
+   "ms": 623,
+   "status": "success",
+   "i": 14
+  },
+  "If": {
+   "ms": 2,
+   "status": "success",
+   "i": 15
+  },
+  "pegar_id1": {
+   "ms": 1,
+   "status": "success",
+   "i": 16
+  },
+  "Edit Fields": {
+   "ms": 1,
+   "status": "success",
+   "i": 17
+  },
+  "trocar": {
+   "ms": 3,
+   "status": "success",
+   "i": 18
+  },
+  "No Operation, do nothing": {
+   "ms": 0,
+   "status": "success",
+   "i": 19
+  },
+  "salvar_msg_inbound_texto": {
+   "ms": 650,
+   "status": "success",
+   "i": 20
+  },
+  "Edit Fields2": {
+   "ms": 1,
+   "status": "success",
+   "i": 21
+  },
+  "Mesclar Mensagem": {
+   "ms": 1,
+   "status": "success",
+   "i": 22
+  },
+  "id_clickup": {
+   "ms": 2,
+   "status": "success",
+   "i": 23
+  },
+  "Redis_GET_temperamento": {
+   "ms": 588,
+   "status": "success",
+   "i": 24
+  },
+  "Redis_INCR_msg_count": {
+   "ms": 582,
+   "status": "success",
+   "i": 25
+  },
+  "Code_verifica_temperamento": {
+   "ms": 16,
+   "status": "success",
+   "i": 26
+  },
+  "redis_get_conv_summary": {
+   "ms": 592,
+   "status": "success",
+   "i": 27
+  },
+  "parse_conv_summary": {
+   "ms": 13,
+   "status": "success",
+   "i": 28
+  },
+  "redis_get_mapa": {
+   "ms": 586,
+   "status": "success",
+   "i": 29
+  },
+  "mapear_lead": {
+   "ms": 2881,
+   "status": "success",
+   "i": 30
+  },
+  "interpretar_mapa": {
+   "ms": 15,
+   "status": "success",
+   "i": 31
+  },
+  "salvar_mapa_redis": {
+   "ms": 688,
+   "status": "success",
+   "i": 32
+  },
+  "repassar_contexto": {
+   "ms": 16,
+   "status": "success",
+   "i": 33
+  },
+  "switch_tem_tag": {
+   "ms": 2,
+   "status": "success",
+   "i": 34
+  },
+  "redis_get_evento_detalhe": {
+   "ms": 585,
+   "status": "success",
+   "i": 35
+  },
+  "switch_cache_evento": {
+   "ms": 2,
+   "status": "success",
+   "i": 36
+  },
+  "api_get_eventos_lista1": {
+   "ms": 1067,
+   "status": "success",
+   "i": 37
+  },
+  "api_get_evento_detalhe": {
+   "ms": 775,
+   "status": "success",
+   "i": 38
+  },
+  "Get many rows": {
+   "ms": 837,
+   "status": "success",
+   "i": 39
+  },
+  "Revisao": {
+   "ms": 15,
+   "status": "success",
+   "i": 40
+  },
+  "redis_set_evento_detalhe": {
+   "ms": 697,
+   "status": "success",
+   "i": 41
+  },
+  "Merge3": {
+   "ms": 2,
+   "status": "success",
+   "i": 42
+  },
+  "redis_get_eventos_lista": {
+   "ms": 584,
+   "status": "success",
+   "i": 43
+  },
+  "switch_cache_lista": {
+   "ms": 2,
+   "status": "success",
+   "i": 44
+  },
+  "api_get_eventos_lista": {
+   "ms": 377,
+   "status": "success",
+   "i": 45
+  },
+  "redis_set_eventos_lista": {
+   "ms": 672,
+   "status": "success",
+   "i": 46
+  },
+  "merge_eventos_lista": {
+   "ms": 1,
+   "status": "success",
+   "i": 47
+  },
+  "buscar_event_lead_dados": {
+   "ms": 703,
+   "status": "success",
+   "i": 48
+  },
+  "ler_kb_institucional": {
+   "ms": 685,
+   "status": "success",
+   "i": 49
+  },
+  "build_system_prompt": {
+   "ms": 29,
+   "status": "success",
+   "i": 50
+  },
+  "AI_Roberto": {
+   "ms": 10093,
+   "status": "success",
+   "i": 51
+  },
+  "memoria_buffer_roberto": {
+   "ms": 1,
+   "status": "success",
+   "i": 57
+  },
+  "modelo_openai_roberto": {
+   "ms": 4238,
+   "status": "success",
+   "i": 55
+  },
+  "Think": {
+   "ms": 0,
+   "status": "success",
+   "i": 54
+  },
+  "parser_output_roberto": {
+   "ms": 1,
+   "status": "success",
+   "i": 56
+  },
+  "montar_contexto_revisao": {
+   "ms": 21,
+   "status": "success",
+   "i": 58
+  },
+  "verificacao_tecnica": {
+   "ms": 20,
+   "status": "success",
+   "i": 59
+  },
+  "if_tecnica_ok": {
+   "ms": 2,
+   "status": "success",
+   "i": 60
+  },
+  "revisor_iago": {
+   "ms": 2151,
+   "status": "success",
+   "i": 61
+  },
+  "interpretar_revisao": {
+   "ms": 13,
+   "status": "success",
+   "i": 62
+  },
+  "if_aprovado": {
+   "ms": 2,
+   "status": "success",
+   "i": 63
+  },
+  "polir_resposta": {
+   "ms": 12,
+   "status": "success",
+   "i": 64
+  },
+  "resposta_final": {
+   "ms": 14,
+   "status": "success",
+   "i": 65
+  },
+  "Switch": {
+   "ms": 14,
+   "status": "success",
+   "i": 66
+  },
+  "Edit Fields5": {
+   "ms": 1,
+   "status": "success",
+   "i": 67
+  },
+  "Code in JavaScript1": {
+   "ms": 12,
+   "status": "success",
+   "i": 68
+  },
+  "total_mensagens": {
+   "ms": 13,
+   "status": "success",
+   "i": 69
+  },
+  "selecionar_mensagem": {
+   "ms": 11,
+   "status": "success",
+   "i": 81
+  },
+  "preparar_mensagem": {
+   "ms": 12,
+   "status": "success",
+   "i": 82
+  },
+  "tipo_envio": {
+   "ms": 3,
+   "status": "success",
+   "i": 83
+  },
+  "msg": {
+   "ms": 727,
+   "status": "success",
+   "i": 84
+  },
+  "Code in JavaScript2": {
+   "ms": 14,
+   "status": "success",
+   "i": 85
+  },
+  "salvar_msg_outbound_texto": {
+   "ms": 881,
+   "status": "success",
+   "i": 86
+  },
+  "Merge1": {
+   "ms": 1,
+   "status": "success",
+   "i": 87
+  },
+  "Tempo de mensagem1": {
+   "ms": 3001,
+   "status": "success",
+   "i": 88
+  },
+  "incrementar_indice": {
+   "ms": 13,
+   "status": "success",
+   "i": 89
+  },
+  "If1": {
+   "ms": 1,
+   "status": "success",
+   "i": 90
+  },
+  "Wait3": {
+   "ms": 7001,
+   "status": "success",
+   "i": 80
+  },
+  "No Operation, do nothing1": {
+   "ms": 0,
+   "status": "success",
+   "i": 91
+  },
+  "montar_funil_flags": {
+   "ms": 13,
+   "status": "success",
+   "i": 92
+  },
+  "atualizar_funil_lead": {
+   "ms": 363,
+   "status": "success",
+   "i": 93
+  },
+  "expandir_flags": {
+   "ms": 14,
+   "status": "success",
+   "i": 94
+  },
+  "upsert_flags_lead": {
+   "ms": 730,
+   "status": "success",
+   "i": 95
+  },
+  "registrar_decisao": {
+   "ms": 740,
+   "status": "success",
+   "i": 96
+  },
+  "preparar_pos_resposta": {
+   "ms": 13,
+   "status": "success",
+   "i": 97
+  },
+  "salvar_mapa_pos_resposta": {
+   "ms": 694,
+   "status": "success",
+   "i": 98
+  },
+  "atualizar_lead_mapa": {
+   "ms": 261,
+   "status": "success",
+   "i": 99
+  },
+  "verificar_status": {
+   "ms": 673,
+   "status": "success",
+   "i": 100
+  },
+  "Code in JavaScript3": {
+   "ms": 13,
+   "status": "success",
+   "i": 101
+  },
+  "If4": {
+   "ms": 2,
+   "status": "success",
+   "i": 102
+  },
+  "Create a row": {
+   "ms": 439,
+   "status": "success",
+   "i": 103
+  },
+  "Code in JavaScript11": {
+   "ms": 12,
+   "status": "success",
+   "i": 104
+  },
+  "tokens e output": {
+   "ms": 2,
+   "status": "success",
+   "i": 105
+  },
+  "Update a row5": {
+   "ms": 686,
+   "status": "success",
+   "i": 106
+  },
+  "Redis_DEL_lock": {
+   "ms": 596,
+   "status": "success",
+   "i": 107
+  },
+  "detectar_atencao_humana": {
+   "ms": 16,
+   "status": "success",
+   "i": 108
+  },
+  "if_alertaLnecessario": {
+   "ms": 2,
+   "status": "success",
+   "i": 109
+  },
+  "Merge2": {
+   "ms": 1,
+   "status": "success",
+   "i": 110
+  },
+  "Message a model": {
+   "ms": 1601,
+   "status": "success",
+   "i": 111
+  },
+  "Switch5": {
+   "ms": 3,
+   "status": "success",
+   "i": 112
+  },
+  "buscar_vacuo": {
+   "ms": 628,
+   "status": "success",
+   "i": 113
+  },
+  "audio/texto": {
+   "ms": 4,
+   "status": "success",
+   "i": 114
+  },
+  "vacuo_existe": {
+   "ms": 1,
+   "status": "success",
+   "i": 115
+  },
+  "resetar_vacuo": {
+   "ms": 264,
+   "status": "success",
+   "i": 116
+  }
+ }
+};
+
+/* ==========================================================================
+   ÍCONES — desenhados, não emoji, não logo de terceiro.
+   Um glifo por família de nó, todos no mesmo viewBox de 24 e na mesma espessura
+   de traço, para que a fileira de nós leia como um sistema e não como uma
+   colagem. A cor é a identidade do serviço; a forma é o que o nó FAZ.
+   ========================================================================== */
+const ICONS = {
+  code:     { c: "#B9BDD1", d: ["M9 8 5 12l4 4", "M15 8l4 4-4 4"] },
+  if:       { c: "#F5A524", d: ["M5 12h4", "M9 12l4-5h6", "M9 12l4 5h6", "M17 5l2 2-2 2", "M17 15l2 2-2 2"] },
+  switch:   { c: "#F5A524", d: ["M4 8h5l3 4", "M4 16h5l3-4", "M12 12h8", "M17 9l3 3-3 3"] },
+  merge:    { c: "#6FD1FF", d: ["M4 7h5l4 5h7", "M4 17h5l4-5", "M17 9l3 3-3 3"] },
+  set:      { c: "#FF7BC4", d: ["M4 20l1-4 10-10 3 3-10 10-4 1z", "M14 7l3 3"] },
+  http:     { c: "#8E7CFF", d: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18", "M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"] },
+  webhook:  { c: "#FF9F43", d: ["M8.5 12.5a3.5 3.5 0 1 1 5 3.2", "M5 17h7", "M12 8V5", "M15.5 17H19"] },
+  trigger:  { c: "#FF9F43", d: ["M13 3 5 14h6l-1 7 8-11h-6l1-7z"] },
+  redis:    { c: "#FF6B5E", d: ["M4 7c0-1.2 3.6-2.2 8-2.2s8 1 8 2.2-3.6 2.2-8 2.2S4 8.2 4 7z", "M4 12c0 1.2 3.6 2.2 8 2.2s8-1 8-2.2", "M4 7v10c0 1.2 3.6 2.2 8 2.2s8-1 8-2.2V7"] },
+  supabase: { c: "#3ECF8E", d: ["M13 3 5 13h6l-1 8 8-10h-6l1-8z"] },
+  wait:     { c: "#B9A0FF", d: ["M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z", "M12 8v4.5l3 1.8"] },
+  noop:     { c: "#7B819A", d: ["M6 12h12"] },
+  agent:    { c: "#A78BFA", d: ["M12 4v3", "M7.5 7h9a2.5 2.5 0 0 1 2.5 2.5v6A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-6A2.5 2.5 0 0 1 7.5 7z", "M9.5 11.5v1.5", "M14.5 11.5v1.5", "M3 11v3", "M21 11v3"] },
+  llm:      { c: "#74E0C0", d: ["M12 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.5 5.6A3 3 0 0 0 10 19a3 3 0 0 0 2-1", "M12 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.5 5.6A3 3 0 0 1 14 19a3 3 0 0 1-2-1", "M12 4.5V19"] },
+  memory:   { c: "#9EA7FF", d: ["M7 7h10v10H7z", "M10 4v3", "M14 4v3", "M10 17v3", "M14 17v3", "M4 10h3", "M4 14h3", "M17 10h3", "M17 14h3"] },
+  tool:     { c: "#7DD3FC", d: ["M14.5 4.5a4 4 0 0 0-5 5L4 15v5h5l5.5-5.5a4 4 0 0 0 5-5l-3 3-2-2 3-3z"] },
+  parser:   { c: "#7DD3FC", d: ["M8 5H6a2 2 0 0 0-2 2v3l-2 2 2 2v3a2 2 0 0 0 2 2h2", "M16 5h2a2 2 0 0 1 2 2v3l2 2-2 2v3a2 2 0 0 1-2 2h-2"] },
+  whatsapp: { c: "#25D366", d: ["M12 3.8A8.2 8.2 0 0 0 4.9 16L4 20.2l4.3-.9A8.2 8.2 0 1 0 12 3.8z", "M9.2 9c.3 1.6 1.4 3.2 2.9 4.2 1 .7 1.8.9 2.3.6"] },
+  slack:    { c: "#E8557E", d: ["M9 4v8", "M15 12v8", "M4 15h8", "M12 9h8", "M9 4a1.6 1.6 0 1 1-1.6 1.6", "M15 20a1.6 1.6 0 1 0 1.6-1.6"] },
+  sheets:   { c: "#5FBF7B", d: ["M6 4h8l4 4v12H6z", "M14 4v4h4", "M9 12h6", "M9 15.5h6", "M12 12v6"] },
+  audio:    { c: "#D6D9E6", d: ["M4 11v2", "M8 8v8", "M12 5v14", "M16 8v8", "M20 11v2"] },
+  subflow:  { c: "#FF9F43", d: ["M4 6h6v4H4z", "M14 14h6v4h-6z", "M7 10v4a2 2 0 0 0 2 2h5", "M12 5.5h8", "M17 3l3 2.5-3 2.5"] }
+};
+
+/* Tipo do n8n → glifo. É uma decisão de leitura, não um mapa completo: o que
+   não casa cai num traço neutro em vez de inventar um ícone errado. */
+function iconFor(type) {
+  const t = String(type || "");
+  const base = t.replace(/^@n8n\/n8n-nodes-langchain\./, "lc.").replace(/^n8n-nodes-base\./, "").replace(/^@[^/]+\/n8n-nodes-[^.]+\./, "x.");
+  const map = [
+    [/^lc\.agent/, "agent"], [/^lc\.lmChat|^lc\.openAi/, "llm"], [/^lc\.memory/, "memory"],
+    [/^lc\.tool/, "tool"], [/^lc\.outputParser/, "parser"],
+    [/^executeWorkflowTrigger|^executeWorkflow/, "subflow"],
+    [/trigger$|^cron|^schedule/i, "trigger"], [/^webhook/, "webhook"],
+    [/^code$|^function/, "code"], [/^if$|^filter/, "if"], [/^switch/, "switch"], [/^merge/, "merge"],
+    [/^set$|^editFields/, "set"], [/^httpRequest/, "http"], [/^redis/, "redis"], [/^supabase|^postgres/, "supabase"],
+    [/^wait/, "wait"], [/^noOp/, "noop"], [/^whatsApp/, "whatsapp"], [/^slack/, "slack"],
+    [/^googleSheets/, "sheets"], [/elevenlabs/i, "audio"]
+  ];
+  for (const [re, k] of map) if (re.test(base)) return ICONS[k];
+  return { c: "#8A90A6", d: ["M7 12h10"] };
+}
+
+const isTrigger = t => /trigger|webhook|cron|schedule/i.test(String(t));
+const isAnnotation = t => /stickyNote/i.test(String(t));
+const kindLabel = t => String(t).replace(/^@n8n\/n8n-nodes-langchain\./, "AI·").replace(/^n8n-nodes-base\./, "").replace(/^@[^/]+\/n8n-nodes-[^.]+\./, "").slice(0, 20);
+
+/* Cor da sticky note: o n8n guarda um índice de 1 a 7. */
+const STICKY = { 1: "#F5A524", 2: "#FF6B5E", 3: "#3ECF8E", 4: "#6FD1FF", 5: "#A78BFA", 6: "#FF7BC4", 7: "#7B819A" };
+
+const NODE = 84;          // o nó do editor é quadrado; 84 mantém o rótulo legível no zoom padrão
+const LABEL_GAP = 13;
+
+const NS = "http://www.w3.org/2000/svg";
+const mk = (t, a) => { const n = document.createElementNS(NS, t); for (const k in a || {}) n.setAttribute(k, a[k]); return n; };
+const $ = s => document.querySelector(s);
+
+const nodes = GRAPH.nodes.filter(n => !isAnnotation(n.type));
+const stickies = GRAPH.nodes.filter(n => isAnnotation(n.type));
+const byName = new Map(nodes.map(n => [n.name, n]));
+
+/* As posições vêm do editor e podem estar em qualquer lugar (medido: x = −14480
+   nesta instância). Normaliza pelo bounding box real dos nós executáveis — as
+   sticky notes ficam de fora do cálculo, como já ficam no cockpit. */
+const minX = Math.min(...nodes.map(n => n.x)), minY = Math.min(...nodes.map(n => n.y));
+const maxX = Math.max(...nodes.map(n => n.x)), maxY = Math.max(...nodes.map(n => n.y));
+const pos = n => ({ x: n.x - minX, y: n.y - minY });
+const W = maxX - minX + NODE, H = maxY - minY + NODE;
+
+const svg = $("#svg");
+const gSticky = mk("g"), gEdges = mk("g"), gNodes = mk("g");
+svg.append(gSticky, gEdges, gNodes);
+
+/* ------------------------------------------------------------------ sticky */
+for (const s of stickies) {
+  const p = pos(s), info = s.sticky || {};
+  const g = mk("g", { class: "sticky" });
+  g.style.setProperty("--sticky", STICKY[info.color] || STICKY[7]);
+  g.append(mk("rect", { class: "bg", x: p.x, y: p.y, width: info.w || 240, height: info.h || 160, rx: 8 }));
+  const linhas = String(info.content || "").split("\n").filter(l => l.trim());
+  const titulo = (linhas[0] || "").replace(/^#+\s*/, "").slice(0, 42);
+  const corpo = (linhas.slice(1).join(" ") || "").replace(/[#*`]/g, "").slice(0, 74);
+  if (titulo) g.append(Object.assign(mk("text", { class: "ttl", x: p.x + 12, y: p.y + 22 }), { textContent: titulo.toUpperCase() }));
+  if (corpo) g.append(Object.assign(mk("text", { class: "bdy", x: p.x + 12, y: p.y + 38 }), { textContent: corpo }));
+  gSticky.append(g);
+}
+
+/* ------------------------------------------------------------------- fios */
+const edgeEls = [];
+GRAPH.edges.forEach((e, i) => {
+  const a = byName.get(e.from), b = byName.get(e.to);
+  if (!a || !b) return;
+  const pa = pos(a), pb = pos(b);
+  const aux = e.port !== "main";
+  // Porta principal sai pela direita e entra pela esquerda, na altura do meio.
+  // As portas auxiliares do langchain (modelo, memória, ferramenta) penduram por
+  // baixo, que é como o editor as desenha.
+  const x1 = aux ? pa.x + NODE / 2 : pa.x + NODE, y1 = aux ? pa.y + NODE : pa.y + NODE / 2;
+  const x2 = aux ? pb.x + NODE / 2 : pb.x,        y2 = aux ? pb.y + NODE : pb.y + NODE / 2;
+  const dx = Math.max(30, Math.abs(x2 - x1) * 0.45);
+  const d = aux
+    ? `M${x1},${y1} C${x1},${y1 + 42} ${x2},${y2 + 42} ${x2},${y2}`
+    : `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+  const p = mk("path", { d, class: "edge" + (aux ? " aux" : "") });
+  p.dataset.from = e.from; p.dataset.to = e.to;
+  gEdges.append(p);
+
+  // Seta no destino: sem ela, num grafo denso não dá para saber quem chama quem.
+  if (!aux) {
+    const tip = mk("path", { class: "tip", d: `M${x2 - 7},${y2 - 4} L${x2 - 1},${y2} L${x2 - 7},${y2 + 4} Z` });
+    tip.dataset.to = e.to;
+    gEdges.append(tip);
+  }
+  edgeEls.push({ el: p, to: e.to });
+});
+
+/* -------------------------------------------------------------------- nós */
+for (const n of nodes) {
+  const p = pos(n);
+  const trg = isTrigger(n.type);
+  const ic = iconFor(n.type);
+  const g = mk("g", { class: "nd pending" + (trg ? " trg" : "") + (n.disabled ? " disabled" : ""), transform: `translate(${p.x},${p.y})` });
+  g.dataset.name = n.name;
+
+  // O gatilho do n8n tem o lado esquerdo em meia-lua. É a única pista de "por
+  // onde isto começa" que o editor dá, e ela é lida antes de qualquer texto.
+  const r = 10, R = NODE / 2;
+  g.append(mk("path", {
+    class: "face",
+    d: trg
+      ? `M${R},0 H${NODE - r} a${r},${r} 0 0 1 ${r},${r} V${NODE - r} a${r},${r} 0 0 1 -${r},${r} H${R} A${R},${R} 0 0 1 ${R},0 Z`
+      : `M${r},0 H${NODE - r} a${r},${r} 0 0 1 ${r},${r} V${NODE - r} a${r},${r} 0 0 1 -${r},${r} H${r} a${r},${r} 0 0 1 -${r},-${r} V${r} a${r},${r} 0 0 1 ${r},-${r} Z`
+  }));
+
+  // Glifo centralizado: viewBox de 24 escalado para 34px de caixa óptica.
+  const S = 34 / 24, ox = (NODE - 34) / 2 + (trg ? 6 : 0), oy = (NODE - 34) / 2;
+  const gi = mk("g", { transform: `translate(${ox},${oy}) scale(${S})`, stroke: ic.c });
+  for (const d of ic.d) gi.append(mk("path", { class: "glyph", d }));
+  g.append(gi);
+
+  // Portas. Entrada só existe se algo chega; saída só se algo sai — desenhar as
+  // duas sempre encheria o canvas de pontos que não ligam a nada.
+  const temEntrada = GRAPH.edges.some(e => e.to === n.name && e.port === "main");
+  const temSaida = GRAPH.edges.some(e => e.from === n.name && e.port === "main");
+  if (temEntrada && !trg) g.append(mk("circle", { class: "port", cx: 0, cy: NODE / 2, r: 3.4 }));
+  if (temSaida) g.append(mk("circle", { class: "port", cx: NODE, cy: NODE / 2, r: 3.4 }));
+
+  // Badges de estado, desenhados. Ficam invisíveis até a classe do nó mudar.
+  const badge = mk("g", { class: "badge", transform: `translate(${NODE - 14},${NODE - 14})` });
+  badge.append(mk("circle", { r: 8 }), mk("path", { d: "M-3.4,0 L-1,2.6 L3.6,-2.6" }));
+  const bad = mk("g", { class: "badge-bad", transform: `translate(${NODE - 14},${NODE - 14})` });
+  bad.append(mk("circle", { r: 8 }), mk("path", { d: "M0,-4 V1" }), mk("path", { d: "M0,3.4 V3.6" }));
+  g.append(badge, bad);
+
+  const nm = mk("text", { class: "nm", x: NODE / 2, y: NODE + LABEL_GAP });
+  nm.textContent = n.name.length > 20 ? n.name.slice(0, 19) + "…" : n.name;
+  // O editor escreve a OPERAÇÃO embaixo do nome ("update: row"), não o tipo do
+  // nó — e é a operação que diz o que aquele passo faz. Quando o nó não declara
+  // operação, cai no tipo, que é o que sobra de verdadeiro.
+  const ty = mk("text", { class: "ty", x: NODE / 2, y: NODE + LABEL_GAP + 11 });
+  ty.textContent = n.sub || kindLabel(n.type);
+  g.append(nm, ty);
+
+  // Tempo medido daquele nó na execução carregada. É dado real do replay: sem
+  // execução, o número não existe e nada é desenhado.
+  const rr = (GRAPH.runs || {})[n.name];
+  if (rr && rr.ms != null) {
+    const t = mk("text", { class: "ms", x: NODE / 2, y: -7 });
+    t.textContent = rr.ms >= 1000 ? (rr.ms / 1000).toFixed(1).replace(".", ",") + "s" : rr.ms + "ms";
+    g.append(t);
+  }
+
+  const t = mk("title"); t.textContent = n.name + "\n" + n.type + (n.disabled ? "\n(desativado)" : "");
+  g.append(t);
+  gNodes.append(g);
+}
+
+$("#meta").textContent = GRAPH.name + " · " + nodes.length + " nós · " + GRAPH.edges.length + " conexões";
+$("#corner-tl").textContent = "[ " + nodes.length + " NÓS · " + GRAPH.edges.length + " CONEXÕES ]";
+$("#corner-br").textContent = "[ " + (GRAPH.active ? "ATIVO" : "INATIVO") + " ]";
+
+/* ------------------------------------------------------------------ câmera */
+let box = { x: -60, y: -60, w: W + 120, h: H + 120 };
+const put = () => svg.setAttribute("viewBox", `${box.x} ${box.y} ${box.w} ${box.h}`);
+function fit(names) {
+  const alvo = names && names.length ? nodes.filter(n => names.includes(n.name)) : nodes;
+  if (!alvo.length) return;
+  const xs = alvo.map(n => pos(n).x), ys = alvo.map(n => pos(n).y);
+  const pad = 90;
+  const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+  const w = Math.max(420, Math.max(...xs) - x0 + NODE + pad), h = Math.max(260, Math.max(...ys) - y0 + NODE + pad + 26);
+  const r = svg.getBoundingClientRect(), a = r.width / r.height;
+  box = w / h < a ? { x: x0 - (h * a - w) / 2, y: y0, w: h * a, h } : { x: x0, y: y0 - (w / a - h) / 2, w, h: w / a };
+  put();
+}
+/* Enquadrar SÓ o gatilho dá um zoom de retrato: um nó ocupando meia tela não
+   informa nada sobre o fluxo. O enquadramento de entrada é o gatilho mais o
+   começo do caminho que sai dele — é o que responde "por onde isto começa e
+   para onde vai". */
+function inicio(n = 9) {
+  const ini = nodes.find(n2 => isTrigger(n2.type)) || nodes[0];
+  const out = [ini.name]; let cur = ini.name;
+  for (let i = 0; i < n; i++) {
+    const e = GRAPH.edges.find(x => x.from === cur && x.port === "main");
+    if (!e || out.includes(e.to)) break;
+    out.push(e.to); cur = e.to;
+  }
+  return out;
+}
+put(); fit(inicio());
+
+const stage = $("#stage");
+let drag = null;
+stage.addEventListener("pointerdown", ev => {
+  drag = { x: ev.clientX, y: ev.clientY, box: { ...box } };
+  stage.classList.add("drag"); stage.setPointerCapture(ev.pointerId);
+});
+stage.addEventListener("pointermove", ev => {
+  if (!drag) return;
+  const r = svg.getBoundingClientRect();
+  box.x = drag.box.x - (ev.clientX - drag.x) * (box.w / r.width);
+  box.y = drag.box.y - (ev.clientY - drag.y) * (box.h / r.height);
+  put();
+});
+const soltar = () => { drag = null; stage.classList.remove("drag"); };
+stage.addEventListener("pointerup", soltar);
+stage.addEventListener("pointercancel", soltar);
+stage.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const k = ev.deltaY > 0 ? 1.12 : 0.89;
+  const mx = box.x + (ev.clientX - r.left) / r.width * box.w;
+  const my = box.y + (ev.clientY - r.top) / r.height * box.h;
+  box = { x: mx - (mx - box.x) * k, y: my - (my - box.y) * k, w: box.w * k, h: box.h * k };
+  put();
+}, { passive: false });
+
+/* -------------------------------------------------------- estados de teste */
+const ndEl = name => svg.querySelector('.nd[data-name="' + CSS.escape(name) + '"]');
+function limpar() {
+  svg.querySelectorAll(".nd").forEach(n => { n.classList.add("pending"); n.classList.remove("ran", "failed", "hot"); });
+  svg.querySelectorAll(".edge").forEach(e => e.classList.remove("ran", "flowing", "lit"));
+  svg.querySelectorAll(".tip").forEach(t => t.classList.remove("ran", "lit"));
+}
+/* O caminho do replay é a ORDEM REAL da execução carregada (`executionIndex`),
+   não uma travessia inventada do grafo — é a diferença entre "por onde poderia
+   passar" e "por onde passou". Sem execução, cai na travessia. */
+function caminho() {
+  const runs = GRAPH.runs || {};
+  const reais = Object.entries(runs)
+    .filter(([nome]) => byName.has(nome))
+    .sort((a, b) => (a[1].i ?? 0) - (b[1].i ?? 0))
+    .map(([nome]) => nome);
+  if (reais.length > 2) return reais;
+
+  const ini = nodes.find(n => isTrigger(n.type)) || nodes[0];
+  const out = [ini.name]; let cur = ini.name;
+  for (let i = 0; i < 13; i++) {
+    const e = GRAPH.edges.find(x => x.from === cur && x.port === "main");
+    if (!e || out.includes(e.to)) break;
+    out.push(e.to); cur = e.to;
+  }
+  return out;
+}
+let timer = null;
+function simular(comFalha) {
+  clearInterval(timer); limpar();
+  const cam = caminho(); let i = 0;
+  fit(cam);
+  timer = setInterval(() => {
+    if (i >= cam.length) { clearInterval(timer); return; }
+    const nome = cam[i], el = ndEl(nome);
+    if (i > 0) {
+      const ant = ndEl(cam[i - 1]);
+      ant.classList.remove("hot"); ant.classList.add("ran"); ant.classList.remove("pending");
+      svg.querySelectorAll('.edge[data-to="' + CSS.escape(nome) + '"]').forEach(p => { p.classList.remove("flowing"); p.classList.add("ran"); });
+      svg.querySelectorAll('.tip[data-to="' + CSS.escape(nome) + '"]').forEach(p => p.classList.add("ran"));
+    }
+    el.classList.remove("pending");
+    const ultimo = i === cam.length - 1;
+    if (ultimo && comFalha) { el.classList.add("failed"); }
+    else {
+      el.classList.add("hot");
+      svg.querySelectorAll('.edge[data-from="' + CSS.escape(nome) + '"]').forEach(p => p.classList.add("flowing"));
+    }
+    i++;
+  }, 520);
+}
+$("#b-sim").onclick = () => simular(false);
+$("#b-fail").onclick = () => simular(true);
+$("#b-reset").onclick = () => { clearInterval(timer); limpar(); };
+$("#b-fit").onclick = () => fit(null);
+$("#b-sticky").onclick = ev => {
+  const on = gSticky.style.display !== "none";
+  gSticky.style.display = on ? "none" : "";
+  ev.currentTarget.classList.toggle("on", on);
+};
+$("#b-theme").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+};
+/* Parâmetros de URL — existem para eu capturar estados sem depender de clique:
+   ?theme=light  ?view=todo|inicio  ?sim=ok|fail  &passos=6
+   Nada disto vai para o cockpit; é andaime de revisão. */
+{
+  const q = new URLSearchParams(location.search);
+  if (q.get("theme")) document.documentElement.setAttribute("data-theme", q.get("theme"));
+  if (q.get("view") === "todo") fit(null);
+  const sim = q.get("sim");
+  if (sim) {
+    const passos = Math.max(2, Number(q.get("passos") || 7));
+    const cam = caminho().slice(0, passos);
+    limpar(); fit(cam);
+    cam.forEach((nome, i) => {
+      const el = ndEl(nome); if (!el) return;
+      el.classList.remove("pending");
+      const ultimo = i === cam.length - 1;
+      if (i > 0) {
+        svg.querySelectorAll('.edge[data-to="' + CSS.escape(nome) + '"]').forEach(p => p.classList.add("ran"));
+        svg.querySelectorAll('.tip[data-to="' + CSS.escape(nome) + '"]').forEach(p => p.classList.add("ran"));
+      }
+      if (ultimo) el.classList.add(sim === "fail" ? "failed" : "hot");
+      else el.classList.add("ran");
+    });
+  }
+}
+
+svg.addEventListener("click", ev => {
+  const nd = ev.target.closest(".nd");
+  if (!nd) return;
+  svg.querySelectorAll(".nd.hot").forEach(n => n.classList.remove("hot"));
+  svg.querySelectorAll(".edge.lit, .tip.lit").forEach(e => e.classList.remove("lit"));
+  nd.classList.add("hot");
+  const nome = nd.dataset.name;
+  svg.querySelectorAll('.edge[data-from="' + CSS.escape(nome) + '"], .edge[data-to="' + CSS.escape(nome) + '"]').forEach(e => e.classList.add("lit"));
+});
+</script>
+</body>
+</html>

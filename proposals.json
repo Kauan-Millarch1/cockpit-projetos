@@ -1,0 +1,1379 @@
+{
+  "savedAt": "2026-08-07T18:24:10.786Z",
+  "proposals": [
+    {
+      "runId": "rmshl8ddd1",
+      "key": "whj5x0keweg3Ffvo|gcal_trigger_marilia|NodeApiError",
+      "wfId": "whj5x0keweg3Ffvo",
+      "wfName": "[ECONTRATE] Tool - Agendamento Google Calendar",
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "proposal.json tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": "active mudaria para true"
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 0,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `gcal_trigger_marilia` (NodeApiError)\n\n## Causa raiz\n\nFalha do lado do Google, não do fluxo. `Service unavailable` + descrição `Backend Error` é a\nresposta 5xx da API do Google Calendar: o servidor deles recusou aquela chamada. Não é credencial\n(revogada devolveria 401/403 com mensagem de auth), não é parâmetro (o nó está configurado\ncorretamente: `calendarId` resolvido, `triggerOn: eventCreated`, `matchTerm` preenchido) e não é\nsub-workflow (o nó da assinatura existe neste fluxo mesmo).\n\nO que faz a falha aparecer é a frequência: `pollTimes` está em `everyMinute`, ou seja ~1440 chamadas\npor dia contra a API do Google, e **1 ocorrência em 24h** — cerca de 0,07% das chamadas. Essa é a\ntaxa de ruído normal de um backend do Google. `staticData` mostra\n`node:gcal_trigger_marilia.lastTimeChecked = 2026-08-06T10:43:29Z`, ou seja o polling está saudável\nagora; foi um poll isolado que caiu, não uma quebra contínua.\n\nOu seja: o defeito real não é \"o Google falhou\", é **o fluxo não absorver uma falha transitória do\nGoogle** — cada 503 solitário virava uma execução com erro e disparava o error workflow\n(`BpDac30P5uiuebdC`).\n\n## O que mudei\n\nUm nó, três configurações, nenhum parâmetro de negócio:\n\n- `gcal_trigger_marilia`: `retryOnFail: true`, `maxTries: 3`, `waitBetweenTries: 5000` (5s, o teto\n  do n8n), mais uma `notes` explicando por que o retry está lá e por que `onError` não está.\n\nBloco `parameters` reenviado idêntico ao original — nada nele estava errado.\n\n**Não usei `onError: continueRegularOutput`**, que é o padrão da casa no resto deste fluxo (9 nós já\nusam). Aqui seria pior que o erro: num *trigger* que falhou não existe dado, então \"continuar\" empurra\num item vazio para `merge_eventos_calendario` → `parsear_evento` → `enviar_slack_notif` →\n`datatable_registrar_agendamento`. Isso troca uma execução vermelha inofensiva por uma notificação no\nSlack e um registro de agendamento fantasma na data table. Falha visível é melhor que dado falso.\n\n## Por que isso resolve\n\nUm 503 transitório dura segundos. Três tentativas espaçadas de 5s cobrem a janela típica sem\nestender o poll de forma perceptível (o intervalo é de 60s, o pior caso do retry é ~10s). O nó só\nreporta erro se as três tentativas caírem — o que já seria sinal de indisponibilidade real do Google,\ne aí a execução vermelha é informação correta, não ruído.\n\nVale registrar: **essa falha provavelmente já não perdia evento nenhum.** Pelo padrão dos poll\ntriggers do n8n, `lastTimeChecked` só avança depois de uma consulta bem-sucedida, então o poll\nseguinte (1 minuto depois) recupera a janela que o poll quebrado não leu. Não verifiquei isso na\ninstância — é leitura do padrão do nó. Se estiver certo, o ganho aqui é parar o alarme falso, não\nrecuperar agendamento perdido.\n\n## Risco residual\n\n- **Não tenho certeza de que o n8n honra `retryOnFail` dentro do ciclo de poll de um nó de\n  trigger.** A retentativa por configuração de nó é documentada para nós de execução; em trigger de\n  polling ela pode ser ignorada pelo executor. A mensagem \"consider setting this node to retry\n  automatically (in the node settings)\" vem do texto genérico de `NodeApiError` do n8n para 5xx e é\n  emitida mesmo em nó onde o ajuste não muda nada — então ela não serve de prova. Se depois de\n  aplicar o patch a mesma assinatura voltar com a mesma mensagem, é isso: o retry não pegou, e o\n  caminho passa a ser reduzir a frequência do `pollTimes` (`everyMinute` → `everyFiveMinutes`\n  corta ~80% da exposição) ou tratar o alarme no error workflow, filtrando 5xx do Google. Anote na\n  correção, porque é o próximo passo real.\n- **`gcal_trigger_isabelle` tem exatamente a mesma exposição** — mesmo tipo, mesmo\n  `everyMinute`, mesma API, e também sem retry. Não incluí no patch porque a assinatura da falha é só\n  da `marilia` e a regra é correção mínima. A mudança é idêntica quando você quiser aplicar.\n  (`gcal_trigger_yasmin` está desativado.)\n- O patch não reduz a chance do Google falhar; só evita que uma falha isolada dele vire execução\n  vermelha. A taxa de 503 continua sendo do Google.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.155928,
+      "startedAt": "2026-08-06T14:05:03.025Z",
+      "finishedAt": "2026-08-06T14:07:59.405Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:07:47.034Z"
+    },
+    {
+      "runId": "rmshm3e1m1",
+      "key": "whj5x0keweg3Ffvo|gcal_trigger_marilia|NodeApiError",
+      "wfId": "whj5x0keweg3Ffvo",
+      "wfName": "[ECONTRATE] Tool - Agendamento Google Calendar",
+      "status": "rejected",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `gcal_trigger_marilia` / NodeApiError\n\n## Causa raiz\n\nFalha **externa e intermitente**, não de configuração. `Service unavailable` com descrição\n`Backend Error` é o 503 que a API do Google Calendar devolve quando o backend dela oscila. Nada no\nnó está errado: `calendarId`, `triggerOn: eventCreated` e o filtro `matchTerm` estão coerentes com o\nnó irmão que funciona.\n\nO que transforma um soluço do Google em execução com erro é a **frequência sem rede de proteção**:\no trigger poleia `everyMinute` e nenhum nó deste workflow tem `retryOnFail` (conferido no\n`workflow.json` inteiro — 0 ocorrências). São ~1440 chamadas por dia só neste nó, ~2880 somando o\n`gcal_trigger_isabelle`. Nessa cadência, um 503 esporádico é estatisticamente garantido, e cada um\nvira execução errada e dispara o `errorWorkflow` `BpDac30P5uiuebdC`.\n\nDetalhe que reduz a gravidade: o `lastTimeChecked` em `staticData` só é gravado **depois** que a\nchamada volta com sucesso. Quando o poll estoura, a janela não avança e o poll seguinte cobre o\nintervalo. Ou seja: **provavelmente não há agendamento perdido**, o prejuízo é ruído de erro. Não\nconsigo provar isso com o que tenho aqui — é o comportamento do nó de trigger do Google Calendar,\nnão algo visível neste JSON.\n\n## O que mudei\n\nUm nó, três campos de configuração, nenhum parâmetro de negócio:\n\n- `gcal_trigger_marilia`: `retryOnFail: true`, `maxTries: 3`, `waitBetweenTries: 5000`, mais um\n  `notes` dizendo por quê.\n\nNão mexi em `parameters`, conexões, `disabled` nem em nenhum outro nó.\n\n## Por que isso resolve\n\nUm 503 de backend é o caso clássico em que repetir a mesma chamada segundos depois dá certo — a\nprópria mensagem do n8n sugere isso (\"consider setting this node to retry automatically\"). Três\ntentativas com 5s de intervalo custam no máximo ~10s a mais, bem abaixo do intervalo de 1 minuto do\npoll, então não há risco de dois polls se atropelarem. `waitBetweenTries: 5000` é o teto que o n8n\naceita.\n\n**Onde eu não tenho certeza, e isso importa:** não sei confirmar, com as ferramentas desta sessão\n(sem Bash e sem rede), se o laço de polling do n8n honra `retryOnFail`. Esse campo é aplicado de\nforma comprovada em nós comuns, que passam pelo executor do workflow; um trigger de poll é o ponto\nde entrada e roda por outro caminho no core. **Se o n8n ignorar o campo nesse contexto, o patch é\ninócuo — não quebra nada, mas também não corrige.** Estou propondo assim mesmo porque é a única\nalavanca que existe dentro do workflow: o trigger *é* a chamada de API, então não há nó anterior\nonde colocar If, Set ou fallback.\n\nSe a assinatura voltar a aparecer depois de aplicado, a conclusão é essa, e a alternativa que\nfunciona de verdade é estrutural: trocar o trigger de poll por `Schedule Trigger` + nó\n`Google Calendar` (getAll), que é nó comum e aí sim aceita `retryOnFail` e `onError`. **Não fiz\nisso** porque exigiria reimplementar à mão a janela de `lastTimeChecked` e a semântica de\n`eventCreated`, com risco real de perder evento — é decisão de arquitetura, não correção mínima.\n\n## Risco residual\n\n- **O patch pode não ter efeito** (ver acima). A confirmação só vem do próximo 503: se a execução\n  passar a ter sucesso após retry, funcionou; se aparecer erro igual, não funcionou.\n- Se o Google ficar fora por mais que ~10s, as 3 tentativas se esgotam e o erro volta a aparecer.\n  Isso é correto: uma queda longa **deve** ser visível.\n- `gcal_trigger_isabelle` tem exatamente a mesma configuração, a mesma cadência e vai bater no mesmo\n  503 mais cedo ou mais tarde. **Deixei ele de fora de propósito** — a falha observada é só no\n  `marilia`, e mexer em nó que não falhou aumenta o diff sem evidência. Se você quiser, é o mesmo\n  ajuste copiado.\n- Sem relação com esta falha, mas visto no caminho: `merge_eventos_calendario` tem\n  `numberInputs: 3` e a entrada 3 (`gcal_trigger_yasmin`) está desativada. Não toquei.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.1468074999999998,
+      "startedAt": "2026-08-06T14:29:10.234Z",
+      "finishedAt": "2026-08-06T14:32:06.374Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:07:47.034Z"
+    },
+    {
+      "runId": "rmshmv1wj1",
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "wfId": "QryGcVbv7DoVCeRV",
+      "wfName": "WhatsApp API Oficial",
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção proposta — `Convert text to speech` / NodeOperationError\n\n## Causa raiz\n\n**A causa está no sub-workflow, não neste fluxo.**\n\nO nó `Convert text to speech` não existe em `WhatsApp API Oficial` (QryGcVbv7DoVCeRV). Confirmei por\ngrep: nenhuma ocorrência de \"text to speech\", \"elevenlabs\" ou similar no `workflow.json`. O único nó\ndeste fluxo envolvido é `Call 'Roberto Comercial'` (`n8n-nodes-base.executeWorkflow`), que chama\n`azwM3PgGtSbGTCsn` (\"Ecommerce Puro - Agente Iago Comercial\"). Como `options` está vazio,\n`waitForSubWorkflow` fica no padrão (true), então o erro do filho sobe e derruba a execução do pai.\nÉ por isso que a assinatura aparece aqui.\n\nO erro real é um **HTTP 400 do provedor de TTS**: \"Bad request - please check your parameters\".\n\nDuas coisas que consigo afirmar com o que tenho:\n\n1. **É intermitente** (6 falhas em 24h, num fluxo com ~170 execuções/dia). Parâmetro fixo errado\n   (`voice_id`, `model_id`, chave de API) falharia em 100% das chamadas, não em ~3%. Logo a causa\n   depende **do texto de entrada** daquela execução: texto vazio ou acima do limite de caracteres do\n   provedor são as duas hipóteses que sobrevivem.\n2. **O texto que vai pro TTS é gerado dentro do filho** (saída do agente), não é o `Mensagem` que\n   este fluxo manda. Então não dá para consertar aqui.\n\nAchado colateral, que é candidato a gatilho mas **não é prova**: os dois nós que montam o payload\n(`Code in JavaScript3` e `Code in JavaScript12`) podem produzir `Mensagem: \"\"`. Ambos fazem\n`const mensagensRaw = $json.propertyName || []` e no fim `mensagensLimpas.join('\\n')`; se o `LRANGE`\ndo `Redis5` voltar vazio (chave expirada, ou a `DELETE2` de uma execução concorrente rodou antes),\no resultado é string vazia e o filho é chamado sem mensagem nenhuma. Um agente chamado com entrada\nvazia tem chance alta de devolver texto vazio, e texto vazio é o caso clássico de 400 em TTS.\n**Não consigo fechar essa cadeia sem ver o filho**, então não a tratei como certa.\n\n## O que mudei\n\nSó uma coisa, e ela **não é a correção do defeito**: adicionei `notes` + `notesInFlow: true` no nó\n`Call 'Roberto Comercial'`, registrando no canvas que a falha vem de `azwM3PgGtSbGTCsn`, qual nó\nquebra lá dentro, o erro exato e o que checar (validar texto vazio / limite de caracteres antes do\nTTS, e só depois `voice_id`/`model_id`).\n\nNenhum parâmetro, conexão ou comportamento foi tocado.\n\n**O que eu deliberadamente NÃO fiz, e por quê:**\n\n- **Não coloquei `onError: continueRegularOutput`.** Isso deixaria a execução do pai verde e tiraria\n  a assinatura do painel, enquanto o lead continua sem receber o áudio. Seria trocar uma falha\n  visível por uma falha invisível.\n- **Não coloquei `retryOnFail`.** 400 é determinístico; repetir só multiplica custo e chamadas.\n- **Não mexi nos nós de `Code`** para forçar `Mensagem` não-vazia. A hipótese não está provada, e\n  reescrever `jsCode` num caminho que atende ~170 mensagens/dia é risco alto para um palpite. Se o\n  filho for corrigido e a falha persistir, esse é o próximo lugar a olhar.\n- **Não adicionei nó de guarda antes da chamada.** Mesmo motivo: mudaria o caminho feliz de produção\n  por causa de uma suspeita.\n\n## Por que isso resolve\n\n**Não resolve.** Isso precisa ficar explícito: o patch não corrige a falha, porque o defeito está\nnum workflow que não está nesta pasta. O que ele faz é impedir que o próximo diagnóstico comece do\nzero, deixando escrito no nó onde procurar.\n\nA correção de verdade é dentro de `azwM3PgGtSbGTCsn`, no nó `Convert text to speech`: rejeitar/\nsubstituir texto vazio antes de chamar o provedor e truncar texto acima do limite. Nessa ordem.\n\n## Risco residual\n\n- **A falha continua acontecendo** até alguém abrir o sub-workflow. O patch é documentação.\n- A hipótese de \"texto vazio\" pode estar errada. Se estiver, o outro candidato é comprimento do\n  texto, e o `notes` já aponta os dois.\n- Risco técnico da mudança em si: praticamente zero. `notesInFlow: true` faz o texto aparecer no\n  canvas embaixo do nó, o que polui um pouco a visualização. É o único efeito colateral.\n- Não verifiquei se o filho envia a resposta de texto antes de tentar o áudio. Se não envia, cada\n  uma dessas 6 falhas é um lead que não recebeu resposta nenhuma, e a prioridade é maior do que a\n  contagem sugere.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.6029225,
+      "startedAt": "2026-08-06T14:50:40.867Z",
+      "finishedAt": "2026-08-06T14:54:44.356Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-06-26T13:26:01.025Z"
+    },
+    {
+      "runId": "rmshn3kn41",
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "wfId": "QryGcVbv7DoVCeRV",
+      "wfName": "WhatsApp API Oficial",
+      "redirected": null,
+      "status": "failed",
+      "gates": null,
+      "summary": null,
+      "report": null,
+      "sandbox": null,
+      "error": "Assignment to constant variable.",
+      "cost": 0,
+      "startedAt": "2026-08-06T14:57:18.400Z",
+      "finishedAt": "2026-08-06T14:57:18.912Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-06-26T13:26:01.025Z"
+    },
+    {
+      "runId": "rmshn4kp21",
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": {
+        "fromId": "QryGcVbv7DoVCeRV",
+        "fromName": "WhatsApp API Oficial",
+        "viaNode": "Call 'Roberto Comercial'",
+        "toId": "azwM3PgGtSbGTCsn",
+        "toName": "Agente Iago Comercial",
+        "node": "Convert text to speech"
+      },
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `Convert text to speech` (400 Bad request)\n\n## Causa raiz\n\nO nó `Convert text to speech` (`@elevenlabs/n8n-nodes-elevenlabs.elevenLabs`, resource `speech`)\nmanda `text: {{ $json.output }}` — e `$json` ali é a saída do nó `AI Agent`, o humanizador que\ntransforma a resposta do `AI_Roberto` em roteiro de áudio.\n\nA API do ElevenLabs (`POST /v1/text-to-speech/{voice_id}`) devolve **400 \"Bad request - please check\nyour parameters\"** quando `text` chega vazio ou só com espaço. Quando o humanizador devolve string\nvazia, o `AI Agent` **não falha** — ele emite `output: \"\"` normalmente — e o primeiro nó a esbarrar\nno buraco é o TTS. É o padrão clássico de dado ausente: o nó que estourou não é o nó que criou o\nproblema.\n\nPor que essa hipótese e não configuração errada do nó: **`text` é o único parâmetro do nó calculado\nem runtime**. `voice` (id fixo), `additionalOptions` e `requestOptions` são estáticos — voz inválida\nou opção inválida derrubaria 100% dos áudios, não 6 execuções. Além disso os nós a jusante\n(`custo_elevenlabs` lendo `$json[\"character-cost\"]`, `Code in JavaScript` ajustando o mimeType do\nbinário) foram escritos contra respostas reais de sucesso, o que indica que o caminho de áudio\nfunciona na maior parte das vezes.\n\n**O que eu não consegui confirmar com o que tenho aqui:** não recebi o payload das execuções\n171370 / 171292 / 171290 / 171280 / 171115, então não vi o `text` que foi enviado. Não tenho prova\nde que ele estava vazio — tenho a eliminação das outras causas possíveis e o fato de a falha ser\nintermitente. A segunda causa possível de 400 no mesmo endpoint é `text` acima do limite de\ncaracteres; o patch cobre as duas.\n\nO custo real da falha é maior do que \"não saiu áudio\": o 400 mata a execução inteira, e com ela\n`Code in JavaScript` → `Send message and wait for response1`, `salvar_msg_outbound_audio`,\n`upload_audio_storage2` e `openAI_audio1`. **O lead simplesmente não recebe resposta nenhuma.**\n\n## O que mudei\n\nUm parâmetro, num nó. `text` do `Convert text to speech` virou:\n\n1. saída do humanizador, com URL removida e espaços colapsados, `trim()`;\n2. se isso der string vazia, **fallback** para as mensagens aprovadas de `resposta_final`\n   (`output.messages`, unidas por espaço), com o mesmo tratamento;\n3. o resultado é cortado em 4500 caracteres.\n\nTambém escrevi o motivo no campo `notes` do nó, para o próximo que abrir isso não desfazer o guard\npor achar que é ruído.\n\nNada de nó novo, nada de rewire, nenhuma credencial tocada, `active` intocado.\n\n## Por que isso resolve\n\n- **O caso realista de vazio deixa de existir.** Se `AI_Roberto.output.messages` estivesse vazio, o\n  `AI Agent` receberia prompt vazio e falharia nele mesmo — a falha apareceria no `AI Agent`, não no\n  TTS. Como ela aparece no TTS, `messages` tem conteúdo e o vazio nasceu no humanizador. Nesse\n  cenário o fallback sempre produz texto não vazio, e o 400 não acontece.\n- **O fallback fala o texto certo.** Ele lê `resposta_final`, que é a versão **revisada/aprovada**\n  pelo `revisor_iago` — a mesma que o caminho de texto envia — e não o rascunho do `AI_Roberto`.\n- **URL fora.** O fallback pula o humanizador, e o humanizador era justamente quem tinha a regra de\n  não ler link em voz alta. Sem o `replace` de URL, o áudio de fallback leria o link de checkout\n  caractere por caractere.\n- **O corte em 4500 fecha a outra porta de 400.** Áudio normal aqui tem ~3 a 6 frases, então o corte\n  não muda o comportamento do caminho felizoso — é seguro contra um output anormalmente longo.\n\n## Risco residual\n\n- **Não é prova.** Não rodei nada contra o n8n nem contra o ElevenLabs (não tenho Bash, rede nem\n  chave). Se o 400 vier de algo que eu descartei por eliminação — voz `xWdpADtEio43ew1zGxUQ`\n  revogada na conta, ou `model_id` default incompatível — este patch não resolve, e a assinatura vai\n  voltar a aparecer no board. O teste real é a próxima execução do caminho de áudio.\n- **O fallback muda o que o lead ouve.** Quando disparar, o áudio será o texto comercial cru, sem a\n  passada de humanização (números por extenso, ritmo, pausas). Vai soar mais robótico e pode ler\n  \"R$ 6.000\" como o TTS quiser. É deliberado: áudio imperfeito é melhor que lead sem resposta. Se\n  Kauan preferir o contrário, o certo é um `If` antes do TTS que desvie para o caminho de texto — é\n  uma mudança maior de fluxo e não fiz sem pedir.\n- **Truncar em 4500 corta no meio da frase**, sem aviso. Só acontece em output anormal.\n- **Se `messages` também vier vazio, o 400 volta** — de propósito. Aí a causa é outra (o\n  `AI_Roberto` não produziu resposta) e ela merece falhar visível em vez de ser mascarada.\n- **Bug pré-existente que eu NÃO corrigi:** o `AI Agent` humaniza\n  `$('AI_Roberto').first().json.output.messages`, ou seja, o rascunho **antes** da revisão, enquanto\n  o caminho de texto envia `resposta_final` (o texto revisado). Na prática o áudio pode narrar\n  conteúdo que o `revisor_iago` reprovou e mandou regenerar. Está fora do escopo desta falha (não\n  causa 400), mas é uma divergência real entre o que o lead lê e o que ele ouve, e vale uma correção\n  própria.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.5267110000000002,
+      "startedAt": "2026-08-06T14:58:05.127Z",
+      "finishedAt": "2026-08-06T15:02:12.813Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T11:49:07.829Z"
+    },
+    {
+      "runId": "rmshncxov1",
+      "key": "whj5x0keweg3Ffvo|gcal_trigger_marilia|NodeApiError",
+      "wfId": "whj5x0keweg3Ffvo",
+      "wfName": "[ECONTRATE] Tool - Agendamento Google Calendar",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `gcal_trigger_marilia` (NodeApiError / Service unavailable)\n\n## Causa raiz\n\nFalha **transitória do lado do Google**, não erro de configuração do fluxo.\n\n`gcal_trigger_marilia` é um poll trigger (`n8n-nodes-base.googleCalendarTrigger`, `pollTimes.mode =\neveryMinute`) que consulta a agenda `marilia.ribeiro@ecommercepuro.com.br` filtrando por\n`matchTerm: \"eContrate - Agendamentos\"`. A mensagem `Service unavailable - try again later` com\ndescrição `Backend Error` é a tradução que o n8n dá para um **HTTP 503 devolvido pela API do Google\nCalendar**. É indisponibilidade momentânea do serviço remoto — nada no `parameters` do nó a provoca\ne nenhum outro nó do fluxo está envolvido.\n\nEvidências que sustentam isso, e não outra hipótese:\n\n- **1 ocorrência em 24h** contra ~1440 polls no mesmo período (um por minuto). Erro de configuração,\n  de credencial ou de calendário inexistente falharia em **todos** os polls, não em um.\n- `staticData[\"node:gcal_trigger_marilia\"].lastTimeChecked` está em `2026-08-06T10:43:29Z`, ou seja,\n  **o poll voltou a rodar normalmente depois da falha** e o cursor continuou avançando. Não houve\n  perda de posição nem trigger travado.\n- Não é credencial: 401/403 dariam mensagem de autorização, não `Backend Error`. Nenhum bloco\n  `credentials` foi tocado neste patch.\n- Não é sub-workflow: o nó da assinatura existe neste fluxo mesmo (`whj5x0keweg3Ffvo`), então não se\n  aplica o caso de falha de filho reportada no pai.\n\n## O que mudei\n\nUm nó, só configurações de resiliência — nenhuma mudança de `parameters`, de tipo, de conexão ou de\ncredencial:\n\n| Campo | Antes | Depois |\n|---|---|---|\n| `retryOnFail` | ausente (false) | `true` |\n| `maxTries` | ausente | `3` |\n| `waitBetweenTries` | ausente | `5000` (ms) |\n| `notes` | ausente | nota explicando o 503 e por que **não** usar `onError` aqui |\n\nÉ exatamente o que a própria mensagem do n8n recomenda: *\"consider setting this node to retry\nautomatically (in the node settings)\"*.\n\n## Por que isso resolve\n\nUm 503 do Google costuma durar segundos. Com o retry ligado, a mesma chamada é refeita até 3 vezes\ncom 5s de intervalo antes de o poll ser considerado perdido — a janela típica de indisponibilidade\ncabe dentro disso, e a execução deixa de ser registrada como erro. O teto de 10s adicionais fica bem\nabaixo do intervalo de 1 minuto entre polls, então **não há risco de sobrepor o poll seguinte**.\n\nDuas alternativas foram descartadas de propósito:\n\n- **`onError: \"continueRegularOutput\"`** (padrão que a maioria dos outros nós deste fluxo usa) seria\n  errado num trigger: um poll que falhou não tem evento nenhum, e deixar o item vazio seguir para\n  `merge_eventos_calendario` → `parsear_evento` → `enviar_slack_notif` produziria **notificação de\n  agendamento que não existe**. Um erro visível é melhor que uma notificação falsa.\n- **`alwaysOutputData: true`** tem o mesmo defeito, pela mesma razão.\n\n## Risco residual\n\n- **Retry em poll trigger é a parte que não consigo verificar daqui.** `retryOnFail` é aplicado pelo\n  motor de execução do n8n; não tenho como provar, sem rede e sem Bash, que o caminho de *polling*\n  (que roda pelo gerenciador de workflows ativos) honra essa configuração do mesmo jeito que um nó\n  no meio do fluxo. Se não honrar, a mudança é **inerte, não nociva** — o trigger continua se\n  recuperando sozinho no minuto seguinte, exatamente como já aconteceu aqui.\n- **Isso não elimina o 503, só absorve o curto.** Se o Google ficar fora por mais de ~10s, a falha\n  volta a aparecer no painel. Nesse caso o evento criado durante a queda ainda é recuperado no poll\n  seguinte, porque o `lastTimeChecked` só avança em poll bem-sucedido — mas com atraso.\n- **`gcal_trigger_isabelle` tem exatamente a mesma exposição** (mesmo tipo, mesmo `everyMinute`,\n  mesma API) e **não foi incluído**, para manter a correção mínima e restrita à assinatura\n  observada. Vale aplicar a mesma configuração nele se você quiser cobrir a agenda da Isabelle antes\n  que ela apareça no painel. `gcal_trigger_yasmin` está desativado e não polla.\n- **A assinatura pode reaparecer no board sem que a correção tenha falhado.** Só sai de vez depois\n  de um período sem novas execuções com erro — falha de disponibilidade de terceiro não tem prova de\n  correção imediata.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.11137,
+      "startedAt": "2026-08-06T15:04:35.215Z",
+      "finishedAt": "2026-08-06T15:06:38.810Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:07:47.034Z"
+    },
+    {
+      "runId": "rmshpetzq2",
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": {
+        "fromId": "QryGcVbv7DoVCeRV",
+        "fromName": "WhatsApp API Oficial",
+        "viaNode": "Call 'Roberto Comercial'",
+        "toId": "azwM3PgGtSbGTCsn",
+        "toName": "Agente Iago Comercial",
+        "node": "Convert text to speech"
+      },
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `Convert text to speech` (400 Bad request)\n\n## Causa raiz\n\nO nó `Convert text to speech` (`@elevenlabs/n8n-nodes-elevenlabs.elevenLabs`) manda o parâmetro\n`text` sem nenhuma proteção:\n\n```\ntext: ={{ $json.output }}\n```\n\nEsse `$json.output` vem do nó anterior, `AI Agent` — o humanizador de áudio, que roda\n`gpt-5.1` (nó `OpenAI Chat Model`, `options: {}`, sem limite de tokens configurado).\n\nA API do ElevenLabs responde **400 \"Bad request - please check your parameters\"** em dois casos\nque dependem do dado da execução, não da configuração:\n\n1. **`text` vazio.** É o caminho mais provável aqui. `gpt-5.1` é modelo de raciocínio e, sem\n   `options`, pode consumir o orçamento de tokens em raciocínio e devolver conteúdo vazio; o\n   agente então entrega `output: \"\"`. Nada no fluxo checa isso antes de chamar o TTS.\n2. **`text` acima do limite de caracteres do modelo de voz** (o padrão do nó, sem\n   `additionalOptions`, é da família multilingual, ~5000 chars). O prompt do humanizador pede 3 a\n   6 frases, mas isso é instrução, não garantia — se ele repetir a mensagem inteira do\n   `AI_Roberto`, pode passar.\n\nA intermitência confirma a natureza do problema: 6 falhas em 24h, não 100% das execuções. Voice id\ninválido, credencial revogada ou parâmetro estrutural errado falhariam **sempre**, e falhariam\ndesde a primeira execução — não é o caso.\n\nSobre o nó reportado no fluxo pai: a assinatura veio de `WhatsApp API Oficial` porque o n8n reporta\nerro de sub-workflow no pai (`Call 'Roberto Comercial'` é o chamador). O nó vive neste workflow, e\né aqui que a correção foi feita.\n\n**Impacto real da falha:** o `Switch` decide entre texto e áudio por `acionar_audio`. Quando cai no\nramo de áudio e o TTS estoura, a execução morre ali — o lead **não recebe mensagem nenhuma**, nem\no texto. Não é só o áudio que se perde.\n\n## O que mudei\n\nUm único parâmetro, num único nó (`Convert text to speech`). O `text` passou de\n`={{ $json.output }}` para uma expressão com três defesas:\n\n1. **Fallback de vazio** — se `$json.output` for vazio, nulo ou só espaço, usa o texto original do\n   `AI_Roberto` (`output.messages` juntadas), que é a mesma mensagem que o humanizador deveria ter\n   reescrito. O conteúdo falado continua sendo o que o agente comercial escreveu; nada é inventado.\n2. **Remoção de URL no fallback** — o texto cru do `AI_Roberto` pode conter link de checkout, e o\n   prompt do humanizador existe justamente para não ler link em voz alta. O fallback tira `http(s)://…`\n   e normaliza os espaços.\n3. **Corte em 4500 caracteres** — abaixo do limite do modelo padrão do ElevenLabs, com margem.\n\nTambém escrevi uma `notes` no nó explicando a blindagem, para o próximo que abrir o fluxo não\nachar que a expressão está complicada sem motivo.\n\nNenhum nó foi adicionado, removido, desconectado ou trocado de tipo. Nenhuma credencial tocada.\n`active` não tocado.\n\n## Por que isso resolve\n\nO 400 é gerado pelo próprio parâmetro `text`, no momento da chamada. Corrigir o parâmetro no nó que\nestoura é o suficiente **neste caso específico** porque a falha não é \"dado ausente no meio do\nfluxo\": é o valor que sai do nó imediatamente anterior. A alternativa (um `If` antes do TTS) exigiria\ndecidir o que fazer no ramo negativo — mandar texto? pular? — e isso é mudança de comportamento\ncomercial, não correção de falha.\n\nDepois da mudança, os dois gatilhos do 400 deixam de existir: o texto nunca chega vazio enquanto o\n`AI_Roberto` tiver produzido mensagem, e nunca chega longo demais.\n\n## Risco residual\n\n- **Não tenho os dados da execução.** Não vi o `runData` das execuções 171370/171292/171290/171280/171115,\n  então não posso afirmar qual dos dois gatilhos disparou — só que ambos produzem exatamente esta\n  mensagem de erro e ambos ficaram cobertos. Se o log da execução mostrar `text` preenchido e curto,\n  a causa é outra (voice id ou plano/quota do ElevenLabs) e este patch não resolve.\n- **Se o `AI_Roberto` também não tiver mensagem**, os dois lados do fallback ficam vazios e o nó\n  volta a dar 400. Deixei assim de propósito: nesse cenário o ramo de áudio nem deveria ter sido\n  escolhido, e mascarar o erro (com `onError: continueRegularOutput`) faria o fluxo seguir com áudio\n  inexistente para o `upload_audio_storage2` e para o WhatsApp — falha silenciosa é pior que falha\n  visível no cockpit.\n- **O corte em 4500 pode terminar no meio de uma frase**, se algum dia o texto passar disso. Áudio\n  truncado é ruim, mas é melhor que execução morta sem mensagem para o lead.\n- **A causa a montante continua de pé:** `gpt-5.1` no nó `OpenAI Chat Model` está sem `options`\n  (sem limite de tokens e sem controle de raciocínio). Este patch trata a consequência. Configurar\n  esse modelo é uma mudança de comportamento do agente, fora do escopo de uma correção mínima —\n  vale abrir separado.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.300928,
+      "startedAt": "2026-08-06T16:02:02.966Z",
+      "finishedAt": "2026-08-06T16:04:56.422Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T11:49:07.829Z"
+    },
+    {
+      "runId": "rmshqf1b41",
+      "key": "QryGcVbv7DoVCeRV|Convert text to speech|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": {
+        "fromId": "QryGcVbv7DoVCeRV",
+        "fromName": "WhatsApp API Oficial",
+        "viaNode": "Call 'Roberto Comercial'",
+        "toId": "azwM3PgGtSbGTCsn",
+        "toName": "Agente Iago Comercial",
+        "node": "Convert text to speech",
+        "certain": true,
+        "others": null
+      },
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `Convert text to speech` (ElevenLabs) · NodeOperationError 400\n\n## Causa raiz\n\nO nó `Convert text to speech` monta o corpo da requisição com `text: {{ $json.output }}` —\no texto vem cru do nó anterior, `AI Agent` (o humanizador de áudio, GPT via\n`OpenAI Chat Model`), sem nenhuma checagem.\n\nO erro `Bad request - please check your parameters` / `status code 400` vem da própria API da\nElevenLabs. Voz (`xWdpADtEio43ew1zGxUQ`) e credencial são fixas e não mudam entre execuções: se\nelas fossem o problema, o nó falharia **sempre**, não 6× em 24h. A única coisa que varia a cada\nexecução é justamente o `text`. É ele que está sendo rejeitado.\n\nDuas formas de o `text` sair inválido, e **não consigo distinguir qual delas ocorreu** — não tenho\no payload das execuções aqui, só a mensagem de erro, e a ElevenLabs devolve o mesmo 400 genérico\nnos dois casos:\n\n1. **Texto vazio.** Se o `AI Agent` devolver string vazia, só espaço, ou nada em `output`\n   (acontece quando o modelo retorna conteúdo vazio, é cortado por filtro, ou quando o campo vem\n   com outro formato), a expressão resolve para `\"\"`. A API recusa texto vazio com 400.\n2. **Texto acima do limite de caracteres** do endpoint de TTS. O nó está com\n   `additionalOptions: {}`, ou seja, modelo padrão — e o limite por requisição é da ordem de\n   poucos milhares de caracteres. Uma resposta longa demais estoura e volta 400.\n\nUm sinal de que essa instabilidade já foi sentida antes: o nó `AI Agent` está com\n`retryOnFail: true`. Alguém já tentou tratar a flutuação **no nó de cima**, mas a falha real\naparece só um nó depois, no ElevenLabs, que é onde o texto ruim vira uma chamada HTTP.\n\nConfirmação de escopo: a assinatura chegou no fluxo pai `WhatsApp API Oficial`, mas o nó vive\n**neste** workflow (`Agente Iago Comercial`), chamado por `Call 'Roberto Comercial'`. O n8n reporta\nfalha de sub-fluxo no pai. O arquivo em que mexi é o certo.\n\n## O que mudei\n\nUm único parâmetro, num único nó. Nenhum nó novo, nenhuma reconexão, nenhuma credencial tocada.\n\n`Convert text to speech` → `text`:\n\n**Antes**\n```\n={{ $json.output }}\n```\n\n**Depois**\n```\n={{ ((typeof $json.output === 'string' ? $json.output : '').trim()\n     || (($('resposta_final').first().json.output || {}).messages || []).join(' ').trim()\n     || (($('AI_Roberto').first().json.output || {}).messages || []).join(' ').trim()\n    ).slice(0, 4500) }}\n```\n\n(na prática vai em uma linha só; quebrei aqui só para leitura)\n\nA expressão faz três coisas:\n\n- **Só aceita string.** Se `output` vier objeto, `null` ou `undefined`, o `typeof` derruba para\n  `''` e a cadeia de fallback assume — em vez de mandar `\"[object Object]\"` para o TTS.\n- **Cai para o texto que já existe na execução** quando o humanizador volta vazio: primeiro as\n  mensagens **revisadas** de `resposta_final` (que é a saída depois de `verificacao_tecnica`,\n  `revisor_iago` e `polir_resposta`), depois as mensagens cruas de `AI_Roberto`.\n- **Corta em 4500 caracteres**, abaixo do limite do endpoint.\n\nVerifiquei que `resposta_final` é o **único** nó que alimenta o `Switch` que leva ao `AI Agent`,\nentão ele sempre existe nesta execução — o `$('resposta_final')` não vai quebrar por nó não\nexecutado.\n\nTambém escrevi um `notes` no nó explicando a ordem de fallback, para quem abrir isso no editor\ndaqui a três meses.\n\n## Por que isso resolve\n\nO 400 acontece porque um `text` inválido chega até a API. As duas formas conhecidas de ele ficar\ninválido passam a ser impossíveis antes da chamada sair:\n\n- Vazio deixa de ser vazio enquanto **existir texto em algum lugar da execução** — e existe, porque\n  a resposta do agente comercial já foi gerada, revisada e polida antes do Switch decidir mandar\n  áudio. O humanizador só reescreve esse texto; se ele falhar em reescrever, o texto original ainda\n  é uma fala válida.\n- Longo demais é cortado, então nunca ultrapassa o limite.\n\nPonto importante: **nenhum texto é inventado.** O fallback só reusa conteúdo que já foi produzido\ne aprovado nesta mesma execução. Um áudio com frase genérica inventada chegaria no lead como se\nfosse o agente falando — isso seria pior que a falha.\n\n## Risco residual\n\n- **Não provei qual das duas causas é a real.** Corrigi as duas porque o custo é a mesma expressão\n  e ambas produzem exatamente este 400. Se depois de aplicar a falha voltar, a causa é outra\n  (candidatos: voz inválida/removida na conta ElevenLabs, ou plano/quota) — e aí o próximo passo é\n  ler o corpo da resposta da API numa execução, que é onde a ElevenLabs diz o motivo específico.\n- **Se todas as três fontes estiverem vazias, o nó ainda falha com 400.** Deixei assim de\n  propósito: se não existe nada para falar, gravar um áudio de conteúdo inventado é pior que\n  falhar visivelmente. A janela para isso ficou muito mais estreita, mas não é zero.\n- **O corte em 4500 é bruto** — pode cortar no meio de uma palavra se a resposta for gigante. Não\n  tratei fronteira de frase para manter a expressão simples e sem função anônima. Na prática o\n  humanizador é instruído a produzir 3 a 6 frases, então esse caminho deve ser raro.\n- **Achei um defeito vizinho que NÃO corrigi**, por não ser a causa deste 400 e por fugir da\n  correção mínima: o nó `AI Agent` lê\n  `$('AI_Roberto').first().json.output.messages.join('\\n')` — ou seja, o humanizador de áudio parte\n  das mensagens **cruas** do agente, ignorando `resposta_final`, que é a versão que passou pela\n  verificação técnica, pelo revisor e pelo polimento. Efeito: no caminho de **áudio**, o pipeline\n  de revisão é contornado, e regras como \"sem gíria\", \"no máximo uma pergunta\" e a conferência de\n  preço contra a tool `buscar_evento` não valem para o que é falado. Vale abrir como item próprio.\n- A expressão usa `$('resposta_final')` e `$('AI_Roberto')` por nome. Se algum desses nós for\n  renomeado, a expressão quebra — comportamento normal do n8n, mas fica registrado.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.4391880000000001,
+      "startedAt": "2026-08-06T16:30:12.064Z",
+      "finishedAt": "2026-08-06T16:33:31.272Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T11:49:07.829Z"
+    },
+    {
+      "runId": "rmshraa952",
+      "key": "9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `AI Agent1` · NodeOperationError · `9dGEJcYa7LxTAwAs`\n\n## Causa raiz\n\nNão é problema do `AI Agent1`. É o nó **anterior**, `Code_verifica_temperamento`, que quebra o\nrastreamento de item do n8n.\n\n`AI Agent1` tem no parâmetro `text` a expressão:\n\n```\n={{ $('Merge').item.json.Mensagem }}\n```\n\n`.item` não lê o item atual — ele percorre a **linhagem** (`pairedItem`) do item corrente para trás\naté o nó citado. Todo nó nativo (`Merge`, os dois Redis) propaga essa metadata sozinho.\n`Code_verifica_temperamento` roda em modo \"run once for all items\" e devolve um item **construído do\nzero**:\n\n```js\nreturn [{ json: { ...contexto, instrucao_temperamento: ..., ... } }];\n```\n\nSem `pairedItem`, a corrente `AI Agent1 → Code_verifica_temperamento → Redis_INCR → Redis_GET →\nMerge` é cortada exatamente nesse nó — que é o nome que aparece na mensagem de erro.\n\nPor que só 1 falha em 24h: quando a metadata falta, o n8n tenta **inferir** o par, e consegue\nenquanto houver só um item / uma execução no caminho. Assim que o buffer de mensagens entrega mais\nde um item (ou o nó roda mais de uma vez), a inferência fica ambígua e o n8n estoura em vez de\nadivinhar. É intermitente por construção, não aleatório.\n\nNão é credencial, não é rede, não é o modelo, e não é sub-workflow: o nó culpado está neste fluxo.\n\n## O que mudei\n\nUm nó, um parâmetro. Em `Code_verifica_temperamento`, o `return` passa a declarar a origem do item:\n\n```js\nreturn [{\n  json: { ...contexto, instrucao_temperamento, total_mensagens, flag_temperamento_existe },\n  pairedItem: { item: 0 }\n}];\n```\n\nMais o comentário explicando por que a linha existe, para ninguém apagar de novo numa próxima\nedição. A lógica de decisão (flag Redis, contagem, limiar de 10 mensagens, texto da instrução) está\n**intacta** — byte a byte igual.\n\n`{ item: 0 }` e não a lista de todos os itens de entrada: apontar para vários itens deixa `.item`\nambíguo outra vez e o n8n passa a reclamar de \"múltiplas correspondências\". O índice 0 é o correto\naqui porque o próprio nó já monta `contexto` com `$('Merge').first()` — o item 0 é literalmente o\nitem de onde os dados saíram.\n\n## Por que isso resolve\n\n`pairedItem` é o que o n8n procura quando resolve `.item`. Com ele declarado, a linhagem volta a\nfechar até o `Merge`, e a resolução deixa de depender de o fluxo ter apenas um item — que é a\ncondição que falhava.\n\nGanho colateral: o mesmo corte de linhagem afeta **todas** as expressões `.item` a jusante deste nó,\nnão só o `text` do agente. Ficam consertadas junto:\n\n- `clickup_agente` → `merge`: `{{ $('Merge').item.json.Mensagem }}`\n- `resumo_lead` → filtro `phone`: `{{ $('parametros').item.json[\"contato-wpp\"] }}`\n- `Memória1` → `sessionKey`, no ramo de fallback `$('parametros').item.json[\"email\"]`\n\nEssas três só falhariam quando o agente chamasse a tool, o que provavelmente vinha sendo lido como\n\"o agente errou\", não como o mesmo defeito.\n\nCorreção mínima de verdade: nenhum nó novo, nenhuma reconexão, nenhum `onError` mascarando erro.\n\n## Risco residual\n\n- **Não testei na instância.** Não tenho Bash, rede nem chave aqui; quem executa é o cockpit, depois\n  da sua aprovação. O que afirmo é a leitura do código e do caminho executado.\n- **A linhagem acima deste nó continua sendo premissa.** Se algum nó mais atrás (`Merge` em modo de\n  append, ou outro Code sem `pairedItem` no ramo que alimenta o `Merge`) também cortar a corrente, o\n  erro reaparece — só que apontando para *aquele* nó, não mais para\n  `Code_verifica_temperamento`. Não varri o fluxo inteiro atrás de outros Code nodes com o mesmo\n  vício; se a assinatura voltar com outro nome de nó, é este mesmo defeito em outro lugar.\n- **Semântica em execução multi-item.** O nó sempre colapsou para um item via `.first()`; eu\n  mantive esse comportamento e apenas o declarei. Se o correto for processar **cada** mensagem do\n  buffer, isso é outra mudança — maior, de produto, não de bug — e não está neste patch.\n- Nada aqui muda `active`, credenciais, tipo de nó ou conexões.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.4563845,
+      "startedAt": "2026-08-06T16:54:29.993Z",
+      "finishedAt": "2026-08-06T16:57:33.019Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:30:11.539Z"
+    },
+    {
+      "runId": "rmshrkllf3",
+      "key": "9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção: AI Agent1 / NodeOperationError (paired item)\n\n## Causa raiz\n\nO nó `Code_verifica_temperamento` devolve um item novo sem `pairedItem`:\n\n```js\nreturn [{ json: { ...contexto, ... } }];\n```\n\nEm n8n, `$('Nó').item` não é uma consulta, é um rastreamento de linhagem: cada item carrega um\nponteiro `pairedItem` para o índice do item de entrada que o gerou, e o n8n caminha para trás nó\na nó até chegar no nó citado. Quando um nó Code monta um objeto novo, esse ponteiro some, e o\nrastro morre ali.\n\nO erro apareceu em `AI Agent1` porque é lá que está a expressão que dispara o rastreamento\n(`text` = `{{ $('Merge').item.json.Mensagem }}`), mas o nó citado na mensagem\n(`Code_verifica_temperamento`) é onde o rastro se perdeu, não onde está a expressão.\n\nPor que falhou só 1 vez em 24h: o n8n consegue deduzir sozinho o `pairedItem` quando o nó recebeu\nexatamente 1 item de entrada, porque aí só existe uma origem possível. O `Merge` deste fluxo tem\n`numberInputs: 3` (texto, áudio, imagem) em modo append, e normalmente só um ramo entrega, então\nsai 1 item e o defeito fica invisível. Quando dois ramos entregam no mesmo turno, saem 2+ itens,\na dedução deixa de ser segura e o n8n estoura.\n\nEssa parte específica (2+ itens no Merge como gatilho) é dedução minha a partir da topologia e da\nraridade da falha. Não tenho a execução 171860 aqui para confirmar quantos itens o Merge produziu.\nO que está verificado no arquivo é o essencial: o `pairedItem` ausente, que é o defeito real.\n\nQuatro expressões dependem dessa mesma linhagem quebrada, todas resolvidas contra o item de\nentrada do `AI Agent1`:\n\n| Nó | Expressão |\n|---|---|\n| `AI Agent1` | `$('Merge').item.json.Mensagem` |\n| `Memória1` | `$('parametros').item.json[\"email\"]` |\n| `clickup_agente` | `$('Merge').item.json.Mensagem` |\n| `resumo_lead` | `$('parametros').item` |\n\nÉ um defeito só, com quatro pontos de estouro.\n\n## O que mudei\n\nUm nó, um parâmetro. Em `Code_verifica_temperamento`, o `return` passou a declarar a linhagem:\n\n```js\nreturn [{\n  json: { ...contexto, ... },\n  pairedItem: { item: 0 }\n}];\n```\n\nMais um bloco de comentário explicando o porquê, para que ninguém remova achando que é supérfluo.\nNenhuma outra alteração: a lógica de contagem, a flag do Redis e o texto da instrução estão\nbyte a byte iguais.\n\n`item: 0` é a resposta correta, não um chute: as três leituras do nó (`Redis_GET_temperamento`,\n`Redis_INCR_msg_count`, `Merge`) já usam `.first()`, ou seja, o nó sempre monta a saída a partir\ndo primeiro item.\n\n## Por que isso resolve\n\nCom o ponteiro declarado, o caminho de volta fica completo:\n`AI Agent1` para `Code_verifica_temperamento` (item 0), daí para `Redis_INCR_msg_count`, daí para\n`Redis_GET_temperamento`, daí para o `Merge`. Os nós Redis preenchem `pairedItem` normalmente,\ninclusive quando caem no `onError: continueRegularOutput`, então não há outro buraco no trajeto.\n\nE como a correção é na origem do rastro, ela vale para as quatro expressões da tabela, não só\npara a que estourou. Corrigir a expressão do `AI Agent1` (trocando por `$json.Mensagem`, que já\nexiste na saída do Code) calaria o nó que falhou primeiro e deixaria `clickup_agente`, `Memória1`\ne `resumo_lead` com a mesma bomba armada.\n\n## Risco residual\n\n1. **Não reproduzi a falha.** Não tenho Bash nem acesso à instância, então a validação é a leitura\n   do código mais as portas do cockpit. A confirmação real é a próxima execução em que o Merge\n   entregar 2+ itens.\n\n2. **Existe um comportamento pré-existente que eu não toquei, de propósito.** Se o Merge entregar\n   2 itens, `$('Merge').first()` pega só a primeira mensagem e a segunda é descartada do contexto\n   do agente. Isso não é o crash, é uma decisão de produto (o buffer deveria concatenar ou o\n   agente deveria receber as duas?). Depois deste patch o fluxo para de quebrar nesse cenário,\n   mas passa a processar só a primeira mensagem em silêncio, o que é melhor que o erro e ainda\n   assim não é obviamente o certo. Vale decidir isso à parte.\n\n3. **`AI Agent1` está com `retryOnFail: true`.** Não mexi. Contra um erro de paired item o retry\n   nunca ia adiantar, porque a falha é determinística dado o mesmo input. Só custava 2 segundos\n   por tentativa.\n\n4. Não há credencial envolvida, nada de reautorização manual no n8n.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.8030525,
+      "startedAt": "2026-08-06T17:02:31.251Z",
+      "finishedAt": "2026-08-06T17:06:25.607Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:30:11.539Z"
+    },
+    {
+      "runId": "rmshrxndc1",
+      "key": "9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "# Correção — `AI Agent1` / NodeOperationError (paired item)\n\n## Causa raiz\n\n`Code_verifica_temperamento` devolve o item sem `pairedItem`:\n\n```js\nreturn [{ json: { ...contexto, ... } }];   // nenhum rastro de origem\n```\n\n`AI Agent1` recebe esse item e resolve o parâmetro `text`:\n\n```\n={{ $('Merge').item.json.Mensagem }}\n```\n\n`$('Merge').item` não lê o Merge direto — ele **rastreia a linhagem do item atual para trás**, nó por\nnó, pelo campo `pairedItem`. A cadeia arrebenta exatamente em `Code_verifica_temperamento`, e é isso\nque a mensagem diz: *\"Paired item data for item from node 'Code_verifica_temperamento' is\nunavailable. Ensure 'Code_verifica_temperamento' is providing the required output.\"* O erro é do\n`AI Agent1` só porque ele foi o primeiro a pedir a linhagem — o buraco está um nó antes.\n\n**Por que falha 1× e não sempre:** quando o nó de origem tem *exatamente um* item de entrada, o n8n\nadivinha o pareamento sozinho e a ausência de `pairedItem` passa batida. `Merge` está com\n`numberInputs: 3` em modo append, então quando dois ramos chegam juntos ele emite 2+ itens, os nós\nRedis propagam essa contagem, o Code recebe 2 itens, devolve 1 sem `pairedItem` — e aí não há o que\nadivinhar. `retryOnFail: true` no `AI Agent1` não ajuda: dentro da mesma execução o dado é o mesmo,\nentão a retentativa falha igual.\n\nConfirmado por busca: **`pairedItem` não aparece uma única vez em todo o `workflow.json`**. Nenhum\nCode node do fluxo declara linhagem.\n\n## O que mudei\n\nUm parâmetro, um nó. No `jsCode` de `Code_verifica_temperamento`, o `return` passou a declarar a\norigem do item:\n\n```js\nreturn [{\n  json: { ...contexto, instrucao_temperamento, total_mensagens, flag_temperamento_existe },\n  pairedItem: { item: 0 }\n}];\n```\n\nMais um comentário no código explicando por que a linha existe, para ninguém apagar depois. **A\nlógica de decisão do temperamento não foi tocada** — flag, contagem, limiar de 10 e o texto da\ninstrução estão idênticos. Nada foi adicionado, removido ou reconectado.\n\n`item: 0` é o valor correto e não um chute: o nó lê `$('Merge').first()`, `$('Redis_GET_temperamento')\n.first()` e `$('Redis_INCR_msg_count').first()` — sempre o item 0. A saída realmente deriva do item 0\nda entrada.\n\n## Por que isso resolve\n\nCom `pairedItem: { item: 0 }` a cadeia de rastreio fica completa e independe de quantos itens chegam:\n\n`AI Agent1` item 0 → `Code_verifica_temperamento` item 0 → `Redis_INCR_msg_count` item 0 →\n`Redis_GET_temperamento` item 0 → `Merge` item 0.\n\nResolve dois consumidores de uma vez, os dois usando `.item`:\n- `AI Agent1.parameters.text` = `$('Merge').item.json.Mensagem`\n- `clickup_agente.workflowInputs.value.merge` = `$('Merge').item.json.Mensagem` — mesmo rastreio,\n  mesma quebra, e o tool nem chegava a ser chamado porque o agente estourava antes.\n\n## Risco residual\n\n- **Não consegui reproduzir a execução 171860.** O diagnóstico é do código e da mensagem de erro, não\n  de um teste rodado — não tenho Bash nem rede aqui. A prova real é a próxima execução em que o\n  `Merge` entregar 2+ itens.\n- **A hipótese do multi-item é inferência, não medição.** É a única explicação que casa com o erro\n  ser intermitente num nó que nunca declarou `pairedItem`, mas não vi o `runData` do `Merge` nessa\n  execução. Se o `Merge` tinha 1 item só, o `pairedItem` explícito continua sendo a correção certa\n  (a linhagem passa a existir de verdade em vez de depender do palpite do n8n), mas a causa da\n  intermitência seria outra e eu não a identifiquei.\n- **Comportamento com multi-item continua sendo \"só o item 0\".** Se dois ramos chegam ao `Merge`\n  juntos, o Code já descartava do item 1 pra frente por causa dos `.first()`, e continua\n  descartando. O patch **para de estourar**, não passa a atender duas mensagens. Se isso está\n  perdendo mensagem de lead, é outro defeito, anterior a este, e mexer nele mudaria comportamento —\n  fora do escopo de uma correção mínima.\n- **Os outros Code nodes do fluxo têm o mesmo buraco** (`total_mensagens`, `selecionar_mensagem`,\n  `incrementar_indice`, `Code in JavaScript*`, `code`, `Verificação_numero`). Não toquei em nenhum:\n  nenhum aparece nesta falha, e a regra é correção mínima. Vão quebrar do mesmo jeito quando algo\n  downstream usar `.item` com entrada multi-item.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.4737714999999996,
+      "startedAt": "2026-08-06T17:12:40.080Z",
+      "finishedAt": "2026-08-06T17:15:27.046Z",
+      "appliedAt": "2026-08-06T17:16:51.830Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-05T12:30:11.539Z"
+    },
+    {
+      "runId": "rmshsiz5y2",
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "wfId": "BpDac30P5uiuebdC",
+      "wfName": "FLUXO AVISO ERROR",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Credencial do Slack invalidada — nenhum patch resolve; anotei a causa e a ação humana no nó `Send a message2` e deixei o erro continuar visível de propósito.\n\n## Causa raiz\n\nO Slack devolveu `invalid_auth` para o nó `Send a message2`. Esse código vem da camada de\nautenticação da API do Slack: o token da credencial usada por esse nó foi revogado, expirou, ou o\napp foi desinstalado do workspace. **Não é problema de parâmetro nem de payload** — se o bloco\nestivesse malformado o erro seria `invalid_blocks`, e o Slack nem chega a validar o corpo quando o\ntoken não passa. Os 166ms de execução também batem com uma rejeição imediata, não com processamento.\n\nO que o fluxo em si mostra, e que reforça o diagnóstico: existem **dois** nós Slack aqui com modos\nde autenticação diferentes.\n\n- `Send a message` (desativado) — `\"authentication\": \"oAuth2\"`, canal `C0A4KTEV6VC`.\n- `Send a message2` (o que quebrou) — **não tem a chave `authentication`**, então cai no padrão do\n  nó Slack, que é `accessToken`, canal `C0A8REX31SN`.\n\nOu seja, o fluxo tem uma credencial OAuth2 (usada pelo nó antigo, hoje desligado) e uma credencial\nde access token (usada pelo nó que falha). É a segunda que está morta.\n\nNão consigo confirmar isso além de \"muito provável\": o `workflow.json` desta pasta vem sem os blocos\n`credentials`, e eu não tenho rede nem chave de API para consultar a instância. O que dá para\nafirmar com certeza é o que o Slack respondeu, e que a resposta é sobre o token.\n\n## O que mudei\n\nSó uma coisa: adicionei `notes` no nó `Send a message2` com a causa, o número da execução e a ação\nhumana necessária, e liguei `notesInFlow: true` para a nota aparecer no canvas do editor.\n\n**Não mexi em credencial** (é proibido pelas portas, e com razão: reautorizar token é ação humana\nna UI do n8n). Não mexi em parâmetro, em tipo, em conexão nem em `active`.\n\nDuas coisas que eu **deliberadamente não fiz**, porque seriam correções falsas:\n\n- **`retryOnFail`.** `invalid_auth` é erro permanente, não intermitente. Três tentativas gastariam\n  três chamadas e mais latência para receber a mesma recusa.\n- **`onError: continueRegularOutput`.** Isso faria a execução terminar como sucesso. Esse fluxo é o\n  `FLUXO AVISO ERROR` — o handler de erro global, disparado por `Error Trigger`. `Send a message2`\n  é o último nó do caminho e não tem saída nenhuma, então o único efeito prático da falha é marcar\n  a execução como erro. **Essa marcação é o único sinal existente de que os alertas de erro pararam\n  de chegar no Slack.** Silenciar aqui trocaria uma falha visível por uma falha invisível no\n  componente cuja função é justamente tornar falhas visíveis. Só faz sentido silenciar depois que\n  existir um segundo canal de aviso que funcione.\n\n## Por que isso resolve\n\n**Não resolve, e não vou dizer que resolve.** A correção real é humana, no n8n, no nó\n`Send a message2`:\n\n- **(a)** reautorizar a credencial Slack que ele usa hoje; **ou**\n- **(b)** trocar `Authentication` para OAuth2 e selecionar a credencial OAuth2 — que é o modo do\n  `Send a message` desativado, e portanto uma credencial que este workspace já teve funcionando.\n\nNão propus a opção (b) como patch porque trocar o modo de autenticação sem anexar a credencial\ncorrespondente (que eu não posso tocar) deixaria o nó pior do que está: falharia em\n\"no credentials set\" em vez de `invalid_auth`, e aí a mensagem de erro deixaria de apontar para a\ncausa verdadeira.\n\nO que esta mudança entrega é o que as regras chamam de patch mínimo que torna a falha\ndiagnosticável: quem abrir o editor vê, no próprio canvas, o que quebrou e o que precisa ser feito,\nem vez de reencontrar `invalid_auth` do zero daqui a duas semanas.\n\n## Risco residual\n\n- **O alerta continua não sendo entregue** até alguém reautorizar a credencial. Enquanto isso, todo\n  erro dos fluxos que apontam para este handler é registrado no data table `approvals` mas **não é\n  notificado a ninguém** — as linhas ficam em `status: \"pending\"` sem que exista aviso. Esse é o\n  risco de verdade aqui, e ele é maior que o erro em si.\n- **A assinatura vai continuar aparecendo no board** a cada nova execução do handler. Isso está\n  correto: a falha não foi corrigida, só documentada.\n- **Não verifiquei qual credencial está anexada ao nó** (o JSON aqui vem sem esse bloco). Se, por\n  acaso, o nó estiver com credencial de *outro* workspace Slack, a reautorização precisa ser da\n  credencial certa, e não só um refresh da atual.\n- Se aplicado, o único efeito em runtime é cosmético (nota no canvas). Nada no comportamento do\n  fluxo muda.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.230748,
+      "startedAt": "2026-08-06T17:29:15.142Z",
+      "finishedAt": "2026-08-06T17:32:05.977Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-02-18T11:56:04.293Z"
+    },
+    {
+      "runId": "rmshub4cw3",
+      "key": "azwM3PgGtSbGTCsn|memoria_redis_roberto|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 1,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 1,
+        "edgesRemoved": 1
+      },
+      "report": "**Resumo:** troquei a memória do AI_Roberto do nó Redis Chat Memory (que quebra o save do agente) para um Simple Memory com a mesma sessionKey, desconectando o Redis sem apagá-lo.\n\n## Causa raiz\n\nA mensagem `input values have 3 keys, you must specify an input key or pass only 1 key as input` não vem do n8n nem do Redis. Vem do LangChain, da função `getInputValue`, chamada por `BaseChatMemory.saveContext`. Ela recebe o objeto de entrada do agente e, se não tiver `inputKey` definido, só aceita 1 chave. Com mais de uma, estoura.\n\nO `AI_Roberto` é um `agent` typeVersion 2.2. Essa versão invoca o executor com 3 chaves: `input`, `system_message` (o systemMessage das options) e `formatting_instructions` (adicionada porque `hasOutputParser: true`, o `parser_output_roberto` está plugado). Na hora de gravar a conversa, o LangChain repassa essas 3 chaves para a memória, o `memoria_redis_roberto` não define `inputKey`, e o save morre.\n\nO rastro da execução confirma o mecanismo, não é palpite:\n\n- `memoria_redis_roberto` aparece duas vezes por rodada: uma com 387ms e 394ms (o load, que vai no Redis e funciona) e outra com 0ms e 1ms marcada `error` (o save, que estoura de forma síncrona antes de qualquer ida ao Redis).\n- Isso se repete 3 vezes na mesma execução porque o `AI_Roberto` tem `retryOnFail: true`. As 3 tentativas falham no mesmo ponto, o que descarta rede, credencial e timeout.\n\nO diferencial dentro do próprio fluxo fecha o diagnóstico. O outro agente, `AI Agent`, é também typeVersion 2.2, também tem `systemMessage`, e usa `Simple Memory` (`memoryBufferWindow` 1.3). Ele não falha. Como o `system_message` é chave de invoke (é o que faz a contagem chegar a 3 e não a 2), o `Simple Memory` está recebendo múltiplas chaves e sobrevivendo. Ou seja: o `memoryBufferWindow` define `inputKey`, e o `memoryRedisChat` 1.5 desta instância não define.\n\nNão é intermitente. É determinístico para toda conversa que passar pelo `AI_Roberto`. O \"1 ocorrência em 24h\" é volume, não sorte: este é o fluxo do Roberto, ainda em fase de construção e com pouco tráfego.\n\n## O que mudei\n\n1. Adicionei `memoria_buffer_roberto`, um `@n8n/n8n-nodes-langchain.memoryBufferWindow` 1.3, com a **mesma** `sessionKey` e o mesmo `contextWindowLength` do nó Redis, copiados literalmente.\n2. Liguei ele no `ai_memory` do `AI_Roberto`.\n3. Desconectei o `memoria_redis_roberto` (nenhuma saída). O nó continua no fluxo, com os parâmetros intactos e uma `notes` explicando por que foi parado e o que precisa acontecer para religá-lo.\n\nNada mais foi tocado: o parser, o system prompt, o modelo e o `retryOnFail` seguem iguais.\n\n## Por que isso resolve\n\nRemove a única condição que produz o erro. O `memoryBufferWindow` é a combinação que já roda nesta mesma instância, neste mesmo workflow, com um agente da mesma typeVersion, tolerando invoke com múltiplas chaves. Trocar a memória é a única alavanca disponível: o nó Redis Chat Memory não expõe `inputKey` como parâmetro, e tirar o output parser levaria de 3 para 2 chaves, o que continua sendo maior que 1 e continuaria estourando (além de quebrar o `montar_contexto_revisao`, que lê `output.messages`).\n\n## Risco residual\n\n- **Não testei.** Não tenho Bash, rede nem acesso à instância. A afirmação de que o `memoryBufferWindow` define `inputKey` é inferida do comportamento do `AI Agent` neste mesmo fluxo, não lida no código do n8n. Se estiver errada, a falha volta com a mesma assinatura e o Desfazer restaura tudo.\n- **Perda de durabilidade da memória de chat.** O `Simple Memory` vive no processo do n8n, indexado pela sessionKey. Sobrevive entre execuções, mas não sobrevive a restart da instância nem é compartilhado entre workers, enquanto o Redis tinha TTL de dias. O impacto é amortecido porque a continuidade longa do Roberto não depende só desse nó: `redis_get_conv_summary` e `build_system_prompt` já injetam o resumo da conversa no system prompt, e o `salvar_resumo` grava de volta. Ainda assim é uma regressão real, e a alternativa que preserva o Redis é atualizar a versão do n8n / do nó Redis Chat Memory, que é trabalho humano na instância e não cabe num patch de workflow.\n- **`contextWindowLength: 10000` foi copiado de propósito, e é um problema à parte.** O valor manda a janela inteira para o prompt a cada turno. No Redis já era caro em tokens; em memória de processo passa a ser também consumo de RAM por sessão. Não mexi porque mudaria o comportamento do agente além da correção, mas vale revisar (o normal é algo entre 5 e 30).\n- **A `sessionKey` foi copiada literalmente, inclusive o `$('parametros').item.json[\"email\"]`.** Uso de `.item` dentro de um sub-nó é frágil (depende de paired item) e pode estourar se `contato-wpp` vier nulo. Hoje isso não acontece, e mudar seria alterar o chaveamento das sessões existentes, então deixei igual e registro aqui.\n- Aplicar não prova que a falha acabou. A próxima execução do `AI_Roberto` é a primeira que roda com essa mudança.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 2.1943394999999994,
+      "startedAt": "2026-08-06T18:19:07.856Z",
+      "finishedAt": "2026-08-06T18:27:02.265Z",
+      "appliedAt": "2026-08-06T18:28:03.158Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T11:49:07.829Z"
+    },
+    {
+      "runId": "rmshv9k3f4",
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "wfId": "BpDac30P5uiuebdC",
+      "wfName": "FLUXO AVISO ERROR",
+      "redirected": null,
+      "status": "rejected",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** O Slack recusou o token do nó `Send a message2` (`invalid_auth`), então a correção real é reautorizar a credencial no n8n; o patch só registra o diagnóstico no nó, sem esconder a falha.\n\n## Causa raiz\n\nO Slack respondeu `invalid_auth` ao `chat.postMessage` disparado por `Send a message2`. Esse código\nsignifica exatamente uma coisa: o token enviado não é aceito pelo Slack. Não é o payload e não é o\ncanal, porque bloco malformado devolveria `invalid_blocks` e canal errado devolveria\n`channel_not_found`.\n\nO nó autentica por token de acesso: `parameters` não declara `authentication`, e o default do nó\nSlack é `accessToken`. As causas típicas são token revogado, app reinstalado (o token antigo morre e\nnasce outro), app removido do workspace ou credencial apontando para um app que não existe mais.\n\nDuas coisas confirmam que o defeito está na credencial e não no fluxo:\n\n1. O caminho executado chegou inteiro até o Slack. `AI Agent` (37,4s), `Code in JavaScript6`,\n   `Code in JavaScript2` e `Insert row1` (55ms) todos passaram. A linha em `approvals` foi gravada\n   antes do Slack, com `status: pending`, então **a solicitação de aprovação não se perdeu; só o\n   aviso não saiu**.\n2. O nó desativado `Send a message` usa `authentication: \"oAuth2\"`, enquanto o nó que falha usa\n   token de acesso. São dois tipos de credencial diferentes no mesmo fluxo, e só o segundo caminho\n   está em uso.\n\n**Nada nos parâmetros do nó pode fazer um token recusado voltar a ser aceito.** Pelas regras, credencial\nnão é tocada por mim: a reautorização é feita por humano no n8n.\n\n## O que mudei\n\nSó uma coisa, em `Send a message2`:\n\n- `notes` com o diagnóstico e a ação humana necessária, e `notesInFlow: true` para a nota aparecer no\n  canvas em vez de ficar escondida no painel do nó.\n\nNenhum parâmetro, nenhuma conexão, nenhum nó novo.\n\nDuas coisas que eu deliberadamente **não** fiz, porque piorariam a situação:\n\n- **`onError: continueRegularOutput`.** `Send a message2` não tem saída nenhuma. Continuar após o\n  erro não salvaria trabalho a jusante (não existe jusante) e marcaria a execução como sucesso. Este\n  fluxo é o `FLUXO AVISO ERROR`, o alertador de erro: a execução falhada é hoje o único sinal que\n  chega até você. Silenciá-la trocaria \"o aviso não saiu e eu sei\" por \"o aviso não saiu e ninguém\n  soube\".\n- **`retryOnFail`.** `invalid_auth` é determinístico. Três tentativas com o mesmo token dão três\n  vezes o mesmo erro, só mais devagar.\n\n## Por que isso resolve\n\nSendo honesto: **este patch não resolve a falha, e não pretende.** A falha só para quando a credencial\nSlack for reautorizada no n8n, e isso é uma ação sua na interface, não algo que caiba num diff de\nworkflow.\n\nO que o patch faz é impedir que o próximo diagnóstico custe o mesmo tempo: quem abrir o nó vê no\ncanvas o que `invalid_auth` significa, qual tipo de autenticação este nó usa, que existe uma credencial\nOAuth2 no fluxo como alternativa, e por que não há tratamento de erro aqui de propósito. Além disso\ndeixa registrado que a linha em `approvals` sobrevive à falha, o que muda a urgência: você perdeu a\nnotificação, não a solicitação.\n\n## Risco residual\n\n- **A falha vai continuar aparecendo no board até a credencial ser trocada.** Isso é o comportamento\n  correto, não um efeito colateral. Aplicar este patch não é motivo para considerar a assinatura\n  resolvida.\n- **Não vi o bloco `credentials`** (ele é retirado antes de chegar até mim), então não sei qual\n  credencial está anexada nem se a OAuth2 do nó desativado ainda é válida. Por isso não troquei\n  `authentication` para `oAuth2` no escuro: sem a credencial OAuth2 anexada, o nó passaria a falhar\n  com \"credenciais não configuradas\", ou seja, eu teria trocado uma falha conhecida por uma que eu\n  mesmo causei. Se você souber que aquela credencial OAuth2 está boa, anexá-la e virar a chave é um\n  caminho válido, mas é uma decisão que precisa dessa informação que eu não tenho.\n- **Ocorrência única (1× em 24h).** Se o token foi revogado, a próxima execução falha igual. Se foi\n  um evento pontual do lado do Slack, pode não repetir. A recorrência é que vai dizer qual dos dois\n  é, e o cockpit já reabre a assinatura sozinho se voltar a falhar.\n- O botão \"Approve\" do bloco tem `value: \"click_me_123\"` e nenhum `action_id` ou `url`, então ele não\n  aciona nada hoje. Isso é um defeito separado deste, e não mexi nele.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.2088665,
+      "startedAt": "2026-08-06T18:45:54.555Z",
+      "finishedAt": "2026-08-06T18:48:54.790Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T17:42:59.000Z"
+    },
+    {
+      "runId": "rmsj8xumz5",
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 3,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** removi a referência ao nó inexistente `Get many tasks` nos três nós de vácuo que gravam em `roberto_vacuum`, deixando `clickup_task_id` vazio, porque este fluxo não tem nenhum nó do ClickUp.\n\n## Causa raiz\n\nO nó `criar_vacuo1` monta o campo `clickup_task_id` com a expressão:\n\n```\n={{ $('Get many tasks').first().json.id }}\n```\n\n**Não existe nenhum nó chamado `Get many tasks` neste workflow.** Conferi o `nodes-index.md`\ninteiro: não há nó do ClickUp de espécie alguma. O único nó com \"Get many\" no nome é\n`Get many rows`, que é Supabase e não tem relação. Por isso o n8n devolve `Referenced node\ndoesn't exist` — é erro de resolução da expressão, não de dado vazio, e por isso o nó estoura em\n4ms, antes de qualquer chamada ao Supabase.\n\nA referência aparece em **quatro** lugares no fluxo:\n\n| Nó | O que acontece hoje |\n|---|---|\n| `id_clickup` (Set) | Estoura igual, mas tem `onError: continueRegularOutput` — engole o erro e segue |\n| `criar_vacuo` (Supabase insert, ramo áudio) | Estoura |\n| `resetar_vacuo1` (Supabase update, ramo texto) | Estoura |\n| `criar_vacuo1` (Supabase insert, ramo texto) | Estoura — é o que apareceu na assinatura |\n\nO `id_clickup` é justamente o que deveria ser a fonte desse id, e ele também está quebrado — só\nnão aparece no painel porque o `onError` esconde. Ou seja: **não existe nenhuma origem funcional\npara `clickup_task_id` neste fluxo.** O padrão sugere que o `Agente Iago Comercial` foi derivado\nde um fluxo que tinha a busca no ClickUp (a tabela e as expressões são todas `roberto_*`) e o nó\nde busca não veio junto — ou foi renomeado.\n\nUma confirmação a mais dentro do próprio fluxo: o `resetar_vacuo` (ramo de áudio) **já não tem**\no campo `clickup_task_id`. Alguém já corrigiu aquele nó dessa forma e deixou os outros três.\n\n## O que mudei\n\nEm `criar_vacuo1`, `criar_vacuo` e `resetar_vacuo1`, o valor de `clickup_task_id` deixa de ser a\nexpressão quebrada e passa a ser string vazia (`\"\"`, literal — nem é mais expressão). Todo o\nresto do `parameters` de cada nó fica idêntico: `phone`, `attempt`, `status`, `lead_name`,\n`event_interest`, `execution_id`, `last_context`, filtros e `tableId` estão iguais ao original.\nCada nó ganha uma `notes` dizendo por que o campo está vazio e o que fazer quando o nó do ClickUp\nexistir.\n\nMexi nos três, e não só no `criar_vacuo1` que quebrou, porque é literalmente o mesmo defeito na\nmesma expressão: `criar_vacuo` é o espelho do `criar_vacuo1` no outro ramo do switch\n`audio/texto`, e `resetar_vacuo1` é o irmão dele no mesmo ramo. Corrigir só um faria a mesma\nassinatura voltar no primeiro lead que entrasse pelo áudio.\n\n**Não mexi no `id_clickup`.** Ele está quebrado igual, mas não derruba execução nenhuma\n(`onError` engole) e consertá-lo não faz parte de tirar esta falha do ar. Fica registrado aqui\nporque é onde a correção de verdade tem que acontecer.\n\n## Por que isso resolve\n\n`Referenced node doesn't exist` acontece na hora de resolver a expressão. Sem a chamada\n`$('Get many tasks')`, não há o que resolver e o nó não tem como levantar esse erro. Um valor\nliteral não depende de nó nenhum, de ordem de execução nem de ramo do switch.\n\nOptei por **manter o campo com valor vazio** em vez de apagar o campo: `criar_vacuo` e\n`criar_vacuo1` são INSERT, e se a coluna `clickup_task_id` for `NOT NULL` no Supabase, omitir o\ncampo trocaria o `ExpressionError` por um erro de constraint. Enviando `\"\"` a coluna continua\nsendo preenchida em qualquer um dos dois casos. Grep no fluxo inteiro: **nada lê\n`clickup_task_id` de volta** — ele só é escrito nesses três nós —, então o `\"\"` não alimenta\nnenhum consumidor a jusante.\n\n## Risco residual\n\n- **Isto não faz o vácuo escrever o id do ClickUp — faz ele parar de quebrar.** A coluna passa a\n  gravar string vazia. Se algum consumidor **fora deste workflow** (um follow-up, um relatório,\n  outro fluxo) usa `roberto_vacuum.clickup_task_id`, ele vai passar a receber `\"\"` em vez de nada.\n  Antes ele não recebia valor algum, porque a linha nunca era gravada — mas isso é uma diferença\n  que eu não consigo verificar daqui.\n- **`\"\"` versus `NULL`:** escolhi `\"\"` pelo motivo do NOT NULL acima. Não tenho o schema da tabela\n  para confirmar se a coluna é nullable; se for, `NULL` seria semanticamente mais correto que\n  string vazia.\n- **A correção de verdade continua pendente:** criar (ou renomear de volta) o nó de busca no\n  ClickUp e apontar `id_clickup` e os três nós de vácuo para ele. Enquanto isso não acontecer, o\n  vácuo deste agente não consegue amarrar o lead à task do CRM.\n- **`id_clickup` segue quebrado e silencioso.** Nenhuma execução vai falhar por causa dele, e é\n  exatamente por isso que ele passou despercebido. Quando o nó do ClickUp voltar, vale tirar o\n  `onError: continueRegularOutput` dele para não esconder o próximo defeito.\n- Só houve **1 ocorrência em 24h**, então não consigo afirmar com que frequência o caminho do\n  vácuo é percorrido. Se o vácuo roda pouco, o mesmo erro estava acontecendo há mais tempo sem\n  aparecer no painel.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.8427970000000002,
+      "startedAt": "2026-08-07T17:56:29.147Z",
+      "finishedAt": "2026-08-07T18:02:36.746Z",
+      "appliedAt": "2026-08-07T18:03:25.458Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T18:28:02.936Z"
+    },
+    {
+      "runId": "rmsj9lasi6",
+      "key": "azwM3PgGtSbGTCsn|memoria_buffer_roberto|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** desativei o nó de memória `memoria_buffer_roberto`, que estourava em todo `saveContext` e derrubava o AI_Roberto depois da resposta já ter sido gerada.\n\n## Causa raiz\n\nO erro não é do nó de memória em si — é do **par** `AI_Roberto` (`@n8n/n8n-nodes-langchain.agent`, typeVersion **2.2**) + qualquer sub-nó de memória nesta instância.\n\nO Tools Agent v2.2 invoca a chain com três chaves de entrada (`input`, `system_message`,\n`formatting_instructions` — esta última só existe porque `hasOutputParser: true`, ou seja, por causa\ndo `parser_output_roberto`). No fim da chain o LangChain chama\n`memory.saveContext(inputValues, outputValues)` com esse objeto inteiro. O\n`BaseChatMemory.saveContext` faz `getInputValue(inputValues, this.inputKey)`, e quando `inputKey`\nnão está definido e há mais de uma chave ele lança exatamente a mensagem observada:\n`input values have 3 keys, you must specify an input key or pass only 1 key as input`.\n\nO que fecha o diagnóstico é a **tentativa anterior**, registrada no `notes` do\n`memoria_redis_roberto`: em 2026-08-06 alguém tratou isso como defeito específico do Redis Chat\nMemory, desconectou aquele nó e ligou o `memoria_buffer_roberto` (Buffer Window, typeVersion 1.3,\nmesma `sessionKey`). **O erro voltou idêntico** — execução 173366, há minutos. Trocar o tipo do nó\nnão resolve porque nenhum dos dois expõe `inputKey`; a falha está do lado do agent/versão do n8n,\nnão do backend de memória.\n\nO caminho executado confirma o mecanismo: a memória roda duas vezes por rodada — uma leitura de 0ms\nque passa (`loadMemoryVariables`) e uma escrita que estoura (`saveContext`) —, e o ciclo\n`modelo_openai_roberto → parser_output_roberto → memoria_buffer_roberto · error` se repete 3× porque\n`AI_Roberto` está com `retryOnFail: true`. Ou seja: **a resposta é gerada, paga três vezes, e\ndescartada**. O `montar_contexto_revisao` nunca roda e o lead fica sem resposta.\n\n## O que mudei\n\nUm campo, num nó:\n\n- `memoria_buffer_roberto` → `disabled: true`, mais um `notes` explicando o porquê e o que precisa\n  acontecer antes de religar (mesma convenção do `notes` que já existe no `memoria_redis_roberto`).\n\nNão mexi no `AI_Roberto`, nem no `parser_output_roberto`, nem em conexões, nem em credenciais.\nMantive o `retryOnFail: true` do agent: ele continua útil para erro transitório da OpenAI, e sem a\nmemória essa falha determinística não dispara mais.\n\n## Por que isso resolve\n\nSem sub-nó de memória ligado, o agent não monta chain com memória e `saveContext` nunca é chamado —\na exceção não tem como acontecer. `AI_Roberto` conclui, `montar_contexto_revisao` roda e o lead\nrecebe resposta.\n\nO ponto que torna isso barato em vez de uma perda: **como todo save estourava, o buffer nunca chegou\na gravar nada**. A memória já estava vazia na prática; desligar não perde histórico que funcionava.\nE o fluxo tem memória própria, independente do LangChain: `redis_get_conv_summary` →\n`parse_conv_summary` → `build_system_prompt` injeta um bloco \"Contexto da Conversa\" no system prompt\n(lead, evento de interesse, estágio, `key_facts`, objeções), alimentado pela tool `salvar_resumo`.\nÉ esse caminho que dá continuidade entre mensagens hoje, e ele continua intacto.\n\n## Risco residual\n\n- **Memória verbatim some.** O resumo em Redis é resumo, não são os turnos literais. O Roberto perde\n  a janela de contexto turno-a-turno que, no papel, o Buffer Window daria. Na prática ele já não\n  tinha isso — mas se alguém contava com essa janela para o futuro, este patch não a entrega.\n- **`disabled: true` em sub-nó.** Estou assumindo que o n8n não fornece sub-nó desativado ao nó pai.\n  É o comportamento esperado, mas eu **não consegui verificar nesta sessão** (sem rede, sem acesso à\n  instância). Se ao aplicar o erro persistir, o passo seguinte é desconectar a aresta `ai_memory` em\n  vez de desativar — exatamente o tratamento que o `memoria_redis_roberto` já recebeu, que no índice\n  aparece como \"(nenhuma saída)\".\n- **Isto é contorno, não conserto da causa.** A causa é a incompatibilidade Agent v2.2 + nó de\n  memória nesta versão do n8n. O conserto de verdade é atualizar o n8n (ou o pacote\n  `@n8n/n8n-nodes-langchain`) e religar a memória. Não testei baixar o `typeVersion` do `AI_Roberto`\n  como alternativa: mudaria o comportamento do agent inteiro (tool calling, streaming, output\n  parser) e seria chute, não correção mínima.\n- **O mesmo defeito provavelmente atinge o `AI Agent`** (também v2.2, também com memória —\n  `Simple Memory`). Ele não aparece nesta falha só porque o caminho dele, via `Merge2`, não rodou na\n  janela. Não mexi nele: não está na assinatura e não tenho evidência de execução. Vale observar.\n",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.9451255000000003,
+      "startedAt": "2026-08-07T18:14:43.170Z",
+      "finishedAt": "2026-08-07T18:20:43.455Z",
+      "appliedAt": "2026-08-07T18:24:10.780Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-07T18:03:25.170Z"
+    }
+  ]
+}
