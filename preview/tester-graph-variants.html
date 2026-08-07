@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tester — variantes da tela de construção</title>
+<style>
+:root{
+  --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --raised:#171A2B;
+  --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+  --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+  --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+  --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+  --brand:#FF5A1F; --brand-txt:#FF5A1F;
+  --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+  --warn-soft:#F5A5241a; --warn-txt:#F5A524;
+  --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+  --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,sans-serif;
+  --font-num:"Cascadia Mono","Cascadia Code",Consolas,ui-monospace,monospace;
+  --r:12px;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);padding:28px 22px 60px}
+h1{font-size:17px;font-weight:650;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--txt-dim);font-size:12.5px;margin:0 0 26px;max-width:74ch;line-height:1.6}
+.sub b{color:var(--txt);font-weight:600}
+
+.variant{margin-bottom:30px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
+.vhd{display:flex;align-items:baseline;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.vtag{font-family:var(--font-num);font-size:10.5px;color:var(--brand-txt);letter-spacing:.06em;flex:0 0 auto}
+.vname{font-size:13.5px;font-weight:650;flex:0 0 auto}
+.vdesc{font-size:12px;color:var(--txt-dim);flex:1 1 260px;line-height:1.55}
+.stagewrap{position:relative;background:var(--bg-deep);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px}
+svg.stage{display:block;width:100%;height:250px}
+.corner{position:absolute;top:10px;left:14px;font-family:var(--font-num);font-size:10px;color:var(--txt-faint);letter-spacing:.05em}
+.band{display:flex;align-items:center;gap:10px;padding:9px 16px;border-top:1px solid var(--line-soft);
+  font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);letter-spacing:.04em}
+.band.stamp{background:var(--warn-soft);color:var(--warn-txt);border-top-color:#F5A52433}
+.band .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;flex:0 0 auto}
+
+/* ------- grafo: mesmas classes do palco do cockpit ------- */
+.edge{fill:none;stroke:var(--wire);stroke-width:1.6;stroke-linecap:round}
+.nd .face{fill:var(--node-face);stroke:var(--node-edge);stroke-width:1.2}
+.nd .glyph{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke:var(--txt-dim)}
+.nd .nm{fill:var(--txt);font-family:var(--font);font-size:9.5px;font-weight:600;text-anchor:middle}
+.nd .ty{fill:var(--txt-faint);font-family:var(--font-num);font-size:7.5px;text-anchor:middle}
+.nd .port{fill:var(--node-face);stroke:var(--port);stroke-width:1.3}
+.nd .ms{fill:var(--txt-faint);font-family:var(--font-num);font-size:7.5px;text-anchor:middle;opacity:0}
+
+/* estado base: ainda não existe */
+.nd{opacity:0}
+.nd.on{opacity:1}
+
+/* ============ A — escrita ============ */
+.va .nd{transform-box:fill-box;transform-origin:center}
+.va .nd.writing{opacity:1;animation:popin .34s cubic-bezier(.2,.9,.25,1) both}
+.va .nd.writing .face{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:5 4;animation:march .9s linear infinite}
+.va .nd.writing .nm,.va .nd.writing .ty{opacity:0}
+.va .nd.built{opacity:1}
+.va .nd.built .face{stroke:var(--node-edge);transition:stroke .5s ease}
+.va .nd.built .nm,.va .nd.built .ty{opacity:1;transition:opacity .35s ease .05s}
+.va .caret{fill:var(--accent);opacity:0}
+.va .nd.writing .caret{opacity:1;animation:blink .7s steps(1,end) infinite}
+.va .edge{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.va .edge.drawing{stroke:var(--accent);animation:draw .42s ease forwards}
+.va .edge.done{stroke:var(--wire);stroke-dashoffset:0}
+@keyframes popin{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@keyframes march{to{stroke-dashoffset:-18}}
+@keyframes blink{50%{opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ============ B — blueprint ============ */
+.vb .nd{opacity:1}
+.vb .nd .face{fill:none;stroke:var(--accent-line);stroke-width:1.2;stroke-dasharray:4 4}
+.vb .nd .glyph{stroke:var(--accent-line)}
+.vb .nd .nm,.vb .nd .ty,.vb .nd .port{opacity:.18}
+.vb .nd.solid .face{fill:var(--node-face);stroke:var(--node-edge);stroke-dasharray:none;
+  transition:fill .45s ease,stroke .45s ease,stroke-dasharray .1s}
+.vb .nd.solid .glyph{stroke:var(--txt-dim);transition:stroke .45s ease}
+.vb .nd.solid .nm,.vb .nd.solid .ty,.vb .nd.solid .port{opacity:1;transition:opacity .4s ease}
+.vb .nd.solid{animation:settle .4s cubic-bezier(.2,.9,.25,1) both;transform-box:fill-box;transform-origin:center}
+.vb .edge{stroke:var(--accent-line);stroke-dasharray:3 5;opacity:.55}
+.vb .edge.done{stroke:var(--wire);stroke-dasharray:none;opacity:1;transition:stroke .45s ease,opacity .45s ease}
+@keyframes settle{from{transform:scale(.96)}to{transform:scale(1)}}
+
+/* ============ C — igual n8n, com carimbo ============ */
+.vc .nd.on{animation:popin .3s cubic-bezier(.2,.9,.25,1) both}
+.vc .edge{stroke:var(--wire);opacity:0}
+.vc .edge.flowing{stroke:var(--accent);stroke-dasharray:7 8;opacity:1;animation:drift 1.1s linear infinite}
+.vc .edge.placed{stroke:var(--wire);opacity:1;stroke-dasharray:none;animation:none}
+.vc .ring{opacity:0}
+.vc .nd.on .ring{opacity:1;transition:opacity .3s ease .1s}
+.vc .ring circle{fill:none;stroke:var(--accent);stroke-width:1.6}
+.vc .nd .ms{opacity:1;fill:var(--txt-faint)}
+@keyframes drift{to{stroke-dashoffset:-30}}
+
+.note{max-width:78ch;font-size:12.5px;color:var(--txt-dim);line-height:1.65;margin:0 0 24px}
+.note code{font-family:var(--font-num);font-size:11.5px;color:var(--accent-txt)}
+kbd{font-family:var(--font-num);font-size:11px;background:var(--raised);border:1px solid var(--line);
+  border-radius:5px;padding:1px 5px;color:var(--txt-dim)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<h1>Tester · como a tela de construção se comporta</h1>
+<p class="sub">Mesmo canvas do palco do cockpit — mesmos tokens, mesmas classes <code>.nd</code>/<code>.edge</code>.
+O que muda entre as três é o <b>vocabulário de estado</b>: nada aqui executou, então nenhuma variante usa
+o ✓ verde nem o tempo em ms, que no cockpit significam "este nó rodou com sucesso".
+Recarregue a página (<kbd>F5</kbd>) para ver a animação de novo.</p>
+
+<div class="variant va" id="va">
+  <div class="vhd">
+    <span class="vtag">[ A ]</span><span class="vname">Escrita</span>
+    <span class="vdesc">A tela começa vazia. Cada nó é escrito na frente do outro: aparece com contorno tracejado
+      azul e um cursor piscando, depois assenta. A conexão é desenhada antes do nó seguinte nascer.</span>
+  </div>
+  <div class="stagewrap"><div class="corner" id="ca">[ ESCREVENDO 0 / 5 ]</div></div>
+  <div class="band"><span class="dot"></span>construção · nenhum nó executou</div>
+</div>
+
+<div class="variant vb" id="vb">
+  <div class="vhd">
+    <span class="vtag">[ B ]</span><span class="vname">Planta</span>
+    <span class="vdesc">O esqueleto inteiro aparece de cara em wireframe azul tracejado — você vê o formato final
+      desde o primeiro segundo. Depois cada nó vai virando sólido, um a um.</span>
+  </div>
+  <div class="stagewrap"><div class="corner" id="cb">[ MONTANDO 0 / 5 NÓS ]</div></div>
+  <div class="band"><span class="dot"></span>construção · nenhum nó executou</div>
+</div>
+
+<div class="variant vc" id="vc">
+  <div class="vhd">
+    <span class="vtag">[ C ]</span><span class="vname">Igual ao n8n, com carimbo</span>
+    <span class="vdesc">O mais parecido com o seu print: nó sólido nascendo pronto, fio azul correndo.
+      O selo é um anel vazado, não o ✓ verde, e onde ficaria o tempo lê-se <code>—</code>. A faixa âmbar não sai da tela.</span>
+  </div>
+  <div class="stagewrap"><div class="corner" id="cc">[ 0 NÓS · 0 CONEXÕES ]</div></div>
+  <div class="band stamp"><span class="dot"></span>MONTAGEM — nada executou · 0 chamadas feitas</div>
+</div>
+
+<p class="note">Todas as três carregam a mesma informação e a mesma honestidade. A diferença é o que elas
+te fazem sentir: <b>A</b> mostra o trabalho acontecendo, <b>B</b> mostra o destino desde o começo e preenche,
+<b>C</b> imita o editor do n8n e paga a honestidade com um carimbo fixo.</p>
+
+<script>
+/* --------------------------------------------------------------- o grafo
+ * Exemplo real do pedido: vendas do Mercado Livre.
+ * Nomes em snake_case PT-BR, convenção da instância. */
+const NODES = [
+  { id:"agenda_5min",       ty:"scheduleTrigger", g:"clock" },
+  { id:"buscar_vendas_ml",  ty:"httpRequest",     g:"globe" },
+  { id:"somar_vendas",      ty:"code",            g:"code"  },
+  { id:"tem_venda_nova",    ty:"if",              g:"fork"  },
+  { id:"avisar_slack",      ty:"slack",           g:"chat"  }
+];
+const POS = [[40,52],[200,140],[360,52],[520,140],[680,52]];
+const W = 60, H = 44, VB = [0,0,800,236];
+
+const GLYPH = {
+  clock:'<circle cx="0" cy="0" r="7"/><path d="M0 -4 V0 L3 2.5"/>',
+  globe:'<circle cx="0" cy="0" r="7"/><path d="M-7 0h14M0 -7c3.2 3 3.2 11 0 14M0 -7c-3.2 3 -3.2 11 0 14"/>',
+  code :'<path d="M-3 -5 L-8 0 L-3 5"/><path d="M3 -5 L8 0 L3 5"/>',
+  fork :'<path d="M-7 0h5l4 -5h5"/><path d="M-2 0l4 5h5"/><path d="M9 -7l3 2 -3 2"/><path d="M9 3l3 2 -3 2"/>',
+  chat :'<path d="M-8 -5h16v9h-9l-4 4v-4h-3z"/>'
+};
+
+function el(t, a){ const n = document.createElementNS("http://www.w3.org/2000/svg", t);
+  for (const k in a) n.setAttribute(k, a[k]); return n; }
+
+function build(host){
+  const svg = el("svg", { class:"stage", viewBox:VB.join(" "), preserveAspectRatio:"xMidYMid meet" });
+  const gE = el("g", {}), gN = el("g", {});
+  svg.append(gE, gN);
+
+  const edges = [], nodes = [];
+  for (let i = 0; i < NODES.length - 1; i++){
+    const [x1,y1] = POS[i], [x2,y2] = POS[i+1];
+    const ax = x1 + W, ay = y1 + H/2, bx = x2, by = y2 + H/2;
+    const p = el("path", { class:"edge", d:`M${ax},${ay} C${ax+58},${ay} ${bx-58},${by} ${bx},${by}` });
+    gE.appendChild(p);
+    p.style.setProperty("--len", Math.ceil(p.getTotalLength()) + "px");
+    edges.push(p);
+  }
+  NODES.forEach((n, i) => {
+    const [x,y] = POS[i];
+    const g = el("g", { class:"nd", "data-i":i });
+    g.appendChild(el("rect", { class:"face", x, y, width:W, height:H, rx:9 }));
+    const gl = el("g", { class:"glyph", transform:`translate(${x+W/2},${y+H/2})` });
+    gl.innerHTML = GLYPH[n.g];
+    g.appendChild(gl);
+    g.appendChild(el("circle", { class:"port", cx:x,     cy:y+H/2, r:2.6 }));
+    g.appendChild(el("circle", { class:"port", cx:x+W,   cy:y+H/2, r:2.6 }));
+    const nm = el("text", { class:"nm", x:x+W/2, y:y+H+13 }); nm.textContent = n.id;
+    const ty = el("text", { class:"ty", x:x+W/2, y:y+H+23 }); ty.textContent = n.ty;
+    const ms = el("text", { class:"ms", x:x+W/2, y:y-6 });    ms.textContent = "—";
+    const caret = el("rect", { class:"caret", x:x+W+5, y:y+H/2-6, width:2, height:12 });
+    const ring = el("g", { class:"ring" });
+    ring.appendChild(el("circle", { cx:x+W-7, cy:y+H-7, r:5 }));
+    g.append(nm, ty, ms, caret, ring);
+    gN.appendChild(g);
+    nodes.push(g);
+  });
+  host.querySelector(".stagewrap").appendChild(svg);
+  return { nodes, edges };
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* -------------------------------------------------------------- variante A */
+async function runA(){
+  const host = document.getElementById("va"), c = document.getElementById("ca");
+  const { nodes, edges } = build(host);
+  await wait(400);
+  for (let i = 0; i < nodes.length; i++){
+    if (i > 0){
+      const e = edges[i-1];
+      e.classList.add("drawing");
+      await wait(430);
+      e.classList.remove("drawing"); e.classList.add("done");
+    }
+    nodes[i].classList.add("writing");
+    c.textContent = `[ ESCREVENDO ${i+1} / ${nodes.length} ]`;
+    await wait(560);
+    nodes[i].classList.remove("writing"); nodes[i].classList.add("built");
+    await wait(120);
+  }
+  c.textContent = `[ MONTADO · ${nodes.length} NÓS · ${edges.length} CONEXÕES ]`;
+}
+
+/* -------------------------------------------------------------- variante B */
+async function runB(){
+  const host = document.getElementById("vb"), c = document.getElementById("cb");
+  const { nodes, edges } = build(host);
+  await wait(500);
+  for (let i = 0; i < nodes.length; i++){
+    nodes[i].classList.add("solid");
+    if (i > 0) edges[i-1].classList.add("done");
+    c.textContent = `[ MONTANDO ${i+1} / ${nodes.length} NÓS ]`;
+    await wait(620);
+  }
+  c.textContent = `[ MONTADO · ${nodes.length} NÓS · ${edges.length} CONEXÕES ]`;
+}
+
+/* -------------------------------------------------------------- variante C */
+async function runC(){
+  const host = document.getElementById("vc"), c = document.getElementById("cc");
+  const { nodes, edges } = build(host);
+  await wait(400);
+  for (let i = 0; i < nodes.length; i++){
+    nodes[i].classList.add("on");
+    c.textContent = `[ ${i+1} NÓS · ${Math.max(0,i)} CONEXÕES ]`;
+    await wait(240);
+    if (i > 0){
+      const e = edges[i-1];
+      e.classList.add("flowing");
+      await wait(520);
+      e.classList.remove("flowing"); e.classList.add("placed");
+    }
+    await wait(160);
+  }
+}
+
+runA(); runB(); runC();
+</script>
+</body>
+</html>
