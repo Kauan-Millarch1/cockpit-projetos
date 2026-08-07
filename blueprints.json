@@ -1,0 +1,43 @@
+[
+  {
+    "id": "teb2cbc57b7f4",
+    "ideia": "todo dia às 9h da manhã, pegar as tarefas abertas do ClickUp e mandar um resumo no Slack",
+    "nivel": "sou técnico",
+    "criadoEm": "2026-08-07T19:37:24.175Z",
+    "terminadoEm": "2026-08-07T19:40:17.642Z",
+    "status": "aguardando",
+    "etapaFinal": 6,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 4,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.26323199999999997,
+        "ms": 21468,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.5190459999999999,
+        "ms": 114053,
+        "comRede": false
+      },
+      {
+        "sessao": "sementes",
+        "usd": 0.1275149,
+        "ms": 33528,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.9098,
+    "exportado": false
+  }
+]

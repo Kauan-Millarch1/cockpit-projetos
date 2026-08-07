@@ -133,10 +133,18 @@ vendas fiz no Mercado Livre" — there is **no** Mercado Livre node in n8n, so t
    session keys built from lead phone and email; this repo classifies them as hostile payload, and
    a cache file is exactly where they must not land. Raw parameters stay in memory for the duration
    of the walk and are dropped.
-2. **Full n8n node registry** (`node-registry.json`): a build-time artifact listing node types with
-   their documented parameters, generated once by a script and committed. The cockpit process only
-   reads a file, so the zero-dependency runtime holds.
-3. **Session R's distilled doc** for the third-party API contract.
+2. ~~Full n8n node registry~~ — **cut from V1 (decided 2026-08-07).** It was the plan's largest
+   scope risk, and the catalog scan showed it is not needed: real usage is concentrated in ~12 node
+   types, and the worked example proves the general rule — **a service with no dedicated node
+   becomes `HTTP Request` + a credential**. An HTTP call built from a researched contract is more
+   trustworthy than a dedicated node whose parameters were hallucinated. So: catalog for what the
+   instance already uses, generic composition for everything else, `origem: memoria` when neither
+   applies.
+3. **Session R's distilled doc** for the third-party API contract — **conditional, not a fixed
+   stage.** If every service the flow touches already has a node in the instance catalog, there is
+   nothing to research: `[ 02 ]` is skipped, states that it was skipped and why, and the build goes
+   straight to `[ 03 ]`. Research costs the most wall-clock and the most context in the whole
+   pipeline, and most ideas here are about services Kauan already uses.
 
 **Provenance lives in a parallel structure, never inside `nodes[]`.** A `provenance` map keyed by
 node name (`{ "buscar_vendas_ml": { origem: "web", fonte: "https://…" } }`) is held by the session
@@ -419,6 +427,42 @@ inside its intended directory before any read or write. The human-readable origi
 - `.cache-catalog.json` — sanitized node shape sketches only. Gitignored.
 - `blueprints.json` — one entry per session: idea, level, stages reached, gate verdicts, sandbox id,
   per-invocation cost, whether the JSON was exported. Tracked in git, holds no workflow JSON.
+
+### 13. Speed is a feature, and it is bought in specific places
+
+Kauan's brief: *"a criação e a conversa não podem demorar muito, algo meio jogo rápido — priorizando
+qualidade"*. That rules out a design that is merely correct and slow. Where the time actually goes,
+and what is done about it:
+
+- **`[ 01 ]` is one round-trip on a cheap model, with no catalog and no web.** It is the moment he
+  is watching, and it is the only stop before the machine runs. Target: seconds.
+- **`[ 02 ]` usually does not happen** (see §3.3). Skipping it removes the single biggest block of
+  wall-clock and cost.
+- **`[ 03 ]` is local**: catalog lookup plus credential-schema fetches. It renders while `[ 02 ]`
+  is still running when research *is* needed, because they do not depend on each other.
+- **`[ 04 ]` is the only genuinely long step.** The activity band and the drawing carry the wait —
+  perceived speed, honestly earned, because both are driven by real stream events.
+- **`[ 05 ]`, `[ 06 ]`, `[ 07 ]` are effectively instant**: gates and simulator are local code, and
+  the sandbox is one API call.
+- **Questions arrive once, batched, with clickable answers.** A second interrogation round is
+  allowed at most once before the machine proceeds with what it has and flags the gap.
+
+**One honesty limit on the speed illusion.** The construction animation reveals a document that is
+already finished; the model does not emit nodes one at a time. So the corner counter reads
+`[ MONTANDO ]` while the model is genuinely working (driven by its real tool/text events) and
+switches to `[ N NÓS · M CONEXÕES ]` for the reveal. It never claims to be writing node 3 of 5 while
+all 5 already exist — a small lie of exactly the family this codebase spends its comments avoiding.
+
+**Generation bias toward simulable flows.** The build session is instructed to prefer `Set` and
+expressions over `Code`. This is not style: `simulate.js` refuses any flow containing `Code`, and
+`code` is the second most used node type on this instance (278×), so an unbiased generator would
+make `[ 06 ]` refuse almost every time. When `Code` is genuinely necessary, the screen says that
+using it cost the simulation of that stretch. Simpler flows are also flows Kauan can maintain.
+
+**Cost never leaves the plan.** Decided 2026-08-07: no path may bill outside the Claude subscription.
+The allowlist env of §2 enforces it by construction — `ANTHROPIC_API_KEY` and the Bedrock/Vertex
+switches are absent rather than blanked, so there is nothing to forget to unset. If a future feature
+needs a paid API, it goes through the same Claude Code session the fix loop already uses.
 
 ## Key decisions & tradeoffs
 

@@ -727,6 +727,26 @@ async function createWorkflow(w, onDropped) {
   return request("POST", "/api/v1/workflows", { body });
 }
 
+/* Os campos obrigatórios de um tipo de credencial. É FATO vindo da instância —
+ * `GET /credentials` responde 405, então não dá para listar o que existe, mas
+ * `/credentials/schema/{tipo}` diz exatamente o que aquele tipo pede. Só forma
+ * atravessa: nomes de campo e quais são obrigatórios, nunca valor. */
+const schemaCache = new Map();
+async function credentialSchema(tipo) {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(tipo || ""))) return null;
+  if (schemaCache.has(tipo)) return schemaCache.get(tipo);
+  let out = null;
+  try {
+    const raw = await api(`/api/v1/credentials/schema/${encodeURIComponent(tipo)}`);
+    out = {
+      obrigatorios: Array.isArray(raw.required) ? raw.required.map(String).slice(0, 20) : [],
+      campos: Object.keys(raw.properties || {}).slice(0, 40)
+    };
+  } catch { out = null; }
+  schemaCache.set(tipo, out);
+  return out;
+}
+
 /* A lista de fluxos, já pela whitelist de `extractWorkflow`. Existe porque o
  * catálogo do Tester precisa percorrer os fluxos para descobrir quais tipos de
  * nó esta instância de fato aceita, e `api()` não é exportada de propósito.
@@ -744,7 +764,7 @@ async function findWorkflowByName(name) {
 module.exports = {
   configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, locateNode, WINDOW_HOURS,
   // write path — ver o bloco acima antes de usar
-  getRawWorkflow, putWorkflow, createWorkflow, findWorkflowByName, listWorkflows,
+  getRawWorkflow, putWorkflow, createWorkflow, findWorkflowByName, listWorkflows, credentialSchema,
   // exportado para teste
   pickSettings, SETTINGS_ALLOWED
 };

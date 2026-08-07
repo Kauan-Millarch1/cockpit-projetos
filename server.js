@@ -11,6 +11,7 @@ const { promisify } = require("node:util");
 
 const n8n = require("./n8n");
 const claudeFix = require("./claude-fix");
+const tester = require("./tester");
 
 const execFileAsync = promisify(execFile);
 
@@ -513,6 +514,79 @@ const server = http.createServer(async (req, res) => {
       const log = [...history, entry];
       await writeFixes({ fixes: next, history: log });
       return json(res, 200, { ok: true, fixes: next, history: log });
+    }
+
+    /* ---------------------------------------------------------- Tester (v1) */
+    // Ideia em português -> blueprint + JSON de workflow, desenhado, validado,
+    // provado numa cópia inativa e simulado. Ver PLAN.md.
+    if (p === "/tester") return serveFile(res, path.join(__dirname, "tester.html"), "text/html; charset=utf-8");
+
+    if (p === "/api/tester/status") return json(res, 200, tester.status());
+
+    if (p === "/api/tester/blueprints") return json(res, 200, await tester.ledger());
+
+    if (p === "/api/tester/session" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+      const ideia = typeof body.ideia === "string" ? body.ideia.trim() : "";
+      if (!ideia || ideia.length > 2000) return json(res, 400, { error: "ideia vazia ou longa demais" });
+      const NIVEIS = ["nunca mexi", "sei o básico", "sou técnico"];
+      const nivel = NIVEIS.includes(body.nivel) ? body.nivel : "sei o básico";
+      try {
+        return json(res, 202, await tester.iniciar({ ideia, nivel }));
+      } catch (err) {
+        return json(res, err.status || 500, { error: String(err && err.message || err) });
+      }
+    }
+
+    if (p.startsWith("/api/tester/session/")) {
+      const resto = p.slice("/api/tester/session/".length);
+      const [id, sub] = resto.split("/");
+      if (!/^t[a-z0-9]{1,32}$/.test(id)) return json(res, 400, { error: "id de sessão inválido" });
+
+      if (!sub && req.method === "GET") {
+        const snap = tester.pegar(id);
+        return snap ? json(res, 200, snap) : json(res, 404, { error: "sessão não encontrada" });
+      }
+
+      if (sub === "stream") {
+        const snap = tester.pegar(id);
+        if (!snap) return json(res, 404, { error: "sessão não encontrada" });
+        res.writeHead(200, {
+          "content-type": "text/event-stream; charset=utf-8",
+          "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no"
+        });
+        const manda = (tipo, dados) => {
+          try { res.write("event: " + tipo + "\ndata: " + JSON.stringify(dados) + "\n\n"); } catch { /* fechou */ }
+        };
+        // Snapshot inteiro primeiro: reconexão reconstrói o estado sem depender
+        // de ter visto os deltas anteriores.
+        manda("snapshot", snap);
+        const solta = tester.assinar(id, manda);
+        const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* fechou */ } }, 25000);
+        req.on("close", () => { clearInterval(ping); solta(); });
+        return;
+      }
+
+      if (sub === "reply" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+        const texto = typeof body.texto === "string" ? body.texto.trim().slice(0, 2000) : null;
+        try {
+          return json(res, 200, await tester.responder(id, { texto: texto || null, seguir: !!body.seguir }));
+        } catch (err) {
+          return json(res, err.status || 500, { error: String(err && err.message || err) });
+        }
+      }
+
+      // Re-simular é código local: sem modelo, sem custo. É o laço de refino
+      // barato que faz a conversa cara ser rara.
+      if (sub === "simulate" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, 64 * 1024) || "{}");
+        try {
+          return json(res, 200, tester.resimular(id, body.sementes));
+        } catch (err) {
+          return json(res, err.status || 500, { error: String(err && err.message || err) });
+        }
+      }
     }
 
     /* ------------------------------------------------- correção pelo Claude */

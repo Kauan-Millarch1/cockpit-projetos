@@ -481,8 +481,19 @@ function runClaude(run, { prompt, resume }) {
       "--verbose",
       "--permission-mode", "acceptEdits",
       "--allowedTools", "Read,Write,Edit,Glob,Grep",
+      // `--allowedTools` só auto-aprova; NÃO restringe. Medido em 2026-08-07:
+      // com exatamente a lista acima, a sessão executou shell. A afirmação
+      // "No Bash, no network" deste arquivo só passou a ser verdade com a linha
+      // abaixo, verificada respondendo SEM_SHELL no mesmo prompt.
+      "--disallowedTools", "Bash,PowerShell,BashOutput,KillShell,Task,Agent,NotebookEdit,SlashCommand,WebFetch,WebSearch",
       "--strict-mcp-config",
-      "--mcp-config", '{"mcpServers":{}}'
+      "--mcp-config", '{"mcpServers":{}}',
+      // Sem a config global do usuário. Medido em iso-check.js: sem isto a
+      // sessão carrega o CLAUDE.md global, que nesta máquina tem a chave da API
+      // do n8n em texto puro — uma credencial que esta sessão não tem motivo
+      // nenhum para segurar. Também derruba os hooks globais, que aqui só
+      // faziam a sessão imprimir coisa que o cockpit não pediu.
+      "--setting-sources", ""
     ];
     if (resume) args.push("--resume", resume);
     if (process.env.COCKPIT_CLAUDE_MODEL || readEnv("COCKPIT_CLAUDE_MODEL")) {

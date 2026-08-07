@@ -41,9 +41,39 @@ const TRIGGERS = new Set([
   "n8n-nodes-base.executeWorkflowTrigger"
 ]);
 
-const PASSTHROUGH = new Set(["n8n-nodes-base.noOp", "n8n-nodes-base.set"]);
+const PASSTHROUGH = new Set(["n8n-nodes-base.noOp", "n8n-nodes-base.set", "n8n-nodes-base.wait"]);
 const BRANCH      = new Set(["n8n-nodes-base.if"]);
 const FETCH       = new Set(["n8n-nodes-base.httpRequest"]);
+
+/* Tipos cujo resultado NÃO pode ser semeado com honestidade, porque eles não
+ * buscam dado: eles TRANSFORMAM o dado que já existe, de um jeito que só
+ * executando dá para saber. Semear a saída deles seria escolher o resultado.
+ *
+ * Um `clickUp` ou um `supabase` não estão aqui: eles trazem dado de fora, e
+ * "não sei o que vem de fora, use uma semente e eu marco isso na tela" é
+ * exatamente o que este arquivo já faz com `httpRequest`. Recusar o fluxo
+ * inteiro por causa deles era recusa larga demais — a primeira corrida real
+ * morreu assim, num fluxo ClickUp → Slack perfeitamente comum. */
+const REFUSA_TRANSFORMA = new Set([
+  "n8n-nodes-base.code",
+  "n8n-nodes-base.merge",
+  "n8n-nodes-base.splitInBatches",
+  "n8n-nodes-base.aggregate",
+  "n8n-nodes-base.itemLists",
+  "n8n-nodes-base.splitOut",
+  "n8n-nodes-base.compareDatasets",
+  "n8n-nodes-base.switch",
+  "n8n-nodes-base.executeWorkflow"
+]);
+const MOTIVO_REFUSA = {
+  "n8n-nodes-base.code": "ele roda JavaScript, e adivinhar o que ele devolve seria inventar o resultado",
+  "n8n-nodes-base.merge": "ele junta dois caminhos, e o V1 só simula caminho único",
+  "n8n-nodes-base.splitInBatches": "ele faz laço, e o V1 simula um item só",
+  "n8n-nodes-base.switch": "ele abre vários caminhos, e o V1 segue um só"
+};
+
+/* Parâmetros que só fazem ruído no desenho do envio. */
+const RUIDO = new Set(["options", "additionalFields", "authentication", "requestOptions", "notice", "resource"]);
 
 /* Superfície de destino: como o resultado é desenhado. O nó diz qual é. */
 const SURFACES = {
@@ -69,7 +99,16 @@ const isAnnotation = t => /stickyNote/i.test(String(t || ""));
  * texto que passou por uma página web, um avaliador que "quase" roda JS produz
  * resultados que parecem certos e não são. */
 const RAIZ = /^(\$json|\$\(\s*(['"])((?:\\.|[^'"\\])*)\2\s*\)(?:\s*\.\s*(?:item|first\(\)|last\(\)))?\s*\.\s*json|\$now|\$today)/;
-const PASSO = /^\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*(['"])((?:\\.|[^'"\\])*)\2\s*\]|\[\s*(\d+)\s*\])/;
+/* `?.` é aceito e tratado como `.`: em acesso a campo o encadeamento opcional só
+ * muda o que acontece quando o caminho quebra, e "caminho quebrou" já é uma
+ * pendência declarada aqui. Sem isto, metade das expressões que o gerador
+ * escreve naturalmente cairia fora do subconjunto — medido na primeira corrida
+ * real, onde TODAS as expressões usavam `?.` ou `||`. */
+const PASSO = /^\s*\??(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*(['"])((?:\\.|[^'"\\])*)\2\s*\]|\[\s*(\d+)\s*\])/;
+
+/* `|| 'padrão'` e `?? 'padrão'` no fim da expressão: o fallback é um literal, e
+ * decidir entre os dois é comparar com vazio — não precisa de JavaScript. */
+const FALLBACK = /^\s*(?:\|\||\?\?)\s*(['"])((?:\\.|[^'"\\])*)\1\s*$/;
 
 function avaliarUm(texto, ctx) {
   const m = RAIZ.exec(texto.trim());
@@ -88,14 +127,28 @@ function avaliarUm(texto, ctx) {
     valor = ctx.porNo[nome];
   }
 
+  let quebrou = null;
   while (resto.length) {
+    const fb = FALLBACK.exec(resto);
+    if (fb) {
+      const padrao = fb[2].replace(/\\(.)/g, "$1");
+      const vazio = valor === undefined || valor === null || valor === "" || quebrou;
+      return { valor: vazio ? padrao : valor, usouPadrao: vazio };
+    }
     const p = PASSO.exec(resto);
     if (!p) return { erro: "expressão fora do subconjunto simulável" };
     const chave = p[1] !== undefined ? p[1] : (p[3] !== undefined ? p[3].replace(/\\(.)/g, "$1") : Number(p[4]));
-    if (valor === null || valor === undefined) return { erro: `caminho interrompido em .${chave}` };
-    valor = valor[chave];
+    if (valor === null || valor === undefined) {
+      // Não devolve erro na hora: pode vir um `|| 'padrão'` logo adiante, e aí o
+      // fluxo real também não quebraria. Só vira pendência se nada cobrir.
+      quebrou = quebrou || `caminho interrompido em .${chave}`;
+      valor = undefined;
+    } else {
+      valor = valor[chave];
+    }
     resto = resto.slice(p[0].length);
   }
+  if (quebrou) return { erro: quebrou };
   if (valor === undefined) return { vazio: true };
   return { valor };
 }
@@ -326,13 +379,37 @@ function simulate(workflow, { seeds = {}, agora = "2026-01-15T09:00:00.000Z" } =
       passo.envio = envio;
       superficies.push({ no: atual.name, superficie: def.surface, envio });
 
+    } else if (REFUSA_TRANSFORMA.has(tipo) || /langchain/i.test(tipo)) {
+      const motivo = MOTIVO_REFUSA[tipo] || (/langchain/i.test(tipo)
+        ? "a saída de um modelo de linguagem não é previsível"
+        : "ele transforma o dado de um jeito que só executando dá para saber");
+      return { ok: false, recusa: `o nó "${atual.name}" (\`${tipo}\`) não dá para simular: ${motivo}.`, passos, superficies, pendencias };
+
     } else {
-      return {
-        ok: false,
-        recusa: `o nó "${atual.name}" é do tipo \`${tipo}\`, que o V1 não simula` +
-                (tipo === "n8n-nodes-base.code" ? " — ele roda JavaScript, e adivinhar o que ele devolve seria inventar o resultado." : "."),
-        passos, superficies, pendencias
-      };
+      /* Nó de serviço externo que eu não modelo. Trato igual ao httpRequest: o
+       * que ele MANDA é derivado dos parâmetros; o que ele DEVOLVE é semente,
+       * e a tela diz isso. É honesto porque a incerteza está declarada, e é
+       * útil porque cobre clickUp, supabase, redis, sheets e o resto. */
+      passo.papel = "serviço externo";
+      const envio = {};
+      for (const [k, v] of Object.entries(params)) {
+        if (RUIDO.has(k)) continue;
+        const r = resolverFundo(v, ctx, notas);
+        if (r !== undefined && r !== null && r !== "") envio[k] = r;
+      }
+      passo.envio = envio;
+
+      const s = seeds[atual.name];
+      const ultimo = !(t.saidas.get(atual.name) || []).length;
+      if (s && typeof s === "object") { ctx.json = s; passo.semente = true; }
+      else {
+        ctx.json = {};
+        passo.semente = false;
+        if (!ultimo) notas.push({ motivo: `não sei o que \`${tipo.replace("n8n-nodes-base.", "")}\` devolve e não recebi semente: tudo depois deste nó chega vazio` });
+      }
+      passo.json = ctx.json;
+      // Se termina aqui, é o destino — desenha do jeito genérico e diz que é.
+      if (ultimo) superficies.push({ no: atual.name, superficie: "generico", tipo, envio });
     }
 
     ctx.porNo[atual.name] = ctx.json;
