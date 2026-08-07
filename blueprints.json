@@ -39,5 +39,46 @@
     ],
     "custoTotal": 0.9098,
     "exportado": false
+  },
+  {
+    "id": "t58e3a1528ea9",
+    "ideia": "todo dia às 9h da manhã, pegar as tarefas abertas do ClickUp e mandar um resumo no Slack",
+    "nivel": "sou técnico",
+    "criadoEm": "2026-08-07T19:44:58.830Z",
+    "terminadoEm": "2026-08-07T19:48:14.715Z",
+    "status": "aguardando",
+    "etapaFinal": 6,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 4,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.227946,
+        "ms": 24684,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.6363115,
+        "ms": 116624,
+        "comRede": false
+      },
+      {
+        "sessao": "sementes",
+        "usd": 0.1431829,
+        "ms": 50465,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 1.0074,
+    "exportado": false
   }
 ]

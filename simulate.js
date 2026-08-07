@@ -110,7 +110,16 @@ const PASSO = /^\s*\??(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*(['"])((?:\\.|[^'"\\])*)\2
  * decidir entre os dois é comparar com vazio — não precisa de JavaScript. */
 const FALLBACK = /^\s*(?:\|\||\?\?)\s*(['"])((?:\\.|[^'"\\])*)\1\s*$/;
 
-function avaliarUm(texto, ctx) {
+function avaliarUm(bruto, ctx) {
+  /* `?.` vira `.` antes de qualquer coisa. Em acesso a campo o encadeamento
+   * opcional só muda o que acontece quando o caminho quebra — e caminho
+   * quebrado já é pendência declarada aqui, ou é coberto por um `|| 'padrão'`
+   * adiante. Normalizar cobre `a?.b` E `a?.[0]` de uma vez; tratar as duas
+   * formas no regex do passo deixava `?.[0]` de fora, que foi exatamente o que
+   * sobrou fora do subconjunto na segunda corrida real. */
+  const texto = String(bruto)
+    .replace(/\?\.(?=\s*\[)/g, "")   // a?.[0] -> a[0]   (virar "." daria ".[0]", inválido)
+    .replace(/\?\./g, ".");          // a?.b   -> a.b
   const m = RAIZ.exec(texto.trim());
   if (!m) return { erro: "expressão fora do subconjunto simulável" };
 
@@ -242,7 +251,9 @@ function primeiroCampo(params, nomes) {
     if (v === undefined || v === null) continue;
     if (typeof v === "object") {
       // resource locator: { __rl, value, mode }
-      if (typeof v.value === "string" || typeof v.value === "number") return String(v.value);
+      if (typeof v.value === "string" && v.value !== "") return String(v.value);
+      if (typeof v.value === "number") return String(v.value);
+      if (typeof v.cachedResultName === "string" && v.cachedResultName) return v.cachedResultName;
       continue;
     }
     if (String(v).length) return String(v);

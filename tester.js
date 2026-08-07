@@ -171,7 +171,7 @@ function snapshot(s) {
     ingredientes: s.ingredientes,
     wf: s.wf, provenance: s.provenance,
     gates: s.gates, sandbox: s.sandbox,
-    sementes: s.sementes, fantasma: s.fantasma,
+    sementes: s.sementes, sementesOrigem: s.sementesOrigem || null, fantasma: s.fantasma,
     custo: s.custo, custoTotal: +(s.custo.reduce((a, c) => a + (c.usd || 0), 0)).toFixed(4),
     erro: s.erro || null, log: s.log
   };
