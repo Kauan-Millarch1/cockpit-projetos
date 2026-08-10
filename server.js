@@ -525,6 +525,27 @@ const server = http.createServer(async (req, res) => {
 
     if (p === "/api/tester/blueprints") return json(res, 200, await tester.ledger());
 
+    // Projetos salvos: o que o Tester produziu e o Kauan decidiu guardar.
+    if (p === "/api/tester/projetos") return json(res, 200, await tester.listarProjetos());
+
+    if (p.startsWith("/api/tester/projeto/")) {
+      const slug = decodeURIComponent(p.slice("/api/tester/projeto/".length));
+      if (!/^[a-z0-9-]{1,64}$/.test(slug)) return json(res, 400, { error: "identificador inválido" });
+      const proj = await tester.lerProjeto(slug);
+      return proj ? json(res, 200, proj) : json(res, 404, { error: "projeto não encontrado" });
+    }
+
+    if (p === "/api/tester/projeto" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+      if (!/^t[a-z0-9]{1,32}$/.test(String(body.id || ""))) return json(res, 400, { error: "id de sessão inválido" });
+      const titulo = typeof body.titulo === "string" ? body.titulo.trim().slice(0, 120) : "";
+      try {
+        return json(res, 200, await tester.salvarProjeto(body.id, titulo));
+      } catch (err) {
+        return json(res, err.status || 500, { error: String(err && err.message || err) });
+      }
+    }
+
     if (p === "/api/tester/session" && req.method === "POST") {
       const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
       const ideia = typeof body.ideia === "string" ? body.ideia.trim() : "";

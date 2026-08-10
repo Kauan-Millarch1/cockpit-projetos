@@ -32,3 +32,7 @@ preview/*.png
 # Only the atomic-write temp files are disposable.
 fixes.json.tmp
 proposals.json.tmp
+
+# projetos/ NAO entra aqui de proposito: e o que o Tester produziu e o Kauan
+# decidiu guardar. O JSON do fluxo, o relatorio e a simulacao nao se regeneram
+# sem pagar a construcao de novo.

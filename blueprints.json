@@ -162,5 +162,52 @@
     ],
     "custoTotal": 0.6239,
     "exportado": false
+  },
+  {
+    "id": "t8281bb02972f",
+    "ideia": "Toda vez que sair uma venda no Mercado Livre, quero ser notificado dentro do Slack",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T12:32:33.881Z",
+    "terminadoEm": "2026-08-10T12:40:23.991Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "pesquisou": true,
+    "pesquisaDoCache": false,
+    "nos": 6,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.0933424,
+        "ms": 23004,
+        "comRede": false
+      },
+      {
+        "sessao": "pesquisa",
+        "usd": 0.4109921999999999,
+        "ms": 110799,
+        "comRede": true
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.5740275,
+        "ms": 154292,
+        "comRede": false
+      },
+      {
+        "sessao": "sementes",
+        "usd": 0.1330284,
+        "ms": 38729,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 1.2114,
+    "exportado": true
   }
 ]

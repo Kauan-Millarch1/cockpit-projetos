@@ -283,10 +283,12 @@ details.jsonbox .inner{padding:0 13px 13px}
   border-radius:12px;background:var(--accent-soft);max-width:70ch}
 .proc .spin{width:16px;height:16px;flex:0 0 auto;border-radius:50%;
   border:2px solid var(--accent-line);border-top-color:var(--accent);animation:girar .8s linear infinite}
-.proc .col{min-width:0;flex:1}
-.proc .t1{font-size:12.8px;color:var(--txt);font-weight:600}
-.proc .t2{font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);margin-top:3px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .col{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+/* `span` é inline: sem isto as duas linhas colavam uma na outra e o detalhe
+   transbordava a caixa. Cada uma é um bloco, e a de baixo trunca. */
+.proc .t1{display:block;font-size:12.8px;color:var(--txt);font-weight:600;line-height:1.4}
+.proc .t2{display:block;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;line-height:1.4}
 .proc .passo{font-family:var(--font-num);font-size:10px;color:var(--accent-txt);flex:0 0 auto}
 @keyframes girar{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.proc .spin{animation:none;border-top-color:var(--accent-line)}}
@@ -297,6 +299,32 @@ details.jsonbox .inner{padding:0 13px 13px}
   border-top:1px solid var(--line-soft);display:flex;gap:14px;flex-wrap:wrap;background:var(--surface);flex:0 0 auto}
 .foot.escreveu{background:var(--warn-soft);color:var(--warn-txt)}
 .foot.indeterminado{background:var(--risk-soft);color:var(--risk-txt)}
+
+/* ------------------------------------------------------ salvar e projetos */
+.acoes{display:flex;gap:8px;margin:11px 0;flex-wrap:wrap;align-items:center}
+.salvar{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:10px;
+  padding:11px 12px;margin-top:11px}
+.salvar .lbl{display:block;font-size:12px;color:var(--txt-dim);margin-bottom:8px}
+.salvar .linha{display:flex;gap:8px;flex-wrap:wrap}
+.salvar .salvo{font-size:12.5px;color:var(--txt)}
+.campo{flex:1 1 220px;min-width:0;font:inherit;font-size:12.5px;color:var(--txt);background:var(--surface);
+  border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none;min-height:34px}
+.campo:focus{border-color:var(--accent-line)}
+
+.projs{margin-top:34px;text-align:left}
+.projs-h{display:flex;gap:8px;align-items:baseline;font-family:var(--font-num);font-size:9.5px;
+  letter-spacing:.06em;color:var(--brand-txt);margin-bottom:10px}
+.projs-h span{color:var(--txt-faint)}
+.projs-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.proj{display:flex;flex-direction:column;gap:5px;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;padding:12px 13px;cursor:pointer;font:inherit;
+  color:inherit;min-width:0}
+.proj:hover{border-color:var(--accent-line)}
+.proj .pt{font-size:13px;font-weight:650;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .pi{font-size:11.5px;color:var(--txt-dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.proj .pm,.proj .pd{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .erro{border:1px solid var(--risk-soft);background:var(--risk-soft);color:var(--risk-txt);
   border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
@@ -441,7 +469,7 @@ function clicavel(el, rotulo, fn) {
   return el;
 }
 
-const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null,
+const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null, projetos: [],
   // escolhas de chip, por TEXTO da pergunta; sobrevivem ao repaint do SSE
   respostas: {} };
 
@@ -462,6 +490,7 @@ function telaAbertura(aviso) {
       '</div>' +
       '<div class="egs">' + EXEMPLOS.map(e => '<button type="button" class="eg">' + esc(e) + '</button>').join("") + '</div>' +
       (aviso ? '<div class="avisobar">' + esc(aviso) + '</div>' : "") +
+      cardsProjetos() +
     '</div></section>';
 
   const ta = $("#ideia");
@@ -473,8 +502,13 @@ function telaAbertura(aviso) {
     app.querySelectorAll("[data-nivel]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
   }));
   app.querySelectorAll(".eg").forEach(b => b.addEventListener("click", () => { ta.value = b.textContent; ta.focus(); }));
+  app.querySelectorAll(".proj").forEach(b => b.addEventListener("click", async () => {
+    try { telaProjeto(await callApi("/api/tester/projeto/" + encodeURIComponent(b.dataset.slug))); }
+    catch (e) { const av = document.createElement("div"); av.className = "avisobar"; av.textContent = e.message; $(".open-in").appendChild(av); }
+  }));
   $("#comecar").addEventListener("click", comecar);
   pintarRodape(null);
+  $("#cab").textContent = "";
 }
 
 async function comecar() {
@@ -893,13 +927,96 @@ function superficie(x) {
 
 function entrega(s) {
   const json = JSON.stringify(s.wf, null, 2);
+  const salvo = !!s.projetoSlug;
+  const sugestao = (s.wf && s.wf.name) || s.ideia || "";
   return '<div class="surf"><div class="sh">[ 07 ] PRONTO PARA IMPORTAR</div>' +
     '<div class="selo" style="color:var(--txt-dim);background:var(--surface-2);border-color:var(--line)">' + esc(SELO_ENTREGA) + "</div>" +
-    '<div style="display:flex;gap:8px;margin:11px 0;flex-wrap:wrap">' +
+
+    // Guardar é uma decisão à parte de copiar: o JSON serve agora, o projeto
+    // serve daqui a um mês, quando ninguém lembra o que esta construção era.
+    '<div class="salvar">' +
+      (salvo
+        ? '<div class="salvo">✓ salvo como <strong>' + esc(s.projetoTitulo || "") + "</strong></div>"
+        : '<label class="lbl" for="titulo">Dê um nome a este projeto para guardá-lo</label>' +
+          '<div class="linha">' +
+            '<input id="titulo" class="campo" maxlength="120" value="' + esc(sugestao.slice(0, 120)) + '" placeholder="ex.: aviso de venda no Slack">' +
+            '<button type="button" class="btn prime" id="salvar">Salvar projeto</button>' +
+          "</div>") +
+    "</div>" +
+
+    '<div class="acoes">' +
       '<button type="button" class="btn prime" id="copiar">⧉ Copiar o JSON</button>' +
       (s.sandbox && s.sandbox.id ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(instanciaUrl(s)) + '">Abrir a cópia de teste ↗</a>' : "") +
+      '<button type="button" class="btn" id="novo">← Voltar para o início</button>' +
     "</div>" +
     '<pre class="json" id="jsonwf">' + esc(json) + "</pre></div>";
+}
+
+/* Cartões dos projetos guardados, na tela de abertura. */
+function cardsProjetos() {
+  if (!S.projetos || !S.projetos.length) return "";
+  return '<div class="projs"><div class="projs-h">[ SEUS PROJETOS ]<span>' + S.projetos.length + "</span></div>" +
+    '<div class="projs-g">' + S.projetos.map(p =>
+      '<button type="button" class="proj" data-slug="' + esc(p.slug) + '">' +
+        '<span class="pt">' + esc(p.titulo) + "</span>" +
+        '<span class="pi">' + esc(p.ideia || "") + "</span>" +
+        '<span class="pm">' + p.nos + " nós · " + esc((p.tipos || []).slice(0, 3).join(", ")) + "</span>" +
+        '<span class="pd">' + esc(dataCurta(p.salvoEm)) + (p.simulou ? " · simulou" : "") + "</span>" +
+      "</button>").join("") + "</div></div>";
+}
+function dataCurta(iso) {
+  try {
+    const d = new Date(iso);
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  } catch { return ""; }
+}
+
+/* Um projeto guardado, aberto para leitura. Não é uma sessão: não há esteira,
+   não há custo, não há nada correndo — só o que ficou registrado. */
+function telaProjeto(p) {
+  const json = JSON.stringify(p.wf, null, 2);
+  app.innerHTML = '<div class="split"><div class="stream" id="stream">' +
+    '<div class="msg me"><div class="who">A IDEIA ERA</div><div class="body">' + esc(p.ideia || "") + "</div></div>" +
+    '<div class="surf"><div class="sh">[ PROJETO GUARDADO ] ' + esc(dataCurta(p.salvoEm)) + "</div>" +
+      '<h2 style="margin:0 0 10px;font-size:17px;font-weight:650">' + esc(p.titulo) + "</h2>" +
+      (p.report ? '<div class="selo" style="color:var(--txt-dim);background:var(--surface-2);border-color:var(--line)">' +
+        esc(String(p.report).split(/\n/).find(l => /Resumo/i.test(l)) || String(p.report).slice(0, 240)) + "</div>" : "") +
+      '<div class="acoes"><button type="button" class="btn prime" id="copiar">⧉ Copiar o JSON</button>' +
+      '<button type="button" class="btn" id="novo">← Voltar para o início</button></div>' +
+      '<pre class="json" id="jsonwf">' + esc(json) + "</pre></div>" +
+    "</div><aside class=\"side\">" +
+      '<div class="sec"><div class="sech"><span class="ix">[ NÓS ]</span><span>' + (p.wf.nodes || []).length + "</span></div>" +
+      (p.wf.nodes || []).map(n => '<div class="i ideia"><div class="tx"><strong>' + esc(n.name) + "</strong><br>" +
+        esc(String(n.type).replace("n8n-nodes-base.", "")) + "</div></div>").join("") + "</div>" +
+    "</aside></div>";
+  ligarEventosProjeto();
+  pintarRodape(null);
+  $("#cab").textContent = p.titulo;
+}
+
+function ligarEventosProjeto() {
+  const c = $("#copiar");
+  if (c) c.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("#jsonwf").textContent); c.textContent = "✓ copiado"; }
+    catch { c.textContent = "não consegui copiar — selecione o texto abaixo"; }
+    setTimeout(() => { c.textContent = "⧉ Copiar o JSON"; }, 2400);
+  });
+  const n = $("#novo");
+  if (n) n.addEventListener("click", inicio);
+}
+
+/* Volta para a tela de abertura, derrubando o SSE da sessão anterior. */
+async function inicio() {
+  if (S.es) { S.es.close(); S.es = null; }
+  S.snap = null; S.desenhado = null; S.respostas = {};
+  history.replaceState(null, "", "/tester");
+  await carregarProjetos();
+  telaAbertura(null);
+}
+
+async function carregarProjetos() {
+  try { S.projetos = await callApi("/api/tester/projetos"); }
+  catch { S.projetos = S.projetos || []; }
 }
 function instanciaUrl(s) {
   const base = (S.capab && S.capab.instancia) || "";
@@ -988,6 +1105,23 @@ function ligarEventos(s) {
   }
   if (enviar) enviar.addEventListener("click", mandar);
 
+  const salvar = $("#salvar");
+  if (salvar) salvar.addEventListener("click", async () => {
+    const campo = $("#titulo");
+    const titulo = campo ? campo.value.trim() : "";
+    if (!titulo) { if (campo) campo.focus(); return; }
+    salvar.disabled = true; salvar.textContent = "salvando…";
+    try {
+      await callApi("/api/tester/projeto", corpo({ id: S.snap.id, titulo }));
+      S.snap = await callApi("/api/tester/session/" + encodeURIComponent(S.snap.id));
+      await carregarProjetos();
+      pintar();
+    } catch (e) { salvar.disabled = false; salvar.textContent = "Salvar projeto"; alertaInline(e.message); }
+  });
+
+  const novo = $("#novo");
+  if (novo) novo.addEventListener("click", inicio);
+
   const copiar = $("#copiar");
   if (copiar) copiar.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText($("#jsonwf").textContent); copiar.textContent = "✓ copiado"; }
@@ -1040,6 +1174,8 @@ $("#tema").addEventListener("click", () => {
     else if (!S.capab.n8nConfigurado) aviso = "O n8n não está configurado no .env, então não sei quais nós a sua instância aceita nem consigo criar a cópia de teste.";
     else if (S.capab.emAndamento) aviso = "Já existe uma construção em andamento. Só uma por vez — espere ela terminar ou recarregue esta página para acompanhar.";
   } catch (e) { aviso = e.message; }
+
+  await carregarProjetos();
 
   const retomar = new URLSearchParams(location.search).get("s");
   if (retomar && /^t[a-z0-9]{1,32}$/.test(retomar)) {

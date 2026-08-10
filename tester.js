@@ -211,6 +211,7 @@ function snapshot(s) {
     gates: s.gates, sandbox: s.sandbox,
     sementes: s.sementes, sementesOrigem: s.sementesOrigem || null, fantasma: s.fantasma,
     custo: s.custo, custoTotal: +(s.custo.reduce((a, c) => a + (c.usd || 0), 0)).toFixed(4),
+    projetoSlug: s.projetoSlug || null, projetoTitulo: s.projetoTitulo || null,
     erro: s.erro || null, log: s.log
   };
 }
@@ -377,10 +378,10 @@ function promptDesenhar(s, correcoes) {
         ].join("\n")
       : "",
     "",
-    s.doc ? "Ficha da API externa (leia o arquivo `doc.md` para o detalhe):\n" + s.doc.texto.slice(0, 4000) : "",
+    s.doc ? "Ficha da API externa (leia o arquivo `doc.md` para o detalhe):\n" + s.doc.texto.slice(0, 2500) : "",
     "",
     "Tipos de nó desta instância, com as versões e a FORMA dos parâmetros que ela aceita:",
-    "```json", JSON.stringify(fatia, null, 2).slice(0, 12000), "```",
+    "```json", JSON.stringify(fatia, null, 2).slice(0, 7000), "```",
     "",
     "FORMATO EXATO do arquivo — nenhuma outra chave no topo:",
     '{ "name": "...", "nodes": [...], "connections": {...}, "settings": { "executionOrder": "v1" } }',
@@ -411,6 +412,12 @@ function promptDesenhar(s, correcoes) {
     "",
     "Escreva também `report.md`, começando com uma linha `**Resumo:** ...` de uma frase,",
     "seguida do que cada nó faz e do que ainda precisa ser preenchido à mão.",
+    "",
+    "E escreva `seeds.json`: dados de EXEMPLO para o cockpit simular este fluxo sem chamar nada.",
+    "Formato: { \"nome_do_no\": { ...objeto que aquele nó receberia ou devolveria... } }",
+    "Só o nó de início e os nós que fazem chamada externa precisam de entrada.",
+    "Os VALORES podem ser inventados; os NOMES DE CAMPO não — use os nomes reais da API,",
+    "porque é exatamente aí que o erro aparece se estiverem errados.",
     correcoes ? "\nA TENTATIVA ANTERIOR FOI REPROVADA PELO VALIDADOR:\n" + correcoes + "\nCorrija exatamente isso e escreva o arquivo de novo." : ""
   ].filter(Boolean).join("\n");
 }
@@ -699,6 +706,19 @@ async function desenhar(s, gen) {
       // listar todas fazia a coluna virar parede de texto sem informação.
       await estreitarCredenciais(s, wf);
       try { s.report = (await fsp.readFile(dentro(s.dir, "report.md"), "utf8")).slice(0, 6000); } catch { s.report = null; }
+      /* Sementes escritas pela MESMA sessão que montou o fluxo. Antes isto era
+       * uma invocação separada do modelo — medida em ~50s e ~US$0,14 por
+       * construção, para produzir algo que quem acabou de escrever o fluxo já
+       * sabia de cor. É a maior economia de tempo desta esteira, e não custa
+       * qualidade: quem escreveu o nó é quem melhor sabe o que ele recebe. */
+      try {
+        const j = JSON.parse(await fsp.readFile(dentro(s.dir, "seeds.json"), "utf8"));
+        if (j && typeof j === "object" && !Array.isArray(j)) {
+          s.sementes = j;
+          s.sementesOrigem = s.doc ? ("escritas junto do fluxo, a partir da ficha de " + s.doc.servico)
+                                   : "escritas junto do fluxo";
+        }
+      } catch { /* sem seeds.json: a etapa 6 pede numa sessão à parte */ }
       emit(s, "wf", { wf: s.wf, provenance: s.provenance });
       if (wf.nodes.some(n => n.type === "n8n-nodes-base.code")) {
         s.achados.push({ tipo: "risco", texto: "este fluxo usa um nó `Code`: eu não consigo simular o que ele devolve, então o resultado da etapa 6 não cobre esse trecho", fonte: "fato" });
@@ -760,6 +780,11 @@ async function validarEProvar(s) {
 }
 
 async function fantasma(s, gen) {
+  // Caminho rápido: a sessão de construção já escreveu as sementes. Só quando
+  // ela não escreveu é que vale gastar uma invocação a mais.
+  if (s.sementes && Object.keys(s.sementes).length) { rodarFantasma(s); return; }
+
+  diz(s, "o fluxo veio sem dados de exemplo — pedindo numa sessão à parte");
   const r = await rodar(s, {
     rotulo: "sementes", prompt: promptSementes(s),
     ferramentas: "Read", cwd: s.dir, modelo: MODELO_CONVERSA, comRede: false
@@ -800,6 +825,74 @@ async function gravarLedger(s) {
   const tmp = LEDGER + ".tmp";
   await fsp.writeFile(tmp, JSON.stringify(lista, null, 2), "utf8");
   await fsp.rename(tmp, LEDGER);
+}
+
+/* ---------------------------------------------------------------- projetos
+ *
+ * O que o Tester produz e o Kauan decidiu guardar. Um arquivo por projeto,
+ * RASTREADO no git — não é cache: o JSON do fluxo, o relatório e a simulação não
+ * dá para regenerar sem pagar a construção de novo.
+ *
+ * O nome do arquivo sai de `slugify`, nunca do título cru: o título vem de um
+ * campo de texto e não pode virar caminho. */
+const PROJETOS_DIR = path.join(__dirname, "projetos");
+
+async function salvarProjeto(id, titulo) {
+  const s = sessions.get(id);
+  if (!s) { const e = new Error("sessão não encontrada"); e.status = 404; throw e; }
+  if (!s.wf) { const e = new Error("esta construção não tem fluxo para salvar"); e.status = 409; throw e; }
+
+  const nome = so(titulo) || so(s.wf.name) || "projeto sem nome";
+  const slug = slugify(nome);
+  await fsp.mkdir(PROJETOS_DIR, { recursive: true });
+
+  const projeto = {
+    slug, titulo: nome.slice(0, 120),
+    ideia: s.ideia, nivel: s.nivel,
+    salvoEm: new Date().toISOString(), sessaoId: s.id,
+    wf: s.wf, provenance: s.provenance,
+    report: s.report || null,
+    fantasma: s.fantasma || null, sementes: s.sementes || null, sementesOrigem: s.sementesOrigem || null,
+    achados: s.achados, ingredientes: s.ingredientes,
+    sandbox: s.sandbox, gates: s.gates,
+    custoTotal: +(s.custo.reduce((a, c) => a + (c.usd || 0), 0)).toFixed(4)
+  };
+  const alvo = dentro(PROJETOS_DIR, slug + ".json");
+  const tmp = alvo + ".tmp";
+  await fsp.writeFile(tmp, JSON.stringify(projeto, null, 2), "utf8");
+  await fsp.rename(tmp, alvo);
+
+  s.projetoSlug = slug;
+  s.projetoTitulo = projeto.titulo;
+  emit(s, "projeto", { slug, titulo: projeto.titulo });
+  await gravarLedger(s);
+  return { slug, titulo: projeto.titulo };
+}
+
+async function listarProjetos() {
+  let arquivos = [];
+  try { arquivos = await fsp.readdir(PROJETOS_DIR); } catch { return []; }
+  const out = [];
+  for (const f of arquivos) {
+    if (!f.endsWith(".json")) continue;
+    try {
+      const p = JSON.parse(await fsp.readFile(dentro(PROJETOS_DIR, f), "utf8"));
+      out.push({
+        slug: p.slug, titulo: p.titulo, ideia: p.ideia, salvoEm: p.salvoEm,
+        nos: (p.wf && p.wf.nodes || []).length,
+        tipos: [...new Set((p.wf && p.wf.nodes || []).map(n => String(n.type).replace("n8n-nodes-base.", "")))].slice(0, 5),
+        simulou: !!(p.fantasma && p.fantasma.ok),
+        custoTotal: p.custoTotal
+      });
+    } catch { /* arquivo ruim: some da lista em vez de derrubar a tela */ }
+  }
+  return out.sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)));
+}
+
+async function lerProjeto(slug) {
+  if (!/^[a-z0-9-]{1,64}$/.test(String(slug || ""))) return null;
+  try { return JSON.parse(await fsp.readFile(dentro(PROJETOS_DIR, slug + ".json"), "utf8")); }
+  catch { return null; }
 }
 
 /* ------------------------------------------------------------------- API */
@@ -958,4 +1051,5 @@ async function ledger() {
   try { return JSON.parse(await fsp.readFile(LEDGER, "utf8")); } catch { return []; }
 }
 
-module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger, validar, SANDBOX_PREFIX };
+module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger, validar,
+  salvarProjeto, listarProjetos, lerProjeto, SANDBOX_PREFIX };
