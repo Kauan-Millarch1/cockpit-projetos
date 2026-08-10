@@ -76,15 +76,18 @@ const MOTIVO_REFUSA = {
 const RUIDO = new Set(["options", "additionalFields", "authentication", "requestOptions", "notice", "resource"]);
 
 /* Superfície de destino: como o resultado é desenhado. O nó diz qual é. */
+/* `rotulo` é o nome do serviço como a tela deve dizê-lo. O telegram compartilha
+ * a FORMA de balão do whatsapp, mas escrever "WhatsApp" num envio de Telegram
+ * seria a tela mentindo o destino — o rótulo viaja separado da superfície. */
 const SURFACES = {
-  "n8n-nodes-base.slack":        { surface: "slack",    campos: { canal: ["channelId", "channel", "select"], texto: ["text", "message"] } },
-  "n8n-nodes-base.whatsApp":     { surface: "whatsapp", campos: { para: ["recipientPhoneNumber", "to"], texto: ["textBody", "text", "message"] } },
-  "n8n-nodes-base.telegram":     { surface: "whatsapp", campos: { para: ["chatId"], texto: ["text"] } },
-  "n8n-nodes-base.gmail":        { surface: "email",    campos: { para: ["sendTo", "to"], assunto: ["subject"], texto: ["message", "html"] } },
-  "n8n-nodes-base.emailSend":    { surface: "email",    campos: { para: ["toEmail"], assunto: ["subject"], texto: ["text", "html"] } },
-  "n8n-nodes-base.supabase":     { surface: "linha",    campos: { tabela: ["tableId", "table"] } },
-  "n8n-nodes-base.googleSheets": { surface: "linha",    campos: { tabela: ["sheetName", "documentId"] } },
-  "n8n-nodes-base.respondToWebhook": { surface: "resposta", campos: { texto: ["respondWith", "responseBody"] } }
+  "n8n-nodes-base.slack":        { surface: "slack",    rotulo: "Slack",    campos: { canal: ["channelId", "channel", "select"], texto: ["text", "message"] } },
+  "n8n-nodes-base.whatsApp":     { surface: "whatsapp", rotulo: "WhatsApp", campos: { para: ["recipientPhoneNumber", "to"], texto: ["textBody", "text", "message"] } },
+  "n8n-nodes-base.telegram":     { surface: "whatsapp", rotulo: "Telegram", campos: { para: ["chatId"], texto: ["text"] } },
+  "n8n-nodes-base.gmail":        { surface: "email",    rotulo: "Gmail",    campos: { para: ["sendTo", "to"], assunto: ["subject"], texto: ["message", "html"] } },
+  "n8n-nodes-base.emailSend":    { surface: "email",    rotulo: "E-mail",   campos: { para: ["toEmail"], assunto: ["subject"], texto: ["text", "html"] } },
+  "n8n-nodes-base.supabase":     { surface: "linha",    rotulo: "Supabase", campos: { tabela: ["tableId", "table"] } },
+  "n8n-nodes-base.googleSheets": { surface: "linha",    rotulo: "Google Sheets", campos: { tabela: ["sheetName", "documentId"] } },
+  "n8n-nodes-base.respondToWebhook": { surface: "resposta", rotulo: "Resposta do webhook", campos: { texto: ["respondWith", "responseBody"] } }
 };
 
 const NAO_SIMULADA = "⟨não simulada⟩";
@@ -387,8 +390,21 @@ function simulate(workflow, { seeds = {}, agora = "2026-01-15T09:00:00.000Z" } =
         notas.push(...r.notas);
         envio[rotulo] = r.texto;
       }
+      /* Numa "linha gravada" o que interessa é o REGISTRO, não só o nome da
+       * tabela. Os campos vêm dos parâmetros do próprio nó, resolvidos como
+       * tudo aqui — derivados, nunca narrados. */
+      if (def.surface === "linha") {
+        const usados = new Set(Object.values(def.campos).flat());
+        const campos = {};
+        for (const [k, v] of Object.entries(params)) {
+          if (RUIDO.has(k) || usados.has(k)) continue;
+          const r = resolverFundo(v, ctx, notas);
+          if (r !== undefined && r !== null && r !== "") campos[k] = r;
+        }
+        if (Object.keys(campos).length) envio.campos = campos;
+      }
       passo.envio = envio;
-      superficies.push({ no: atual.name, superficie: def.surface, envio });
+      superficies.push({ no: atual.name, superficie: def.surface, rotulo: def.rotulo, envio });
 
     } else if (REFUSA_TRANSFORMA.has(tipo) || /langchain/i.test(tipo)) {
       const motivo = MOTIVO_REFUSA[tipo] || (/langchain/i.test(tipo)
