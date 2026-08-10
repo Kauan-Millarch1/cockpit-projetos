@@ -27,9 +27,23 @@ resurfaced the next time the same node+type fails anywhere), carries a heuristic
 to do, filters to a single flow when its card is clicked, and can be handed to Claude as a
 copy-pasteable briefing.
 
+**v3 added a third front door: `/tester`.** The other two answer "what is running and what broke".
+This one answers **"how do I build the thing I have in my head"**. Kauan describes a flow in plain
+Portuguese; the panel asks back what it needs, researches the third-party API when no dedicated n8n
+node exists, lists the nodes and credentials required, **draws the flow node by node as it is
+written**, renders the full workflow JSON, validates it against twelve deterministic gates, imports
+an **inactive, credential-free** `[SANDBOX tester]` copy to prove the instance accepts the schema,
+and finally shows a **simulated** result rendered in the shape of its destination — a Slack bubble,
+a WhatsApp bubble, a table row. He imports the JSON by hand and attaches credentials himself.
+
+Measured on real builds: **~US$1 equivalent and ~3 minutes**, gates passing on the first round.
+The full design is in `PLAN.md`, locked by grill and hardened by five rounds of adversarial review
+by a second model (`PLAN-REVIEW-LOG.md` carries the whole argument).
+
 Scope is deliberately n8n-only for now — the disk portfolio and n8n live state are not yet merged
 into one view. Not yet built: markdown pipeline, ClickUp, project type/tier, deploy beyond
-localhost.
+localhost. **The Tester does not attach credentials and does not execute** — the public API has no
+execute endpoint at all, so that is not a scope choice.
 
 ## Run it
 
@@ -80,7 +94,15 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `proposals.json` | One entry per Claude run: signature, gate verdicts, diff summary, report, whether it was applied and when. **Tracked in git — not a cache.** It is the record of what the cockpit proposed and what Kauan decided. Deliberately holds no workflow JSON. |
 | `.claude-runs/<id>/` | The session's scratch dir — what Claude sees. Gitignored. Holds `workflow.json` (credential-free), `nodes-index.md`, `target-nodes.json`, `failure.md`, `RULES.md`, plus the `patch.json` and `report.md` it writes. |
 | `.claude-runs/_private/<id>.json` | Pre-apply backup — the raw workflow **with** credentials. Outside the session's cwd on purpose. Gitignored. Source of ↺ Desfazer. |
-| `.cache-scan.json`, `.cache-n8n-exec.json` | Caches. Disposable, gitignored. |
+| `tester.html` | The Tester, served at `/tester`. **Holds all judgement** for that page, in one block at the top. |
+| `tester.js` | The Tester's stage machine: two isolated sessions, generation tokens, the twelve gates, the sandbox fence, the ledger. **Facts only.** |
+| `simulate.js` | The ghost. Derives what a flow **would** send by resolving its own expressions. Fails closed outside a declared class. No `eval`, ever. |
+| `catalog.js` | What this instance actually accepts, distilled from the 62 live workflows. **Only sanitized parameter shapes reach disk — never values.** |
+| `iso-check.js` | The build gate that had to pass before the Tester's research session was allowed network. Re-run it after any CLI upgrade. |
+| `tester-smoke.js` | Drives a whole build headless. What decides whether the Tester is worth anything is the flow that comes out, not the screen. |
+| `blueprints.json` | One entry per Tester build: idea, stages, gate verdicts, sandbox id, cost per invocation. **Tracked in git.** |
+| `PLAN.md`, `PLAN-REVIEW-LOG.md` | The Tester's locked design and the full record of the adversarial review that hardened it. |
+| `.cache-scan.json`, `.cache-n8n-exec.json`, `.cache-catalog.json`, `.cache-tester-docs/`, `.tester-runs/` | Caches and scratch. Disposable, gitignored. The docs cache is **deliberately not tracked**: it is third-party web text with a TTL, and a poisoned or stale fetch must never become permanent. |
 
 ## The core invariant
 
@@ -147,6 +169,13 @@ output. `claude-fix.js` is what keeps that honest, in three layers:
 | `POST /api/claude/run/:id/reject` | Records the rejection. Writes nothing to n8n. |
 | `POST /api/claude/run/:id/revert` | `PUT`s the backup back. Only valid on an applied run. |
 | `GET /api/claude/proposals` | The `proposals.json` ledger. |
+| `GET /tester` | The Tester page. `?s=<id>` reattaches to a live build (one takes minutes; a refresh used to lose it). `?static=1` freezes it to a single read — SSE holds the connection open forever, which blocks headless capture. |
+| `GET /api/tester/status` | CLI found, n8n configured, sandbox on/off, which models, and **which auth mode** — so "plan quota, no card" is visible rather than assumed. |
+| `POST /api/tester/session` | Start `{ideia, nivel}` → `202 {id}`. One build at a time (409). |
+| `POST /api/tester/session/:id/reply` | A message, chip answers, or the gate decision. Free text bumps the generation and restarts from that stage. |
+| `GET /api/tester/session/:id` | Snapshot. `GET …/stream` is SSE: full snapshot first, then deltas. |
+| `POST /api/tester/session/:id/simulate` | Re-run the ghost with a different seed. **Local code — no model, no cost, instant.** |
+| `GET /api/tester/blueprints` | The `blueprints.json` ledger. |
 
 Guards in place and verified: `..`, `/`, `\` in a project name → 400; unknown project → 404;
 `revealFolder` refuses anything outside `ROOT`; workflow id must match `[A-Za-z0-9_-]{1,64}`,
@@ -260,6 +289,81 @@ then `PUT`s. The `PUT` body is built field by field (`name`, `nodes`, `connectio
 never a spread, because n8n rejects read-only fields, and `active` is never sent, so applying a fix
 can never wake a dormant flow. Writes are **not retried** (a repeated write that maybe landed is
 worse than a reported error); only GETs are.
+
+## The Tester — how an idea becomes a flow
+
+Seven stages, stopping in exactly two places: after `[ 01 ] Entender`, because confirming intent is
+the cheapest checkpoint there is, and at `[ 06 ] Fantasma`, which is the agreement. The other five
+stream, and typing in the composer at any moment restarts from the affected stage.
+
+**Two isolated sessions, and that split is the security boundary.** Session R has `WebSearch` and
+`WebFetch`, runs in an **empty** directory, is told nothing about the flow being built, writes
+exactly one markdown file, and is **discarded** — never resumed. Session B has **no network at all**
+and reads that file as data. Distilling a page and discarding the HTML inside one long-lived session
+would have been theatre: the contamination stays in context and is re-sent on every resume.
+
+**`[ 02 ] Pesquisar` usually does not happen.** If every service already has a node in the instance
+catalog, there is nothing to read: the stage is skipped, says so, and the build goes straight on.
+Research is the most expensive step in the pipeline in both wall-clock and context.
+
+**Three things the gates refuse outright**: any `credentials` key (Kauan attaches them in the n8n
+editor), any `active` key **anywhere — including in the JSON shown on screen**, because banning it
+only on the write path still hands over a document that wakes a webhook on import, and any
+top-level key outside `{name, nodes, connections, settings}`, because the write path builds its body
+field by field and a sanitised sandbox test would otherwise certify a JSON nobody tested.
+
+**The ghost is derived, never narrated.** A model asked what its own flow produces always answers
+that it works. `simulate.js` resolves the flow's own expressions against seeded input: the outbound
+side is real, the inbound side is seeded and labelled. It **fails closed** — a `Code` node, a merge,
+a loop or an expression outside the measured subset produces a stated refusal, not a partial picture.
+The supported expression subset was **measured, not chosen**: the first draft covered 46% of the
+2284 expressions here because it included the legacy `$node["Nome"]` (0 occurrences) and excluded
+the modern `$('Nome')` (1019). `SIMULAVEL_V1` in `catalog.js` is the source of truth; changing it
+means re-running `node catalog.js --refresh` and re-reading the percentage before promising anything
+on screen.
+
+**Generator and verifier must stay aligned.** Telling the build session to prefer `Set` over `Code`
+was not enough — it complied and wrote `Set` nodes full of JavaScript, so every expression fell
+outside what the simulator can evaluate. The build prompt now **lists the supported subset** and
+says that leaving it costs the simulation. If you ever widen `simulate.js`, widen that prompt in the
+same commit.
+
+**The write, and the invariant it revises.** `CLAUDE.md` used to say the only write was an approved
+diff. There is now a second class: *create or update exactly one inactive, credential-free workflow
+whose name starts with `[SANDBOX tester] `*. Reused by name, so from round two it is a `PUT` — and
+the target's **current name is re-read and re-checked** before every one. Never deleted
+automatically. `COCKPIT_TESTER_SANDBOX=0` turns it off.
+
+**The footer is derived, and that is not decoration.** It reads "nada foi criado no n8n" until stage
+05 writes, then names the sandbox copy; and when a write **fails** it says the result could not be
+*confirmed* — a failed `POST`/`PUT` proves the absence of a confirmation, not the absence of an
+effect. That is the same reasoning behind never retrying a write here.
+
+### `--allowedTools` does not restrict anything — it auto-approves
+
+Measured 2026-08-10. A session started with `--allowedTools "Read,Write,Edit,Glob,Grep"` **executed
+a shell command** and echoed back the string it was asked to print. The flag is an approval list, not
+a sandbox. `--disallowedTools` does restrict — same prompt, answer `SEM_SHELL`.
+
+This means the claim this file used to make about the fix session — "No Bash, no network" — **was
+false until both files started passing `--disallowedTools`**. It matters far more now that a session
+with network exists next door. Both `claude-fix.js` and `tester.js` pass it; do not remove it, and
+do not assume `--allowedTools` alone fences anything.
+
+### The global `CLAUDE.md` carries a live n8n API key, and it loads in headless sessions
+
+Also measured by `iso-check.js`: without isolation, every session the cockpit spawns loads the
+user's global `CLAUDE.md`, which on this machine contains the n8n API key in plain text. The fix is
+**`--setting-sources ""`**, which drops it and the global hooks while keeping the OAuth login.
+Verified alternatives that do **not** work: `CLAUDE_CONFIG_DIR` isolates the credentials too and the
+session cannot authenticate; an empty `cwd` isolates nothing, because the global file arrives
+through the **user** setting source rather than directory discovery. `--bare` is rejected on purpose
+— its own help says OAuth is never read under it, i.e. isolation bought with off-plan billing.
+
+**Cost never leaves the plan.** The child environment is built from an **allowlist**, so
+`ANTHROPIC_API_KEY` and the Bedrock/Vertex switches are absent rather than blanked — a variable that
+does not exist cannot be forgotten. Auth is `claudeAiOauth`, `subscriptionType=team`: what a build
+consumes is the same 5h/7d quota as an interactive session, not a card.
 
 ### Facts about the Claude CLI that cost time here
 
