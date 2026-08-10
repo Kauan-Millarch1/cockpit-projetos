@@ -42,6 +42,12 @@
   .brand span { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
   .navgroup { display:flex; flex-direction:column; gap:2px; }
   .navgroup h4 { margin:0 0 6px 8px; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  /* Navegação entre as três telas. Usa os tokens DESTA página — ela tem uma
+     paleta própria (--ink/--muted/--accent-dim), e importar os nomes da outra
+     faria o link ficar invisível num dos temas. */
+  .pages a { display:block; font-size:13px; color:var(--ink-2); text-decoration:none; padding:6px 8px; border-radius:6px; }
+  .pages a:hover { background:var(--surface-2); color:var(--ink); }
+  .pages a[aria-current="page"] { color:var(--ink); background:var(--accent-dim); font-weight:600; }
   .nav { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; border-radius:7px; border:0; width:100%; background:transparent; color:var(--ink-2); font:inherit; font-size:14px; text-align:left; cursor:pointer; }
   .nav:hover { background:var(--surface-2); color:var(--ink); }
   .nav[aria-current="true"] { background:var(--accent-dim); color:var(--ink); font-weight:600; }
@@ -153,6 +159,14 @@
 <div class="shell">
   <nav class="rail">
     <div class="brand"><b>Cockpit</b><span>projetos</span></div>
+    <!-- As três portas de entrada. Sem isto cada tela só era alcançável
+         digitando a URL, e quem abria esta não sabia que o Tester existia. -->
+    <nav class="navgroup pages" aria-label="telas do cockpit">
+      <h4>Telas</h4>
+      <a href="/">Fluxos n8n</a>
+      <a href="/disco" aria-current="page">Disco</a>
+      <a href="/tester">Tester</a>
+    </nav>
     <div class="navgroup" id="nav-status"><h4>Saúde</h4></div>
     <div class="navgroup">
       <h4>Varredura</h4>
