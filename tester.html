@@ -19,6 +19,7 @@
   --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --risk-soft:#DC2B3A14; --cold-soft:#8B90A014;
   --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
   --node-face:#FFFFFF; --node-edge:rgba(10,10,20,.16); --port:#9AA0B4; --wire:#A8AEC0;
+  --sb:rgba(10,10,20,.20); --sb-hov:rgba(10,10,20,.36);
   --shadow:0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
   --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
   --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
@@ -36,6 +37,7 @@
     --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
     --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
     --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+    --sb:rgba(255,255,255,.15); --sb-hov:rgba(255,255,255,.30);
     --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
   }
 }
@@ -50,6 +52,7 @@
   --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
   --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
   --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+  --sb:rgba(255,255,255,.15); --sb-hov:rgba(255,255,255,.30);
   --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
 }
 
@@ -63,6 +66,21 @@ button{font:inherit;color:inherit}
    que permite as colunas rolarem por dentro em vez de esticarem a página. */
 #app{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+/* A barra de rolagem faz parte da moldura, não é um controle do sistema. A padrão
+   do Chrome chega como uma faixa cinza-clara opaca que ignora o tema — no tema
+   escuro ela era a coisa mais clara da tela, disputando com o conteúdo.
+   O polegar é desenhado com `background-clip:padding-box` sobre uma borda
+   transparente: a borda vira a folga, então o polegar fica FINO sem estreitar a
+   pista, que é o que mantém o alvo de clique confortável. `scrollbar-width:thin`
+   cobre Firefox, que ignora as regras `::-webkit-`. */
+*{scrollbar-width:thin;scrollbar-color:var(--sb) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--sb);background-clip:padding-box;
+  border:3px solid transparent;border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:var(--sb-hov);background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
 
 /* ---------------------------------------------------------------- appbar */
 .appbar{display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
@@ -106,6 +124,30 @@ button{font:inherit;color:inherit}
   background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));
   box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
 .btn.prime:hover:not(:disabled){filter:brightness(1.06)}
+/* O único botão vermelho do painel, e ele existe para uma coisa só: apagar.
+   Usar `--risk` em qualquer ação reversível gastaria o alarme antes da hora. */
+.btn.perigo{color:#fff;border-color:transparent;font-weight:600;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--risk) 84%,#fff),var(--risk));
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
+.btn.perigo:hover:not(:disabled){filter:brightness(1.06)}
+
+/* ------------------------------------------------------------- confirmar
+   Substitui o `confirm()` do browser, que chega com "localhost:4317 diz", fonte
+   do sistema e ordem de botão do sistema — e que não sabe distinguir apagar de
+   desfazer. O scrim é `fixed` com desfoque; o cartão tem largura de leitura, não
+   largura de tela. */
+.scrim{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:22px;
+  background:color-mix(in srgb,var(--bg-deep) 72%,transparent);backdrop-filter:blur(6px)}
+.cfm{width:100%;max-width:460px;background:var(--surface);border:1px solid var(--line);
+  border-radius:16px;padding:18px 19px 16px;box-shadow:var(--shadow);animation:cfmin .22s cubic-bezier(.2,.9,.3,1) both}
+.cfm-hd .ix{font-family:var(--font-num);font-size:9.5px;letter-spacing:.07em;color:var(--txt-faint)}
+.cfm-t{margin:8px 0 10px;font-size:16.5px;font-weight:650;line-height:1.35;letter-spacing:-.01em;color:var(--txt)}
+.cfm-b p{margin:0 0 9px;font-size:12.8px;line-height:1.6;color:var(--txt-dim)}
+.cfm-b p:last-child{margin-bottom:0}
+.cfm-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+@keyframes cfmin{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ .cfm{animation-duration:1ms;animation-delay:0s} }
+@media (max-width:420px){ .cfm-acts{flex-direction:column-reverse} .cfm-acts .btn{width:100%} }
 .go{margin-left:auto}
 .egs{display:flex;gap:8px;justify-content:center;margin-top:20px;flex-wrap:wrap}
 .eg{font-size:11.5px;color:var(--txt-faint);border:1px dashed var(--line);border-radius:999px;
@@ -146,6 +188,12 @@ button{font:inherit;color:inherit}
 .row .k{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:2px}
 .row .v{font-size:12.5px;color:var(--txt);line-height:1.5;word-break:break-word}
 .row .v.miss{color:var(--warn-txt)}
+/* Suposição em vigor: mesma família de aviso do `.miss`, mas com etiqueta —
+   "em aberto" e "decidido sem você" não podem se ler igual. */
+.row .v.sup{color:var(--warn-txt)}
+.tagsup{font-family:var(--font-num);font-size:8.5px;letter-spacing:.06em;vertical-align:1px;
+  border:1px solid var(--warn-soft);background:var(--warn-soft);border-radius:5px;
+  padding:2px 5px;margin-right:7px;white-space:nowrap}
 
 .q{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:12px 13px;max-width:70ch}
 .q .qt{font-size:12.8px;color:var(--txt);line-height:1.55;margin-bottom:4px}
@@ -182,6 +230,13 @@ button{font:inherit;color:inherit}
   stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
 .edge.drawing{stroke:var(--accent);animation:draw .42s ease forwards}
 .edge.done{stroke:var(--wire);stroke-dashoffset:0}
+/* Aresta de IA: o modelo, a memória, o parser e as tools não estão no caminho da
+   execução — são penduradas no agente. Tracejada e mais fina para dizer isso sem
+   gastar cor (status é reservado, --accent é movimento). O tracejado tem que ser
+   `dasharray` fixo, e não a animação de traço: `--len` é o comprimento do próprio
+   path, então reaproveitá-lo aqui apagaria a linha inteira. */
+.edge.ia{stroke-width:1.1;stroke-dasharray:3 3.5;stroke-dashoffset:0;opacity:.72}
+.edge.ia.drawing{stroke:var(--accent);animation:none}
 .nd{opacity:0;transform-box:fill-box;transform-origin:center}
 .nd .face{fill:var(--node-face);stroke:var(--node-edge);stroke-width:1.2}
 .nd .glyph{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke:var(--txt-dim)}
@@ -204,21 +259,65 @@ button{font:inherit;color:inherit}
 /* ---------------------------------------------------------- superfícies */
 .surf{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px;max-width:70ch}
 .surf .sh{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:10px}
-.bubble{border-radius:12px;padding:10px 12px;font-size:12.8px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
-/* A superfície de destino se lê pela FORMA e pelo RÓTULO, nunca por cor
-   emprestada de marca alheia.
-   - o roxo do Slack (#4A154B) era cor solta, fora do sistema de tokens: no dia
-     em que o tema mudar ela não muda junto, e o painel inteiro é construído em
-     cima de tokens justamente para isso não acontecer;
-   - o verde do WhatsApp vinha de `--ok-soft`, que é COR DE STATUS. Este repo
-     reserva ok/warn/risk para dizer se algo está bem ou mal — usá-la como
-     enfeite de balão gasta o único vocabulário que precisa continuar querendo
-     dizer uma coisa só. Um balão verde ali sugeriria "deu certo", e nada aqui
-     executou.
-   O canto assimétrico e a linha "WhatsApp · <número>" fazem o trabalho. */
-.bubble.slack,.bubble.whatsapp{background:var(--surface-2);border:1px solid var(--line)}
-.bubble.whatsapp{border-radius:12px 12px 12px 4px}
-.bubble .meta{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);margin-bottom:6px}
+/* Mockups de destino. A superfície se lê pela FORMA e pelo RÓTULO, nunca por
+   cor emprestada de marca alheia:
+   - o roxo do Slack (#4A154B) seria cor solta, fora do sistema de tokens: no
+     dia em que o tema mudar ela não muda junto;
+   - o verde do WhatsApp seria `--ok`, que é COR DE STATUS. Este repo reserva
+     ok/warn/risk para dizer se algo está bem ou mal — um balão verde ali
+     sugeriria "deu certo", e nada aqui executou.
+   O que faz o trabalho é a anatomia: o Slack tem avatar quadrado, nome em
+   negrito e selo APP; o WhatsApp tem balão com rabinho sobre fundo de conversa;
+   o e-mail tem cabeçalho De/Para/Assunto; a linha gravada é uma linha de
+   tabela. Quem usa esses apps reconhece a forma sem precisar da cor. */
+.mock{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.mock+.mock{margin-top:10px}
+.mock-top{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line-soft);
+  font-family:var(--font-num);font-size:10.5px;color:var(--txt-dim);background:var(--surface-2);min-width:0}
+.mock-top .dest{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mock-top .mk{margin-left:auto;flex:0 0 auto;font-size:8.5px;letter-spacing:.06em;color:var(--txt-faint)}
+.mock-time{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint)}
+/* Slack: avatar quadrado + nome + selo APP + hora, texto embaixo. */
+.slack-msg{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:12px 14px}
+.slack-av{width:36px;height:36px;border-radius:8px;background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line);display:grid;place-items:center;
+  color:var(--accent-txt);font-size:15px;font-weight:700}
+.slack-head{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:3px}
+.slack-head strong{font-size:12.8px}
+.badge-app{font-family:var(--font-num);font-size:8px;letter-spacing:.04em;color:var(--txt-faint);
+  border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+.mock-text{font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--txt)}
+/* WhatsApp/Telegram: balão com rabinho sobre fundo de conversa pontilhado. */
+.wha-chat{padding:14px 14px 12px;background:var(--bg-deep);
+  background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:14px 14px}
+.wha-bubble{max-width:85%;width:fit-content;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px 10px 10px 3px;padding:8px 11px;box-shadow:var(--shadow)}
+.wha-meta{display:block;text-align:right;font-family:var(--font-num);font-size:9px;color:var(--txt-faint);margin-top:4px}
+/* E-mail: cabeçalho De/Para/Assunto + corpo. */
+.mail-head{padding:10px 14px;border-bottom:1px solid var(--line-soft);
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:12.3px}
+.mail-head .k{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:1px}
+.mail-head .sub{font-weight:650}
+.mail-body{padding:12px 14px}
+/* Linha gravada: uma linha de tabela, destacada como "nova". */
+.tblwrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-family:var(--font-num);font-size:9.5px;letter-spacing:.04em;color:var(--txt-faint);
+  text-align:left;padding:7px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:8px 12px;color:var(--txt);word-break:break-word;background:var(--accent-soft);min-width:90px}
+/* Resposta de webhook: bloco mono, como um curl -i. */
+.http-resp{font-family:var(--font-num);font-size:11.5px;padding:12px 14px;line-height:1.65;
+  color:var(--txt-dim);white-space:pre-wrap;word-break:break-word}
+/* NÃO usar `.st` aqui: é a classe das etapas do lado direito (um grid), e a
+   colisão empilhava "HTTP 200" numa coluna de 20px. */
+.http-resp .hst{color:var(--txt);font-weight:700}
+/* Entrada: o mock chega como a mensagem chegaria — sobe e assenta, e o texto se
+   revela da esquerda para a direita, uma vez só (gated por assinatura no JS;
+   o prefers-reduced-motion global zera as durações). */
+.mock.anim{animation:mockin .5s cubic-bezier(.2,.9,.3,1) both}
+.mock.anim .mock-text,.mock.anim .tbl td,.mock.anim .http-resp{animation:typein .7s ease .28s both}
+@keyframes mockin{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes typein{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 -2% 0 0)}}
 .naosim{color:var(--warn-txt);background:var(--warn-soft);border-radius:5px;padding:0 4px;
   font-family:var(--font-num);font-size:11px}
 .kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:12.3px}
@@ -226,6 +325,37 @@ button{font:inherit;color:inherit}
 .kv dd{margin:0;color:var(--txt);word-break:break-word}
 .selo{font-family:var(--font-num);font-size:10px;color:var(--warn-txt);background:var(--warn-soft);
   border:1px solid var(--warn-soft);border-radius:8px;padding:7px 10px;margin-top:11px;line-height:1.55}
+
+/* ------------------------------------------------- opção como mensagem pronta
+   Escolher entre "remetente e assunto" e "remetente, assunto e trecho do corpo"
+   é escolher entre duas DESCRIÇÕES. Aqui a opção é desenhada como a mensagem que
+   ela produz, na mesma anatomia de destino que o fantasma usa.
+   O selo diz MODELO, nunca SIMULAÇÃO, e a diferença não é cosmética: o fantasma
+   da etapa 06 é DERIVADO do fluxo por código, isto aqui é texto que o modelo
+   escreveu para você comparar antes de existir fluxo nenhum. Um selo só para os
+   dois apagaria a única coisa que dá valor ao fantasma.
+   Vem tudo em `span` porque o cartão é um `<button>`, e `<div>` dentro de botão é
+   markup inválido — daí a linha de `display` logo abaixo. */
+.opts.tpl{display:grid;grid-template-columns:1fr;gap:9px}
+.tpl-op{display:block;width:100%;text-align:left;cursor:pointer;padding:10px 11px;
+  border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tpl-op:hover{border-color:var(--accent-line)}
+.tpl-op.on{border-color:var(--accent-line);background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.tpl-hd{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--txt);line-height:1.45}
+.tpl-dot{width:14px;height:14px;flex:0 0 auto;border-radius:50%;border:1.5px solid var(--line);background:var(--bg)}
+.tpl-op.on .tpl-dot{border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--bg),inset 0 0 0 9px var(--accent)}
+.tpl-mock{margin-top:9px;border-color:var(--line-soft);background:var(--bg-deep)}
+.tpl-mock,.tpl-mock .wha-chat,.tpl-mock .wha-bubble,.tpl-mock .mail-body,
+.tpl-mock .slack-av,.tpl-mock .mock-text,.tpl-mock .slack-col{display:block}
+.tpl-mock .slack-av{display:grid}
+.tpl-mock .mock-text{font-size:12.3px}
+/* O campo dinâmico não é o valor: é o buraco onde o valor entra. Marcá-lo com
+   `--accent` (movimento, nunca status) evita que a pessoa leia "{{ assunto }}"
+   como se o fluxo fosse mandar literalmente esse texto. */
+.ph{font-family:var(--font-num);font-size:11px;color:var(--accent-txt);
+  background:var(--accent-soft);border-radius:5px;padding:0 4px}
+.opts.tpl .chip.outro{justify-self:start}
 
 pre.json{margin:0;font-family:var(--font-num);font-size:11px;line-height:1.55;color:var(--txt-dim);
   background:var(--bg-deep);border-radius:8px;padding:11px;overflow-x:auto;max-height:340px}
@@ -321,6 +451,12 @@ details.jsonbox .inner{padding:0 13px 13px}
   color:inherit;min-width:0}
 .proj:hover{border-color:var(--accent-line)}
 .proj .pt{font-size:13px;font-weight:650;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Renomear acontece NO LUGAR do título, do tamanho do título. Reusar `.campo`
+   aqui era o defeito: ele é `flex:1 1 220px` e o card é uma coluna flex, então
+   o basis virava ALTURA e o campo abria 220px de vão dentro do card. */
+.pt-edit{width:100%;min-width:0;font:inherit;font-size:13px;font-weight:650;color:var(--txt);
+  background:var(--bg-deep);border:1px solid var(--accent-line);border-radius:8px;
+  padding:3px 7px;margin:-4px -7px;outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
 .proj .pi{font-size:11.5px;color:var(--txt-dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden}
 .proj .pm,.proj .pd{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);
@@ -348,6 +484,142 @@ details.jsonbox .inner{padding:0 13px 13px}
 .pop-i.risco:hover{background:var(--risk-soft)}
 .outro-campo{margin-top:9px;width:100%}
 
+/* ---------------------------------------------------------------- lixeira
+   Ela precisa se ler como um lugar, não como uma lista cinza de arrependimento.
+   O que faz isso sem gastar cor de status: o glifo desenhado (mesmo viewBox e
+   mesma espessura do resto), a data da exclusão como carimbo mono, e os cards
+   ADORMECIDOS — dessaturados e mais escuros que um projeto vivo, para que a
+   diferença se leia à distância. Sem isso a lixeira parece a lista de projetos,
+   e alguém restaura achando que está abrindo. */
+.projs-h{position:relative}
+.lixbtn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  font-family:var(--font-num);font-size:9.5px;letter-spacing:.05em;color:var(--txt-faint);
+  background:none;border:1px solid transparent;border-radius:999px;padding:4px 10px 4px 8px;min-height:28px}
+.lixbtn .gl{width:14px;height:14px;flex:0 0 auto}
+.lixbtn:hover{color:var(--txt-dim);border-color:var(--line);background:var(--surface-2)}
+.lixbtn.tem{color:var(--txt-dim)}
+.lixbtn .lixn{font-weight:700;color:var(--txt)}
+.lixbtn .lixn.vaz{font-weight:400;color:var(--txt-faint)}
+.vazio-proj{font-size:12.5px;color:var(--txt-dim);border:1px dashed var(--line);border-radius:12px;padding:14px}
+
+.lix-in{max-width:900px;text-align:left}
+.lix-h{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-bottom:22px}
+.lix-h-l{flex:1 1 340px;min-width:0}
+.lix-h-l .ix{font-family:var(--font-num);font-size:9.5px;letter-spacing:.07em;color:var(--brand-txt)}
+.lix-h-l h1{font-size:clamp(21px,3vw,27px);font-weight:600;letter-spacing:-.02em;margin:7px 0 9px}
+.lix-h-l .hint{margin:0;max-width:62ch;text-align:left}
+.lix-h-r{display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap}
+
+.lix-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px}
+.lixc{display:flex;flex-direction:column;gap:5px;background:var(--bg-deep);
+  border:1px dashed var(--line);border-radius:14px;padding:13px 14px;min-width:0;
+  filter:saturate(.72);transition:filter .16s,border-color .16s}
+.lixc:hover,.lixc:focus-within{filter:none;border-color:var(--accent-line);border-style:solid}
+.lixc-top{display:flex;align-items:center;gap:7px;color:var(--txt-faint);margin-bottom:2px}
+.lixc-top .gl{width:14px;height:14px;flex:0 0 auto}
+.lixc-em{font-family:var(--font-num);font-size:9px;letter-spacing:.05em}
+.lixc-t{font-size:13.5px;font-weight:650;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lixc-i{font-size:11.5px;color:var(--txt-dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.lixc-m{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lixc-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.lixc-acts .btn{font-size:11.5px;padding:6px 11px;min-height:30px}
+
+.lix-vazia{display:flex;gap:14px;align-items:center;border:1px dashed var(--line);border-radius:14px;
+  padding:24px;color:var(--txt-dim);font-size:12.8px;line-height:1.6}
+.lix-vazia .gl{width:30px;height:30px;flex:0 0 auto;color:var(--txt-faint)}
+@media (prefers-reduced-motion:reduce){ .lixc{transition:none} }
+
+/* ------------------------------------------------ checklist de credenciais
+   Uma linha por nó que pede credencial, porque a unidade de trabalho no editor
+   do n8n é o nó — a lista por tipo obrigava a traduzir de cabeça. "JÁ USA" e
+   "NÃO ACHEI" usam ok/warn como TEXTO (tokens `-txt`), que é o par calibrado
+   para contraste; a cor de status continua reservada e aqui ela está dizendo
+   exatamente o que sempre disse: está resolvido, ou falta você fazer. */
+.crlist{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg-deep)}
+.cr-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;
+  padding:10px 12px;border-bottom:1px solid var(--line-soft);align-items:start}
+.cr-row:last-child{border-bottom:none}
+.cr-no{font-size:12.5px;color:var(--txt);word-break:break-word}
+.cr-ty{font-family:var(--font-num);font-size:10px;color:var(--txt-faint)}
+.cr-ops{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cr-op{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:12px;min-width:0}
+.cr-op code{font-family:var(--font-num);font-size:11px;color:var(--txt);word-break:break-all}
+.cr-tag{font-family:var(--font-num);font-size:8.5px;letter-spacing:.06em;border-radius:5px;
+  padding:2px 5px;flex:0 0 auto}
+.cr-op.tem .cr-tag{color:var(--ok-txt);background:var(--ok-soft);border:1px solid var(--ok-soft)}
+.cr-op.nao .cr-tag{color:var(--warn-txt);background:var(--warn-soft);border:1px solid var(--warn-soft)}
+.cr-campos{font-size:11px;color:var(--txt-faint);flex-basis:100%}
+.cr-nota{font-size:11px;color:var(--txt-faint)}
+.cr-nomes{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;margin-top:2px}
+.cr-nome{display:inline-flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--txt);
+  border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--surface)}
+.cr-usos{font-family:var(--font-num);font-size:9px;color:var(--txt-faint)}
+.cr-lig{font-family:var(--font-num);font-size:9.5px;color:var(--ok-txt)}
+.cr-pick{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:3px}
+.cr-esc{font-size:11px;padding:4px 10px;min-height:26px}
+/* A faixa que diz o que foi ligado no JSON. Fica ENTRE os botões e o `<pre>`,
+   porque é o que muda o conteúdo do que o botão de copiar leva. */
+.expbar{margin:11px 0 0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2)}
+.expbar .cx{display:flex;align-items:center;gap:8px;font-size:12.3px;color:var(--txt);cursor:pointer}
+.expbar .cx input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.expsub{font-size:11.5px;color:var(--txt-dim);line-height:1.55;margin-top:6px}
+@media (max-width:640px){ .cr-row{grid-template-columns:1fr} }
+
+/* ------------------------------------------- conversa sobre um fluxo salvo
+   A faixa do topo existe porque a tela mostra o DESENHO do fluxo, e ver o fluxo
+   na tela é fácil de confundir com o fluxo já ter mudado. Ela repete que nada
+   foi gravado até o clique — a mesma razão pela qual o painel de fluxos mantém
+   "nada disto está no n8n ainda" na tela inteira do handoff. */
+.edhd{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:12px;
+  padding:11px 13px;font-size:12.5px;color:var(--txt);max-width:70ch}
+.edhd .ix{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--accent-txt);margin-right:6px}
+.edhd-sub{font-size:11.5px;color:var(--txt-dim);line-height:1.55;margin-top:5px}
+
+.prop{border:1px solid var(--accent-line);background:var(--surface);border-radius:12px;padding:13px;max-width:70ch}
+.prop .sh{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:10px}
+.prop .sh .ix{color:var(--accent-txt)}
+.prop-resumo{font-size:13.5px;line-height:1.55;color:var(--txt);font-weight:600}
+.prop-porque{font-size:12.3px;line-height:1.6;color:var(--txt-dim);margin-top:7px}
+/* Apagar nó é a única coisa que este caminho faz e o de produção não faz. Ela é
+   dita em amarelo e por extenso, com os nomes — nunca escondida dentro do diff. */
+.prop-warn{margin-top:10px;border-radius:9px;padding:9px 11px;font-size:12px;line-height:1.55;
+  background:var(--warn-soft);color:var(--warn-txt);border:1px solid var(--warn-soft)}
+.prop-gates{margin-top:9px;font-family:var(--font-num);font-size:10px;color:var(--ok-txt)}
+
+/* O diff mora num `<details>`: num fluxo de 65 nós ele empurraria o botão de
+   aplicar para fora da tela, e um botão que exige rolagem é um botão clicado
+   sem leitura. */
+.ddet{margin-top:11px;border:1px solid var(--line);border-radius:10px;background:var(--bg-deep)}
+.ddet summary{cursor:pointer;padding:9px 12px;font-size:12px;color:var(--txt-dim)}
+.ddet summary:hover{color:var(--txt)}
+.ddet[open] summary{border-bottom:1px solid var(--line-soft)}
+.dnode{border-bottom:1px solid var(--line-soft);padding:10px 12px}
+.dnode:last-child{border-bottom:none}
+.dnh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px}
+.dty{font-family:var(--font-num);font-size:10px;color:var(--txt-faint)}
+.dk{font-family:var(--font-num);font-size:8.5px;letter-spacing:.06em;border-radius:5px;padding:2px 5px;
+  border:1px solid var(--line);color:var(--txt-faint)}
+.dk.added{color:var(--ok-txt);border-color:var(--ok-soft);background:var(--ok-soft)}
+.dk.modified{color:var(--accent-txt);border-color:var(--accent-soft);background:var(--accent-soft)}
+.dk.removed{color:var(--risk-txt);border-color:var(--risk-soft);background:var(--risk-soft)}
+.dlines{margin:0;overflow-x:auto;font-family:var(--font-num);font-size:11px;line-height:1.6}
+.dl{display:block;white-space:pre;padding:0 4px;border-radius:3px}
+.dl.add{color:var(--ok-txt);background:var(--ok-soft)}
+.dl.del{color:var(--risk-txt);background:var(--risk-soft)}
+.dl.ctx{color:var(--txt-faint)}
+.dl.skip{color:var(--txt-faint);opacity:.6;font-style:italic}
+.dedges{padding:10px 12px;font-family:var(--font-num);font-size:11px;line-height:1.6}
+
+/* Cada linha é uma versão inteira guardada dentro do arquivo do projeto. É o que
+   faz "↺ Desfazer" ser verificável em vez de uma promessa escrita num botão. */
+.vrow{display:grid;grid-template-columns:26px 92px minmax(0,1fr);gap:9px;padding:9px 12px;
+  border-bottom:1px solid var(--line-soft);font-size:12px;align-items:start}
+.vrow:last-child{border-bottom:none}
+.vrow .vn,.vrow .vt{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:2px}
+.vrow .vd{color:var(--txt-dim);line-height:1.5;word-break:break-word}
+
 .erro{border:1px solid var(--risk-soft);background:var(--risk-soft);color:var(--risk-txt);
   border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
 .gatefail{border:1px solid var(--risk-soft);background:var(--surface);border-radius:12px;padding:12px 13px;max-width:70ch}
@@ -361,7 +633,10 @@ details.jsonbox .inner{padding:0 13px 13px}
   .chip,.btn{min-height:40px}
 }
 @media (prefers-reduced-motion:reduce){
-  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  /* `animation-delay` também: com fill `both`, um elemento atrasado fica preso
+     no estado inicial (opacity 0) até o delay passar — zerar só a duração
+     deixava os mockups escalonados invisíveis para quem pediu menos movimento. */
+  *{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
   .nd{opacity:1}
   .edge{stroke-dashoffset:0}
 }
@@ -438,6 +713,26 @@ const SELO_ENTREGA =
   "cópia leva o prefixo [SANDBOX tester]. Ele não traz credenciais — depois de importar, escolha cada " +
   "credencial no editor do n8n.";
 
+/* Recusar a simulação de um agente NÃO é o mesmo que recusar meio resultado, e o
+   selo genérico manda o Kauan procurar um defeito de expressão que não existe.
+   Aqui a recusa é estrutural e permanente: a resposta é escrita por um modelo na
+   hora, e prever texto de modelo é a única coisa que este arquivo nunca vai
+   fazer. O que sobra de conferível — canal, destinatário, número de bolhas — está
+   no fluxo e nos portões, e a frase diz onde olhar. */
+const SELO_RECUSA = {
+  agente: "Isto não é uma limitação a contornar: prever o que um modelo vai dizer seria inventar o " +
+          "resultado, e é exatamente o que o resto desta tela existe para não fazer. O que dá para " +
+          "conferir sem executar está acima — as camadas, os portões e o JSON. O primeiro teste real " +
+          "de um agente é a primeira conversa real.",
+  "":     "Prefiro não desenhar meio resultado. Um quadro parcial apresentado como resultado é pior " +
+          "que quadro nenhum — o fluxo e os portões continuam válidos, só a prévia não sai."
+};
+
+/* Cabeçalho da etapa 06. Um agente nunca vai ter prévia, então prometer "o que
+   isto produziria" e entregar recusa é a tela contradizendo a si mesma. */
+const TITULO_FANTASMA = f =>
+  (f && f.classe === "agente") ? "[ 06 ] POR QUE NÃO HÁ PRÉVIA" : "[ 06 ] O QUE ISTO PRODUZIRIA";
+
 /* Rótulo da origem de cada nó. `memoria` é a confissão de que ninguém confirmou. */
 const ORIGEM_TXT = {
   instancia: n => "vem dos seus fluxos" + (n.nota ? " (" + n.nota + ")" : ""),
@@ -450,7 +745,11 @@ const NIVEIS = ["nunca mexi", "sei o básico", "sou técnico"];
 const EXEMPLOS = [
   "avisar no Slack quando cair pedido novo",
   "todo dia às 9h, resumo das tarefas abertas do ClickUp no Slack",
-  "quando entrar lead no Supabase, mandar mensagem no WhatsApp"
+  "quando entrar lead no Supabase, mandar mensagem no WhatsApp",
+  // O quarto exemplo é de agente de propósito: sem ele nada na tela indica que
+  // o Tester sabe construir um, e a entrevista de agente é a metade da feature
+  // que ninguém descobre por acidente.
+  "um agente que responde os leads no WhatsApp e tira dúvida sobre os eventos"
 ];
 
 /* ════════════════════════════════════ fim do bloco de juízo ═══════════════ */
@@ -493,7 +792,10 @@ function clicavel(el, rotulo, fn) {
 
 const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null, projetos: [],
   // escolhas de chip, por TEXTO da pergunta; sobrevivem ao repaint do SSE
-  respostas: {} };
+  respostas: {},
+  // pan/zoom do grafo e assinatura do fantasma: sem eles cada evento do SSE
+  // resetaria a câmera e re-animaria a chegada da mensagem
+  cam: null, fantasmaVisto: null };
 
 /* ---------------------------------------------------------------- abertura */
 
@@ -524,6 +826,8 @@ function telaAbertura(aviso) {
     app.querySelectorAll("[data-nivel]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
   }));
   app.querySelectorAll(".eg").forEach(b => b.addEventListener("click", () => { ta.value = b.textContent; ta.focus(); }));
+  const vl = $("#ver-lixeira");
+  if (vl) vl.addEventListener("click", telaLixeira);
   app.querySelectorAll(".proj").forEach(card => {
     const slug = card.dataset.slug;
     const abrir = async () => {
@@ -548,10 +852,14 @@ function telaAbertura(aviso) {
       dots.setAttribute("aria-expanded", "false");
 
       if (item.dataset.acao === "renomear") {
+        // `.pt-edit`, nunca `.campo`: `.campo` é `flex: 1 1 220px`, e o card é
+        // uma COLUNA flex — ali o basis vira ALTURA, e o campo abria o card com
+        // 220px de vão. Este entra no lugar exato do título, do tamanho dele.
         const titulo = card.querySelector(".pt");
         const antes = titulo.textContent;
         const campo = document.createElement("input");
-        campo.className = "campo"; campo.value = antes; campo.maxLength = 120;
+        campo.className = "pt-edit"; campo.value = antes; campo.maxLength = 120;
+        campo.setAttribute("aria-label", "novo nome do projeto");
         titulo.replaceWith(campo);
         campo.focus(); campo.select();
         const salvar = async () => {
@@ -569,9 +877,20 @@ function telaAbertura(aviso) {
         return;
       }
 
-      // Excluir apaga o arquivo. A pasta é rastreada no git, então o desfazer
-      // existe — mas quem clica precisa saber que está apagando.
-      if (!confirm("Excluir «" + card.querySelector(".pt").textContent + "»?\n\nO arquivo sai da pasta projetos/. Como ela é versionada, dá para recuperar com git.")) return;
+      /* Excluir MOVE para a lixeira. Continua pedindo confirmação — o card sai
+         da tela e isso precisa ser uma decisão —, mas o texto não pode assustar
+         com um dano que não vai acontecer: nada é apagado aqui. O alarme
+         vermelho fica guardado para o "apagar de vez", que é onde ele é verdade. */
+      const nome = card.querySelector(".pt").textContent;
+      const ok = await confirmar({
+        tag: "LIXEIRA", perigo: false, botao: "Mandar para a lixeira",
+        titulo: "Mandar «" + nome + "» para a lixeira?",
+        corpo: [
+          "Ele sai da lista, mas não é apagado: fica na lixeira até você decidir. De lá dá para restaurar a qualquer momento.",
+          "Nada é tocado no n8n. Se você já importou este fluxo lá, ele continua lá."
+        ]
+      });
+      if (!ok) return;
       try { await callApi("/api/tester/projeto/" + encodeURIComponent(slug), { method: "DELETE" }); }
       catch (e) { avisoAbertura(e.message); }
       await inicio();
@@ -622,7 +941,7 @@ function ligar(id) {
   // O snapshot inteiro vem primeiro e vem de novo a cada reconexão, então o
   // cliente nunca depende de ter visto os deltas anteriores.
   es.addEventListener("snapshot", ev => { S.snap = JSON.parse(ev.data); pintar(); });
-  for (const t of ["etapa", "entendi", "espera", "gates", "wf", "sandbox", "fantasma", "custo", "ingredientes", "doc", "chat", "fim", "log"]) {
+  for (const t of ["etapa", "entendi", "espera", "gates", "wf", "wfParcial", "sandbox", "fantasma", "custo", "ingredientes", "doc", "chat", "proposta", "fim", "log"]) {
     es.addEventListener(t, () => refrescar(id));
   }
   es.addEventListener("atividade", ev => {
@@ -650,6 +969,7 @@ function pintar() {
   const antes = app.querySelector(".stream");
   const scroll = antes ? antes.scrollTop : 0;
   const noFim = antes ? (antes.scrollHeight - antes.scrollTop - antes.clientHeight < 80) : true;
+  const digitado = capturarInputs();
 
   app.innerHTML =
     '<div class="split">' +
@@ -660,6 +980,7 @@ function pintar() {
 
   ligarEventos(s);
   desenharSeNovo(s);
+  restaurarInputs(digitado);
 
   const st = $("#stream");
   if (st) st.scrollTop = noFim ? st.scrollHeight : scroll;
@@ -667,30 +988,91 @@ function pintar() {
   $("#cab").textContent = (s.ideia || "").slice(0, 44) + (s.ideia && s.ideia.length > 44 ? "…" : "") + " · " + s.nivel;
 }
 
-function blocosStream(s) {
+/* O SSE repinta a tela inteira a cada evento — e uma construção emite eventos o
+ * tempo todo. Sem isto, o que estava sendo DIGITADO no composer, no "Outro…" ou
+ * no título do projeto sumia no meio da frase, junto com o foco. O texto de quem
+ * usa nunca é descartável. */
+function capturarInputs() {
+  const foco = document.activeElement;
   const out = [];
-
-  for (const m of s.chat || []) {
-    if (m.quem === "voce") {
-      out.push('<div class="msg me"><div class="who">VOCÊ</div><div class="body">' + esc(m.texto) + "</div></div>");
-    } else if (m.entendi) {
-      out.push(cartaoEntendi(m.entendi));
+  const ta = $("#resposta");
+  if (ta && (ta.value || foco === ta)) out.push({ tipo: "resposta", v: ta.value, foco: foco === ta, a: ta.selectionStart, b: ta.selectionEnd });
+  const ti = $("#titulo");
+  if (ti && (foco === ti || ti.value !== ti.defaultValue)) out.push({ tipo: "titulo", v: ti.value, foco: foco === ti, a: ti.selectionStart, b: ti.selectionEnd });
+  app.querySelectorAll(".outro-campo").forEach(c => {
+    if (foco !== c) return;                       // valor já sobrevive via S.respostas
+    const q = c.closest(".q");
+    if (q) out.push({ tipo: "outro", q: q.dataset.q, v: c.value, foco: true, a: c.selectionStart, b: c.selectionEnd });
+  });
+  return out;
+}
+function restaurarInputs(lista) {
+  for (const it of lista) {
+    let el = null;
+    if (it.tipo === "resposta") el = $("#resposta");
+    else if (it.tipo === "titulo") el = $("#titulo");
+    else {
+      const q = [...app.querySelectorAll(".q")].find(x => x.dataset.q === it.q);
+      el = q && q.querySelector(".outro-campo");
+      if (el) el.removeAttribute("hidden");
     }
+    if (!el) continue;
+    el.value = it.v;
+    if (it.foco) { el.focus(); try { el.setSelectionRange(it.a, it.b); } catch { /* textarea vs input */ } }
   }
+}
 
-  if (s.status === "correndo" && s.etapa === 1 && !s.entendi) out.push(faixaProc(s));
+/* A conversa como blocos de tela. Compartilhada entre a corrida e o projeto
+   guardado — reabrir um projeto mostra a MESMA conversa que aconteceu, não um
+   resumo dela. */
+/* `dono` é a sessão ou o projeto salvo — os dois carregam `ehAgente`, e o cartão
+   precisa dele para dizer que classificação foi feita. Um projeto salvo antes
+   desta feature não tem o campo, e aí o cartão simplesmente não diz nada, que é
+   melhor que afirmar "automação" sobre algo que nunca foi classificado. */
+function blocosConversa(chat, dono) {
+  return (chat || []).map(m => {
+    if (m.quem === "voce") return '<div class="msg me"><div class="who">VOCÊ</div><div class="body">' + esc(m.texto) + "</div></div>";
+    if (m.entendi) return cartaoEntendi(m.entendi, dono);
+    /* Fala do Tester em texto. Numa construção isto nunca acontece — lá a fala
+       dele É o cartão de entendimento, e `texto` vem nulo. Numa conversa sobre
+       um fluxo salvo é o caso comum: a resposta a uma dúvida é uma frase, e sem
+       esta linha ela era descartada e a pergunta ficava sem resposta na tela. */
+    if (m.texto) return '<div class="msg sys"><div class="who">TESTER</div><div class="body">' + esc(m.texto) + "</div></div>";
+    return "";
+  }).join("");
+}
+
+function blocosStream(s) {
+  // Conversa sobre um fluxo que já existe é outra tela: não tem entrevista, não
+  // tem portão de sete etapas e não entrega JSON no fim — entrega um remendo
+  // para você aprovar ou descartar.
+  if (s.modo === "edicao") return blocosEdicao(s);
+
+  const out = [];
+  out.push(blocosConversa(s.chat, s));
+
+  if (s.status === "correndo" && s.etapa === 1) out.push(faixaProc(s));
 
   for (const q of s.perguntas || []) out.push(pergunta(q));
 
   if (s.etapa === 1 && s.status === "aguardando") {
-    out.push(portao(
-      "Confere? Se estiver certo eu já sigo sozinho até o resultado.",
-      "Daqui pra frente são cinco passos seguidos: pesquisar (se precisar), listar o que você precisa, " +
-      "desenhar o fluxo, validar e simular. Só volto a te perguntar no final.",
-      "É isso, pode seguir", s.custoTotal));
+    if ((s.perguntas || []).length) {
+      // Entrevista em aberto: responder alimenta a rodada seguinte; pular é
+      // permitido, mas dito com o preço — o que ficar aberto vira suposição.
+      out.push(acoesEntrevista(s));
+    } else {
+      out.push(portao(
+        ((s.respostas || []).length ? "Entrevista completa — tenho o que preciso. " : "") +
+        "Confere? Se estiver certo eu já sigo sozinho até o resultado.",
+        "Daqui pra frente são cinco passos seguidos: pesquisar (se precisar), listar o que você precisa, " +
+        "desenhar o fluxo, validar e simular. Só volto a te perguntar no final.",
+        "É isso, pode seguir", s.custoTotal));
+    }
   }
 
-  if (s.wf) out.push(canvas(s));
+  // O desenho aparece assim que a sessão de construção ESCREVE o arquivo —
+  // rascunho ainda sem validação — e é substituído pelo documento validado.
+  if (s.wf || s.wfParcial) out.push(canvas(s));
 
   if (s.gates && !s.gates.passou) {
     out.push('<div class="gatefail"><div style="font-size:12.5px;font-weight:600;margin-bottom:7px">O validador reprovou a proposta</div><ul style="margin:0;padding-left:18px">' +
@@ -705,7 +1087,10 @@ function blocosStream(s) {
       "eu recomeço do ponto que interessa.", "É isso, pode fechar", s.custoTotal));
   }
 
-  if (s.status === "pronta" && s.wf) out.push(entrega(s));
+  /* A checklist vem ANTES da entrega, não depois: ela é o que ele vai executar
+     assim que colar o JSON no n8n, e um bloco de trabalho embaixo de um `<pre>`
+     de 400 linhas é um bloco que ninguém encontra. */
+  if (s.status === "pronta" && s.wf) out.push(checklistCred(s, true), entrega(s));
 
   if (s.status === "correndo" && s.etapa > 1) out.push(faixaProc(s));
 
@@ -715,27 +1100,162 @@ function blocosStream(s) {
 
 /* A faixa que diz onde a esteira está. A linha de cima é a ETAPA, que é o que
    responde "quanto falta"; a de baixo é o detalhe do segundo, que muda rápido
-   demais para ser a informação principal. */
+   demais para ser a informação principal.
+   O total sai de `s.etapas`, nunca de um `07` escrito à mão: a conversa sobre um
+   fluxo salvo tem cinco passos, e um "03 / 07" ali seria um contador prometendo
+   duas etapas que não existem. */
 function faixaProc(s) {
   const e = (s.etapas || []).find(x => x.n === s.etapa) || {};
-  const titulo = s.etapa === 1 && !s.entendi
-    ? "Lendo a sua ideia…"
-    : "Processando a próxima etapa — " + (e.nome || "");
+  const total = (s.etapas || []).length || 7;
+  const titulo = s.modo === "edicao"
+    ? (e.nome ? "Trabalhando no seu pedido — " + e.nome : "Trabalhando no seu pedido…")
+    : s.etapa === 1
+      ? (s.entendi ? "Digerindo o que você respondeu…" : "Lendo a sua ideia…")
+      : "Processando a próxima etapa — " + (e.nome || "");
   return '<div class="proc" role="status" aria-live="polite">' +
     '<span class="spin" aria-hidden="true"></span>' +
     '<span class="col"><span class="t1">' + esc(titulo) + "</span>" +
     '<span class="t2" id="atividade">' + esc(s.atividade || "começando…") + "</span></span>" +
-    '<span class="passo">' + String(s.etapa).padStart(2, "0") + " / 07</span></div>";
+    '<span class="passo">' + String(s.etapa).padStart(2, "0") + " / " + String(total).padStart(2, "0") + "</span></div>";
 }
 
-function cartaoEntendi(e) {
+/* ----------------------------------------------- conversa sobre um fluxo salvo
+ *
+ * Três coisas podem sair de um pedido, e a tela tem que distinguir as três:
+ * uma FRASE (era dúvida, nada mudou), um REMENDO esperando decisão, ou um erro.
+ * O fluxo salvo não muda em nenhuma delas até o clique em aplicar — e a faixa
+ * do topo diz isso o tempo todo, porque a tela mostra o desenho do fluxo e
+ * "estou vendo o fluxo" é fácil de confundir com "o fluxo já mudou". */
+function blocosEdicao(s) {
+  const out = [];
+  const nos = (s.wf && s.wf.nodes || []).length;
+  out.push('<div class="edhd"><span class="ix">[ CONVERSA SOBRE O FLUXO ]</span> ' +
+    esc(s.projetoTitulo || s.titulo || "projeto salvo") + " · " + nos + " nós" +
+    '<div class="edhd-sub">Pergunte, peça mudança, peça coisa nova ou peça para tirar. ' +
+    "Nada é gravado enquanto você não aprovar o remendo.</div></div>");
+
+  out.push(blocosConversa(s.chat, s));
+
+  if (s.status === "correndo") out.push(faixaProc(s));
+
+  if (s.wf) out.push(canvas(s));
+
+  if (s.gatesProposta && !s.gatesProposta.passou && !s.proposta) {
+    out.push('<div class="gatefail"><div style="font-size:12.5px;font-weight:600;margin-bottom:7px">' +
+      "O validador reprovou este remendo — vou tentar de novo</div><ul style=\"margin:0;padding-left:18px\">" +
+      s.gatesProposta.falhas.map(f => "<li>" + esc(f) + "</li>").join("") + "</ul></div>");
+  }
+
+  if (s.proposta) out.push(propostaBloco(s));
+  else if (s.fantasma) out.push(fantasmaBloco(s));
+
+  /* Um remendo que acrescenta nó acrescenta credencial junto, e ela não aparece
+     em lugar nenhum do diff — o patch tem `credentials` proibido justamente por
+     isso. A checklist é o único lugar onde esse custo fica visível. */
+  if (!s.proposta && s.wf) out.push(checklistCred(s, true));
+
+  if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
+  return out.join("");
+}
+
+/* O remendo, antes de ser remendo. Resumo em português primeiro, porque é o que
+   decide o clique; o diff embaixo é a prova, e vive num `<details>` para não
+   empurrar o botão para fora da tela num fluxo grande. */
+function propostaBloco(s) {
+  const p = s.proposta;
+  const d = p.diff || { nodes: [], connections: { added: [], removed: [] }, summary: {} };
+  const sm = d.summary || {};
+  const conta = [
+    sm.added ? sm.added + " nó(s) novo(s)" : "",
+    sm.modified ? sm.modified + " alterado(s)" : "",
+    sm.removed ? sm.removed + " removido(s)" : "",
+    sm.edgesAdded ? sm.edgesAdded + " ligação(ões) nova(s)" : "",
+    sm.edgesRemoved ? sm.edgesRemoved + " ligação(ões) desfeita(s)" : ""
+  ].filter(Boolean).join(" · ") || "nenhuma diferença medida";
+
+  return '<div class="prop"><div class="sh"><span class="ix">[ REMENDO PROPOSTO ]</span> ' + esc(conta) + "</div>" +
+    '<div class="prop-resumo">' + esc(p.resumo) + "</div>" +
+    (p.porque ? '<div class="prop-porque">' + esc(p.porque) + "</div>" : "") +
+    (p.removidos && p.removidos.length
+      ? '<div class="prop-warn">Isto APAGA ' + p.removidos.length + " nó(s): " +
+        esc(p.removidos.join(", ")) + ". A versão anterior fica guardada e o desfazer traz ela de volta.</div>"
+      : "") +
+    '<div class="prop-gates">✓ passou nos portões na rodada ' + (p.rodada || 1) +
+      " · a cópia de teste no n8n só roda quando você aplicar</div>" +
+    diffBloco(d) +
+    (p.fantasma ? fantasmaBloco({ fantasma: p.fantasma, sementesOrigem: s.sementesOrigem }) : "") +
+    '<div class="acoes"><button type="button" class="btn prime" id="aplicar">✓ Aplicar e salvar</button>' +
+    '<button type="button" class="btn" id="descartar">Descartar este remendo</button>' +
+    '<span class="cost">O FLUXO SALVO SÓ MUDA NO CLIQUE</span></div></div>';
+}
+
+function diffBloco(d) {
+  const nos = (d.nodes || []).map(n => {
+    const rot = { added: "NOVO", modified: "ALTERADO", removed: "REMOVIDO" }[n.kind] || "";
+    return '<div class="dnode"><div class="dnh"><span class="dk ' + esc(n.kind) + '">' + rot + "</span>" +
+      "<strong>" + esc(n.name) + "</strong><span class=\"dty\">" + esc(String(n.type).replace("n8n-nodes-base.", "")) + "</span></div>" +
+      '<pre class="dlines">' + (n.lines || []).map(l =>
+        '<span class="dl ' + (l.t === "+" ? "add" : l.t === "-" ? "del" : l.t === "~" ? "skip" : "ctx") + '">' +
+        esc(l.t === "~" ? "  ⋯ " + l.s : l.t + " " + l.s) + "</span>").join("\n") + "</pre></div>";
+  }).join("");
+
+  const arestas = [
+    ...(d.connections && d.connections.added || []).map(e => '<div class="dl add">+ ' + esc(e) + "</div>"),
+    ...(d.connections && d.connections.removed || []).map(e => '<div class="dl del">- ' + esc(e) + "</div>")
+  ].join("");
+
+  if (!nos && !arestas) return '<div class="empty">o diff saiu vazio — isso não deveria acontecer com um remendo aprovado</div>';
+  return "<details class=\"ddet\"><summary>Ver o diff, nó por nó</summary>" +
+    nos + (arestas ? '<div class="dedges"><div class="dnh"><strong>ligações</strong></div>' + arestas + "</div>" : "") +
+    "</details>";
+}
+
+/* Cada linha tem TRÊS estados, e a distância entre o segundo e o terceiro é a
+   distância entre "ainda vou te perguntar" e "já decidi sem você":
+     preenchido        — o que você disse;
+     em aberto         — a entrevista continua, a pergunta ainda vem;
+     suposição em vigor — ninguém mais vai perguntar e a construção segue com um
+                          padrão, seja porque o modelo declarou a suposição
+                          (prefixo "suposição:") ou porque a entrevista fechou
+                          com o campo vazio.
+   Enquanto os dois últimos diziam a mesma frase, o cartão cobrava resposta com a
+   etapa 04 já desenhando — pedindo algo que não tinha mais onde ser respondido. */
+function cartaoEntendi(e, dono) {
+  const fechada = !!(dono && !(dono.perguntas || []).length && (dono.etapa || 1) > 1);
   const linha = (k, v) => {
-    const falta = !v || /^não disse$/i.test(String(v).trim());
-    return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v' + (falta ? " miss" : "") + '">' +
-      esc(falta ? "você ainda não disse" : v) + "</div></div>";
+    const t = String(v == null ? "" : v).trim();
+    const sup = /^suposi[çc][ãa]o\s*:/i.test(t);
+    const vazio = !t || /^n[ãa]o disse$/i.test(t);
+    if (!sup && !vazio) return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v">' + esc(t) + "</div></div>";
+    if (vazio && !fechada) {
+      return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v miss">você ainda não disse</div></div>';
+    }
+    const txt = sup ? t.replace(/^suposi[çc][ãa]o\s*:\s*/i, "") : "vou usar o padrão mais comum e deixar marcado no fluxo";
+    return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v sup">' +
+      '<span class="tagsup">SUPOSIÇÃO</span>' + esc(txt) + "</div></div>";
   };
+  /* Só quando é agente. Dizer "automação" no cartão de todo fluxo normal seria
+     ruído — a classificação só é notícia quando ela muda o que vem a seguir, e é
+     isso que a segunda linha explica: a entrevista vai ser mais longa de
+     propósito, e não porque travou. */
+  const agente = dono && dono.ehAgente === true
+    ? '<div class="row"><div class="k">tipo</div><div class="v">agente conversacional — vou perguntar mais que o normal ' +
+      '(buffer, mídia, voz, memória, tools, escalonamento) porque cada uma dessas respostas muda os nós do fluxo</div></div>'
+    : "";
+  /* Uma suposição em vigor é uma decisão de construção tomada sem confirmação:
+     o rodapé existe para dizer que ela ainda dá para desfazer, e como. Sem ele o
+     cartão marca o campo de amarelo e não oferece saída nenhuma. */
+  const vals = [e.quando, e.oQueFaz, e.resultado, e.ondeChega].map(v => String(v == null ? "" : v).trim());
+  const temSup = vals.some(t => /^suposi[çc][ãa]o\s*:/i.test(t)) ||
+    (fechada && vals.some(t => !t || /^n[ãa]o disse$/i.test(t)));
+  const rodape = temSup
+    ? '<div class="row"><div class="k">correção</div><div class="v" style="color:var(--txt-dim)">' +
+      'escreva no campo lá embaixo o que está errado — eu recomeço a partir desta etapa</div></div>'
+    : "";
   return '<div class="card"><div class="ch"><span class="ix">◈</span> O QUE EU ENTENDI</div>' +
+    agente +
     linha("quando", e.quando) + linha("o que faz", e.oQueFaz) + linha("resultado", e.resultado) + linha("onde chega", e.ondeChega) +
+    rodape +
     "</div>";
 }
 
@@ -751,11 +1271,22 @@ function pergunta(q) {
   // Resposta que não está entre as sugestões só pode ter vindo do campo livre —
   // então ele reabre já preenchido, e a escolha sobrevive ao repaint do SSE.
   const ehOutro = escolhida !== undefined && !opcoes.includes(escolhida);
+  // Com modelos a opção vira cartão com a mensagem montada; sem eles, o chip de
+  // sempre. A escolha continua sendo a MESMA string nos dois casos — `data-resp`
+  // é o contrato, e por isso o handler de clique não sabe nem precisa saber qual
+  // dos dois desenhos está na tela.
+  const comModelo = !!(q.modelos && Object.keys(q.modelos).length);
   return '<div class="q" data-q="' + esc(q.q) + '"><div class="qt">' + esc(q.q) + "</div>" +
     (q.porque ? '<div class="qw">' + esc(q.porque) + "</div>" : "") +
-    '<div class="opts" role="radiogroup" aria-label="' + esc(q.q) + '">' +
+    '<div class="opts' + (comModelo ? " tpl" : "") + '" role="radiogroup" aria-label="' + esc(q.q) + '">' +
     opcoes.map(o => {
       const on = escolhida === o;
+      if (comModelo) {
+        return '<button type="button" class="tpl-op resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
+          on + '" data-resp="' + esc(o) + '">' +
+          '<span class="tpl-hd"><span class="tpl-dot" aria-hidden="true"></span>' + esc(o) + "</span>" +
+          previaModelo(q.previa, q.modelos[o]) + "</button>";
+      }
       return '<button type="button" class="chip resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
         on + '" data-resp="' + esc(o) + '">' + esc(o) + "</button>";
     }).join("") +
@@ -768,17 +1299,79 @@ function pergunta(q) {
     "</div>";
 }
 
+/* O modelo desenhado na anatomia do destino, para a escolha ser feita olhando a
+   mensagem e não a descrição dela. A hora é a MESMA congelada do fantasma, pelo
+   mesmo motivo: relógio vivo faria o mesmo modelo mudar a cada olhada.
+   `marcarCampos` distingue o campo do valor — `{{ assunto }}` é o buraco onde o
+   assunto entra, e sem a marca alguém lê aquilo como texto literal que o fluxo
+   vai mandar. */
+const marcarCampos = t => esc(t).replace(/\{\{\s*([^{}]{1,60}?)\s*\}\}/g, '<span class="ph">{{ $1 }}</span>');
+
+function previaModelo(previa, texto) {
+  const t = String(texto || "").trim();
+  if (!t) return "";
+  const topo = d => '<span class="mock-top"><span class="dest">' + esc(d) +
+    '</span><span class="mk">MODELO</span></span>';
+
+  if (previa === "slack") {
+    return '<span class="mock tpl-mock">' + topo("canal do Slack") +
+      '<span class="slack-msg"><span class="slack-av" aria-hidden="true">◈</span><span class="slack-col">' +
+      '<span class="slack-head"><strong>seu fluxo</strong><span class="badge-app">APP</span>' +
+      '<span class="mock-time">' + HORA_SIM + "</span></span>" +
+      '<span class="mock-text">' + marcarCampos(t) + "</span></span></span></span>";
+  }
+  if (previa === "whatsapp") {
+    return '<span class="mock tpl-mock">' + topo("conversa no WhatsApp") +
+      '<span class="wha-chat"><span class="wha-bubble"><span class="mock-text">' + marcarCampos(t) + "</span>" +
+      '<span class="wha-meta">' + HORA_SIM + " ✓✓</span></span></span></span>";
+  }
+  if (previa === "email") {
+    // Um e-mail se lê pelo assunto primeiro. Quando o modelo abre com
+    // "Assunto: …", essa linha sobe para o cabeçalho em vez de ficar enterrada
+    // como primeira linha do corpo, que é onde ninguém procura por ela.
+    const linhas = t.split("\n");
+    const m = /^assunto\s*:\s*(.+)$/i.exec((linhas[0] || "").trim());
+    const assunto = m ? m[1] : "";
+    const corpo = m ? linhas.slice(1).join("\n").trim() : t;
+    return '<span class="mock tpl-mock">' + topo("e-mail") +
+      '<span class="mail-head"><span class="k">assunto</span>' +
+      '<span class="sub">' + (assunto ? marcarCampos(assunto) : "(definido no fluxo)") + "</span></span>" +
+      '<span class="mail-body"><span class="mock-text">' + marcarCampos(corpo) + "</span></span></span>";
+  }
+  return '<span class="mock tpl-mock">' + topo("mensagem") +
+    '<span class="mail-body"><span class="mock-text">' + marcarCampos(t) + "</span></span></span>";
+}
+
 function portao(titulo, desc, botao, custo) {
   return '<div class="gate"><div class="gt">' + esc(titulo) + '</div><div class="gd">' + esc(desc) + "</div>" +
     '<div class="acts"><button type="button" class="btn prime" id="seguir">' + esc(botao) + "</button>" +
     '<span class="cost">ATÉ AQUI US$' + (custo || 0).toFixed(2).replace(".", ",") + " · PLANO, SEM COBRANÇA POR FORA</span></div></div>";
 }
 
+/* O bloco de ação enquanto a entrevista tem perguntas em aberto. "Enviar" leva
+   as respostas para a rodada seguinte — o modelo digere e pergunta o que ainda
+   faltar, ou libera o portão. "Pular" segue com o que existe. */
+function acoesEntrevista(s) {
+  const n = (s.perguntas || []).length;
+  return '<div class="gate"><div class="gt">' +
+      (n === 1 ? "Falta 1 resposta pra fechar o desenho" : "Faltam " + n + " respostas pra fechar o desenho") + "</div>" +
+    '<div class="gd">Cada resposta vira uma decisão de construção. Dá pra pular, mas o que ficar em aberto ' +
+      "eu preencho com o padrão mais comum e marco como suposição nos achados.</div>" +
+    '<div class="acts"><button type="button" class="btn prime" id="responder">Enviar respostas →</button>' +
+    '<button type="button" class="btn" id="seguir">Pular e construir assim mesmo</button>' +
+    '<span class="cost">RODADA ' + (s.rodadaEntrevista || 1) + ' DA ENTREVISTA · ATÉ AQUI US$' +
+      (s.custoTotal || 0).toFixed(2).replace(".", ",") + "</span></div></div>";
+}
+
 function composer(s) {
   const trabalhando = s.status === "correndo";
+  const dica = s.modo === "edicao"
+    ? (trabalhando
+        ? "escreve aqui pra trocar o pedido — eu largo o atual e começo por este"
+        : "pergunta sobre o fluxo, ou pede o que mudar, acrescentar ou tirar…")
+    : (trabalhando ? "escreve aqui pra corrigir no meio do caminho — eu recomeço deste ponto" : "escreve o que mudar…");
   return '<div class="composer">' +
-    '<textarea id="resposta" rows="1" placeholder="' +
-      (trabalhando ? "escreve aqui pra corrigir no meio do caminho — eu recomeço deste ponto" : "escreve o que mudar…") +
+    '<textarea id="resposta" rows="1" placeholder="' + esc(dica) +
       '" aria-label="sua resposta"></textarea>' +
     '<button type="button" class="btn" id="enviar">Enviar</button></div>';
 }
@@ -826,25 +1419,54 @@ function canvas(s) {
  * escrevendo o terceiro nó enquanto os cinco já existem. */
 function desenharSeNovo(s) {
   const host = $("#canvas");
-  if (!host || !s.wf) return;
-  const assinatura = JSON.stringify(s.wf.nodes.map(n => n.name));
+  const wf = s.wf || s.wfParcial;
+  if (!host || !wf) return;
+  const parcial = !s.wf;
+  const assinatura = JSON.stringify(wf.nodes.map(n => n.name));
   const jaEra = S.desenhado === assinatura;
 
-  const nodes = s.wf.nodes.filter(n => !/stickyNote/i.test(n.type));
+  const nodes = wf.nodes.filter(n => !/stickyNote/i.test(n.type));
   const W = 64, H = 48, GAP = 176, PAD = 44, LINHA = 66;
-  const largura = PAD * 2 + Math.max(1, nodes.length) * GAP;
-  const alt = 200;
-  const pos = nodes.map((n, i) => [PAD + i * GAP, LINHA]);
 
   const ordem = new Map(nodes.map((n, i) => [n.name, i]));
   const arestas = [];
-  for (const [de, portas] of Object.entries(s.wf.connections || {})) {
-    for (const ramos of Object.values(portas || {})) {
+  /* O nome da porta importa aqui, não só a existência da aresta. Um agente pendura
+     modelo, memória, parser e cada tool nas portas `ai_*`, e essas conexões vão do
+     anexo PARA o agente — na trilha única elas viravam arestas voltando da direita
+     para a esquerda por cima de tudo, e um agente saía como espaguete. */
+  const anexo = new Map();          // nó de IA -> nome do agente a que ele serve
+  for (const [de, portas] of Object.entries(wf.connections || {})) {
+    for (const [porta, ramos] of Object.entries(portas || {})) {
       for (const lista of ramos || []) for (const c of lista || []) {
-        if (ordem.has(de) && ordem.has(c.node)) arestas.push([ordem.get(de), ordem.get(c.node)]);
+        if (!ordem.has(de) || !ordem.has(c.node)) continue;
+        arestas.push([ordem.get(de), ordem.get(c.node), porta]);
+        if (/^ai_/.test(porta)) anexo.set(de, c.node);
       }
     }
   }
+
+  /* Duas trilhas, como o editor do n8n desenha: a de execução na horizontal, e os
+     anexos de IA numa faixa abaixo do agente que eles servem. */
+  const TRILHA2 = LINHA + H + 62;
+  const principais = nodes.filter(n => !anexo.has(n.name));
+  const colDe = new Map(principais.map((n, i) => [n.name, i]));
+  const pos = [];
+  const porAgente = new Map();
+  for (const n of nodes) {
+    if (!anexo.has(n.name)) { pos[ordem.get(n.name)] = [PAD + colDe.get(n.name) * GAP, LINHA]; continue; }
+    const alvo = anexo.get(n.name);
+    const fila = porAgente.get(alvo) || [];
+    porAgente.set(alvo, fila.concat([n.name]));
+    // Espalhados sob o agente, meio GAP entre eles, começando meio GAP à esquerda.
+    pos[ordem.get(n.name)] = [PAD + (colDe.has(alvo) ? colDe.get(alvo) : 0) * GAP + fila.length * (GAP * 0.52) - GAP * 0.5, TRILHA2];
+  }
+
+  /* A largura sai do nó mais à direita que EXISTE, não de uma estimativa por
+     colunas: com anexos a estimativa sobrava ~400px de vazio à direita e o
+     `viewBox` encolhia o desenho inteiro para caber em espaço que ninguém usa. */
+  const direita = pos.reduce((m, p) => Math.max(m, (p && p[0]) || 0), 0) + W;
+  const largura = Math.max(direita + PAD, PAD * 2 + GAP);
+  const alt = anexo.size ? TRILHA2 + H + 46 : 200;
 
   const ns = "http://www.w3.org/2000/svg";
   const mk = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
@@ -857,8 +1479,20 @@ function desenharSeNovo(s) {
 
   const paths = arestas.map(par => {
     const [x1, y1] = pos[par[0]], [x2, y2] = pos[par[1]];
-    const ax = x1 + W, ay = y1 + H / 2, bx = x2, by = y2 + H / 2;
-    const p = mk("path", { class: "edge", d: "M" + ax + "," + ay + " C" + (ax + 64) + "," + ay + " " + (bx - 64) + "," + by + " " + bx + "," + by });
+    const ehIA = /^ai_/.test(par[2] || "");
+    /* Aresta de execução sai da direita e entra pela esquerda. Aresta de IA sai do
+       TOPO do anexo e entra por BAIXO do agente — é o que faz as duas trilhas
+       lerem como duas coisas diferentes em vez de um grafo emaranhado. */
+    const d = ehIA
+      ? (() => {
+          const ax = x1 + W / 2, ay = y1, bx = x2 + W / 2, by = y2 + H;
+          return "M" + ax + "," + ay + " C" + ax + "," + (ay - 34) + " " + bx + "," + (by + 34) + " " + bx + "," + by;
+        })()
+      : (() => {
+          const ax = x1 + W, ay = y1 + H / 2, bx = x2, by = y2 + H / 2;
+          return "M" + ax + "," + ay + " C" + (ax + 64) + "," + ay + " " + (bx - 64) + "," + by + " " + bx + "," + by;
+        })();
+    const p = mk("path", { class: "edge" + (ehIA ? " ia" : ""), d });
     gE.appendChild(p);
     p.style.setProperty("--len", Math.ceil(p.getTotalLength()) + "px");
     return p;
@@ -871,8 +1505,15 @@ function desenharSeNovo(s) {
     const gl = mk("g", { class: "glyph", transform: "translate(" + (x + W / 2) + "," + (y + H / 2) + ")" });
     gl.innerHTML = GLYPH[glyphDe(n.type)];
     g.appendChild(gl);
-    g.appendChild(mk("circle", { class: "port", cx: x, cy: y + H / 2, r: 2.8 }));
-    g.appendChild(mk("circle", { class: "port", cx: x + W, cy: y + H / 2, r: 2.8 }));
+    /* Anexo de IA tem UMA porta, no topo: ele não está no caminho da execução,
+       ele é pendurado no agente. Desenhar portas laterais nele diria que o dado
+       passa por ali, e não passa. */
+    if (anexo.has(n.name)) {
+      g.appendChild(mk("circle", { class: "port", cx: x + W / 2, cy: y, r: 2.8 }));
+    } else {
+      g.appendChild(mk("circle", { class: "port", cx: x, cy: y + H / 2, r: 2.8 }));
+      g.appendChild(mk("circle", { class: "port", cx: x + W, cy: y + H / 2, r: 2.8 }));
+    }
     const nm = mk("text", { class: "nm", x: x + W / 2, y: y + H + 15 }); nm.textContent = n.name;
     const ty = mk("text", { class: "ty", x: x + W / 2, y: y + H + 26 });
     ty.textContent = String(n.type).replace("n8n-nodes-base.", "").replace("@n8n/n8n-nodes-langchain.", "ia/");
@@ -886,11 +1527,23 @@ function desenharSeNovo(s) {
   host.querySelectorAll("svg").forEach(x => x.remove());
   host.appendChild(svg);
   const corner = $("#corner");
-  const rotulo = "[ " + nodes.length + " NOS · " + arestas.length + " CONEXOES ]";
+  // Rascunho é dito como rascunho: o desenho ao vivo vem do Write da sessão,
+  // ANTES dos portões — afirmar contagem final aqui seria prometer cedo demais.
+  const rotulo = parcial
+    ? "[ RASCUNHO · " + nodes.length + " NOS · AINDA DESENHANDO ]"
+    : "[ " + nodes.length + " NOS · " + arestas.length + " CONEXOES ]";
 
   /* ------------------------------------------------------------- a câmera */
-  const cm = { x: 0, y: 0, k: 1 };
-  const aplicar = () => cam.setAttribute("transform", "translate(" + cm.x + "," + cm.y + ") scale(" + cm.k + ")");
+  // O SSE repinta e recria este svg a cada evento; a câmera vive em S para o
+  // pan/zoom não voltar ao zero no meio de uma olhada.
+  const cm = (S.cam && S.cam.assinatura === assinatura)
+    ? { x: S.cam.x, y: S.cam.y, k: S.cam.k }
+    : { x: 0, y: 0, k: 1 };
+  const aplicar = () => {
+    cam.setAttribute("transform", "translate(" + cm.x + "," + cm.y + ") scale(" + cm.k + ")");
+    S.cam = { assinatura, x: cm.x, y: cm.y, k: cm.k };
+  };
+  aplicar();
   const ajustar = () => { cm.x = 0; cm.y = 0; cm.k = 1; aplicar(); };
   const escala = () => largura / (svg.getBoundingClientRect().width || largura);
 
@@ -968,13 +1621,19 @@ const esperar = ms => new Promise(r => setTimeout(r, ms));
 function fantasmaBloco(s) {
   const f = s.fantasma;
   if (!f.ok) {
-    return '<div class="surf"><div class="sh">[ 06 ] O QUE ISTO PRODUZIRIA</div>' +
+    return '<div class="surf"><div class="sh">' + TITULO_FANTASMA(f) + "</div>" +
       '<div class="band" style="border-color:var(--warn-soft);background:var(--warn-soft);color:var(--warn-txt)">' +
       '<span class="txt" style="white-space:normal">Não simulei este fluxo: ' + esc(f.recusa) + "</span></div>" +
-      '<div class="selo">Prefiro não desenhar meio resultado. Um quadro parcial apresentado como resultado é pior ' +
-      "que quadro nenhum — o fluxo e os portões continuam válidos, só a prévia não sai.</div></div>";
+      (f.detalhe ? '<div class="empty" style="white-space:normal;text-align:left">' + esc(f.detalhe) + "</div>" : "") +
+      '<div class="selo">' + esc(SELO_RECUSA[f.classe] || SELO_RECUSA[""]) + "</div></div>";
   }
-  const sup = (f.superficies || []).map(x => superficie(x)).join("");
+  // A entrada dos mockups anima UMA vez por resultado: o SSE repinta a tela a
+  // cada evento, e sem a assinatura a mensagem "chegaria" de novo a cada poll —
+  // movimento sem informação nova, exatamente o que o resto do cockpit evita.
+  const assin = JSON.stringify(f.superficies || []);
+  const anim = S.fantasmaVisto !== assin;
+  S.fantasmaVisto = assin;
+  const sup = (f.superficies || []).map((x, i) => superficie(x, i, anim)).join("");
   const pend = (f.pendencias || []).filter(p => p.expr || p.motivo);
   return '<div class="surf"><div class="sh">[ 06 ] O QUE ISTO PRODUZIRIA · ' +
       esc(s.sementesOrigem || "dados de exemplo") + "</div>" +
@@ -986,31 +1645,224 @@ function fantasmaBloco(s) {
     '<div class="selo">' + esc(SELO_FANTASMA) + "</div></div>";
 }
 
-function superficie(x) {
+/* Cada destino é desenhado com a anatomia do app onde a mensagem chegaria —
+ * forma e rótulo, nunca cor de marca (o comentário no CSS diz por quê). A hora
+ * é a do relógio CONGELADO da simulação (simulate.js fixa 09:00): um relógio de
+ * verdade faria a mesma simulação mudar a cada olhada. */
+const HORA_SIM = "09:00";
+
+function superficie(x, i, anim) {
   const e = x.envio || {};
   const marca = t => esc(t).replace(/⟨não simulada⟩/g, '<span class="naosim">não simulada</span>');
-  if (x.superficie === "slack" || x.superficie === "whatsapp") {
-    return '<div class="bubble ' + x.superficie + '">' +
-      '<div class="meta">' + (x.superficie === "slack" ? "Slack · " : "WhatsApp · ") + marca(e.canal || e.para || "destino não definido") + "</div>" +
-      marca(e.texto || "(mensagem vazia)") + "</div>";
+  const rot = x.rotulo || String(x.tipo || "").replace("n8n-nodes-base.", "") || "destino";
+  const abre = '<div class="mock' + (anim ? " anim" : "") + '"' +
+    (anim && i ? ' style="animation-delay:' + (i * 160) + 'ms"' : "") + ">";
+  const selo = '<span class="mk">SIMULAÇÃO</span>';
+  const topo = dest => '<div class="mock-top"><span class="dest">' + dest + "</span>" + selo + "</div>";
+
+  if (x.superficie === "slack") {
+    return abre + topo(marca(e.canal || "canal não definido")) +
+      '<div class="slack-msg"><div class="slack-av" aria-hidden="true">◈</div><div>' +
+        '<div class="slack-head"><strong>' + esc(x.no || "seu fluxo") + '</strong>' +
+        '<span class="badge-app">APP</span><span class="mock-time">' + HORA_SIM + "</span></div>" +
+        '<div class="mock-text">' + marca(e.texto || "(mensagem vazia)") + "</div>" +
+      "</div></div></div>";
+  }
+  if (x.superficie === "whatsapp") {
+    return abre + topo(esc(rot) + " · para " + marca(e.para || "destino não definido")) +
+      '<div class="wha-chat"><div class="wha-bubble">' +
+        '<div class="mock-text">' + marca(e.texto || "(mensagem vazia)") + "</div>" +
+        '<span class="wha-meta">' + HORA_SIM + " ✓✓</span></div></div></div>";
   }
   if (x.superficie === "email") {
-    return '<div class="bubble slack"><div class="meta">E-mail · para ' + marca(e.para || "?") + "</div>" +
-      "<strong>" + marca(e.assunto || "(sem assunto)") + "</strong><br>" + marca(e.texto || "") + "</div>";
+    return abre + topo(esc(rot)) +
+      '<div class="mail-head">' +
+        '<span class="k">para</span><span>' + marca(e.para || "destinatário não definido") + "</span>" +
+        '<span class="k">assunto</span><span class="sub">' + marca(e.assunto || "(sem assunto)") + "</span>" +
+      "</div>" +
+      '<div class="mail-body"><div class="mock-text">' + marca(e.texto || "(sem corpo)") + "</div></div></div>";
   }
+  if (x.superficie === "linha") {
+    const campos = linhaCampos(e);
+    const chaves = Object.keys(campos);
+    const tabela = chaves.length
+      ? '<div class="tblwrap"><table class="tbl"><thead><tr>' +
+          chaves.map(k => "<th>" + esc(k) + "</th>").join("") + "</tr></thead>" +
+          "<tbody><tr>" + chaves.map(k => "<td>" + marca(campos[k]) + "</td>").join("") + "</tr></tbody></table></div>"
+      : '<div class="mail-body"><div class="mock-text">não deu para derivar os campos da linha — veja o JSON do nó</div></div>';
+    return abre + topo(esc(rot) + " · " + marca(e.tabela || "tabela não definida") + " · 1 linha nova") + tabela + "</div>";
+  }
+  if (x.superficie === "resposta") {
+    return abre + topo(esc(rot)) +
+      '<div class="http-resp"><span class="hst">HTTP 200</span>\n' + marca(e.texto || "(corpo vazio)") + "</div></div>";
+  }
+  // Destino que não tem anatomia própria: o envio, campo a campo.
   const linhas = Object.entries(e).map(([k, v]) =>
     "<dt>" + esc(k) + "</dt><dd>" + marca(typeof v === "object" ? JSON.stringify(v) : v) + "</dd>").join("");
-  return '<div class="bubble slack"><div class="meta">' +
-    (x.superficie === "linha" ? "linha gravada" : "envio para " + esc(String(x.tipo || "").replace("n8n-nodes-base.", ""))) +
-    '</div><dl class="kv">' + linhas + "</dl></div>";
+  return abre + topo("envio para " + esc(String(x.tipo || rot).replace("n8n-nodes-base.", ""))) +
+    '<div class="mail-body"><dl class="kv">' + linhas + "</dl></div></div>";
+}
+
+/* Achata o registro de uma "linha gravada" para virar colunas de tabela. Cobre
+ * as duas formas que os nós desta instância usam: `fieldsUi.fieldValues[]` do
+ * Supabase e `columns.value{}` do Google Sheets. O resto passa como está. */
+function linhaCampos(e) {
+  const out = {};
+  const poe = (k, v) => {
+    if (v === undefined || v === null || v === "") return;
+    out[String(k)] = typeof v === "object" ? JSON.stringify(v) : String(v);
+  };
+  for (const [k, v] of Object.entries(e.campos || {})) {
+    if (v && typeof v === "object" && Array.isArray(v.fieldValues)) {
+      for (const fv of v.fieldValues) if (fv && fv.fieldId !== undefined) poe(fv.fieldId, fv.fieldValue);
+    } else if (v && typeof v === "object" && v.value && typeof v.value === "object" && !Array.isArray(v.value)) {
+      for (const [k2, v2] of Object.entries(v.value)) poe(k2, v2);
+    } else poe(k, v);
+  }
+  return out;
 }
 
 /* -------------------------------------------------------------- a entrega */
 
+/* ------------------------------------------------ checklist de credenciais
+ *
+ * A lista por TIPO responde "o que este fluxo precisa". Esta responde "e agora,
+ * o que eu clico" — que é a pergunta que sobra com o fluxo já importado e três
+ * nós vermelhos na tela, e que exigia traduzir tipo de credencial em nó a olho.
+ *
+ * Três coisas que ela NÃO pode fingir, e que estão escritas nela:
+ *   - a API pública responde 405 em `GET /credentials`, então não existe
+ *     inventário: "você já usa" quer dizer que algum fluxo seu referencia esse
+ *     TIPO, nunca que a credencial certa existe e está válida;
+ *   - a lista sai dos fluxos dele, então um nó que aqui nunca pediu credencial
+ *     não aparece. É piso, não total — a mesma honestidade da varredura truncada;
+ *   - a cópia de teste no n8n roda SEM credencial, então nada aqui foi
+ *     autenticado. O portão daquela etapa prova schema, nunca acesso.
+ */
+function checklistCred(s, vivo) {
+  const lista = (s.ingredientes && s.ingredientes.porNo) || [];
+  const base = (S.capab && S.capab.instancia) || "";
+  const linkCred = base ? base + "/home/credentials" : "";
+  const ligados = new Map(((s.credLigacao && s.credLigacao.ligados) || []).map(l => [l.no, l]));
+  // Empatado é diferente de vazio: aqui existe credencial, o que falta é a
+  // escolha. Só esse caso ganha botão.
+  const empatados = new Map(((s.credLigacao && s.credLigacao.vazios) || [])
+    .filter(v => (v.candidatos || []).length > 1).map(v => [v.no, v]));
+
+  if (!lista.length) {
+    return '<div class="surf"><div class="sh">[ CREDENCIAIS ] POR NÓ</div>' +
+      '<div class="empty">nenhum nó deste fluxo pediu credencial nos seus outros fluxos. ' +
+      "Isso é o que dá para afirmar — não é promessa de que nenhum vai pedir.</div></div>";
+  }
+
+  const faltando = lista.filter(x => (x.opcoes || []).every(o => !o.visto)).length;
+  const linhas = lista.map(x => {
+    const ops = (x.opcoes || []).map(o => {
+      // Nomear vale mais que tipar: "Slack Ecommerce Puro, em 6 fluxos" é
+      // acionável, "existe alguma do tipo slackApi" não é.
+      const ex = (o.existentes || []).slice(0, 3).map(e =>
+        '<span class="cr-nome">' + esc(e.nome || "(sem nome)") +
+        '<span class="cr-usos">' + e.usos + (e.usos === 1 ? " fluxo" : " fluxos") + "</span></span>").join("");
+      const sobra = Math.max(0, (o.existentes || []).length - 3);
+      return '<div class="cr-op ' + (o.visto ? "tem" : "nao") + '">' +
+        '<span class="cr-tag">' + (o.visto ? "JÁ USA" : "NÃO ACHEI") + "</span>" +
+        "<code>" + esc(o.tipo) + "</code>" +
+        (ex ? '<span class="cr-nomes">' + ex + (sobra ? '<span class="cr-usos">+' + sobra + "</span>" : "") + "</span>" : "") +
+        (o.campos && o.campos.length ? '<span class="cr-campos">pede: ' + esc(o.campos.join(", ")) + "</span>" : "") +
+      "</div>";
+    }).join("");
+    const lig = ligados.get(x.no);
+    /* O desempate, no lugar onde o empate é mostrado. Um nó com duas credenciais
+       possíveis ficava em branco para sempre: o cockpit se recusa a chutar — um
+       palpite importaria calado e mandaria a mensagem pela conta errada — e até
+       aqui não havia como dizer qual era. Clicar é grátis e instantâneo: o que
+       viaja é o `id` de uma credencial que já existe, nunca um segredo. */
+    const emp = empatados.get(x.no);
+    const escolher = (emp && vivo)
+      ? '<div class="cr-pick"><span class="cr-nota">qual delas?</span>' +
+        emp.candidatos.filter(c => c.id).map(c =>
+          '<button type="button" class="chip cr-esc" data-cred="' + esc(c.id) + '">usar a ' + esc(c.nome) + "</button>").join("") +
+        "</div>"
+      : (emp
+        ? '<div class="cr-nota">mais de uma credencial serviria — abra em «Conversar e editar» para escolher</div>'
+        : "");
+
+    return '<div class="cr-row"><div class="cr-no"><strong>' + esc(x.no) + "</strong><br>" +
+      '<span class="cr-ty">' + esc(String(x.tipo).replace("n8n-nodes-base.", "")) + "</span>" +
+      (lig ? '<br><span class="cr-lig">✓ já vai ligado no JSON' + (lig.porEscolha ? " (escolha sua)" : "") + "</span>" : "") + "</div>" +
+      '<div class="cr-ops">' + ops +
+      ((x.opcoes || []).length > 1 && !emp ? '<div class="cr-nota">mais de um tipo possível — a escolha é sua</div>' : "") +
+      escolher +
+      "</div></div>";
+  }).join("");
+
+  return '<div class="surf"><div class="sh">[ CREDENCIAIS ] ' + lista.length + " NÓ(S) PEDEM · " +
+      (faltando ? faltando + " SEM NADA DO TIPO NOS SEUS FLUXOS" : "TODOS DE TIPOS QUE VOCÊ JÁ USA") + "</div>" +
+    '<div class="crlist">' + linhas + "</div>" +
+    (linkCred ? '<div class="acoes"><a class="btn" target="_blank" rel="noopener" href="' + esc(linkCred) +
+      '">Abrir as credenciais no n8n ↗</a></div>' : "") +
+    '<div class="selo">"JÁ USA" quer dizer que algum fluxo seu referencia esse tipo de credencial — ' +
+      "a API pública não lista credencial nenhuma (responde 405), então isto nunca é promessa de que " +
+      "a credencial certa existe nem de que está válida. A cópia de teste no n8n roda <strong>sem credencial</strong>: " +
+      "ela prova que o n8n aceita o formato do fluxo, nunca que o acesso funciona.</div></div>";
+}
+
+/* O documento que vai para o clipboard, montado aqui a partir dos fatos que o
+   servidor mandou.
+
+   `s.wf` NUNCA carrega `credentials` — nem no portão, nem na cópia sandbox, nem
+   no fantasma, nem no arquivo do projeto. O que sai ligado é só este documento,
+   e só para os nós em que o servidor achou UMA credencial e nenhuma escolha a
+   fazer. O `id` é ponteiro, não segredo: ele só significa alguma coisa dentro
+   desta instância, e o segredo nunca sai do n8n (a API pública não devolve valor
+   de credencial e responde 405 em `GET /credentials`).
+
+   O interruptor existe porque o JSON limpo tem um uso real — mandar o fluxo para
+   outra pessoa, ou para outra conta, onde aquele `id` não quer dizer nada. */
+const LIGAR_CRED_PADRAO = true;
+function ligarCred() { return S.ligarCred === undefined ? LIGAR_CRED_PADRAO : !!S.ligarCred; }
+
+function wfParaExportar(s) {
+  const ligados = (s.credLigacao && s.credLigacao.ligados) || [];
+  if (!ligarCred() || !ligados.length) return s.wf;
+  const out = JSON.parse(JSON.stringify(s.wf));
+  const porNome = new Map((out.nodes || []).map(n => [n.name, n]));
+  for (const l of ligados) {
+    const nd = porNome.get(l.no);
+    if (!nd) continue;                       // nó renomeado por um remendo
+    nd.credentials = { ...(nd.credentials || {}), [l.tipo]: { id: l.id, name: l.nome } };
+  }
+  return out;
+}
+
+/* A linha que diz o que foi ligado e o que ficou em branco. Ela é obrigatória:
+   um JSON que importa com metade das credenciais já ligadas e metade não é
+   exatamente o caso em que alguém assume que está tudo pronto. */
+function faixaExport(s) {
+  const c = s.credLigacao;
+  if (!c || (!c.ligados.length && !c.vazios.length)) return "";
+  const on = ligarCred();
+  const cx = '<label class="cx"><input type="checkbox" id="ligarcred"' + (on ? " checked" : "") +
+    "> ligar no JSON as credenciais que já existem</label>";
+  if (!on) {
+    return '<div class="expbar">' + cx +
+      '<div class="expsub">JSON limpo: nenhuma credencial vai junto. Use assim para mandar o fluxo ' +
+      "para outra pessoa ou outra conta, onde estes identificadores não querem dizer nada.</div></div>";
+  }
+  const partes = [];
+  if (c.ligados.length) partes.push("<strong>" + c.ligados.length + " nó(s) já vão ligados</strong>");
+  if (c.vazios.length) partes.push(c.vazios.length + " ficam em branco para você escolher no n8n");
+  return '<div class="expbar">' + cx + '<div class="expsub">' + partes.join(" · ") + ". " +
+    "Só liga quando existe UMA credencial possível — havendo duas, a escolha é sua, e um palpite aqui " +
+    "importaria calado e mandaria a mensagem pela conta errada.</div></div>";
+}
+
 function entrega(s) {
-  const json = JSON.stringify(s.wf, null, 2);
+  const json = JSON.stringify(wfParaExportar(s), null, 2);
   const salvo = !!s.projetoSlug;
-  const sugestao = (s.wf && s.wf.name) || s.ideia || "";
+  // O título sugerido é o humano que a entrevista propôs — `wf.name` é
+  // snake_case técnico e virava nome de projeto ilegível na tela inicial.
+  const sugestao = s.titulo || (s.wf && s.wf.name) || s.ideia || "";
   return '<div class="surf"><div class="sh">[ 07 ] PRONTO PARA IMPORTAR</div>' +
     '<div class="selo" style="color:var(--txt-dim);background:var(--surface-2);border-color:var(--line)">' + esc(SELO_ENTREGA) + "</div>" +
 
@@ -1031,16 +1883,37 @@ function entrega(s) {
       (s.sandbox && s.sandbox.id ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(instanciaUrl(s)) + '">Abrir a cópia de teste ↗</a>' : "") +
       '<button type="button" class="btn" id="novo">← Voltar para o início</button>' +
     "</div>" +
+    faixaExport(s) +
     '<pre class="json" id="jsonwf">' + esc(json) + "</pre></div>";
 }
 
 /* Cartões dos projetos guardados, na tela de abertura. */
+/* O glifo da lixeira, desenhado — não emoji. Mesmo viewBox 24 e mesma espessura
+   de traço do resto dos ícones desta tela, senão ele lê como colado de outro
+   lugar. Um 🗑 do sistema muda de desenho por sistema operacional e não segue
+   `currentColor`, então nem tema nem foco chegariam nele. */
+const GLIFO_LIXO =
+  '<svg class="gl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M4 7h16M10 4h4M6 7l1 12.2A1.8 1.8 0 0 0 8.8 21h6.4a1.8 1.8 0 0 0 1.8-1.8L18 7"/>' +
+  '<path d="M10 11v6M14 11v6"/></svg>';
+
 function cardsProjetos() {
-  if (!S.projetos || !S.projetos.length) return "";
+  const naLixeira = (S.lixeira || []).length;
+  // Sem projeto E sem lixeira não há bloco nenhum. Com lixeira cheia e nenhum
+  // projeto, o bloco existe só para a lixeira ser alcançável — senão ela vira
+  // um lugar que guarda coisas e não tem porta.
+  if (!S.projetos || !S.projetos.length) {
+    return naLixeira
+      ? '<div class="projs"><div class="projs-h">[ SEUS PROJETOS ]<span>0</span>' + botaoLixeira() + "</div>" +
+        '<div class="vazio-proj">Nenhum projeto guardado — mas há ' + naLixeira +
+        " na lixeira, e de lá dá para restaurar.</div></div>"
+      : "";
+  }
   // O card é `div`, não `button`: ele tem um botão de menu dentro, e botão
   // dentro de botão é HTML inválido — o navegador desfaz o aninhamento e o menu
   // deixa de existir. `clicavel()` devolve o teclado ao card.
-  return '<div class="projs"><div class="projs-h">[ SEUS PROJETOS ]<span>' + S.projetos.length + "</span></div>" +
+  return '<div class="projs"><div class="projs-h">[ SEUS PROJETOS ]<span>' + S.projetos.length + "</span>" + botaoLixeira() + "</div>" +
     '<div class="projs-g">' + S.projetos.map(p =>
       '<div class="proj" data-slug="' + esc(p.slug) + '">' +
         '<div class="proj-menu">' +
@@ -1056,6 +1929,19 @@ function cardsProjetos() {
         '<span class="pd">' + esc(dataCurta(p.salvoEm)) + (p.simulou ? " · simulou" : "") + "</span>" +
       "</div>").join("") + "</div></div>";
 }
+
+/* A porta da lixeira. Aparece SEMPRE, inclusive vazia: uma porta que só existe
+   quando há algo atrás dela é uma porta que ninguém descobre — e o momento em
+   que ela é procurada é logo depois de excluir, exatamente quando o card que a
+   revelaria acabou de sair da tela. Vazia ela diz que está vazia, em vez de
+   sumir. */
+function botaoLixeira() {
+  const n = (S.lixeira || []).length;
+  return '<button type="button" class="lixbtn' + (n ? " tem" : "") + '" id="ver-lixeira">' +
+    GLIFO_LIXO + "<span>Lixeira</span>" +
+    (n ? '<span class="lixn">' + n + "</span>" : '<span class="lixn vaz">vazia</span>') + "</button>";
+}
+
 function dataCurta(iso) {
   try {
     const d = new Date(iso);
@@ -1063,52 +1949,263 @@ function dataCurta(iso) {
   } catch { return ""; }
 }
 
+/* ------------------------------------------------------------------ lixeira
+ *
+ * O que foi excluído, com as duas saídas explícitas: voltar ou acabar. A tela
+ * não é uma lista cinza de arrependimento — ela mostra o que cada item CUSTOU,
+ * porque é isso que decide o clique. Uma construção de agente foi US$3,19 e 13,6
+ * minutos; apagar isso atrás da palavra "excluir" é o tipo de dano que este
+ * painel existe para não causar.
+ *
+ * Os cards ficam visualmente adormecidos — dessaturados, com a data da exclusão
+ * como carimbo. Não é decoração: eles precisam se ler como fora de serviço à
+ * distância, senão a lixeira parece a lista de projetos e alguém restaura por
+ * engano achando que está abrindo. */
+function telaLixeira() {
+  const itens = S.lixeira || [];
+  const total = itens.length;
+  const custo = itens.reduce((a, x) => a + (Number(x.custoTotal) || 0), 0);
+
+  const corpo = total
+    ? '<div class="lix-g">' + itens.map(x =>
+        '<div class="lixc" data-lixo="' + esc(x.lixo) + '">' +
+          '<div class="lixc-top">' + GLIFO_LIXO +
+            '<span class="lixc-em">na lixeira desde ' + esc(dataCurta(x.excluidoEm)) + "</span></div>" +
+          '<div class="lixc-t">' + esc(x.titulo || x.slug) + "</div>" +
+          '<div class="lixc-i">' + esc(x.ideia || "") + "</div>" +
+          '<div class="lixc-m">' + x.nos + " nós · " + esc((x.tipos || []).slice(0, 3).join(", ")) + "</div>" +
+          '<div class="lixc-m">criado em ' + esc(dataCurta(x.salvoEm)) +
+            (x.versoes ? " · " + x.versoes + " versão(ões) de edição" : "") +
+            (Number(x.custoTotal) ? " · custou US$" + Number(x.custoTotal).toFixed(2).replace(".", ",") : "") + "</div>" +
+          '<div class="lixc-acts">' +
+            '<button type="button" class="btn prime lix-restaurar">↺ Restaurar</button>' +
+            '<button type="button" class="btn lix-apagar">Apagar de vez</button>' +
+          "</div>" +
+        "</div>").join("") + "</div>"
+    : '<div class="lix-vazia">' + GLIFO_LIXO +
+      "<div><strong>A lixeira está vazia.</strong><br>" +
+      "Projeto excluído vem parar aqui e fica até você decidir — nada some sozinho, e não há prazo.</div></div>";
+
+  app.innerHTML =
+    '<section class="stage-open"><div class="open-in lix-in">' +
+      '<div class="lix-h">' +
+        '<div class="lix-h-l"><span class="ix">[ LIXEIRA ]</span>' +
+          '<h1>' + (total ? total + (total === 1 ? " projeto guardado aqui" : " projetos guardados aqui") : "Nada por aqui") + "</h1>" +
+          '<p class="hint">Nada é apagado sozinho e não existe prazo. Restaurar devolve o projeto inteiro — ' +
+            "conversa, desenho, simulação e histórico de edições. Apagar de vez é o único caminho sem volta desta tela." +
+            (custo ? " O que está aqui custou <strong>US$" + custo.toFixed(2).replace(".", ",") + "</strong> para construir." : "") +
+          "</p></div>" +
+        '<div class="lix-h-r">' +
+          '<button type="button" class="btn" id="lix-voltar">← Voltar</button>' +
+          (total > 1 ? '<button type="button" class="btn perigo" id="lix-esvaziar">Esvaziar a lixeira</button>' : "") +
+        "</div>" +
+      "</div>" +
+      corpo +
+    "</div></section>";
+
+  ligarEventosLixeira();
+  pintarRodape(null);
+  $("#cab").textContent = "lixeira";
+}
+
+function ligarEventosLixeira() {
+  $("#lix-voltar").addEventListener("click", inicio);
+
+  const esv = $("#lix-esvaziar");
+  if (esv) esv.addEventListener("click", async () => {
+    const n = (S.lixeira || []).length;
+    const ok = await confirmar({
+      tag: "APAGAR DE VEZ", perigo: true, botao: "Apagar os " + n + " de vez",
+      titulo: "Apagar de vez os " + n + " projetos da lixeira?",
+      corpo: [
+        "Isto é sem volta por esta tela. Some o JSON do fluxo, a conversa que decidiu ele, a simulação e o histórico de edições.",
+        "A pasta projetos/ é versionada no git, então enquanto o commit anterior existir dá para recuperar com: git checkout -- projetos/",
+        "Nada é tocado no n8n."
+      ]
+    });
+    if (!ok) return;
+    try { await callApi("/api/tester/lixeira/esvaziar", corpo({})); }
+    catch (e) { avisoAbertura(e.message); }
+    await carregarProjetos();
+    telaLixeira();
+  });
+
+  app.querySelectorAll(".lixc").forEach(card => {
+    const lixo = card.dataset.lixo;
+    const nome = card.querySelector(".lixc-t").textContent;
+
+    card.querySelector(".lix-restaurar").addEventListener("click", async () => {
+      try {
+        const r = await callApi("/api/tester/lixeira/" + encodeURIComponent(lixo) + "/restaurar", corpo({}));
+        await carregarProjetos();
+        /* O slug pode ter sido reocupado enquanto ele estava na lixeira, e aí a
+           volta é com outro identificador. Isso muda a URL do projeto, então é
+           dito — restaurar em silêncio sob outro nome é como um link quebrado
+           que ninguém sabe que quebrou. */
+        if (r && r.renomeado) {
+          await confirmar({
+            tag: "RESTAURADO", perigo: false, botao: "Entendi",
+            titulo: "«" + (r.titulo || nome) + "» voltou com outro identificador",
+            corpo: [
+              "Já existia um projeto ocupando o nome de arquivo original, então este voltou como " + r.slug + ".",
+              "O nome na tela não mudou — o que mudou é o endereço do arquivo em projetos/."
+            ]
+          });
+        }
+        telaLixeira();
+      } catch (e) { avisoAbertura(e.message); }
+    });
+
+    card.querySelector(".lix-apagar").addEventListener("click", async () => {
+      const ok = await confirmar({
+        tag: "APAGAR DE VEZ", perigo: true, botao: "Apagar de vez",
+        titulo: "Apagar «" + nome + "» de vez?",
+        corpo: [
+          "Isto é sem volta por esta tela. Some o JSON do fluxo, a conversa que decidiu ele, a simulação e o histórico de edições.",
+          "Se este projeto já tinha sido commitado no git, git checkout -- projetos/ traz ele de volta. Se ele foi salvo depois do último commit, não existe cópia em lugar nenhum — e eu não tenho como saber qual dos dois é daqui.",
+          "Nada é tocado no n8n. Se você já importou este fluxo lá, ele continua lá."
+        ]
+      });
+      if (!ok) return;
+      try { await callApi("/api/tester/lixeira/" + encodeURIComponent(lixo), { method: "DELETE" }); }
+      catch (e) { avisoAbertura(e.message); }
+      await carregarProjetos();
+      telaLixeira();
+    });
+  });
+}
+
 /* Um projeto guardado, aberto para leitura. Não é uma sessão: não há esteira,
-   não há custo, não há nada correndo — só o que ficou registrado. */
+   não há custo, não há nada correndo — só o que ficou registrado. E o registro
+   é a conversa INTEIRA: os balões, os cartões de entendimento, o desenho e a
+   simulação, na ordem em que aconteceram. Projeto salvo antes de o chat ser
+   persistido não tem essa história — a tela diz isso em vez de fingir. */
 function telaProjeto(p) {
-  const json = JSON.stringify(p.wf, null, 2);
+  const json = JSON.stringify(wfParaExportar(p), null, 2);
+  const temChat = Array.isArray(p.chat) && p.chat.length > 0;
+  /* O histórico de edições é o que faz o desfazer ser uma promessa verificável e
+     não uma frase num botão: cada linha é uma versão inteira guardada dentro do
+     arquivo do projeto, com o pedido que a produziu. */
+  const versoes = Array.isArray(p.versoes) ? p.versoes : [];
+  const histBloco = versoes.length
+    ? '<details class="ddet"><summary>' + versoes.length + " versão(ões) anterior(es) guardada(s)</summary>" +
+      versoes.map((v, i) => '<div class="vrow"><span class="vn">' + String(i + 1).padStart(2, "0") + "</span>" +
+        '<span class="vt">' + esc(dataCurta(v.em)) + "</span>" +
+        '<span class="vd"><strong>' + esc(v.pedido || "sem pedido registrado") + "</strong><br>" +
+        esc(v.resumo || "") + "</span></div>").join("") + "</details>"
+    : "";
+  const conversa = temChat
+    ? blocosConversa(p.chat, p)
+    : '<div class="msg me"><div class="who">A IDEIA ERA</div><div class="body">' + esc(p.ideia || "") + "</div></div>" +
+      '<div class="empty">este projeto foi salvo antes de a conversa ser guardada — só a ideia ficou registrada</div>';
   app.innerHTML = '<div class="split"><div class="stream" id="stream">' +
-    '<div class="msg me"><div class="who">A IDEIA ERA</div><div class="body">' + esc(p.ideia || "") + "</div></div>" +
+    conversa +
+    canvas(p) +
+    (p.fantasma ? fantasmaBloco(p) : "") +
+    checklistCred(p, false) +
     '<div class="surf"><div class="sh">[ PROJETO GUARDADO ] ' + esc(dataCurta(p.salvoEm)) + "</div>" +
       '<h2 style="margin:0 0 10px;font-size:17px;font-weight:650">' + esc(p.titulo) + "</h2>" +
       (p.report ? '<div class="selo" style="color:var(--txt-dim);background:var(--surface-2);border-color:var(--line)">' +
         esc(String(p.report).split(/\n/).find(l => /Resumo/i.test(l)) || String(p.report).slice(0, 240)) + "</div>" : "") +
-      '<div class="acoes"><button type="button" class="btn prime" id="copiar">⧉ Copiar o JSON</button>' +
+      /* Conversar é o primeiro botão porque é a coisa que este projeto salvo
+         deixou de ser capaz de fazer por mais tempo: até aqui reabrir um fluxo
+         era só olhar, e qualquer mudança custava construir tudo de novo. */
+      '<div class="acoes"><button type="button" class="btn prime" id="editar">✎ Conversar e editar</button>' +
+      '<button type="button" class="btn" id="copiar">⧉ Copiar o JSON</button>' +
+      (versoes.length ? '<button type="button" class="btn" id="desfazer">↺ Desfazer a última edição</button>' : "") +
       '<button type="button" class="btn" id="novo">← Voltar para o início</button></div>' +
+      faixaExport(p) +
+      histBloco +
       '<pre class="json" id="jsonwf">' + esc(json) + "</pre></div>" +
     "</div><aside class=\"side\">" +
       '<div class="sec"><div class="sech"><span class="ix">[ NÓS ]</span><span>' + (p.wf.nodes || []).length + "</span></div>" +
       (p.wf.nodes || []).map(n => '<div class="i ideia"><div class="tx"><strong>' + esc(n.name) + "</strong><br>" +
         esc(String(n.type).replace("n8n-nodes-base.", "")) + "</div></div>").join("") + "</div>" +
     "</aside></div>";
-  ligarEventosProjeto();
+  ligarEventosProjeto(p);
+  desenharSeNovo({ wf: p.wf });
   pintarRodape(null);
   $("#cab").textContent = p.titulo;
 }
 
-function ligarEventosProjeto() {
+function ligarEventosProjeto(p) {
   const c = $("#copiar");
   if (c) c.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText($("#jsonwf").textContent); c.textContent = "✓ copiado"; }
     catch { c.textContent = "não consegui copiar — selecione o texto abaixo"; }
     setTimeout(() => { c.textContent = "⧉ Copiar o JSON"; }, 2400);
   });
+  const cx = $("#ligarcred");
+  if (cx) cx.addEventListener("change", () => { S.ligarCred = cx.checked; telaProjeto(p); });
+
   const n = $("#novo");
   if (n) n.addEventListener("click", inicio);
+
+  /* Abrir para conversar cria uma SESSÃO no servidor, com o mesmo formato de id
+     e o mesmo SSE da construção — daí em diante a tela é a mesma máquina de
+     sempre, só que no modo edição. Por isso o caminho é `ligar(id)` e não uma
+     tela nova: um F5 no meio de um remendo volta para ele. */
+  const ed = $("#editar");
+  if (ed) ed.addEventListener("click", async () => {
+    ed.disabled = true; ed.textContent = "abrindo…";
+    try {
+      const r = await callApi("/api/tester/projeto/" + encodeURIComponent(p.slug) + "/editar", corpo({}));
+      S.respostas = {}; S.desenhado = null; S.cam = null; S.fantasmaVisto = null;
+      ligar(r.id);
+    } catch (e) {
+      ed.disabled = false; ed.textContent = "✎ Conversar e editar";
+      alertaInline(e.message);
+    }
+  });
+
+  const un = $("#desfazer");
+  if (un) un.addEventListener("click", async () => {
+    /* Desfazer troca a versão em vigor pela anterior — não apaga nenhuma das
+       duas. Confirma mesmo assim porque o desenho na tela muda embaixo dele,
+       mas NÃO é destrutivo: por isso o botão é o normal e não o vermelho, e o
+       foco abre nele. Vestir de perigo uma ação reversível gasta o alarme que a
+       exclusão vai precisar. */
+    const ok = await confirmar({
+      tag: "DESFAZER", perigo: false, botao: "Voltar para a anterior",
+      titulo: "Voltar este fluxo para a versão anterior?",
+      corpo: [
+        "A versão de agora continua guardada no projeto — desfazer de novo traz ela de volta.",
+        "Nada é tocado no n8n: o que muda é o arquivo do projeto nesta máquina."
+      ]
+    });
+    if (!ok) return;
+    un.disabled = true; un.textContent = "desfazendo…";
+    try {
+      await callApi("/api/tester/projeto/" + encodeURIComponent(p.slug) + "/desfazer", corpo({}));
+      S.desenhado = null; S.cam = null;
+      telaProjeto(await callApi("/api/tester/projeto/" + encodeURIComponent(p.slug)));
+    } catch (e) {
+      un.disabled = false; un.textContent = "↺ Desfazer a última edição";
+      alertaInline(e.message);
+    }
+  });
 }
 
 /* Volta para a tela de abertura, derrubando o SSE da sessão anterior. */
 async function inicio() {
   if (S.es) { S.es.close(); S.es = null; }
-  S.snap = null; S.desenhado = null; S.respostas = {};
+  S.snap = null; S.desenhado = null; S.respostas = {}; S.cam = null; S.fantasmaVisto = null;
   history.replaceState(null, "", "/tester");
   await carregarProjetos();
   telaAbertura(null);
 }
 
 async function carregarProjetos() {
-  try { S.projetos = await callApi("/api/tester/projetos"); }
-  catch { S.projetos = S.projetos || []; }
+  /* As duas listas juntas, e independentes: a lixeira falhar não pode esconder
+     os projetos, e os projetos falharem não pode esconder a lixeira. Cada uma
+     mantém o que tinha em vez de virar lista vazia — uma lista vazia por erro de
+     rede se lê como "você não tem nada", que é a mentira mais cara desta tela. */
+  const [proj, lix] = await Promise.allSettled([
+    callApi("/api/tester/projetos"),
+    callApi("/api/tester/lixeira")
+  ]);
+  S.projetos = proj.status === "fulfilled" ? proj.value : (S.projetos || []);
+  S.lixeira = lix.status === "fulfilled" ? lix.value : (S.lixeira || []);
 }
 function instanciaUrl(s) {
   const base = (S.capab && S.capab.instancia) || "";
@@ -1123,7 +2220,11 @@ function ladoDireito(s) {
     const meta = ESTADO_TAG[e.estado] || ESTADO_TAG.espera;
     // Marcar de antemão onde a esteira vai parar é informação útil; confundir
     // isso com "parou agora" não é. O tom separa os dois.
-    const tag = e.estado === "pendente" && PARA_EM.has(e.n) ? "para aqui" : meta.tag;
+    // `para` vem da própria lista de etapas do servidor. A esteira de construção
+    // não manda o campo e cai no `PARA_EM` de sempre; a conversa sobre um fluxo
+    // salvo manda, e para num passo diferente.
+    const paraAqui = e.para === undefined ? PARA_EM.has(e.n) : e.para === true;
+    const tag = e.estado === "pendente" && paraAqui ? "para aqui" : meta.tag;
     return '<div class="st ' + esc(e.estado) + '">' +
       '<span class="num">' + String(e.n).padStart(2, "0") + '</span>' +
       '<span class="nm">' + esc(e.nome) + '</span>' +
@@ -1148,8 +2249,9 @@ function ladoDireito(s) {
         (c.visto ? "" : '<div class="src">não encontrei em nenhum fluxo seu — pode existir e ainda não estar em uso</div>') + "</div>").join("")
     : '<div class="empty">ainda não sei quais credenciais este fluxo precisa</div>';
 
+  const total = (s.etapas || []).length || 7;
   return '<div class="sec"><div class="sech"><span class="ix">[ ETAPAS ]</span><span>' +
-      String(feitas).padStart(2, "0") + " de 07</span></div><div class=\"steps\">" + passos + "</div></div>" +
+      String(feitas).padStart(2, "0") + " de " + String(total).padStart(2, "0") + "</span></div><div class=\"steps\">" + passos + "</div></div>" +
     '<div class="sec"><div class="sech"><span class="ix">[ ACHADOS ]</span><span>' + (s.achados || []).length + "</span></div>" + achados + "</div>" +
     '<div class="sec"><div class="sech"><span class="ix">[ CREDENCIAIS ]</span></div>' + ingr + "</div>" +
     '<div class="sec"><div class="sech"><span class="ix">[ GASTO ]</span><span>desta construção</span></div>' +
@@ -1160,6 +2262,57 @@ function ladoDireito(s) {
 /* ------------------------------------------------------------------ eventos */
 
 function ligarEventos(s) {
+  // Manda as respostas para a rodada seguinte da entrevista. Sem nada marcado
+  // não há o que digerir — a rodada custaria ~20s para reescrever o mesmo cartão.
+  const responder = $("#responder");
+  if (responder) responder.addEventListener("click", async () => {
+    const respostas = Object.entries(S.respostas).map(([q, r]) => ({ q, r }));
+    if (!respostas.length) { alertaInline("marca ou escreve pelo menos uma resposta — ou usa «Pular e construir assim mesmo»."); return; }
+    responder.disabled = true; responder.textContent = "enviando…";
+    try {
+      S.snap = await callApi(rota("reply"), corpo({ respostas }));
+      S.respostas = {};
+      pintar();
+    } catch (e) { responder.disabled = false; responder.textContent = "Enviar respostas →"; alertaInline(e.message); }
+  });
+
+  /* Desempate de credencial. Sem modelo, sem custo: o que viaja é o `id` de uma
+     credencial que já existe na instância. Nenhum segredo passa por aqui —
+     criar credencial continua sendo no n8n, e nem poderia ser diferente: 7 dos
+     16 tipos usados nesta conta são OAuth e exigem o redirecionamento no
+     browser. */
+  app.querySelectorAll(".cr-esc").forEach(b => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try { S.snap = await callApi(rota("credencial"), corpo({ credId: b.dataset.cred })); pintar(); }
+    catch (e) { b.disabled = false; alertaInline(e.message); }
+  }));
+
+  // Liga/desliga as credenciais no JSON exportado. Só muda o que vai para o
+  // clipboard: `s.wf` continua sem `credentials` em qualquer caminho.
+  const cxCred = $("#ligarcred");
+  if (cxCred) cxCred.addEventListener("change", () => { S.ligarCred = cxCred.checked; pintar(); });
+
+  /* A decisão sobre um remendo. É o único clique desta tela que escreve — e o
+     que ele escreve é o arquivo do projeto nesta máquina, nunca o n8n. */
+  const aplicar = $("#aplicar");
+  if (aplicar) aplicar.addEventListener("click", async () => {
+    aplicar.disabled = true; aplicar.textContent = "aplicando…";
+    const desc = $("#descartar"); if (desc) desc.disabled = true;
+    try { S.snap = await callApi(rota("decidir"), corpo({ aplicar: true })); pintar(); }
+    catch (e) {
+      aplicar.disabled = false; aplicar.textContent = "✓ Aplicar e salvar";
+      if (desc) desc.disabled = false;
+      alertaInline(e.message);
+    }
+  });
+
+  const descartar = $("#descartar");
+  if (descartar) descartar.addEventListener("click", async () => {
+    descartar.disabled = true;
+    try { S.snap = await callApi(rota("decidir"), corpo({ aplicar: false })); pintar(); }
+    catch (e) { descartar.disabled = false; alertaInline(e.message); }
+  });
+
   const seguir = $("#seguir");
   if (seguir) seguir.addEventListener("click", async () => {
     seguir.disabled = true;
@@ -1278,6 +2431,72 @@ function avisoAbertura(msg) {
   alvo.appendChild(d);
 }
 
+/* ------------------------------------------------------ confirmar uma ação
+ *
+ * O `confirm()` nativo do browser é a única coisa nesta tela que o tema não
+ * alcança: ele chega com "localhost:4317 diz", tipografia do sistema operacional,
+ * ordem de botão do sistema operacional e `\n\n` no lugar de parágrafo. Pior que
+ * feio — ele NÃO consegue distinguir uma ação destrutiva de uma reversível, e as
+ * duas que existem aqui são exatamente uma de cada: excluir apaga um arquivo,
+ * desfazer troca duas versões que continuam as duas guardadas.
+ *
+ * Regras que este diálogo herda do resto do painel e que não são decoração:
+ *   - `role="dialog"` + `aria-modal` + `aria-labelledby`, e `inert` em todo o
+ *     resto do body enquanto ele está aberto — sem isso o Tab passeia por trás
+ *     do scrim, que foi um defeito real corrigido no flows.html;
+ *   - o foco volta para o botão que abriu, e não para o começo da página;
+ *   - Esc e o scrim cancelam, porque cancelar é sempre o caminho seguro;
+ *   - numa ação destrutiva o foco inicial é o CANCELAR. Enter sem ler não pode
+ *     apagar nada.
+ * `prefers-reduced-motion` zera só a entrada; nada de informação vive nela. */
+function confirmar({ tag, titulo, corpo, botao, perigo }) {
+  return new Promise(resolve => {
+    const abriu = document.activeElement;
+    const scrim = document.createElement("div");
+    scrim.className = "scrim";
+    scrim.innerHTML =
+      '<div class="cfm" role="dialog" aria-modal="true" aria-labelledby="cfm-t" aria-describedby="cfm-b">' +
+        '<div class="cfm-hd"><span class="ix">[ ' + esc(tag || "CONFIRMAR") + " ]</span></div>" +
+        '<h2 class="cfm-t" id="cfm-t">' + esc(titulo) + "</h2>" +
+        '<div class="cfm-b" id="cfm-b">' + (corpo || []).map(p => "<p>" + esc(p) + "</p>").join("") + "</div>" +
+        '<div class="cfm-acts">' +
+          '<button type="button" class="btn" data-r="0">Cancelar</button>' +
+          '<button type="button" class="btn ' + (perigo ? "perigo" : "prime") + '" data-r="1">' + esc(botao) + "</button>" +
+        "</div>" +
+      "</div>";
+
+    const irmaos = [...document.body.children];
+    for (const el of irmaos) el.setAttribute("inert", "");
+    document.body.appendChild(scrim);
+
+    const fechar = v => {
+      document.removeEventListener("keydown", onKey, true);
+      scrim.remove();
+      for (const el of irmaos) el.removeAttribute("inert");
+      if (abriu && abriu.isConnected) abriu.focus();
+      resolve(v);
+    };
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); fechar(false); return; }
+      if (e.key !== "Tab") return;
+      // Ciclo fechado entre os dois botões: o `inert` já tirou o resto da
+      // página da ordem de tabulação, isto só impede a saída pelo browser.
+      const fs = [...scrim.querySelectorAll("button")];
+      const i = fs.indexOf(document.activeElement);
+      e.preventDefault();
+      fs[(i + (e.shiftKey ? -1 : 1) + fs.length) % fs.length].focus();
+    };
+
+    scrim.addEventListener("click", e => { if (e.target === scrim) fechar(false); });
+    scrim.querySelectorAll("[data-r]").forEach(b =>
+      b.addEventListener("click", () => fechar(b.dataset.r === "1")));
+    document.addEventListener("keydown", onKey, true);
+
+    // Destrutivo abre com o foco no Cancelar; reversível, no botão de ação.
+    scrim.querySelector(perigo ? '[data-r="0"]' : '[data-r="1"]').focus();
+  });
+}
+
 function alertaInline(msg) {
   const st = $("#stream");
   if (!st) return;
@@ -1317,6 +2536,26 @@ $("#tema").addEventListener("click", () => {
     if (!S.capab.cliEncontrado) aviso = "Não encontrei o CLI do Claude em " + S.capab.cli + " — sem ele o Tester não consegue construir nada. Defina CLAUDE_BIN no .env se ele estiver em outro lugar.";
     else if (!S.capab.n8nConfigurado) aviso = "O n8n não está configurado no .env, então não sei quais nós a sua instância aceita nem consigo criar a cópia de teste.";
     else if (S.capab.emAndamento) aviso = "Já existe uma construção em andamento. Só uma por vez — espere ela terminar ou recarregue esta página para acompanhar.";
+    /* Sem o doc de agentes o Tester ainda constrói um agente, e constrói pior:
+       sem buffer, sem lock, sem as sete camadas. Isso tem que ser dito ANTES do
+       build, porque depois o fluxo já saiu e parece normal.
+
+       TRÊS estados, não dois. O campo AUSENTE do payload não é o mesmo que o
+       arquivo ausente do disco: um servidor que subiu antes desta versão não sabe
+       responder sobre o doc, e tratar esse silêncio como "não existe" faz a tela
+       culpar o arquivo do Kauan por um processo Node velho. Foi exatamente o que
+       aconteceu — o aviso apareceu com o arquivo de 48KB no lugar. É a mesma
+       armadilha do `Response.json()` num corpo 404 que este projeto já documenta:
+       resposta que não sei ler nunca é resposta negativa. */
+    else if (!("docAgentes" in S.capab)) {
+      aviso = "O cockpit que está rodando subiu antes desta versão do servidor, então ele não sabe me dizer nada sobre `tester-agentes.md`. Feche a janela do cockpit e abra de novo — o Node não recarrega o `server.js` sozinho. (Isto não é um problema com o arquivo.)";
+    }
+    else {
+      const da = S.capab.docAgentes || {};
+      if (!da.encontrado) aviso = "Não achei `tester-agentes.md` na pasta do cockpit — é onde vive o que eu sei sobre agentes conversacionais. Sem ele ainda dá para pedir um agente, mas ele vai sair sem buffer, sem memória e sem as camadas que fazem um agente funcionar de verdade.";
+      else if ((da.faltando || []).length) aviso = "O `tester-agentes.md` está sem o(s) bloco(s) " + da.faltando.join(", ") + ". Confira se as âncoras de abertura e fechamento estão sozinhas na própria linha.";
+      else if ((da.desconhecidos || []).length) aviso = "O `tester-agentes.md` tem bloco que ninguém lê: " + da.desconhecidos.join(", ") + ". Ou é erro de digitação na âncora, ou é uma seção escrita esperando ser usada.";
+    }
   } catch (e) { aviso = e.message; }
 
   await carregarProjetos();

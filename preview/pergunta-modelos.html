@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>preview · pergunta com modelo</title>
+<style>
+
+/* Tokens: os mesmos do flows.html. Mudar cor aqui sem mudar lá é como o painel
+   começa a parecer dois produtos. Status color (ok/warn/risk) é RESERVADA:
+   nunca vira cor de série, nunca vira cor de marca. */
+:root{
+  --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005; --raised:#FFFFFF;
+  --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+  --grid:rgba(10,10,20,.045); --grid-bold:rgba(10,10,20,.08);
+  --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+  --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055; --accent-txt:#3B48E0;
+  --brand:#FF5A1F; --brand-txt:#D04919;
+  --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+  --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --risk-soft:#DC2B3A14; --cold-soft:#8B90A014;
+  --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+  --node-face:#FFFFFF; --node-edge:rgba(10,10,20,.16); --port:#9AA0B4; --wire:#A8AEC0;
+  --sb:rgba(10,10,20,.20); --sb-hov:rgba(10,10,20,.36);
+  --shadow:0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
+  --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+  --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+    --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+    --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+    --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+    --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+    --brand:#FF5A1F; --brand-txt:#FF5A1F;
+    --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+    --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+    --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+    --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+    --sb:rgba(255,255,255,.15); --sb-hov:rgba(255,255,255,.30);
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+  --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+  --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+  --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+  --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+  --brand:#FF5A1F; --brand-txt:#FF5A1F;
+  --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+  --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+  --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+  --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+  --sb:rgba(255,255,255,.15); --sb-hov:rgba(255,255,255,.30);
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow-x:hidden}
+button{font:inherit;color:inherit}
+/* `main` precisa crescer E ser flex, senão o filho com `flex:1` não tem contra
+   quem crescer e a página deixa um vazio embaixo do rodapé. `min-height:0` é o
+   que permite as colunas rolarem por dentro em vez de esticarem a página. */
+#app{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+/* A barra de rolagem faz parte da moldura, não é um controle do sistema. A padrão
+   do Chrome chega como uma faixa cinza-clara opaca que ignora o tema — no tema
+   escuro ela era a coisa mais clara da tela, disputando com o conteúdo.
+   O polegar é desenhado com `background-clip:padding-box` sobre uma borda
+   transparente: a borda vira a folga, então o polegar fica FINO sem estreitar a
+   pista, que é o que mantém o alvo de clique confortável. `scrollbar-width:thin`
+   cobre Firefox, que ignora as regras `::-webkit-`. */
+*{scrollbar-width:thin;scrollbar-color:var(--sb) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--sb);background-clip:padding-box;
+  border:3px solid transparent;border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:var(--sb-hov);background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
+
+/* ---------------------------------------------------------------- appbar */
+.appbar{display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
+  background:var(--surface);flex:0 0 auto;flex-wrap:wrap}
+.mark{font-family:var(--font-num);font-size:11px;letter-spacing:.1em;color:var(--brand-txt);font-weight:700;text-decoration:none}
+.tabs{display:flex;gap:3px}
+.tab{font-size:12px;color:var(--txt-faint);padding:5px 11px;border-radius:8px;text-decoration:none}
+.tab:hover{background:var(--surface-2);color:var(--txt-dim)}
+.tab.on{color:var(--txt);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.appbar .right{margin-left:auto;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
+  display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.iconbtn{background:none;border:1px solid var(--line);border-radius:8px;padding:4px 9px;
+  font-size:11px;color:var(--txt-faint);cursor:pointer}
+.iconbtn:hover{background:var(--surface-2);color:var(--txt-dim)}
+
+/* ------------------------------------------------------------- abertura */
+.stage-open{flex:1 1 auto;display:grid;place-items:center;padding:40px 22px;position:relative;
+  background:var(--bg-deep);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px}
+.open-in{width:100%;max-width:700px;text-align:center}
+.open-in h1{font-size:clamp(26px,4.4vw,36px);font-weight:600;letter-spacing:-.025em;margin:0 0 10px}
+.open-in .hint{color:var(--txt-dim);font-size:13.5px;margin:0 auto 28px;max-width:56ch;line-height:1.6}
+.bigbox{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:15px 16px 12px;position:relative;box-shadow:var(--shadow)}
+.bigbox textarea{width:100%;border:none;background:none;resize:none;font:inherit;font-size:14.5px;
+  color:var(--txt);line-height:1.6;min-height:56px;outline:none}
+.bigbox textarea::placeholder{color:var(--txt-faint)}
+.boxfoot{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;
+  border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.lvl{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);letter-spacing:.05em;margin-right:2px}
+.chip{font-size:11.5px;color:var(--txt-dim);border:1px solid var(--line);background:var(--surface-2);
+  border-radius:999px;padding:5px 12px;line-height:1.3;cursor:pointer;min-height:30px}
+.chip:hover{border-color:var(--accent-line);color:var(--txt)}
+.chip[aria-pressed="true"],.chip.on{color:var(--txt);border-color:var(--accent-line);background:var(--accent-soft)}
+.btn{font-size:12px;border-radius:9px;padding:8px 14px;border:1px solid var(--line);
+  background:var(--raised);color:var(--txt-dim);cursor:pointer;flex:0 0 auto;min-height:34px}
+.btn:hover:not(:disabled){color:var(--txt);border-color:var(--accent-line)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.prime{color:#fff;border-color:transparent;font-weight:600;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
+.btn.prime:hover:not(:disabled){filter:brightness(1.06)}
+.go{margin-left:auto}
+.egs{display:flex;gap:8px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.eg{font-size:11.5px;color:var(--txt-faint);border:1px dashed var(--line);border-radius:999px;
+  padding:6px 12px;cursor:pointer;background:none}
+.eg:hover{color:var(--txt-dim);border-color:var(--accent-line)}
+.avisobar{max-width:700px;margin:16px auto 0;font-size:12px;line-height:1.6;border-radius:10px;
+  padding:10px 12px;background:var(--warn-soft);color:var(--warn-txt);border:1px solid var(--warn-soft);text-align:left}
+
+/* --------------------------------------------------------------- corrida */
+.split{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
+.stream{padding:18px 20px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;
+  border-right:1px solid var(--line-soft);min-width:0}
+/* Filho de coluna flex encolhe por padrão. Sem isto os cartões eram ESPREMIDOS
+   quando a conversa passava da altura da coluna, em vez de a coluna rolar — o
+   "O que eu entendi" aparecia cortado no meio da última linha, e a faixa de
+   atividade virava um risco fino. */
+.stream > *{flex:0 0 auto}
+.side{padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;background:var(--surface-2);min-width:0}
+.composer-wrap{padding:0 20px 16px;border-right:1px solid var(--line-soft)}
+
+.msg{max-width:70ch}
+.msg .who{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:6px}
+.msg.me{margin-left:auto;text-align:right}
+.msg.me .body{display:inline-block;text-align:left;background:var(--raised);border:1px solid var(--line);
+  border-radius:12px 12px 4px 12px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--txt);white-space:pre-wrap}
+/* Sem barra colorida na lateral. Quem fala já está dito no rótulo "TESTER" logo
+   acima, e a fala do sistema já se distingue da sua por não ter balão. Uma
+   listra de acento aqui seria decoração pagando por informação que já existe. */
+.msg.sys .body{font-size:13px;line-height:1.68;color:var(--txt-dim);white-space:pre-wrap}
+
+.card{border:1px solid var(--line);background:var(--surface);border-radius:12px;overflow:hidden;max-width:70ch}
+.card .ch{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line-soft);
+  font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);flex-wrap:wrap}
+.card .ch .ix{color:var(--accent-txt)}
+.row{display:grid;grid-template-columns:82px minmax(0,1fr);gap:10px;padding:9px 13px;
+  border-bottom:1px solid var(--line-soft);align-items:start}
+.row:last-child{border-bottom:none}
+.row .k{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:2px}
+.row .v{font-size:12.5px;color:var(--txt);line-height:1.5;word-break:break-word}
+.row .v.miss{color:var(--warn-txt)}
+/* Suposição em vigor: mesma família de aviso do `.miss`, mas com etiqueta —
+   "em aberto" e "decidido sem você" não podem se ler igual. */
+.row .v.sup{color:var(--warn-txt)}
+.tagsup{font-family:var(--font-num);font-size:8.5px;letter-spacing:.06em;vertical-align:1px;
+  border:1px solid var(--warn-soft);background:var(--warn-soft);border-radius:5px;
+  padding:2px 5px;margin-right:7px;white-space:nowrap}
+
+.q{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:12px 13px;max-width:70ch}
+.q .qt{font-size:12.8px;color:var(--txt);line-height:1.55;margin-bottom:4px}
+.q .qw{font-size:11.5px;color:var(--txt-faint);line-height:1.5;margin-bottom:9px}
+.q .opts{display:flex;gap:7px;flex-wrap:wrap}
+
+.gate{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:12px;padding:13px 14px;max-width:70ch}
+.gate .gt{font-size:12.8px;color:var(--txt);margin-bottom:3px;font-weight:600}
+.gate .gd{font-size:11.5px;color:var(--txt-dim);line-height:1.55;margin-bottom:11px}
+.gate .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gate .cost{margin-left:auto;font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint)}
+
+.composer{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 11px;
+  display:flex;align-items:flex-end;gap:10px}
+.composer textarea{flex:1;border:none;background:none;resize:none;font:inherit;font-size:12.5px;
+  color:var(--txt);line-height:1.55;max-height:120px;outline:none;min-height:22px}
+.composer textarea::placeholder{color:var(--txt-faint)}
+
+/* ------------------------------------------------------------ o desenho */
+.canvas{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-deep);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px;position:relative;max-width:none}
+.canvas svg{display:block;width:100%;height:320px;touch-action:none}
+.canvas .corner{position:absolute;top:9px;left:12px;font-family:var(--font-num);font-size:10px;
+  color:var(--txt-faint);letter-spacing:.05em;pointer-events:none}
+.canvas-ctl{position:absolute;top:7px;right:9px}
+.canvas-hint{position:absolute;bottom:8px;left:12px;font-family:var(--font-num);font-size:9.5px;
+  color:var(--txt-faint);opacity:.75;pointer-events:none}
+/* O nome do nó pode ser longo (`clickup_buscar_tarefas_abertas`). Aqui ele não é
+   cortado: dá para aproximar e ler. Sem `paint-order` a borda do texto some
+   contra o fio que passa por trás. */
+.nd .nm{paint-order:stroke;stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
+.edge{fill:none;stroke:var(--wire);stroke-width:1.6;stroke-linecap:round;
+  stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.edge.drawing{stroke:var(--accent);animation:draw .42s ease forwards}
+.edge.done{stroke:var(--wire);stroke-dashoffset:0}
+/* Aresta de IA: o modelo, a memória, o parser e as tools não estão no caminho da
+   execução — são penduradas no agente. Tracejada e mais fina para dizer isso sem
+   gastar cor (status é reservado, --accent é movimento). O tracejado tem que ser
+   `dasharray` fixo, e não a animação de traço: `--len` é o comprimento do próprio
+   path, então reaproveitá-lo aqui apagaria a linha inteira. */
+.edge.ia{stroke-width:1.1;stroke-dasharray:3 3.5;stroke-dashoffset:0;opacity:.72}
+.edge.ia.drawing{stroke:var(--accent);animation:none}
+.nd{opacity:0;transform-box:fill-box;transform-origin:center}
+.nd .face{fill:var(--node-face);stroke:var(--node-edge);stroke-width:1.2}
+.nd .glyph{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke:var(--txt-dim)}
+.nd .nm{fill:var(--txt);font-family:var(--font);font-size:9.5px;font-weight:600;text-anchor:middle}
+.nd .ty{fill:var(--txt-faint);font-family:var(--font-num);font-size:7.5px;text-anchor:middle}
+.nd .port{fill:var(--node-face);stroke:var(--port);stroke-width:1.3}
+.nd.writing{opacity:1;animation:popin .34s cubic-bezier(.2,.9,.25,1) both}
+.nd.writing .face{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:5 4;animation:march .9s linear infinite}
+.nd.writing .nm,.nd.writing .ty{opacity:0}
+.nd.built{opacity:1}
+.nd.built .face{stroke:var(--node-edge);transition:stroke .5s ease}
+.nd.built .nm,.nd.built .ty{opacity:1;transition:opacity .35s ease .05s}
+.nd .caret{fill:var(--accent);opacity:0}
+.nd.writing .caret{opacity:1;animation:blink .7s steps(1,end) infinite}
+@keyframes popin{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@keyframes march{to{stroke-dashoffset:-18}}
+@keyframes blink{50%{opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ---------------------------------------------------------- superfícies */
+.surf{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px;max-width:70ch}
+.surf .sh{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:10px}
+/* Mockups de destino. A superfície se lê pela FORMA e pelo RÓTULO, nunca por
+   cor emprestada de marca alheia:
+   - o roxo do Slack (#4A154B) seria cor solta, fora do sistema de tokens: no
+     dia em que o tema mudar ela não muda junto;
+   - o verde do WhatsApp seria `--ok`, que é COR DE STATUS. Este repo reserva
+     ok/warn/risk para dizer se algo está bem ou mal — um balão verde ali
+     sugeriria "deu certo", e nada aqui executou.
+   O que faz o trabalho é a anatomia: o Slack tem avatar quadrado, nome em
+   negrito e selo APP; o WhatsApp tem balão com rabinho sobre fundo de conversa;
+   o e-mail tem cabeçalho De/Para/Assunto; a linha gravada é uma linha de
+   tabela. Quem usa esses apps reconhece a forma sem precisar da cor. */
+.mock{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.mock+.mock{margin-top:10px}
+.mock-top{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line-soft);
+  font-family:var(--font-num);font-size:10.5px;color:var(--txt-dim);background:var(--surface-2);min-width:0}
+.mock-top .dest{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mock-top .mk{margin-left:auto;flex:0 0 auto;font-size:8.5px;letter-spacing:.06em;color:var(--txt-faint)}
+.mock-time{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint)}
+/* Slack: avatar quadrado + nome + selo APP + hora, texto embaixo. */
+.slack-msg{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:12px 14px}
+.slack-av{width:36px;height:36px;border-radius:8px;background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line);display:grid;place-items:center;
+  color:var(--accent-txt);font-size:15px;font-weight:700}
+.slack-head{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:3px}
+.slack-head strong{font-size:12.8px}
+.badge-app{font-family:var(--font-num);font-size:8px;letter-spacing:.04em;color:var(--txt-faint);
+  border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+.mock-text{font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--txt)}
+/* WhatsApp/Telegram: balão com rabinho sobre fundo de conversa pontilhado. */
+.wha-chat{padding:14px 14px 12px;background:var(--bg-deep);
+  background-image:radial-gradient(var(--grid) 1px,transparent 1px);background-size:14px 14px}
+.wha-bubble{max-width:85%;width:fit-content;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px 10px 10px 3px;padding:8px 11px;box-shadow:var(--shadow)}
+.wha-meta{display:block;text-align:right;font-family:var(--font-num);font-size:9px;color:var(--txt-faint);margin-top:4px}
+/* E-mail: cabeçalho De/Para/Assunto + corpo. */
+.mail-head{padding:10px 14px;border-bottom:1px solid var(--line-soft);
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:12.3px}
+.mail-head .k{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:1px}
+.mail-head .sub{font-weight:650}
+.mail-body{padding:12px 14px}
+/* Linha gravada: uma linha de tabela, destacada como "nova". */
+.tblwrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-family:var(--font-num);font-size:9.5px;letter-spacing:.04em;color:var(--txt-faint);
+  text-align:left;padding:7px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:8px 12px;color:var(--txt);word-break:break-word;background:var(--accent-soft);min-width:90px}
+/* Resposta de webhook: bloco mono, como um curl -i. */
+.http-resp{font-family:var(--font-num);font-size:11.5px;padding:12px 14px;line-height:1.65;
+  color:var(--txt-dim);white-space:pre-wrap;word-break:break-word}
+/* NÃO usar `.st` aqui: é a classe das etapas do lado direito (um grid), e a
+   colisão empilhava "HTTP 200" numa coluna de 20px. */
+.http-resp .hst{color:var(--txt);font-weight:700}
+/* Entrada: o mock chega como a mensagem chegaria — sobe e assenta, e o texto se
+   revela da esquerda para a direita, uma vez só (gated por assinatura no JS;
+   o prefers-reduced-motion global zera as durações). */
+.mock.anim{animation:mockin .5s cubic-bezier(.2,.9,.3,1) both}
+.mock.anim .mock-text,.mock.anim .tbl td,.mock.anim .http-resp{animation:typein .7s ease .28s both}
+@keyframes mockin{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes typein{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 -2% 0 0)}}
+.naosim{color:var(--warn-txt);background:var(--warn-soft);border-radius:5px;padding:0 4px;
+  font-family:var(--font-num);font-size:11px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:12.3px}
+.kv dt{font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint)}
+.kv dd{margin:0;color:var(--txt);word-break:break-word}
+.selo{font-family:var(--font-num);font-size:10px;color:var(--warn-txt);background:var(--warn-soft);
+  border:1px solid var(--warn-soft);border-radius:8px;padding:7px 10px;margin-top:11px;line-height:1.55}
+
+/* ------------------------------------------------- opção como mensagem pronta
+   Escolher entre "remetente e assunto" e "remetente, assunto e trecho do corpo"
+   é escolher entre duas DESCRIÇÕES. Aqui a opção é desenhada como a mensagem que
+   ela produz, na mesma anatomia de destino que o fantasma usa.
+   O selo diz MODELO, nunca SIMULAÇÃO, e a diferença não é cosmética: o fantasma
+   da etapa 06 é DERIVADO do fluxo por código, isto aqui é texto que o modelo
+   escreveu para você comparar antes de existir fluxo nenhum. Um selo só para os
+   dois apagaria a única coisa que dá valor ao fantasma.
+   Vem tudo em `span` porque o cartão é um `<button>`, e `<div>` dentro de botão é
+   markup inválido — daí a linha de `display` logo abaixo. */
+.opts.tpl{display:grid;grid-template-columns:1fr;gap:9px}
+.tpl-op{display:block;width:100%;text-align:left;cursor:pointer;padding:10px 11px;
+  border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tpl-op:hover{border-color:var(--accent-line)}
+.tpl-op.on{border-color:var(--accent-line);background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.tpl-hd{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--txt);line-height:1.45}
+.tpl-dot{width:14px;height:14px;flex:0 0 auto;border-radius:50%;border:1.5px solid var(--line);background:var(--bg)}
+.tpl-op.on .tpl-dot{border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--bg),inset 0 0 0 9px var(--accent)}
+.tpl-mock{margin-top:9px;border-color:var(--line-soft);background:var(--bg-deep)}
+.tpl-mock,.tpl-mock .wha-chat,.tpl-mock .wha-bubble,.tpl-mock .mail-body,
+.tpl-mock .slack-av,.tpl-mock .mock-text,.tpl-mock .slack-col{display:block}
+.tpl-mock .slack-av{display:grid}
+.tpl-mock .mock-text{font-size:12.3px}
+/* O campo dinâmico não é o valor: é o buraco onde o valor entra. Marcá-lo com
+   `--accent` (movimento, nunca status) evita que a pessoa leia "{{ assunto }}"
+   como se o fluxo fosse mandar literalmente esse texto. */
+.ph{font-family:var(--font-num);font-size:11px;color:var(--accent-txt);
+  background:var(--accent-soft);border-radius:5px;padding:0 4px}
+.opts.tpl .chip.outro{justify-self:start}
+
+pre.json{margin:0;font-family:var(--font-num);font-size:11px;line-height:1.55;color:var(--txt-dim);
+  background:var(--bg-deep);border-radius:8px;padding:11px;overflow-x:auto;max-height:340px}
+details.jsonbox{border:1px solid var(--line);border-radius:12px;background:var(--surface);max-width:none}
+details.jsonbox>summary{padding:11px 13px;cursor:pointer;font-size:12.5px;color:var(--txt-dim);list-style:none}
+details.jsonbox>summary::-webkit-details-marker{display:none}
+details.jsonbox>summary::before{content:"▸ ";color:var(--txt-faint)}
+details.jsonbox[open]>summary::before{content:"▾ "}
+details.jsonbox .inner{padding:0 13px 13px}
+
+/* ----------------------------------------------------------- lado direito */
+.sec{display:flex;flex-direction:column;gap:9px}
+.sech{display:flex;align-items:baseline;gap:8px;font-family:var(--font-num);font-size:9.5px;
+  letter-spacing:.06em;color:var(--txt-faint)}
+.sech .ix{color:var(--brand-txt)}
+.steps{display:flex;flex-direction:column;gap:1px}
+.st{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:9px;align-items:center;
+  padding:7px 8px;border-radius:8px}
+.st .num{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);text-align:right}
+.st .nm{font-size:12px;color:var(--txt-faint)}
+.st .tag{font-family:var(--font-num);font-size:8.5px;color:var(--txt-faint);text-align:right}
+.st.feita .nm,.st.pulada .nm,.st.vazia .nm{color:var(--txt-dim)}
+.st.feita .num{color:var(--ok-txt)}
+.st.pulada .num,.st.vazia .num{color:var(--cold-txt)}
+.st.falhou .num,.st.falhou .tag{color:var(--risk-txt)}
+.st.pendente .num,.st.pendente .nm,.st.pendente .tag{opacity:.6}
+.st.correndo,.st.espera{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.st.correndo .nm,.st.espera .nm{color:var(--txt);font-weight:600}
+.st.correndo .num,.st.espera .num{color:var(--accent-txt)}
+.st.espera .tag{color:var(--warn-txt)}
+.st .nota{grid-column:2/4;font-size:10.5px;color:var(--txt-faint);line-height:1.45;margin-top:2px}
+
+.i{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:9px 11px}
+.i .ih{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.i .kind{font-family:var(--font-num);font-size:8.5px;letter-spacing:.05em;padding:2px 6px;border-radius:5px}
+.i.risco .kind{color:var(--risk-txt);background:var(--risk-soft)}
+.i.falta .kind{color:var(--warn-txt);background:var(--warn-soft)}
+.i.ideia .kind{color:var(--accent-txt);background:var(--accent-soft)}
+.i .tx{font-size:11.8px;color:var(--txt-dim);line-height:1.5;word-break:break-word}
+.i .src{font-family:var(--font-num);font-size:8.5px;color:var(--txt-faint);margin-top:5px}
+.empty{font-size:11.5px;color:var(--txt-faint);line-height:1.5;border:1px dashed var(--line);
+  border-radius:10px;padding:11px}
+
+.band{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);font-size:11.5px;color:var(--txt-dim);line-height:1.5}
+.band .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 auto;
+  animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* Faixa de processamento. Duas linhas: o que está acontecendo agora (etapa) e o
+   detalhe do que a sessão está fazendo neste segundo. O detalhe muda toda hora
+   e por isso NÃO pode ser a linha principal — quem olha quer saber onde está,
+   não qual arquivo foi tocado. */
+.proc{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--accent-line);
+  border-radius:12px;background:var(--accent-soft);max-width:70ch}
+.proc .spin{width:16px;height:16px;flex:0 0 auto;border-radius:50%;
+  border:2px solid var(--accent-line);border-top-color:var(--accent);animation:girar .8s linear infinite}
+.proc .col{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+/* `span` é inline: sem isto as duas linhas colavam uma na outra e o detalhe
+   transbordava a caixa. Cada uma é um bloco, e a de baixo trunca. */
+.proc .t1{display:block;font-size:12.8px;color:var(--txt);font-weight:600;line-height:1.4}
+.proc .t2{display:block;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;line-height:1.4}
+.proc .passo{font-family:var(--font-num);font-size:10px;color:var(--accent-txt);flex:0 0 auto}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.proc .spin{animation:none;border-top-color:var(--accent-line)}}
+.band .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-num);font-size:11px}
+
+/* rodapé: muda conforme o que REALMENTE aconteceu (PLAN.md §10) */
+.foot{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding:9px 18px;
+  border-top:1px solid var(--line-soft);display:flex;gap:14px;flex-wrap:wrap;background:var(--surface);flex:0 0 auto}
+.foot.escreveu{background:var(--warn-soft);color:var(--warn-txt)}
+.foot.indeterminado{background:var(--risk-soft);color:var(--risk-txt)}
+
+/* ------------------------------------------------------ salvar e projetos */
+.acoes{display:flex;gap:8px;margin:11px 0;flex-wrap:wrap;align-items:center}
+.salvar{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:10px;
+  padding:11px 12px;margin-top:11px}
+.salvar .lbl{display:block;font-size:12px;color:var(--txt-dim);margin-bottom:8px}
+.salvar .linha{display:flex;gap:8px;flex-wrap:wrap}
+.salvar .salvo{font-size:12.5px;color:var(--txt)}
+.campo{flex:1 1 220px;min-width:0;font:inherit;font-size:12.5px;color:var(--txt);background:var(--surface);
+  border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none;min-height:34px}
+.campo:focus{border-color:var(--accent-line)}
+
+.projs{margin-top:34px;text-align:left}
+.projs-h{display:flex;gap:8px;align-items:baseline;font-family:var(--font-num);font-size:9.5px;
+  letter-spacing:.06em;color:var(--brand-txt);margin-bottom:10px}
+.projs-h span{color:var(--txt-faint)}
+.projs-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.proj{display:flex;flex-direction:column;gap:5px;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;padding:12px 13px;cursor:pointer;font:inherit;
+  color:inherit;min-width:0}
+.proj:hover{border-color:var(--accent-line)}
+.proj .pt{font-size:13px;font-weight:650;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .pi{font-size:11.5px;color:var(--txt-dim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.proj .pm,.proj .pd{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj{position:relative}
+.proj-menu{position:absolute;top:8px;right:8px}
+/* Some até o mouse chegar, mas NUNCA some do teclado: `focus-within` mantém o
+   botão visível para quem navega com Tab, senão o menu não existiria para ele. */
+.dots{opacity:0;background:none;border:1px solid transparent;border-radius:7px;padding:1px 6px;
+  font-size:15px;line-height:1.1;color:var(--txt-faint);cursor:pointer}
+.proj:hover .dots,.proj:focus-within .dots,.dots:focus-visible{opacity:1}
+.dots:hover{background:var(--surface-2);border-color:var(--line);color:var(--txt)}
+.pop{position:absolute;top:26px;right:0;z-index:5;min-width:132px;background:var(--raised);
+  border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:2px}
+/* O atributo `hidden` só esconde porque o padrão dele é `display:none` — QUALQUER
+   `display` declarado ganha dele. Sem esta linha o menu nascia aberto e não
+   fechava com nada, porque o `display:flex` acima vencia o `hidden`. */
+.pop[hidden]{display:none}
+.outro-campo[hidden]{display:none}
+.pop-i{text-align:left;background:none;border:none;border-radius:7px;padding:7px 9px;
+  font-size:12px;color:var(--txt-dim);cursor:pointer}
+.pop-i:hover{background:var(--surface-2);color:var(--txt)}
+.pop-i.risco{color:var(--risk-txt)}
+.pop-i.risco:hover{background:var(--risk-soft)}
+.outro-campo{margin-top:9px;width:100%}
+
+.erro{border:1px solid var(--risk-soft);background:var(--risk-soft);color:var(--risk-txt);
+  border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
+.gatefail{border:1px solid var(--risk-soft);background:var(--surface);border-radius:12px;padding:12px 13px;max-width:70ch}
+.gatefail li{font-size:12px;color:var(--txt-dim);line-height:1.6}
+
+@media (max-width:900px){
+  .split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto}
+  .side{border-top:1px solid var(--line-soft);order:2}
+  .stream{order:1;border-right:none}
+  .composer-wrap{border-right:none;order:3}
+  .chip,.btn{min-height:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  /* `animation-delay` também: com fill `both`, um elemento atrasado fica preso
+     no estado inicial (opacity 0) até o delay passar — zerar só a duração
+     deixava os mockups escalonados invisíveis para quem pediu menos movimento. */
+  *{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .nd{opacity:1}
+  .edge{stroke-dashoffset:0}
+}
+
+.pv-h{font-family:var(--font-num);font-size:10px;letter-spacing:.06em;color:var(--txt-faint);margin:26px 0 9px;border-top:1px solid var(--line-soft);padding-top:14px}
+</style></head><body>
+<div style="max-width:74ch;margin:30px auto 60px;padding:0 16px">
+<div id="alvo"></div>
+</div>
+<script>
+"use strict";
+const tema = new URLSearchParams(location.search).get("theme");
+if (tema === "light" || tema === "dark") document.documentElement.setAttribute("data-theme", tema);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const HORA_SIM = "09:00";
+const S = { respostas: {} };
+const marcarCampos = t => esc(t).replace(/\{\{\s*([^{}]{1,60}?)\s*\}\}/g, '<span class="ph">{{ $1 }}</span>');
+function previaModelo(previa, texto) {
+  const t = String(texto || "").trim();
+  if (!t) return "";
+  const topo = d => '<span class="mock-top"><span class="dest">' + esc(d) +
+    '</span><span class="mk">MODELO</span></span>';
+
+  if (previa === "slack") {
+    return '<span class="mock tpl-mock">' + topo("canal do Slack") +
+      '<span class="slack-msg"><span class="slack-av" aria-hidden="true">◈</span><span class="slack-col">' +
+      '<span class="slack-head"><strong>seu fluxo</strong><span class="badge-app">APP</span>' +
+      '<span class="mock-time">' + HORA_SIM + "</span></span>" +
+      '<span class="mock-text">' + marcarCampos(t) + "</span></span></span></span>";
+  }
+  if (previa === "whatsapp") {
+    return '<span class="mock tpl-mock">' + topo("conversa no WhatsApp") +
+      '<span class="wha-chat"><span class="wha-bubble"><span class="mock-text">' + marcarCampos(t) + "</span>" +
+      '<span class="wha-meta">' + HORA_SIM + " ✓✓</span></span></span></span>";
+  }
+  if (previa === "email") {
+    // Um e-mail se lê pelo assunto primeiro. Quando o modelo abre com
+    // "Assunto: …", essa linha sobe para o cabeçalho em vez de ficar enterrada
+    // como primeira linha do corpo, que é onde ninguém procura por ela.
+    const linhas = t.split("\n");
+    const m = /^assunto\s*:\s*(.+)$/i.exec((linhas[0] || "").trim());
+    const assunto = m ? m[1] : "";
+    const corpo = m ? linhas.slice(1).join("\n").trim() : t;
+    return '<span class="mock tpl-mock">' + topo("e-mail") +
+      '<span class="mail-head"><span class="k">assunto</span>' +
+      '<span class="sub">' + (assunto ? marcarCampos(assunto) : "(definido no fluxo)") + "</span></span>" +
+      '<span class="mail-body"><span class="mock-text">' + marcarCampos(corpo) + "</span></span></span>";
+  }
+  return '<span class="mock tpl-mock">' + topo("mensagem") +
+    '<span class="mail-body"><span class="mock-text">' + marcarCampos(t) + "</span></span></span>";
+}
+function pergunta(q) {
+  const escolhida = S.respostas[q.q];
+  const opcoes = q.opcoes || [];
+  // Resposta que não está entre as sugestões só pode ter vindo do campo livre —
+  // então ele reabre já preenchido, e a escolha sobrevive ao repaint do SSE.
+  const ehOutro = escolhida !== undefined && !opcoes.includes(escolhida);
+  // Com modelos a opção vira cartão com a mensagem montada; sem eles, o chip de
+  // sempre. A escolha continua sendo a MESMA string nos dois casos — `data-resp`
+  // é o contrato, e por isso o handler de clique não sabe nem precisa saber qual
+  // dos dois desenhos está na tela.
+  const comModelo = !!(q.modelos && Object.keys(q.modelos).length);
+  return '<div class="q" data-q="' + esc(q.q) + '"><div class="qt">' + esc(q.q) + "</div>" +
+    (q.porque ? '<div class="qw">' + esc(q.porque) + "</div>" : "") +
+    '<div class="opts' + (comModelo ? " tpl" : "") + '" role="radiogroup" aria-label="' + esc(q.q) + '">' +
+    opcoes.map(o => {
+      const on = escolhida === o;
+      if (comModelo) {
+        return '<button type="button" class="tpl-op resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
+          on + '" data-resp="' + esc(o) + '">' +
+          '<span class="tpl-hd"><span class="tpl-dot" aria-hidden="true"></span>' + esc(o) + "</span>" +
+          previaModelo(q.previa, q.modelos[o]) + "</button>";
+      }
+      return '<button type="button" class="chip resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
+        on + '" data-resp="' + esc(o) + '">' + esc(o) + "</button>";
+    }).join("") +
+    '<button type="button" class="chip resp outro' + (ehOutro ? " on" : "") + '" role="radio" aria-checked="' +
+      ehOutro + '">Outro…</button>' +
+    "</div>" +
+    '<input class="campo outro-campo" type="text" maxlength="200" placeholder="escreva a sua resposta"' +
+      ' aria-label="outra resposta para: ' + esc(q.q) + '"' +
+      (ehOutro ? "" : " hidden") + ' value="' + esc(ehOutro ? escolhida : "") + '">' +
+    "</div>";
+}
+function cartaoEntendi(e, dono) {
+  const fechada = !!(dono && !(dono.perguntas || []).length && (dono.etapa || 1) > 1);
+  const linha = (k, v) => {
+    const t = String(v == null ? "" : v).trim();
+    const sup = /^suposi[çc][ãa]o\s*:/i.test(t);
+    const vazio = !t || /^n[ãa]o disse$/i.test(t);
+    if (!sup && !vazio) return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v">' + esc(t) + "</div></div>";
+    if (vazio && !fechada) {
+      return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v miss">você ainda não disse</div></div>';
+    }
+    const txt = sup ? t.replace(/^suposi[çc][ãa]o\s*:\s*/i, "") : "vou usar o padrão mais comum e deixar marcado no fluxo";
+    return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v sup">' +
+      '<span class="tagsup">SUPOSIÇÃO</span>' + esc(txt) + "</div></div>";
+  };
+  /* Só quando é agente. Dizer "automação" no cartão de todo fluxo normal seria
+     ruído — a classificação só é notícia quando ela muda o que vem a seguir, e é
+     isso que a segunda linha explica: a entrevista vai ser mais longa de
+     propósito, e não porque travou. */
+  const agente = dono && dono.ehAgente === true
+    ? '<div class="row"><div class="k">tipo</div><div class="v">agente conversacional — vou perguntar mais que o normal ' +
+      '(buffer, mídia, voz, memória, tools, escalonamento) porque cada uma dessas respostas muda os nós do fluxo</div></div>'
+    : "";
+  /* Uma suposição em vigor é uma decisão de construção tomada sem confirmação:
+     o rodapé existe para dizer que ela ainda dá para desfazer, e como. Sem ele o
+     cartão marca o campo de amarelo e não oferece saída nenhuma. */
+  const vals = [e.quando, e.oQueFaz, e.resultado, e.ondeChega].map(v => String(v == null ? "" : v).trim());
+  const temSup = vals.some(t => /^suposi[çc][ãa]o\s*:/i.test(t)) ||
+    (fechada && vals.some(t => !t || /^n[ãa]o disse$/i.test(t)));
+  const rodape = temSup
+    ? '<div class="row"><div class="k">correção</div><div class="v" style="color:var(--txt-dim)">' +
+      'escreva no campo lá embaixo o que está errado — eu recomeço a partir desta etapa</div></div>'
+    : "";
+  return '<div class="card"><div class="ch"><span class="ix">◈</span> O QUE EU ENTENDI</div>' +
+    agente +
+    linha("quando", e.quando) + linha("o que faz", e.oQueFaz) + linha("resultado", e.resultado) + linha("onde chega", e.ondeChega) +
+    rodape +
+    "</div>";
+}
+const perguntas = [
+ {
+  "q": "O que a mensagem no Slack precisa mostrar do e-mail?",
+  "porque": "define os campos que o fluxo extrai do e-mail para montar o texto da mensagem",
+  "opcoes": [
+   "Remetente e assunto",
+   "Remetente, assunto e trecho do corpo",
+   "Remetente, assunto, corpo e link para abrir o e-mail"
+  ],
+  "previa": "slack",
+  "modelos": {
+   "Remetente e assunto": "*Novo e-mail na caixa de entrada*\n*De:* {{ remetente }}\n*Assunto:* {{ assunto }}",
+   "Remetente, assunto e trecho do corpo": "*Novo e-mail na caixa de entrada*\n*De:* {{ remetente }}\n*Assunto:* {{ assunto }}\n\n> {{ trecho_do_corpo }}",
+   "Remetente, assunto, corpo e link para abrir o e-mail": "*Novo e-mail na caixa de entrada*\n*De:* {{ remetente }}\n*Assunto:* {{ assunto }}\n\n> {{ trecho_do_corpo }}\n\n<{{ link_do_email }}|Abrir no Gmail>"
+  }
+ },
+ {
+  "q": "Como o aviso chega no WhatsApp?",
+  "porque": "muda o tamanho do texto e se o fluxo manda uma bolha ou várias",
+  "opcoes": [
+   "Uma bolha curta",
+   "Bolha com os detalhes do pedido"
+  ],
+  "previa": "whatsapp",
+  "modelos": {
+   "Uma bolha curta": "Pedido novo: {{ produto }} — R$ {{ total }}",
+   "Bolha com os detalhes do pedido": "Pedido novo no Mercado Livre\nProduto: {{ produto }}\nTotal: R$ {{ total }}\nComprador: {{ comprador }}"
+  }
+ },
+ {
+  "q": "Qual o formato do relatório semanal por e-mail?",
+  "porque": "define o assunto e o corpo que o fluxo monta",
+  "opcoes": [
+   "Resumo em uma linha",
+   "Resumo com quebra por canal"
+  ],
+  "previa": "email",
+  "modelos": {
+   "Resumo em uma linha": "Assunto: Faturamento da semana — R$ {{ total_semana }}\n\nA semana fechou em R$ {{ total_semana }}, com {{ qtd_pedidos }} pedidos.",
+   "Resumo com quebra por canal": "Assunto: Faturamento da semana — R$ {{ total_semana }}\n\nTotal: R$ {{ total_semana }} em {{ qtd_pedidos }} pedidos.\nMercado Livre: R$ {{ total_ml }}\nShopee: R$ {{ total_shopee }}"
+  }
+ },
+ {
+  "q": "O que o registro guarda?",
+  "porque": "destino sem anatomia própria cai na prévia neutra",
+  "opcoes": [
+   "Só o identificador",
+   "Identificador e valor"
+  ],
+  "previa": "texto",
+  "modelos": {
+   "Só o identificador": "pedido_id = {{ pedido_id }}",
+   "Identificador e valor": "pedido_id = {{ pedido_id }}\ntotal = {{ total }}"
+  }
+ },
+ {
+  "q": "Com que frequência o fluxo deve checar?",
+  "porque": "pergunta sem modelos continua sendo chip, como sempre foi",
+  "opcoes": [
+   "A cada 5 minutos",
+   "De hora em hora",
+   "Uma vez por dia"
+  ]
+ }
+];
+const cartoes = [
+ {
+  "titulo": "entrevista ABERTA — o campo em aberto ainda vai ser perguntado",
+  "dono": {
+   "perguntas": [
+    {
+     "q": "x"
+    }
+   ],
+   "etapa": 1
+  },
+  "e": {
+   "quando": "toda vez que chegar um novo e-mail",
+   "oQueFaz": "envia um aviso no Slack",
+   "resultado": "mensagem no Slack avisando sobre o e-mail recebido",
+   "ondeChega": "não disse"
+  }
+ },
+ {
+  "titulo": "entrevista FECHADA, campo vazio — ninguém mais vai perguntar",
+  "dono": {
+   "perguntas": [],
+   "etapa": 4
+  },
+  "e": {
+   "quando": "toda vez que chegar um novo e-mail",
+   "oQueFaz": "envia um aviso no Slack",
+   "resultado": "mensagem no Slack avisando sobre o e-mail recebido",
+   "ondeChega": "não disse"
+  }
+ },
+ {
+  "titulo": "suposição DECLARADA pelo modelo",
+  "dono": {
+   "perguntas": [],
+   "etapa": 4
+  },
+  "e": {
+   "quando": "toda vez que chegar um novo e-mail",
+   "oQueFaz": "envia um aviso no Slack",
+   "resultado": "mensagem no Slack avisando sobre o e-mail recebido",
+   "ondeChega": "suposição: canal #geral do Slack, o único que a conta tem conectado"
+  }
+ },
+ {
+  "titulo": "tudo respondido — nenhum aviso, nenhum rodapé",
+  "dono": {
+   "perguntas": [],
+   "etapa": 4
+  },
+  "e": {
+   "quando": "toda vez que chegar um novo e-mail",
+   "oQueFaz": "envia um aviso no Slack",
+   "resultado": "mensagem no Slack avisando sobre o e-mail recebido",
+   "ondeChega": "canal #avisos do Slack"
+  }
+ }
+];
+for (const q of perguntas) if (q.modelos) S.respostas[q.q] = q.opcoes[0];
+document.getElementById('alvo').innerHTML =
+  cartoes.map(c => '<div class="pv-h">' + esc(c.titulo) + '</div>' + cartaoEntendi(c.e, c.dono)).join('') +
+  perguntas.map(q => '<div class="pv-h">' + esc(q.previa ? 'previa: ' + q.previa : 'sem modelos — chip de sempre') + '</div>' + pergunta(q)).join('');
+</script></body></html>

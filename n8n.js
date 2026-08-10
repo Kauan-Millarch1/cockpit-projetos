@@ -409,6 +409,7 @@ const state = {
   workflows: { at: 0, rows: [] },
   graphs: new Map(),                 // id -> { at, graph }
   locate: new Map(),                 // JSON.stringify([wfId, node]) -> { at, value }
+  callers: { at: 0, value: null },   // { porFilho: {childId: [{id,name,viaNode}]}, lidos, falhas }
   execs: new Map(),                  // id -> extracted row
   details: new Map(),                // id -> extracted detail
   lastPoll: null,
@@ -544,6 +545,53 @@ async function locateNode(wfId, nodeName) {
 
   const value = { wfId: String(wfId), workflowName: String(parent.name ?? ""), node: nodeName, inWorkflow, subflows };
   state.locate.set(key, { at: Date.now(), value });
+  return value;
+}
+
+/* --------------------------------------------------- quem chama quem ------
+ *
+ * Um sub-fluxo chamado por `executeWorkflow`/`toolWorkflow` NUNCA pode estar
+ * `active` no n8n: quem acorda é o pai. Então "ativo ou executou na janela" —
+ * o filtro da porta de entrada — deixava de fora fluxo de produção de 108 nós
+ * só porque ele estava quieto na janela. `Agente eContrate` é o caso medido: 0
+ * execuções em 24h, `active:false`, e chamado por `WhatsApp API Oficial`, que
+ * tem 645 execuções e está ativo.
+ *
+ * Isto é FATO, do mesmo tipo que `locateNode` já emite: está escrito no JSON dos
+ * dois workflows. Sai daqui **id, nome e nome do nó chamador apenas** — o objeto
+ * `parameters` não é whitelistado e não atravessa. Quem decide se um chamador
+ * está "vivo" é a tela, não este arquivo.
+ */
+const CALLERS_TTL_MS = 15 * 60 * 1000;
+const CALLERS_SCAN_CAP = 200;        // teto defensivo; a instância tem 68
+
+async function callers({ force = false } = {}) {
+  if (!force && state.callers.value && Date.now() - state.callers.at < CALLERS_TTL_MS) {
+    return state.callers.value;
+  }
+  const rows = await getWorkflows({ force: false });
+  const porFilho = {};
+  let lidos = 0, falhas = 0;
+
+  for (const w of rows.slice(0, CALLERS_SCAN_CAP)) {
+    let raw;
+    try { raw = await request("GET", `/api/v1/workflows/${encodeURIComponent(w.id)}`); }
+    catch { falhas++; continue; }
+    lidos++;
+    for (const nd of raw.nodes || []) {
+      if (!SUBFLOW_RE.test(String(nd.type || ""))) continue;
+      const filho = subWorkflowId(nd);
+      if (!filho) continue;
+      if (!porFilho[filho]) porFilho[filho] = [];
+      if (porFilho[filho].some(c => c.id === String(w.id))) continue;
+      porFilho[filho].push({ id: String(w.id), name: String(w.name ?? ""), viaNode: String(nd.name ?? "") });
+    }
+  }
+
+  // `falhas` não é decoração: com leitura incompleta, "ninguém chama este fluxo"
+  // deixa de ser uma afirmação sustentável, e a tela precisa poder dizer isso.
+  const value = { porFilho, lidos, falhas, total: rows.length, geradoEm: new Date().toISOString() };
+  state.callers = { at: Date.now(), value };
   return value;
 }
 
@@ -762,7 +810,7 @@ async function findWorkflowByName(name) {
 }
 
 module.exports = {
-  configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, locateNode, WINDOW_HOURS,
+  configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, locateNode, callers, WINDOW_HOURS,
   // write path — ver o bloco acima antes de usar
   getRawWorkflow, putWorkflow, createWorkflow, findWorkflowByName, listWorkflows, credentialSchema,
   // exportado para teste

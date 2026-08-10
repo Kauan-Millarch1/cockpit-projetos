@@ -462,6 +462,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await n8n.getDetail(id));
     }
 
+    // Quem chama quem. Um sub-fluxo nunca pode estar `active`, então sem isto a
+    // porta de entrada esconde fluxo de produção que está apenas quieto na
+    // janela. Fato: id, nome e nó chamador — `parameters` não atravessa.
+    if (p === "/api/n8n/callers") {
+      return json(res, 200, await n8n.callers({ force: url.searchParams.get("refresh") === "1" }));
+    }
+
     if (p === "/api/projects") {
       return json(res, 200, await listProjects({ refresh: url.searchParams.get("refresh") === "1" }));
     }
@@ -528,13 +535,40 @@ const server = http.createServer(async (req, res) => {
     // Projetos salvos: o que o Tester produziu e o Kauan decidiu guardar.
     if (p === "/api/tester/projetos") return json(res, 200, await tester.listarProjetos());
 
+    /* A lixeira. Excluir um projeto move para cá; apagar de vez é uma decisão
+     * tomada aqui dentro, olhando o que vai sumir. Nada disto toca no n8n — um
+     * fluxo já importado lá continua lá, e a tela diz isso. */
+    if (p === "/api/tester/lixeira" && req.method === "GET") return json(res, 200, await tester.listarLixeira());
+
+    if (p === "/api/tester/lixeira/esvaziar" && req.method === "POST") {
+      try { return json(res, 200, await tester.esvaziarLixeira()); }
+      catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+    }
+
+    if (p.startsWith("/api/tester/lixeira/")) {
+      const resto = p.slice("/api/tester/lixeira/".length);
+      const [lixo, acao] = resto.split("/");
+      if (!/^[a-z0-9-]{1,64}__[0-9]{14}$/.test(lixo)) return json(res, 400, { error: "identificador inválido" });
+
+      if (acao === "restaurar" && req.method === "POST") {
+        try { return json(res, 200, await tester.restaurarProjeto(lixo)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+      if (!acao && req.method === "DELETE") {
+        try { return json(res, 200, await tester.excluirDaLixeira(lixo)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+    }
+
     if (p.startsWith("/api/tester/projeto/")) {
       const resto = p.slice("/api/tester/projeto/".length);
       const [slug, acao] = resto.split("/");
       if (!/^[a-z0-9-]{1,64}$/.test(slug)) return json(res, 400, { error: "identificador inválido" });
 
       if (!acao && req.method === "GET") {
-        const proj = await tester.lerProjeto(slug);
+        // A checklist de credenciais é derivada na leitura, nunca gravada: um
+        // projeto salvo antes dela existir ganha a lista ao ser aberto.
+        const proj = await tester.lerProjetoParaTela(slug);
         return proj ? json(res, 200, proj) : json(res, 404, { error: "projeto não encontrado" });
       }
       if (!acao && req.method === "DELETE") {
@@ -544,6 +578,17 @@ const server = http.createServer(async (req, res) => {
       if (acao === "renomear" && req.method === "POST") {
         const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
         try { return json(res, 200, await tester.renomearProjeto(slug, body.titulo)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+      // Abre o projeto salvo como uma sessão viva: a partir daqui é conversa —
+      // perguntar, mudar, acrescentar e tirar, sempre por remendo com diff.
+      if (acao === "editar" && req.method === "POST") {
+        try { return json(res, 202, await tester.abrirEdicao(slug)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+      // Troca a versão em vigor pela anterior. Desfazer de novo refaz.
+      if (acao === "desfazer" && req.method === "POST") {
+        try { return json(res, 200, await tester.desfazerEdicao(slug)); }
         catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
       }
     }
@@ -607,11 +652,40 @@ const server = http.createServer(async (req, res) => {
         try {
           return json(res, 200, await tester.responder(id, {
             texto: texto || null, seguir: !!body.seguir,
-            respostas: Array.isArray(body.respostas) ? body.respostas.slice(0, 6) : null
+            respostas: Array.isArray(body.respostas) ? body.respostas.slice(0, 24) : null
           }));
         } catch (err) {
           return json(res, err.status || 500, { error: String(err && err.message || err) });
         }
+      }
+
+      /* A decisão sobre um remendo. É o único ponto em que o arquivo do projeto
+       * muda — e ele guarda a versão anterior antes de trocar, então `desfazer`
+       * sempre tem para onde voltar. Nada disto escreve num fluxo do n8n: o que
+       * a sessão de edição produz é um JSON no disco desta máquina. */
+      if (sub === "decidir" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+        try {
+          const r = await tester.decidirEdicao(id, !!body.aplicar);
+          // Devolve o snapshot, como toda rota que a tela usa para repintar. Um
+          // `{aplicado:true}` cru no lugar do snapshot apagaria a tela inteira.
+          return json(res, 200, tester.pegar(id) || r);
+        } catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+
+      /* O desempate de credencial. Local, instantâneo e sem modelo — e nenhum
+       * segredo passa por aqui: o corpo carrega o `id` de uma credencial que já
+       * existe na instância, nunca um valor. Criar credencial continua sendo no
+       * n8n, inclusive porque 7 dos 16 tipos usados nesta conta são OAuth e não
+       * se criam colando valor nenhum. */
+      if (sub === "credencial" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, 8 * 1024) || "{}");
+        const credId = String(body.credId == null ? "" : body.credId);
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(credId)) return json(res, 400, { error: "identificador de credencial inválido" });
+        try {
+          tester.escolherCredencial(id, credId);
+          return json(res, 200, tester.pegar(id));
+        } catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
       }
 
       // Re-simular é código local: sem modelo, sem custo. É o laço de refino
