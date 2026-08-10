@@ -646,6 +646,11 @@ async function desenhar(s, gen) {
     if (!falhas.length) {
       s.wf = wf;
       s.provenance = proveniencia(s, wf);
+      // Agora dá para estreitar a lista de credenciais para os nós que o fluxo
+      // REALMENTE usa. Na etapa 3 ela é um chute largo — `httpRequest` já foi
+      // usado com meia dúzia de credenciais diferentes nos fluxos do Kauan, e
+      // listar todas fazia a coluna virar parede de texto sem informação.
+      await estreitarCredenciais(s, wf);
       try { s.report = (await fsp.readFile(dentro(s.dir, "report.md"), "utf8")).slice(0, 6000); } catch { s.report = null; }
       emit(s, "wf", { wf: s.wf, provenance: s.provenance });
       if (wf.nodes.some(n => n.type === "n8n-nodes-base.code")) {
@@ -658,6 +663,27 @@ async function desenhar(s, gen) {
   }
   s.erro = "o fluxo proposto não passou nos portões em " + MAX_ROUNDS + " tentativas";
   return false;
+}
+
+/* Credenciais dos tipos de nó que estão no fluxo, e só deles. Um nó que nunca
+ * pede credencial (Set, IF, agenda) não entra. Se o tipo aparece no catálogo com
+ * mais de um tipo de credencial possível, todos entram — aí a escolha é do
+ * Kauan no editor, e esconder as alternativas seria decidir por ele. */
+async function estreitarCredenciais(s, wf) {
+  const tipos = new Set();
+  for (const nd of wf.nodes || []) {
+    const c = s.catalogo.nodes[nd.type];
+    for (const t of (c && c.credenciais) || []) tipos.add(t);
+  }
+  const creds = [];
+  for (const tipo of tipos) {
+    let campos = null;
+    try { const sch = await n8n.credentialSchema(tipo); campos = sch ? sch.obrigatorios : null; }
+    catch { /* schema indisponível */ }
+    creds.push({ tipo, visto: catalog.credencialVista(s.catalogo, tipo), campos });
+  }
+  s.ingredientes = { nos: s.ingredientes.nos, credenciais: creds, estreitada: true };
+  emit(s, "ingredientes", { ingredientes: s.ingredientes });
 }
 
 function proveniencia(s, wf) {
@@ -756,7 +782,10 @@ async function iniciar({ ideia, nivel }) {
   const s = {
     id, gen: 1, dir, criadoEm: new Date().toISOString(),
     ideia: String(ideia).slice(0, 2000), nivel: String(nivel || "sei o básico"),
-    status: "correndo", etapa: 1, etapas: ETAPAS.map(e => ({ ...e, estado: "espera" })),
+    status: "correndo", etapa: 1, // `pendente` (ainda não começou) e `espera` (parou e depende de você) são
+    // estados diferentes. Usar o mesmo nome para os dois deixava as sete etapas
+    // desenhadas como se todas estivessem esperando decisão.
+    etapas: ETAPAS.map(e => ({ ...e, estado: "pendente" })),
     chat: [{ quem: "voce", texto: String(ideia).slice(0, 2000), at: new Date().toISOString() }],
     entendi: null, perguntas: [], achados: [], servicos: [],
     doc: null, ingredientes: { nos: [], credenciais: [] }, wf: null, provenance: {},

@@ -65,6 +65,18 @@
       "markedAt": "2026-08-07T18:24:29.190Z",
       "maxExecIdAtFix": "173364",
       "note": "Claude ajustou o fluxo do Iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|NodeApiError",
+      "markedAt": "2026-08-10T11:25:52.295Z",
+      "maxExecIdAtFix": "175707",
+      "note": "Claude (cockpit) [vacuo_existe1]: vacuoexiste1 testava $json['telefone'], campo inexistente na linha do Supabase (a coluna é phone), então todo lead ia para criarvacuo1 e violava a PK; agora testa $json['phone']."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|criar_vacuo1|NodeOperationError",
+      "markedAt": "2026-08-10T11:27:36.905Z",
+      "maxExecIdAtFix": "175706",
+      "note": "Claude ajustou o outro fluxo do Iago"
     }
   ],
   "history": [
@@ -139,6 +151,18 @@
       "markedAt": "2026-08-07T18:24:29.190Z",
       "maxExecIdAtFix": "173364",
       "note": "Claude ajustou o fluxo do Iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|NodeApiError",
+      "markedAt": "2026-08-10T11:25:52.295Z",
+      "maxExecIdAtFix": "175707",
+      "note": "Claude (cockpit) [vacuo_existe1]: vacuoexiste1 testava $json['telefone'], campo inexistente na linha do Supabase (a coluna é phone), então todo lead ia para criarvacuo1 e violava a PK; agora testa $json['phone']."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|criar_vacuo1|NodeOperationError",
+      "markedAt": "2026-08-10T11:27:36.905Z",
+      "maxExecIdAtFix": "175706",
+      "note": "Claude ajustou o outro fluxo do Iago"
     }
   ]
 }

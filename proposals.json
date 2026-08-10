@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-07T18:24:10.786Z",
+  "savedAt": "2026-08-10T11:25:52.074Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -1374,6 +1374,96 @@
       "appliedAt": "2026-08-07T18:24:10.780Z",
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-07T18:03:25.170Z"
+    },
+    {
+      "runId": "rmsn54j4c1",
+      "key": "azwM3PgGtSbGTCsn|criar_vacuo1|NodeApiError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** vacuo_existe1 testava $json['telefone'], campo inexistente na linha do Supabase (a coluna é phone), então todo lead ia para criar_vacuo1 e violava a PK; agora testa $json['phone'].\n\n## Causa raiz\n\nO ramo do vácuo (áudio) é: `buscar_vacuo` → `audio/texto` → `vacuo_existe1` → `resetar_vacuo1` (saída\nverdadeira) ou `criar_vacuo1` (saída falsa).\n\n- `buscar_vacuo` é um `get` na tabela `roberto_vacuum` filtrando `phone = $('parametros').first().json['contato-wpp']`,\n  com `alwaysOutputData: true`. Quando acha, devolve a linha da tabela — cujas colunas são\n  `phone`, `attempt`, `status`, `lead_name`, `clickup_task_id`, `execution_id`, `last_context`.\n  Quando não acha, devolve um item vazio `{}`.\n- `vacuo_existe1` decidia com `={{ $json['telefone'] }}` + `notEmpty`. **Não existe coluna\n  `telefone` em `roberto_vacuum`** (procurei no fluxo inteiro: `telefone` só aparece como campo de\n  entrada da tool `salvar_resumo`, um sub-workflow sem relação com essa tabela).\n\nLogo `$json['telefone']` era sempre `undefined`, `notEmpty` era sempre falso, e **todo lead — com\nvácuo ou sem** — descia pela saída falsa até `criar_vacuo1`. Como `criar_vacuo1` é um insert com\n`phone` (a primary key), o lead que já tinha vácuo aberto derrubava a execução com\n`duplicate key value violates unique constraint \"roberto_vacuum_pkey\"`. O nó `resetar_vacuo1` era\ncódigo morto: nunca recebia item.\n\nIsso explica o padrão observado — 3 falhas em 24h, sempre no mesmo nó: falha só quando o lead volta\na falar e já existe linha dele na tabela.\n\n## O que mudei\n\nUm parâmetro, em um nó: `vacuo_existe1.parameters.conditions.conditions[0].leftValue`,\nde `={{ $json['telefone'] }}` para `={{ $json['phone'] }}`. Mais uma `notes` no nó registrando por\nque o campo é `phone`, para a próxima pessoa não \"consertar\" de volta.\n\nNada de nó novo, nada de reconexão, nada em `criar_vacuo1`.\n\n## Por que isso resolve\n\n`phone` é a coluna que `buscar_vacuo` realmente devolve, então a condição volta a significar o que o\nnome do nó diz:\n\n- vácuo já existe → `phone` preenchido → saída verdadeira → `resetar_vacuo1`, que é um `update`\n  filtrando por `phone = $('parametros').first().json['contato-wpp']` — a mesma chave que\n  `criar_vacuo1` inseria, então ele acerta a linha certa. Sem insert, sem violação de PK.\n- vácuo não existe → `buscar_vacuo` devolve `{}` por causa do `alwaysOutputData` → `phone` vazio →\n  saída falsa → `criar_vacuo1` insere. Continua funcionando como hoje para lead novo.\n\nConferi que o operador `notEmpty` não é afetado pelo `typeValidation: strict` quando o valor vem\n`undefined` — é por isso que a falha aparecia como duplicate key e não como erro de tipo no IF.\n\n## Risco residual\n\n1. **Corrida.** Duas mensagens do mesmo lead processadas em paralelo podem ambas ler \"sem vácuo\" e\n   ambas inserir; a segunda ainda estoura a mesma PK. É bem mais raro que o defeito acima (que\n   falhava em 100% dos leads recorrentes), e resolver exigiria `upsert` ou `onError` no\n   `criar_vacuo1` — mudança de comportamento que não é mínima e não proponho aqui sem seu ok.\n2. **`vacuo_existe`, o gêmeo do ramo de texto, tem o defeito espelhado e não foi tocado.** Ele testa\n   `={{ $('parametros').first().json.body.phone }}`, que é o telefone que veio do gatilho, não a\n   linha encontrada: fica sempre preenchido, então esse ramo cai **sempre** em `resetar_vacuo` e\n   **nunca** cria vácuo para lead novo. Falha silenciosa (update em 0 linhas), sem erro, por isso\n   não aparece no quadro. Deixei fora do patch porque é outra assinatura e merece o seu diff\n   próprio — mas provavelmente é o mesmo bug de origem.\n3. **Downstream do wait também usa `$json['telefone']`:** `ler_vacuo`, `incrementar_vacuo` e\n   `marcar_esgotado` filtram por esse campo inexistente. Não valida com o que tenho aqui se algum nó\n   intermediário renomeia a coluna; se não renomeia, esses três leem/atualizam 0 linhas e a cadeia\n   do vácuo não segue depois da espera. Não mexi neles: nenhum aparece na falha reportada e cada um\n   seria uma mudança de comportamento separada. Vale investigar em seguida.\n4. Esta correção **não é prova de que a falha sumiu** — só a próxima execução com lead recorrente no\n   ramo de áudio confirma. A assinatura deve continuar no quadro até parar de reincidir.\n",
+      "fixNote": "Claude (cockpit) [vacuo_existe1]: vacuoexiste1 testava $json['telefone'], campo inexistente na linha do Supabase (a coluna é phone), então todo lead ia para criarvacuo1 e violava a PK; agora testa $json['phone'].",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.300264,
+      "startedAt": "2026-08-10T11:20:47.058Z",
+      "finishedAt": "2026-08-10T11:23:59.673Z",
+      "appliedAt": "2026-08-10T11:25:52.067Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-07T18:24:10.560Z"
     }
   ]
 }

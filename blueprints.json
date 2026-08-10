@@ -80,5 +80,46 @@
     ],
     "custoTotal": 1.0074,
     "exportado": false
+  },
+  {
+    "id": "t6c9a924437d6",
+    "ideia": "todo dia �s 8h mandar no Slack quantas tarefas eu tenho abertas no ClickUp",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T11:35:21.902Z",
+    "terminadoEm": "2026-08-10T11:39:13.145Z",
+    "status": "aguardando",
+    "etapaFinal": 6,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 5,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.0998624,
+        "ms": 35544,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.681308,
+        "ms": 140988,
+        "comRede": false
+      },
+      {
+        "sessao": "sementes",
+        "usd": 0.11741440000000002,
+        "ms": 40015,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.8986,
+    "exportado": false
   }
 ]

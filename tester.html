@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tester · Cockpit</title>
+<style>
+/* Tokens: os mesmos do flows.html. Mudar cor aqui sem mudar lá é como o painel
+   começa a parecer dois produtos. Status color (ok/warn/risk) é RESERVADA:
+   nunca vira cor de série, nunca vira cor de marca. */
+:root{
+  --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005; --raised:#FFFFFF;
+  --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+  --grid:rgba(10,10,20,.045); --grid-bold:rgba(10,10,20,.08);
+  --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+  --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055; --accent-txt:#3B48E0;
+  --brand:#FF5A1F; --brand-txt:#D04919;
+  --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+  --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --risk-soft:#DC2B3A14; --cold-soft:#8B90A014;
+  --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+  --node-face:#FFFFFF; --node-edge:rgba(10,10,20,.16); --port:#9AA0B4; --wire:#A8AEC0;
+  --shadow:0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
+  --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+  --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+    --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+    --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+    --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+    --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+    --brand:#FF5A1F; --brand-txt:#FF5A1F;
+    --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+    --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+    --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+    --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+  --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+  --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+  --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+  --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+  --brand:#FF5A1F; --brand-txt:#FF5A1F;
+  --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+  --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+  --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+  --node-face:#1B1D2E; --node-edge:rgba(255,255,255,.14); --port:#6E7590; --wire:#6A7089;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow-x:hidden}
+button{font:inherit;color:inherit}
+/* `main` precisa crescer E ser flex, senão o filho com `flex:1` não tem contra
+   quem crescer e a página deixa um vazio embaixo do rodapé. `min-height:0` é o
+   que permite as colunas rolarem por dentro em vez de esticarem a página. */
+#app{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+/* ---------------------------------------------------------------- appbar */
+.appbar{display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
+  background:var(--surface);flex:0 0 auto;flex-wrap:wrap}
+.mark{font-family:var(--font-num);font-size:11px;letter-spacing:.1em;color:var(--brand-txt);font-weight:700;text-decoration:none}
+.tabs{display:flex;gap:3px}
+.tab{font-size:12px;color:var(--txt-faint);padding:5px 11px;border-radius:8px;text-decoration:none}
+.tab:hover{background:var(--surface-2);color:var(--txt-dim)}
+.tab.on{color:var(--txt);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.appbar .right{margin-left:auto;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
+  display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.iconbtn{background:none;border:1px solid var(--line);border-radius:8px;padding:4px 9px;
+  font-size:11px;color:var(--txt-faint);cursor:pointer}
+.iconbtn:hover{background:var(--surface-2);color:var(--txt-dim)}
+
+/* ------------------------------------------------------------- abertura */
+.stage-open{flex:1 1 auto;display:grid;place-items:center;padding:40px 22px;position:relative;
+  background:var(--bg-deep);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px}
+.open-in{width:100%;max-width:700px;text-align:center}
+.open-in h1{font-size:clamp(26px,4.4vw,36px);font-weight:600;letter-spacing:-.025em;margin:0 0 10px}
+.open-in .hint{color:var(--txt-dim);font-size:13.5px;margin:0 auto 28px;max-width:56ch;line-height:1.6}
+.bigbox{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:15px 16px 12px;position:relative;box-shadow:var(--shadow)}
+.bigbox textarea{width:100%;border:none;background:none;resize:none;font:inherit;font-size:14.5px;
+  color:var(--txt);line-height:1.6;min-height:56px;outline:none}
+.bigbox textarea::placeholder{color:var(--txt-faint)}
+.boxfoot{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;
+  border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.lvl{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);letter-spacing:.05em;margin-right:2px}
+.chip{font-size:11.5px;color:var(--txt-dim);border:1px solid var(--line);background:var(--surface-2);
+  border-radius:999px;padding:5px 12px;line-height:1.3;cursor:pointer;min-height:30px}
+.chip:hover{border-color:var(--accent-line);color:var(--txt)}
+.chip[aria-pressed="true"],.chip.on{color:var(--txt);border-color:var(--accent-line);background:var(--accent-soft)}
+.btn{font-size:12px;border-radius:9px;padding:8px 14px;border:1px solid var(--line);
+  background:var(--raised);color:var(--txt-dim);cursor:pointer;flex:0 0 auto;min-height:34px}
+.btn:hover:not(:disabled){color:var(--txt);border-color:var(--accent-line)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.prime{color:#fff;border-color:transparent;font-weight:600;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
+.btn.prime:hover:not(:disabled){filter:brightness(1.06)}
+.go{margin-left:auto}
+.egs{display:flex;gap:8px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.eg{font-size:11.5px;color:var(--txt-faint);border:1px dashed var(--line);border-radius:999px;
+  padding:6px 12px;cursor:pointer;background:none}
+.eg:hover{color:var(--txt-dim);border-color:var(--accent-line)}
+.avisobar{max-width:700px;margin:16px auto 0;font-size:12px;line-height:1.6;border-radius:10px;
+  padding:10px 12px;background:var(--warn-soft);color:var(--warn-txt);border:1px solid var(--warn-soft);text-align:left}
+
+/* --------------------------------------------------------------- corrida */
+.split{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
+.stream{padding:18px 20px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;
+  border-right:1px solid var(--line-soft);min-width:0}
+.side{padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;background:var(--surface-2);min-width:0}
+.composer-wrap{padding:0 20px 16px;border-right:1px solid var(--line-soft)}
+
+.msg{max-width:70ch}
+.msg .who{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:6px}
+.msg.me{margin-left:auto;text-align:right}
+.msg.me .body{display:inline-block;text-align:left;background:var(--raised);border:1px solid var(--line);
+  border-radius:12px 12px 4px 12px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--txt);white-space:pre-wrap}
+.msg.sys .body{font-size:13px;line-height:1.68;color:var(--txt-dim);border-left:2px solid var(--accent-line);
+  padding-left:13px;white-space:pre-wrap}
+
+.card{border:1px solid var(--line);background:var(--surface);border-radius:12px;overflow:hidden;max-width:70ch}
+.card .ch{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line-soft);
+  font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);flex-wrap:wrap}
+.card .ch .ix{color:var(--accent-txt)}
+.row{display:grid;grid-template-columns:82px minmax(0,1fr);gap:10px;padding:9px 13px;
+  border-bottom:1px solid var(--line-soft);align-items:start}
+.row:last-child{border-bottom:none}
+.row .k{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding-top:2px}
+.row .v{font-size:12.5px;color:var(--txt);line-height:1.5;word-break:break-word}
+.row .v.miss{color:var(--warn-txt)}
+
+.q{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:12px 13px;max-width:70ch}
+.q .qt{font-size:12.8px;color:var(--txt);line-height:1.55;margin-bottom:4px}
+.q .qw{font-size:11.5px;color:var(--txt-faint);line-height:1.5;margin-bottom:9px}
+.q .opts{display:flex;gap:7px;flex-wrap:wrap}
+
+.gate{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:12px;padding:13px 14px;max-width:70ch}
+.gate .gt{font-size:12.8px;color:var(--txt);margin-bottom:3px;font-weight:600}
+.gate .gd{font-size:11.5px;color:var(--txt-dim);line-height:1.55;margin-bottom:11px}
+.gate .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gate .cost{margin-left:auto;font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint)}
+
+.composer{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 11px;
+  display:flex;align-items:flex-end;gap:10px}
+.composer textarea{flex:1;border:none;background:none;resize:none;font:inherit;font-size:12.5px;
+  color:var(--txt);line-height:1.55;max-height:120px;outline:none;min-height:22px}
+.composer textarea::placeholder{color:var(--txt-faint)}
+
+/* ------------------------------------------------------------ o desenho */
+.canvas{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-deep);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px;position:relative;max-width:none}
+.canvas svg{display:block;width:100%;height:260px}
+.canvas .corner{position:absolute;top:9px;left:12px;font-family:var(--font-num);font-size:10px;
+  color:var(--txt-faint);letter-spacing:.05em}
+.edge{fill:none;stroke:var(--wire);stroke-width:1.6;stroke-linecap:round;
+  stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.edge.drawing{stroke:var(--accent);animation:draw .42s ease forwards}
+.edge.done{stroke:var(--wire);stroke-dashoffset:0}
+.nd{opacity:0;transform-box:fill-box;transform-origin:center}
+.nd .face{fill:var(--node-face);stroke:var(--node-edge);stroke-width:1.2}
+.nd .glyph{stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke:var(--txt-dim)}
+.nd .nm{fill:var(--txt);font-family:var(--font);font-size:9.5px;font-weight:600;text-anchor:middle}
+.nd .ty{fill:var(--txt-faint);font-family:var(--font-num);font-size:7.5px;text-anchor:middle}
+.nd .port{fill:var(--node-face);stroke:var(--port);stroke-width:1.3}
+.nd.writing{opacity:1;animation:popin .34s cubic-bezier(.2,.9,.25,1) both}
+.nd.writing .face{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:5 4;animation:march .9s linear infinite}
+.nd.writing .nm,.nd.writing .ty{opacity:0}
+.nd.built{opacity:1}
+.nd.built .face{stroke:var(--node-edge);transition:stroke .5s ease}
+.nd.built .nm,.nd.built .ty{opacity:1;transition:opacity .35s ease .05s}
+.nd .caret{fill:var(--accent);opacity:0}
+.nd.writing .caret{opacity:1;animation:blink .7s steps(1,end) infinite}
+@keyframes popin{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+@keyframes march{to{stroke-dashoffset:-18}}
+@keyframes blink{50%{opacity:0}}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ---------------------------------------------------------- superfícies */
+.surf{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px;max-width:70ch}
+.surf .sh{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:10px}
+.bubble{border-radius:12px;padding:10px 12px;font-size:12.8px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.bubble.slack{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid #4A154B}
+.bubble.whatsapp{background:var(--ok-soft);border:1px solid var(--line);border-radius:12px 12px 12px 4px}
+.bubble .meta{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);margin-bottom:6px}
+.naosim{color:var(--warn-txt);background:var(--warn-soft);border-radius:5px;padding:0 4px;
+  font-family:var(--font-num);font-size:11px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:12.3px}
+.kv dt{font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint)}
+.kv dd{margin:0;color:var(--txt);word-break:break-word}
+.selo{font-family:var(--font-num);font-size:10px;color:var(--warn-txt);background:var(--warn-soft);
+  border:1px solid var(--warn-soft);border-radius:8px;padding:7px 10px;margin-top:11px;line-height:1.55}
+
+pre.json{margin:0;font-family:var(--font-num);font-size:11px;line-height:1.55;color:var(--txt-dim);
+  background:var(--bg-deep);border-radius:8px;padding:11px;overflow-x:auto;max-height:340px}
+details.jsonbox{border:1px solid var(--line);border-radius:12px;background:var(--surface);max-width:none}
+details.jsonbox>summary{padding:11px 13px;cursor:pointer;font-size:12.5px;color:var(--txt-dim);list-style:none}
+details.jsonbox>summary::-webkit-details-marker{display:none}
+details.jsonbox>summary::before{content:"▸ ";color:var(--txt-faint)}
+details.jsonbox[open]>summary::before{content:"▾ "}
+details.jsonbox .inner{padding:0 13px 13px}
+
+/* ----------------------------------------------------------- lado direito */
+.sec{display:flex;flex-direction:column;gap:9px}
+.sech{display:flex;align-items:baseline;gap:8px;font-family:var(--font-num);font-size:9.5px;
+  letter-spacing:.06em;color:var(--txt-faint)}
+.sech .ix{color:var(--brand-txt)}
+.steps{display:flex;flex-direction:column;gap:1px}
+.st{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:9px;align-items:center;
+  padding:7px 8px;border-radius:8px}
+.st .num{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);text-align:right}
+.st .nm{font-size:12px;color:var(--txt-faint)}
+.st .tag{font-family:var(--font-num);font-size:8.5px;color:var(--txt-faint);text-align:right}
+.st.feita .nm,.st.pulada .nm,.st.vazia .nm{color:var(--txt-dim)}
+.st.feita .num{color:var(--ok-txt)}
+.st.pulada .num,.st.vazia .num{color:var(--cold-txt)}
+.st.falhou .num,.st.falhou .tag{color:var(--risk-txt)}
+.st.pendente .num,.st.pendente .nm,.st.pendente .tag{opacity:.6}
+.st.correndo,.st.espera{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
+.st.correndo .nm,.st.espera .nm{color:var(--txt);font-weight:600}
+.st.correndo .num,.st.espera .num{color:var(--accent-txt)}
+.st.espera .tag{color:var(--warn-txt)}
+.st .nota{grid-column:2/4;font-size:10.5px;color:var(--txt-faint);line-height:1.45;margin-top:2px}
+
+.i{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:9px 11px}
+.i .ih{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.i .kind{font-family:var(--font-num);font-size:8.5px;letter-spacing:.05em;padding:2px 6px;border-radius:5px}
+.i.risco .kind{color:var(--risk-txt);background:var(--risk-soft)}
+.i.falta .kind{color:var(--warn-txt);background:var(--warn-soft)}
+.i.ideia .kind{color:var(--accent-txt);background:var(--accent-soft)}
+.i .tx{font-size:11.8px;color:var(--txt-dim);line-height:1.5;word-break:break-word}
+.i .src{font-family:var(--font-num);font-size:8.5px;color:var(--txt-faint);margin-top:5px}
+.empty{font-size:11.5px;color:var(--txt-faint);line-height:1.5;border:1px dashed var(--line);
+  border-radius:10px;padding:11px}
+
+.band{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);font-size:11.5px;color:var(--txt-dim);line-height:1.5}
+.band .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 auto;
+  animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.band .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-num);font-size:11px}
+
+/* rodapé: muda conforme o que REALMENTE aconteceu (PLAN.md §10) */
+.foot{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);padding:9px 18px;
+  border-top:1px solid var(--line-soft);display:flex;gap:14px;flex-wrap:wrap;background:var(--surface);flex:0 0 auto}
+.foot.escreveu{background:var(--warn-soft);color:var(--warn-txt)}
+.foot.indeterminado{background:var(--risk-soft);color:var(--risk-txt)}
+
+.erro{border:1px solid var(--risk-soft);background:var(--risk-soft);color:var(--risk-txt);
+  border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
+.gatefail{border:1px solid var(--risk-soft);background:var(--surface);border-radius:12px;padding:12px 13px;max-width:70ch}
+.gatefail li{font-size:12px;color:var(--txt-dim);line-height:1.6}
+
+@media (max-width:900px){
+  .split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto}
+  .side{border-top:1px solid var(--line-soft);order:2}
+  .stream{order:1;border-right:none}
+  .composer-wrap{border-right:none;order:3}
+  .chip,.btn{min-height:40px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .nd{opacity:1}
+  .edge{stroke-dashoffset:0}
+}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <a class="mark" href="/">◈ COCKPIT</a>
+  <div class="tabs">
+    <a class="tab" href="/">Fluxos</a>
+    <a class="tab" href="/disco">Disco</a>
+    <a class="tab on" href="/tester" aria-current="page">Tester</a>
+  </div>
+  <div class="right">
+    <span id="cab"></span>
+    <button class="iconbtn" id="tema" type="button" title="alternar tema">tema</button>
+  </div>
+</div>
+
+<main id="app"></main>
+<div class="foot" id="foot"><span>nada foi criado no n8n</span><span>·</span><span>nenhuma chamada feita</span></div>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════════
+   BLOCO DE JUÍZO — a única parte deste arquivo que DECIDE alguma coisa.
+   O servidor emite fatos (etapa, portões, sandbox, simulação, custo). O que
+   significa "pronto", "arriscado", "não posso afirmar" mora aqui.
+   Espalhar isto pelas funções de render transforma cada ajuste numa caça ao if.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Estados de etapa e como cada um se lê. `pulada` NÃO é falha: pular a pesquisa
+   porque não havia doc para ler é o caminho rápido funcionando. */
+const ESTADO_TAG = {
+  pendente: { tag: "",             ordem: 0 },
+  espera:   { tag: "ESPERA VOCÊ",  ordem: 1 },
+  correndo: { tag: "AGORA",        ordem: 1 },
+  feita:    { tag: "✓",            ordem: 2 },
+  pulada:   { tag: "PULADA",       ordem: 2 },
+  vazia:    { tag: "SEM RESULTADO",ordem: 2 },
+  falhou:   { tag: "FALHOU",       ordem: 3 }
+};
+/* Etapa que PARA e espera decisão. Só duas: confirmar a intenção antes de
+   gastar, e o acordo sobre o resultado. Ver PLAN.md §4. */
+const PARA_EM = new Set([1, 6]);
+
+/* O rodapé é derivado do que aconteceu, nunca fixo. Um "nada foi criado no n8n"
+   permanente vira mentira no instante em que a etapa 05 escreve a cópia — e
+   seria esta feature cometendo exatamente o erro que o resto do cockpit gasta
+   comentário evitando. */
+function rodape(s) {
+  const sb = s && s.sandbox;
+  if (!sb || !sb.estado) return { classe: "", partes: ["nada foi criado no n8n", "nenhuma chamada feita"] };
+  if (sb.estado === "desligado") return { classe: "", partes: ["nada foi criado no n8n", "a cópia de teste está desligada"] };
+  if (sb.estado === "indeterminado") {
+    // Escrita que falhou prova ausência de CONFIRMAÇÃO, não ausência de efeito.
+    return { classe: "indeterminado", partes: ["não consegui confirmar se a cópia de teste foi criada", sb.motivo || ""] };
+  }
+  return { classe: "escreveu", partes: [
+    "cópia de teste no n8n: " + (sb.nome || "?"), "inativa", "sem credenciais", "seu fluxo original intocado"
+  ] };
+}
+
+/* O que a etapa 06 pode afirmar. Nunca "está funcionando": a simulação não
+   chamou nada, não usou credencial e não viu limite de taxa. */
+const SELO_FANTASMA =
+  "Isto é uma simulação. Nada foi chamado, nenhuma credencial foi usada. O texto e o destino vêm do " +
+  "seu fluxo; os dados dentro dele são de exemplo. Passar aqui não prova que o fluxo funciona — prova " +
+  "que ele monta a mensagem certa com os campos que você apontou.";
+
+const SELO_ENTREGA =
+  "O JSON abaixo é exatamente o que foi testado na cópia de teste, com uma diferença: o nome, que na " +
+  "cópia leva o prefixo [SANDBOX tester]. Ele não traz credenciais — depois de importar, escolha cada " +
+  "credencial no editor do n8n.";
+
+/* Rótulo da origem de cada nó. `memoria` é a confissão de que ninguém confirmou. */
+const ORIGEM_TXT = {
+  instancia: n => "vem dos seus fluxos" + (n.nota ? " (" + n.nota + ")" : ""),
+  web:       n => "veio da doc pesquisada" + (n.nota ? " de " + n.nota : ""),
+  catalogo:  () => "veio do catálogo de nós",
+  memoria:   () => "NINGUÉM CONFIRMOU — memória do modelo, confira este nó"
+};
+
+const NIVEIS = ["nunca mexi", "sei o básico", "sou técnico"];
+const EXEMPLOS = [
+  "avisar no Slack quando cair pedido novo",
+  "todo dia às 9h, resumo das tarefas abertas do ClickUp no Slack",
+  "quando entrar lead no Supabase, mandar mensagem no WhatsApp"
+];
+
+/* ════════════════════════════════════ fim do bloco de juízo ═══════════════ */
+
+const $ = sel => document.querySelector(sel);
+const app = $("#app"), foot = $("#foot");
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* Toda chamada passa por aqui. NUNCA `res.json()` direto: `JSON.parse("404")`
+   é um número válido, então um 404 em texto puro vira um corpo "parseável" e a
+   tela mostra um erro que não é o erro. Este bug já custou uma sessão inteira
+   neste codebase — está documentado no CLAUDE.md. */
+async function callApi(url, opts) {
+  let res;
+  try { res = await fetch(url, opts); }
+  catch (e) { throw new Error("o cockpit não respondeu — ele está rodando? (" + (e && e.message) + ")"); }
+  const txt = await res.text();
+  let body = null;
+  try { body = JSON.parse(txt); } catch { /* não é JSON */ }
+  if (res.status === 404 && (body === null || typeof body !== "object")) {
+    throw new Error("esta rota não existe no servidor que está rodando — ele subiu antes desta versão do server.js. Reinicie o cockpit.");
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body) && !res.ok) {
+    if (!res.ok) throw new Error("o servidor respondeu " + res.status);
+  }
+  if (!res.ok) throw new Error((body && body.error) || ("o servidor respondeu " + res.status));
+  return body;
+}
+
+/* Torna clicável um elemento que não é <button>, sem perder o layout. */
+function clicavel(el, rotulo, fn) {
+  el.setAttribute("role", "button");
+  el.setAttribute("tabindex", "0");
+  if (rotulo) el.setAttribute("aria-label", rotulo);
+  el.style.cursor = "pointer";
+  el.addEventListener("click", fn);
+  el.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fn(ev); } });
+  return el;
+}
+
+const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null };
+
+/* ---------------------------------------------------------------- abertura */
+
+function telaAbertura(aviso) {
+  app.innerHTML =
+    '<section class="stage-open"><div class="open-in">' +
+      '<h1>O que vamos construir?</h1>' +
+      '<p class="hint">Escreve do seu jeito. Não precisa saber n8n — eu pergunto o que faltar.</p>' +
+      '<div class="bigbox">' +
+        '<textarea id="ideia" rows="2" placeholder="quero ver quantas vendas eu fiz no mercado livre" aria-label="descreva o fluxo que você quer"></textarea>' +
+        '<div class="boxfoot">' +
+          '<span class="lvl">SEU NÍVEL</span>' +
+          NIVEIS.map(n => '<button type="button" class="chip' + (n === S.nivel ? " on" : "") + '" data-nivel="' + esc(n) + '" aria-pressed="' + (n === S.nivel) + '">' + esc(n) + '</button>').join("") +
+          '<button type="button" class="btn prime go" id="comecar">Começar →</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="egs">' + EXEMPLOS.map(e => '<button type="button" class="eg">' + esc(e) + '</button>').join("") + '</div>' +
+      (aviso ? '<div class="avisobar">' + esc(aviso) + '</div>' : "") +
+    '</div></section>';
+
+  const ta = $("#ideia");
+  ta.focus();
+  ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 220) + "px"; });
+  ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) comecar(); });
+  app.querySelectorAll("[data-nivel]").forEach(b => b.addEventListener("click", () => {
+    S.nivel = b.dataset.nivel;
+    app.querySelectorAll("[data-nivel]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+  }));
+  app.querySelectorAll(".eg").forEach(b => b.addEventListener("click", () => { ta.value = b.textContent; ta.focus(); }));
+  $("#comecar").addEventListener("click", comecar);
+  pintarRodape(null);
+}
+
+async function comecar() {
+  const ideia = $("#ideia").value.trim();
+  if (!ideia) { $("#ideia").focus(); return; }
+  const btn = $("#comecar");
+  btn.disabled = true; btn.textContent = "abrindo…";
+  try {
+    const r = await callApi("/api/tester/session", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ideia, nivel: S.nivel })
+    });
+    ligar(r.id);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "Começar →";
+    const av = document.createElement("div");
+    av.className = "avisobar"; av.textContent = e.message;
+    $(".open-in").appendChild(av);
+  }
+}
+
+/* ------------------------------------------------------------------- SSE */
+
+/* `?static=1` congela a tela numa leitura só. O SSE mantém a conexão aberta
+   para sempre, o que trava captura headless e qualquer embed simples — a mesma
+   razão pela qual o flows.html já tem esta flag. */
+const ESTATICO = new URLSearchParams(location.search).get("static") === "1";
+
+function ligar(id) {
+  if (S.es) { S.es.close(); S.es = null; }
+  if (ESTATICO) return;
+  // A sessão vai para a URL. Uma construção leva minutos, e sem isto um F5 —
+  // ou um clique no link errado — perdia a corrida inteira: ela continua viva
+  // no servidor e a tela não tinha como voltar para ela.
+  if (!ESTATICO && new URLSearchParams(location.search).get("s") !== id) {
+    history.replaceState(null, "", "/tester?s=" + encodeURIComponent(id));
+  }
+  const es = new EventSource("/api/tester/session/" + encodeURIComponent(id) + "/stream");
+  S.es = es;
+  // O snapshot inteiro vem primeiro e vem de novo a cada reconexão, então o
+  // cliente nunca depende de ter visto os deltas anteriores.
+  es.addEventListener("snapshot", ev => { S.snap = JSON.parse(ev.data); pintar(); });
+  for (const t of ["etapa", "entendi", "espera", "gates", "wf", "sandbox", "fantasma", "custo", "ingredientes", "doc", "chat", "fim", "log"]) {
+    es.addEventListener(t, () => refrescar(id));
+  }
+  es.addEventListener("atividade", ev => {
+    const d = JSON.parse(ev.data);
+    if (S.snap) S.snap.atividade = d.atividade;
+    const b = $("#atividade"); if (b) b.textContent = d.atividade || "";
+  });
+  es.onerror = () => { /* o browser reconecta sozinho; o snapshot reconstrói */ };
+}
+
+let refrescando = false;
+async function refrescar(id) {
+  if (refrescando) return;
+  refrescando = true;
+  try { S.snap = await callApi("/api/tester/session/" + encodeURIComponent(id)); pintar(); }
+  catch { /* o SSE traz o próximo */ }
+  finally { refrescando = false; }
+}
+
+/* -------------------------------------------------------------- a corrida */
+
+function pintar() {
+  const s = S.snap;
+  if (!s) return;
+  const antes = app.querySelector(".stream");
+  const scroll = antes ? antes.scrollTop : 0;
+  const noFim = antes ? (antes.scrollHeight - antes.scrollTop - antes.clientHeight < 80) : true;
+
+  app.innerHTML =
+    '<div class="split">' +
+      '<div class="stream" id="stream">' + blocosStream(s) + '</div>' +
+      '<aside class="side">' + ladoDireito(s) + '</aside>' +
+    '</div>' +
+    (s.status === "pronta" ? "" : '<div class="composer-wrap">' + composer(s) + '</div>');
+
+  ligarEventos(s);
+  desenharSeNovo(s);
+
+  const st = $("#stream");
+  if (st) st.scrollTop = noFim ? st.scrollHeight : scroll;
+  pintarRodape(s);
+  $("#cab").textContent = (s.ideia || "").slice(0, 44) + (s.ideia && s.ideia.length > 44 ? "…" : "") + " · " + s.nivel;
+}
+
+function blocosStream(s) {
+  const out = [];
+
+  for (const m of s.chat || []) {
+    if (m.quem === "voce") {
+      out.push('<div class="msg me"><div class="who">VOCÊ</div><div class="body">' + esc(m.texto) + "</div></div>");
+    } else if (m.entendi) {
+      out.push(cartaoEntendi(m.entendi));
+    }
+  }
+
+  if (s.status === "correndo" && s.etapa === 1 && !s.entendi) {
+    out.push('<div class="band"><span class="dot"></span><span class="txt" id="atividade">' + esc(s.atividade || "lendo a sua ideia…") + "</span></div>");
+  }
+
+  for (const q of s.perguntas || []) out.push(pergunta(q));
+
+  if (s.etapa === 1 && s.status === "aguardando") {
+    out.push(portao(
+      "Confere? Se estiver certo eu já sigo sozinho até o resultado.",
+      "Daqui pra frente são cinco passos seguidos: pesquisar (se precisar), listar o que você precisa, " +
+      "desenhar o fluxo, validar e simular. Só volto a te perguntar no final.",
+      "É isso, pode seguir", s.custoTotal));
+  }
+
+  if (s.wf) out.push(canvas(s));
+
+  if (s.gates && !s.gates.passou) {
+    out.push('<div class="gatefail"><div style="font-size:12.5px;font-weight:600;margin-bottom:7px">O validador reprovou a proposta</div><ul style="margin:0;padding-left:18px">' +
+      s.gates.falhas.map(f => "<li>" + esc(f) + "</li>").join("") + "</ul></div>");
+  }
+
+  if (s.fantasma) out.push(fantasmaBloco(s));
+
+  if (s.etapa === 6 && s.status === "aguardando") {
+    out.push(portao("É isso que você queria ver?",
+      "Se sim, eu fecho e te entrego o JSON pra importar no n8n. Se não, escreve embaixo o que mudar — " +
+      "eu recomeço do ponto que interessa.", "É isso, pode fechar", s.custoTotal));
+  }
+
+  if (s.status === "pronta" && s.wf) out.push(entrega(s));
+
+  if (s.status === "correndo" && s.etapa > 1) {
+    out.push('<div class="band"><span class="dot"></span><span class="txt" id="atividade">' + esc(s.atividade || "trabalhando…") + "</span></div>");
+  }
+
+  if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
+  return out.join("");
+}
+
+function cartaoEntendi(e) {
+  const linha = (k, v) => {
+    const falta = !v || /^não disse$/i.test(String(v).trim());
+    return '<div class="row"><div class="k">' + esc(k) + '</div><div class="v' + (falta ? " miss" : "") + '">' +
+      esc(falta ? "você ainda não disse" : v) + "</div></div>";
+  };
+  return '<div class="card"><div class="ch"><span class="ix">◈</span> O QUE EU ENTENDI</div>' +
+    linha("quando", e.quando) + linha("o que faz", e.oQueFaz) + linha("resultado", e.resultado) + linha("onde chega", e.ondeChega) +
+    "</div>";
+}
+
+function pergunta(q) {
+  return '<div class="q"><div class="qt">' + esc(q.q) + "</div>" +
+    (q.porque ? '<div class="qw">' + esc(q.porque) + "</div>" : "") +
+    '<div class="opts">' + (q.opcoes || []).map(o => '<button type="button" class="chip resp" data-resp="' + esc(o) + '">' + esc(o) + "</button>").join("") + "</div></div>";
+}
+
+function portao(titulo, desc, botao, custo) {
+  return '<div class="gate"><div class="gt">' + esc(titulo) + '</div><div class="gd">' + esc(desc) + "</div>" +
+    '<div class="acts"><button type="button" class="btn prime" id="seguir">' + esc(botao) + "</button>" +
+    '<span class="cost">ATÉ AQUI US$' + (custo || 0).toFixed(2).replace(".", ",") + " · PLANO, SEM COBRANÇA POR FORA</span></div></div>";
+}
+
+function composer(s) {
+  const trabalhando = s.status === "correndo";
+  return '<div class="composer">' +
+    '<textarea id="resposta" rows="1" placeholder="' +
+      (trabalhando ? "escreve aqui pra corrigir no meio do caminho — eu recomeço deste ponto" : "escreve o que mudar…") +
+      '" aria-label="sua resposta"></textarea>' +
+    '<button type="button" class="btn" id="enviar">Enviar</button></div>';
+}
+
+/* ------------------------------------------------------------- o desenho */
+
+const GLYPH = {
+  trigger: '<circle cx="0" cy="0" r="7"/><path d="M0 -4 V0 L3 2.5"/>',
+  http:    '<circle cx="0" cy="0" r="7"/><path d="M-7 0h14M0 -7c3.2 3 3.2 11 0 14M0 -7c-3.2 3 -3.2 11 0 14"/>',
+  code:    '<path d="M-3 -5 L-8 0 L-3 5"/><path d="M3 -5 L8 0 L3 5"/>',
+  branch:  '<path d="M-7 0h5l4 -5h5"/><path d="M-2 0l4 5h5"/>',
+  msg:     '<path d="M-8 -5h16v9h-9l-4 4v-4h-3z"/>',
+  db:      '<ellipse cx="0" cy="-4" rx="7" ry="2.6"/><path d="M-7 -4v8c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-8"/>',
+  set:     '<path d="M-7 -4h14M-7 0h9M-7 4h5"/>'
+};
+function glyphDe(t) {
+  const s = String(t || "");
+  if (/trigger|cron|schedule|webhook/i.test(s)) return "trigger";
+  if (/httpRequest/i.test(s)) return "http";
+  if (/\.code$/i.test(s)) return "code";
+  if (/\.(if|switch|filter)$/i.test(s)) return "branch";
+  if (/slack|whatsApp|telegram|gmail|emailSend/i.test(s)) return "msg";
+  if (/supabase|postgres|mySql|redis|googleSheets|clickUp|airtable/i.test(s)) return "db";
+  return "set";
+}
+
+function canvas(s) {
+  return '<div class="canvas" id="canvas" role="img" aria-label="desenho do fluxo: ' +
+    s.wf.nodes.length + ' nós"><div class="corner" id="corner"></div></div>';
+}
+
+/* Revela o desenho nó a nó. O documento já está pronto quando isto roda — o
+   contador diz `[ N NÓS · M CONEXÕES ]` e não "escrevendo 3 de 5", porque
+   afirmar que está escrevendo o terceiro enquanto os cinco já existem seria a
+   mesma família de mentira que o resto desta tela evita. */
+function desenharSeNovo(s) {
+  const host = $("#canvas");
+  if (!host || !s.wf) return;
+  const assinatura = JSON.stringify(s.wf.nodes.map(n => n.name));
+  const jaEra = S.desenhado === assinatura;
+
+  const nodes = s.wf.nodes.filter(n => !/stickyNote/i.test(n.type));
+  const W = 62, H = 46, GAP = 150;
+  const largura = Math.max(560, nodes.length * GAP + 60);
+  const alt = 230;
+  const pos = nodes.map((n, i) => [30 + i * GAP, i % 2 ? alt / 2 + 12 : alt / 2 - H - 30]);
+
+  const ordem = new Map(nodes.map((n, i) => [n.name, i]));
+  const arestas = [];
+  for (const [de, portas] of Object.entries(s.wf.connections || {})) {
+    for (const ramos of Object.values(portas || {})) {
+      for (const lista of ramos || []) for (const c of lista || []) {
+        if (ordem.has(de) && ordem.has(c.node)) arestas.push([ordem.get(de), ordem.get(c.node)]);
+      }
+    }
+  }
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 " + largura + " " + alt);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  const gE = document.createElementNS(ns, "g"), gN = document.createElementNS(ns, "g");
+  svg.append(gE, gN);
+
+  const paths = arestas.map(([a, b]) => {
+    const [x1, y1] = pos[a], [x2, y2] = pos[b];
+    const ax = x1 + W, ay = y1 + H / 2, bx = x2, by = y2 + H / 2;
+    const p = document.createElementNS(ns, "path");
+    p.setAttribute("class", "edge");
+    p.setAttribute("d", "M" + ax + "," + ay + " C" + (ax + 58) + "," + ay + " " + (bx - 58) + "," + by + " " + bx + "," + by);
+    gE.appendChild(p);
+    p.style.setProperty("--len", Math.ceil(p.getTotalLength()) + "px");
+    return p;
+  });
+
+  const gs = nodes.map((n, i) => {
+    const [x, y] = pos[i];
+    const g = document.createElementNS(ns, "g");
+    g.setAttribute("class", "nd");
+    const mk = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    g.appendChild(mk("rect", { class: "face", x, y, width: W, height: H, rx: 9 }));
+    const gl = mk("g", { class: "glyph", transform: "translate(" + (x + W / 2) + "," + (y + H / 2) + ")" });
+    gl.innerHTML = GLYPH[glyphDe(n.type)];
+    g.appendChild(gl);
+    g.appendChild(mk("circle", { class: "port", cx: x, cy: y + H / 2, r: 2.6 }));
+    g.appendChild(mk("circle", { class: "port", cx: x + W, cy: y + H / 2, r: 2.6 }));
+    const nm = mk("text", { class: "nm", x: x + W / 2, y: y + H + 13 }); nm.textContent = n.name.slice(0, 22);
+    const ty = mk("text", { class: "ty", x: x + W / 2, y: y + H + 23 }); ty.textContent = String(n.type).replace("n8n-nodes-base.", "").slice(0, 22);
+    g.append(nm, ty, mk("rect", { class: "caret", x: x + W + 5, y: y + H / 2 - 6, width: 2, height: 12 }));
+    gN.appendChild(g);
+    return g;
+  });
+
+  host.querySelectorAll("svg").forEach(x => x.remove());
+  host.appendChild(svg);
+  const corner = $("#corner");
+  const rotulo = "[ " + nodes.length + " NÓS · " + arestas.length + " CONEXÕES ]";
+
+  const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (jaEra || reduzido) {
+    gs.forEach(g => g.classList.add("built"));
+    paths.forEach(p => p.classList.add("done"));
+    corner.textContent = rotulo;
+    return;
+  }
+  S.desenhado = assinatura;
+
+  // Nada re-anima numa atualização: a assinatura acima é o que impede o SSE de
+  // redesenhar tudo a cada evento. Movimento sem informação nova vira ruído.
+  (async () => {
+    for (let i = 0; i < gs.length; i++) {
+      if (i > 0 && paths[i - 1]) { paths[i - 1].classList.add("drawing"); await esperar(420); paths[i - 1].classList.replace("drawing", "done"); }
+      gs[i].classList.add("writing");
+      corner.textContent = "[ MONTANDO " + (i + 1) + " / " + gs.length + " ]";
+      await esperar(430);
+      gs[i].classList.remove("writing"); gs[i].classList.add("built");
+      await esperar(90);
+    }
+    paths.forEach(p => p.classList.add("done"));
+    corner.textContent = rotulo;
+  })();
+}
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+/* ------------------------------------------------------------- o fantasma */
+
+function fantasmaBloco(s) {
+  const f = s.fantasma;
+  if (!f.ok) {
+    return '<div class="surf"><div class="sh">[ 06 ] O QUE ISTO PRODUZIRIA</div>' +
+      '<div class="band" style="border-color:var(--warn-soft);background:var(--warn-soft);color:var(--warn-txt)">' +
+      '<span class="txt" style="white-space:normal">Não simulei este fluxo: ' + esc(f.recusa) + "</span></div>" +
+      '<div class="selo">Prefiro não desenhar meio resultado. Um quadro parcial apresentado como resultado é pior ' +
+      "que quadro nenhum — o fluxo e os portões continuam válidos, só a prévia não sai.</div></div>";
+  }
+  const sup = (f.superficies || []).map(x => superficie(x)).join("");
+  const pend = (f.pendencias || []).filter(p => p.expr || p.motivo);
+  return '<div class="surf"><div class="sh">[ 06 ] O QUE ISTO PRODUZIRIA · ' +
+      esc(s.sementesOrigem || "dados de exemplo") + "</div>" +
+    (sup || '<div class="empty">o fluxo não termina num destino que eu saiba desenhar</div>') +
+    (pend.length ? '<div style="margin-top:11px">' + pend.map(p =>
+      '<div class="i risco" style="margin-bottom:6px"><div class="ih"><span class="kind">CHECAR</span></div>' +
+      '<div class="tx">' + (p.no ? "<strong>" + esc(p.no) + "</strong> · " : "") +
+      (p.expr ? "<code>{{ " + esc(p.expr) + " }}</code><br>" : "") + esc(p.motivo) + "</div></div>").join("") + "</div>" : "") +
+    '<div class="selo">' + esc(SELO_FANTASMA) + "</div></div>";
+}
+
+function superficie(x) {
+  const e = x.envio || {};
+  const marca = t => esc(t).replace(/⟨não simulada⟩/g, '<span class="naosim">não simulada</span>');
+  if (x.superficie === "slack" || x.superficie === "whatsapp") {
+    return '<div class="bubble ' + x.superficie + '">' +
+      '<div class="meta">' + (x.superficie === "slack" ? "Slack · " : "WhatsApp · ") + marca(e.canal || e.para || "destino não definido") + "</div>" +
+      marca(e.texto || "(mensagem vazia)") + "</div>";
+  }
+  if (x.superficie === "email") {
+    return '<div class="bubble slack"><div class="meta">E-mail · para ' + marca(e.para || "?") + "</div>" +
+      "<strong>" + marca(e.assunto || "(sem assunto)") + "</strong><br>" + marca(e.texto || "") + "</div>";
+  }
+  const linhas = Object.entries(e).map(([k, v]) =>
+    "<dt>" + esc(k) + "</dt><dd>" + marca(typeof v === "object" ? JSON.stringify(v) : v) + "</dd>").join("");
+  return '<div class="bubble slack"><div class="meta">' +
+    (x.superficie === "linha" ? "linha gravada" : "envio para " + esc(String(x.tipo || "").replace("n8n-nodes-base.", ""))) +
+    '</div><dl class="kv">' + linhas + "</dl></div>";
+}
+
+/* -------------------------------------------------------------- a entrega */
+
+function entrega(s) {
+  const json = JSON.stringify(s.wf, null, 2);
+  return '<div class="surf"><div class="sh">[ 07 ] PRONTO PARA IMPORTAR</div>' +
+    '<div class="selo" style="color:var(--txt-dim);background:var(--surface-2);border-color:var(--line)">' + esc(SELO_ENTREGA) + "</div>" +
+    '<div style="display:flex;gap:8px;margin:11px 0;flex-wrap:wrap">' +
+      '<button type="button" class="btn prime" id="copiar">⧉ Copiar o JSON</button>' +
+      (s.sandbox && s.sandbox.id ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(instanciaUrl(s)) + '">Abrir a cópia de teste ↗</a>' : "") +
+    "</div>" +
+    '<pre class="json" id="jsonwf">' + esc(json) + "</pre></div>";
+}
+function instanciaUrl(s) {
+  const base = (S.capab && S.capab.instancia) || "";
+  return base ? base + "/workflow/" + s.sandbox.id : "#";
+}
+
+/* ---------------------------------------------------------- lado direito */
+
+function ladoDireito(s) {
+  const feitas = (s.etapas || []).filter(e => ESTADO_TAG[e.estado] && ESTADO_TAG[e.estado].ordem >= 2).length;
+  const passos = (s.etapas || []).map(e => {
+    const meta = ESTADO_TAG[e.estado] || ESTADO_TAG.espera;
+    // Marcar de antemão onde a esteira vai parar é informação útil; confundir
+    // isso com "parou agora" não é. O tom separa os dois.
+    const tag = e.estado === "pendente" && PARA_EM.has(e.n) ? "para aqui" : meta.tag;
+    return '<div class="st ' + esc(e.estado) + '">' +
+      '<span class="num">' + String(e.n).padStart(2, "0") + '</span>' +
+      '<span class="nm">' + esc(e.nome) + '</span>' +
+      '<span class="tag">' + esc(tag) + "</span>" +
+      (e.nota ? '<span class="nota">' + esc(e.nota) + "</span>" : "") + "</div>";
+  }).join("");
+
+  const achados = (s.achados || []).length
+    ? s.achados.map(a => {
+        const fonte = { fato: "FATO · verificado", "a-confirmar": "A CONFIRMAR · ainda não verifiquei", sugestao: "SUGESTÃO · minha, não é regra" }[a.fonte] || esc(a.fonte || "");
+        return '<div class="i ' + esc(a.tipo || "ideia") + '"><div class="ih"><span class="kind">' +
+          esc(String(a.tipo || "ideia").toUpperCase()) + '</span></div><div class="tx">' + esc(a.texto) +
+          '</div><div class="src">' + esc(fonte) + "</div></div>";
+      }).join("")
+    : '<div class="empty">nada ainda — os achados aparecem conforme as etapas rodam</div>';
+
+  const cred = (s.ingredientes && s.ingredientes.credenciais || []);
+  const ingr = cred.length
+    ? cred.map(c => '<div class="i ' + (c.visto ? "ideia" : "falta") + '"><div class="ih"><span class="kind">' +
+        (c.visto ? "JÁ USA" : "NÃO ACHEI") + '</span></div><div class="tx"><code>' + esc(c.tipo) + "</code>" +
+        (c.campos && c.campos.length ? "<br>pede: " + esc(c.campos.join(", ")) : "") + "</div>" +
+        (c.visto ? "" : '<div class="src">não encontrei em nenhum fluxo seu — pode existir e ainda não estar em uso</div>') + "</div>").join("")
+    : '<div class="empty">ainda não sei quais credenciais este fluxo precisa</div>';
+
+  return '<div class="sec"><div class="sech"><span class="ix">[ ETAPAS ]</span><span>' +
+      String(feitas).padStart(2, "0") + " de 07</span></div><div class=\"steps\">" + passos + "</div></div>" +
+    '<div class="sec"><div class="sech"><span class="ix">[ ACHADOS ]</span><span>' + (s.achados || []).length + "</span></div>" + achados + "</div>" +
+    '<div class="sec"><div class="sech"><span class="ix">[ CREDENCIAIS ]</span></div>' + ingr + "</div>" +
+    '<div class="sec"><div class="sech"><span class="ix">[ GASTO ]</span><span>desta construção</span></div>' +
+      '<div class="empty">US$' + (s.custoTotal || 0).toFixed(2).replace(".", ",") +
+      " equivalentes · sai do seu plano, sem cobrança por fora.<br>Mexer na simulação depois de pronto não gasta nada — ela roda aqui na sua máquina.</div></div>";
+}
+
+/* ------------------------------------------------------------------ eventos */
+
+function ligarEventos(s) {
+  const seguir = $("#seguir");
+  if (seguir) seguir.addEventListener("click", async () => {
+    seguir.disabled = true;
+    try { S.snap = await callApi(rota("reply"), corpo({ seguir: true })); pintar(); }
+    catch (e) { seguir.disabled = false; alertaInline(e.message); }
+  });
+
+  app.querySelectorAll(".resp").forEach(b => b.addEventListener("click", () => {
+    const ta = $("#resposta");
+    if (!ta) return;
+    ta.value = (ta.value ? ta.value + " · " : "") + b.textContent;
+    ta.focus();
+    b.setAttribute("aria-pressed", "true"); b.classList.add("on");
+  }));
+
+  const enviar = $("#enviar"), ta = $("#resposta");
+  if (ta) {
+    ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; });
+    ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); mandar(); } });
+  }
+  if (enviar) enviar.addEventListener("click", mandar);
+
+  const copiar = $("#copiar");
+  if (copiar) copiar.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("#jsonwf").textContent); copiar.textContent = "✓ copiado"; }
+    catch { copiar.textContent = "não consegui copiar — selecione o texto abaixo"; }
+    setTimeout(() => { copiar.textContent = "⧉ Copiar o JSON"; }, 2400);
+  });
+}
+
+async function mandar() {
+  const ta = $("#resposta");
+  if (!ta || !ta.value.trim() || S.enviando) return;
+  S.enviando = true;
+  const texto = ta.value.trim();
+  ta.value = ""; ta.style.height = "auto";
+  try { S.snap = await callApi(rota("reply"), corpo({ texto })); pintar(); }
+  catch (e) { alertaInline(e.message); ta.value = texto; }
+  finally { S.enviando = false; }
+}
+
+const rota = sub => "/api/tester/session/" + encodeURIComponent(S.snap.id) + "/" + sub;
+const corpo = o => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(o) });
+
+function alertaInline(msg) {
+  const st = $("#stream");
+  if (!st) return;
+  const d = document.createElement("div");
+  d.className = "erro"; d.textContent = msg;
+  st.appendChild(d); st.scrollTop = st.scrollHeight;
+}
+
+function pintarRodape(s) {
+  const r = rodape(s);
+  foot.className = "foot " + r.classe;
+  foot.innerHTML = r.partes.filter(Boolean).map(esc).join(' <span aria-hidden="true">·</span> ');
+}
+
+/* ---------------------------------------------------------------- boot */
+
+$("#tema").addEventListener("click", () => {
+  const atual = document.documentElement.getAttribute("data-theme");
+  const escuro = atual ? atual === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", escuro ? "light" : "dark");
+});
+
+(async () => {
+  let aviso = null;
+  try {
+    S.capab = await callApi("/api/tester/status");
+    if (!S.capab.cliEncontrado) aviso = "Não encontrei o CLI do Claude em " + S.capab.cli + " — sem ele o Tester não consegue construir nada. Defina CLAUDE_BIN no .env se ele estiver em outro lugar.";
+    else if (!S.capab.n8nConfigurado) aviso = "O n8n não está configurado no .env, então não sei quais nós a sua instância aceita nem consigo criar a cópia de teste.";
+    else if (S.capab.emAndamento) aviso = "Já existe uma construção em andamento. Só uma por vez — espere ela terminar ou recarregue esta página para acompanhar.";
+  } catch (e) { aviso = e.message; }
+
+  const retomar = new URLSearchParams(location.search).get("s");
+  if (retomar && /^t[a-z0-9]{1,32}$/.test(retomar)) {
+    try {
+      S.snap = await callApi("/api/tester/session/" + encodeURIComponent(retomar));
+      pintar();
+      ligar(retomar);
+      return;
+    } catch {
+      // Sessão sumiu (o servidor reiniciou). Melhor começar do zero dizendo o
+      // que houve do que deixar a tela em branco esperando um SSE que não vem.
+      aviso = "aquela construção não existe mais neste servidor — ele foi reiniciado. Comece de novo.";
+      history.replaceState(null, "", "/tester");
+    }
+  }
+  telaAbertura(aviso);
+})();
+</script>
+</body>
+</html>
