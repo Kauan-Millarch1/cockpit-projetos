@@ -1,0 +1,576 @@
+{
+  "slug": "aviso-de-e-mail-novo-no-slack-7a5b58",
+  "titulo": "Aviso de e-mail novo no Slack",
+  "ideia": "Quero ser notificado no Slack toda vez que chegar um e-mail para mim",
+  "nivel": "sei o básico",
+  "ehAgente": false,
+  "salvoEm": "2026-08-10T16:58:37.825Z",
+  "sessaoId": "t7d5d2d0a410b",
+  "chat": [
+    {
+      "quem": "voce",
+      "texto": "Quero ser notificado no Slack toda vez que chegar um e-mail para mim",
+      "at": "2026-08-10T16:42:36.386Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "toda vez que chegar um novo e-mail",
+        "oQueFaz": "envia um aviso no Slack",
+        "resultado": "mensagem no Slack avisando sobre o e-mail recebido",
+        "ondeChega": "não disse"
+      },
+      "perguntas": [
+        {
+          "q": "Todo e-mail que chegar deve gerar aviso, ou só alguns?",
+          "porque": "sem filtro, newsletters e notificações automáticas também vão disparar mensagem no Slack — isso muda se entra um nó de filtro no meio do fluxo",
+          "opcoes": [
+            "Todos, sem filtro",
+            "Só de remetentes específicos",
+            "Ignorar promoções/spam",
+            "Só e-mails marcados como importantes"
+          ]
+        },
+        {
+          "q": "O que a mensagem no Slack precisa mostrar do e-mail?",
+          "porque": "define os campos que o fluxo extrai do e-mail para montar o texto da mensagem",
+          "opcoes": [
+            "Remetente e assunto",
+            "Remetente, assunto e trecho do corpo",
+            "Remetente, assunto, corpo e link para abrir o e-mail"
+          ]
+        },
+        {
+          "q": "Onde exatamente o aviso deve chegar no Slack?",
+          "porque": "define se o nó do Slack posta em um canal ou manda mensagem direta, e para qual canal",
+          "opcoes": [
+            "Mensagem direta (DM) para mim",
+            "Um canal específico",
+            "Canal geral da equipe"
+          ]
+        }
+      ],
+      "at": "2026-08-10T16:43:34.973Z"
+    },
+    {
+      "quem": "voce",
+      "texto": "Todos, sem filtro · Remetente e assunto · Mensagem direta (DM) para mim",
+      "escolhas": true,
+      "at": "2026-08-10T16:46:15.373Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "toda vez que chegar um e-mail novo na caixa do Gmail dela",
+        "oQueFaz": "captura o e-mail recebido, sem aplicar nenhum filtro, e monta um aviso com remetente e assunto",
+        "resultado": "mensagem no Slack mostrando remetente e assunto do e-mail",
+        "ondeChega": "DM (mensagem direta) para ela no Slack"
+      },
+      "perguntas": [
+        {
+          "q": "Se o envio da notificação no Slack falhar (Slack fora do ar, erro de credencial etc.), o que fazer?",
+          "porque": "define se o fluxo precisa de um caminho de erro (retry ou registro) ou se pode simplesmente falhar em silêncio",
+          "opcoes": [
+            "Tentar de novo automaticamente",
+            "Registrar o erro para eu ver depois",
+            "Ignorar e seguir sem avisar"
+          ]
+        },
+        {
+          "q": "A conta de Gmail a monitorar é a mesma já conectada no n8n, ou é outra?",
+          "porque": "pode haver mais de uma conta Gmail autorizada nesta instância, e isso decide qual credencial o gatilho usa",
+          "opcoes": [
+            "É a mesma conta já conectada",
+            "É outra conta, vou conectar"
+          ]
+        }
+      ],
+      "at": "2026-08-10T16:47:40.828Z"
+    },
+    {
+      "quem": "voce",
+      "texto": "Tentar de novo automaticamente · conta é kauanmillarch@ecommercepuro.com.br",
+      "escolhas": true,
+      "at": "2026-08-10T16:48:39.345Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "toda vez que chegar um e-mail novo na conta kauanmillarch@ecommercepuro.com.br",
+        "oQueFaz": "detecta o e-mail novo e monta uma mensagem com remetente e assunto",
+        "resultado": "mensagem direta (DM) no Slack para a própria pessoa; se o envio falhar, tenta de novo automaticamente",
+        "ondeChega": "Slack, em DM para o usuário"
+      },
+      "perguntas": [],
+      "at": "2026-08-10T16:49:10.673Z"
+    }
+  ],
+  "respostas": [
+    {
+      "q": "Todo e-mail que chegar deve gerar aviso, ou só alguns?",
+      "r": "Todos, sem filtro"
+    },
+    {
+      "q": "O que a mensagem no Slack precisa mostrar do e-mail?",
+      "r": "Remetente e assunto"
+    },
+    {
+      "q": "Onde exatamente o aviso deve chegar no Slack?",
+      "r": "Mensagem direta (DM) para mim"
+    },
+    {
+      "q": "Se o envio da notificação no Slack falhar (Slack fora do ar, erro de credencial etc.), o que fazer?",
+      "r": "Tentar de novo automaticamente"
+    },
+    {
+      "q": "A conta de Gmail a monitorar é a mesma já conectada no n8n, ou é outra?",
+      "r": "conta é kauanmillarch@ecommercepuro.com.br"
+    }
+  ],
+  "wf": {
+    "name": "aviso_slack_email_novo",
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "simple": true,
+          "filters": {},
+          "options": {}
+        },
+        "id": "a1f0c2e4-1b11-4a01-9c10-000000000001",
+        "name": "trigger_gmail_novo_email",
+        "type": "n8n-nodes-base.gmailTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -220,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "b1000000-0000-4000-8000-000000000001",
+                "name": "remetente",
+                "type": "string",
+                "value": "={{ $json.From || 'remetente desconhecido' }}"
+              },
+              {
+                "id": "b1000000-0000-4000-8000-000000000002",
+                "name": "assunto",
+                "type": "string",
+                "value": "={{ $json.Subject || '(sem assunto)' }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "a1f0c2e4-1b11-4a01-9c10-000000000002",
+        "name": "montar_mensagem_email",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          20,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "resource": "message",
+          "select": "user",
+          "user": {
+            "__rl": true,
+            "mode": "username",
+            "value": ""
+          },
+          "messageType": "text",
+          "text": "=:email: *Novo e-mail na caixa de entrada*\n*De:* {{ $json.remetente }}\n*Assunto:* {{ $json.assunto }}",
+          "otherOptions": {
+            "mrkdwn": true
+          }
+        },
+        "id": "a1f0c2e4-1b11-4a01-9c10-000000000003",
+        "name": "slack_dm_aviso_email",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          260,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      }
+    ],
+    "connections": {
+      "trigger_gmail_novo_email": {
+        "main": [
+          [
+            {
+              "node": "montar_mensagem_email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "montar_mensagem_email": {
+        "main": [
+          [
+            {
+              "node": "slack_dm_aviso_email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  },
+  "provenance": {
+    "trigger_gmail_novo_email": {
+      "origem": "instancia",
+      "nota": "3 usos nos seus fluxos"
+    },
+    "montar_mensagem_email": {
+      "origem": "instancia",
+      "nota": "147 usos nos seus fluxos"
+    },
+    "slack_dm_aviso_email": {
+      "origem": "instancia",
+      "nota": "25 usos nos seus fluxos"
+    }
+  },
+  "report": "**Resumo:** A cada e-mail novo que chega na conta kauanmillarch@ecommercepuro.com.br, o fluxo separa remetente e assunto e manda uma DM no Slack para você, com nova tentativa automática se o Slack falhar.\n\n## O que cada nó faz\n\n**`trigger_gmail_novo_email`** — `n8n-nodes-base.gmailTrigger` (v1.2)\nVerifica a caixa de entrada a cada minuto e dispara uma execução por e-mail novo. Está **sem nenhum filtro** (`filters: {}`), como você pediu: todo e-mail gera aviso. Está com `simple: true`, que é o modo em que o Gmail já entrega os campos prontos no topo — `From`, `Subject`, `To`, `snippet`, `text` — em vez do envelope cru com os cabeçalhos numa lista. É isso que permite ler o remetente com uma expressão simples, sem nó `Code`.\n\n**`montar_mensagem_email`** — `n8n-nodes-base.set` (v3.4)\nCria dois campos limpos a partir do e-mail:\n- `remetente` = `{{ $json.From || 'remetente desconhecido' }}`\n- `assunto` = `{{ $json.Subject || '(sem assunto)' }}`\n\nOs `||` são a rede de segurança: e-mail sem assunto acontece, e sem isso a mensagem no Slack chegaria com um buraco no lugar. Todas as expressões do fluxo são acesso direto a campo, então **o cockpit consegue simular o fluxo inteiro** — não há nenhum trecho que apareça como «não simulada».\n\n**`slack_dm_aviso_email`** — `n8n-nodes-base.slack` (v2.3)\nManda a DM. O texto montado é:\n\n```\n:email: *Novo e-mail na caixa de entrada*\n*De:* {{ $json.remetente }}\n*Assunto:* {{ $json.assunto }}\n```\n\nA repetição automática que você pediu está aqui, nas opções do próprio nó: `retryOnFail: true`, `maxTries: 3`, `waitBetweenTries: 5000` — ou seja, até 3 tentativas com 5 segundos entre elas. Isso cobre Slack fora do ar e falha momentânea de credencial. Se as 3 tentativas falharem, a execução termina com erro e fica registrada no histórico do n8n.\n\n## O que ainda precisa ser preenchido à mão\n\n1. **Credencial do Gmail** (`trigger_gmail_novo_email`) — escolha no editor a credencial do Google que corresponde a **kauanmillarch@ecommercepuro.com.br**. Isto é o ponto de atenção do fluxo: o nó monitora a conta que estiver na credencial, não existe campo para digitar o endereço. Se a credencial já conectada na instância for de outra conta, o fluxo vai vigiar a caixa errada sem reclamar de nada. Vale conferir antes de ativar.\n\n2. **Credencial do Slack** (`slack_dm_aviso_email`) — `slackApi` ou `slackOAuth2Api`, as duas já em uso nesta instância.\n\n3. **Destinatário da DM** (`slack_dm_aviso_email`) — o campo `user` está **vazio de propósito**. Abra o nó e selecione seu usuário na lista (\"From list\"), que é o jeito mais seguro; se preferir digitar, o modo está em `username`. Sem isso o nó não envia.\n\n4. **Frequência da checagem** — está em `everyMinute`. Se achar barulhento ou quiser economizar chamadas à API, dá para trocar para 5 ou 15 minutos no próprio nó de gatilho.\n\n## Observações\n\n- O bot do Slack precisa ter permissão de mandar DM (escopo `chat:write` / `im:write`). Se a DM voltar erro de permissão, esse é um erro que **não** se resolve com repetição — as 3 tentativas vão falhar igual e a execução vai acusar. É o comportamento correto: melhor falhar visível do que silenciar.\n- Nenhuma credencial foi gravada no arquivo e o fluxo vai desativado, como esperado.\n",
+  "fantasma": {
+    "ok": true,
+    "passos": [
+      {
+        "no": "trigger_gmail_novo_email",
+        "tipo": "n8n-nodes-base.gmailTrigger",
+        "notas": [],
+        "papel": "serviço externo",
+        "envio": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "simple": true,
+          "filters": {}
+        },
+        "semente": true,
+        "json": {
+          "id": "197f2c9b1a4de5c0",
+          "threadId": "197f2c9b1a4de5c0",
+          "labelIds": [
+            "UNREAD",
+            "INBOX"
+          ],
+          "sizeEstimate": 8421,
+          "historyId": "884213",
+          "internalDate": "1786440000000",
+          "From": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+          "To": "kauanmillarch@ecommercepuro.com.br",
+          "Subject": "Proposta de renovacao do contrato 2026",
+          "snippet": "Ola, segue em anexo a proposta atualizada para sua analise...",
+          "text": "Ola,\n\nSegue em anexo a proposta atualizada para sua analise.\n\nAbracos,\nMaria"
+        }
+      },
+      {
+        "no": "montar_mensagem_email",
+        "tipo": "n8n-nodes-base.set",
+        "notas": [],
+        "papel": "dados",
+        "json": {
+          "id": "197f2c9b1a4de5c0",
+          "threadId": "197f2c9b1a4de5c0",
+          "labelIds": [
+            "UNREAD",
+            "INBOX"
+          ],
+          "sizeEstimate": 8421,
+          "historyId": "884213",
+          "internalDate": "1786440000000",
+          "From": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+          "To": "kauanmillarch@ecommercepuro.com.br",
+          "Subject": "Proposta de renovacao do contrato 2026",
+          "snippet": "Ola, segue em anexo a proposta atualizada para sua analise...",
+          "text": "Ola,\n\nSegue em anexo a proposta atualizada para sua analise.\n\nAbracos,\nMaria",
+          "remetente": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+          "assunto": "Proposta de renovacao do contrato 2026"
+        }
+      },
+      {
+        "no": "slack_dm_aviso_email",
+        "tipo": "n8n-nodes-base.slack",
+        "notas": [],
+        "papel": "destino",
+        "envio": {
+          "canal": "user",
+          "texto": ":email: *Novo e-mail na caixa de entrada*\n*De:* Maria Souza <maria.souza@fornecedorexemplo.com.br>\n*Assunto:* Proposta de renovacao do contrato 2026"
+        }
+      }
+    ],
+    "superficies": [
+      {
+        "no": "slack_dm_aviso_email",
+        "superficie": "slack",
+        "rotulo": "Slack",
+        "envio": {
+          "canal": "user",
+          "texto": ":email: *Novo e-mail na caixa de entrada*\n*De:* Maria Souza <maria.souza@fornecedorexemplo.com.br>\n*Assunto:* Proposta de renovacao do contrato 2026"
+        }
+      }
+    ],
+    "pendencias": [],
+    "jsonFinal": {
+      "id": "197f2c9b1a4de5c0",
+      "threadId": "197f2c9b1a4de5c0",
+      "labelIds": [
+        "UNREAD",
+        "INBOX"
+      ],
+      "sizeEstimate": 8421,
+      "historyId": "884213",
+      "internalDate": "1786440000000",
+      "From": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+      "To": "kauanmillarch@ecommercepuro.com.br",
+      "Subject": "Proposta de renovacao do contrato 2026",
+      "snippet": "Ola, segue em anexo a proposta atualizada para sua analise...",
+      "text": "Ola,\n\nSegue em anexo a proposta atualizada para sua analise.\n\nAbracos,\nMaria",
+      "remetente": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+      "assunto": "Proposta de renovacao do contrato 2026"
+    }
+  },
+  "sementes": {
+    "trigger_gmail_novo_email": {
+      "id": "197f2c9b1a4de5c0",
+      "threadId": "197f2c9b1a4de5c0",
+      "labelIds": [
+        "UNREAD",
+        "INBOX"
+      ],
+      "sizeEstimate": 8421,
+      "historyId": "884213",
+      "internalDate": "1786440000000",
+      "From": "Maria Souza <maria.souza@fornecedorexemplo.com.br>",
+      "To": "kauanmillarch@ecommercepuro.com.br",
+      "Subject": "Proposta de renovacao do contrato 2026",
+      "snippet": "Ola, segue em anexo a proposta atualizada para sua analise...",
+      "text": "Ola,\n\nSegue em anexo a proposta atualizada para sua analise.\n\nAbracos,\nMaria"
+    },
+    "slack_dm_aviso_email": {
+      "ok": true,
+      "channel": "D07EXEMPLO01",
+      "ts": "1786440012.000100",
+      "message": {
+        "type": "message",
+        "subtype": "bot_message",
+        "text": ":email: *Novo e-mail na caixa de entrada*\n*De:* Maria Souza <maria.souza@fornecedorexemplo.com.br>\n*Assunto:* Proposta de renovacao do contrato 2026",
+        "ts": "1786440012.000100",
+        "bot_id": "B07EXEMPLO01"
+      }
+    }
+  },
+  "sementesOrigem": "escritas junto do fluxo",
+  "achados": [
+    {
+      "tipo": "falta",
+      "texto": "instância já tem o nó gmailTrigger e credencial gmailOAuth2 configurados, o que encaixa direto como gatilho",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "falta",
+      "texto": "instância já tem nó slack com credenciais slackApi/slackOAuth2Api disponíveis para o envio",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "conta de e-mail monitorada será a mesma já conectada via gmailOAuth2",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "frequência de checagem do Gmail Trigger fica no padrão (poucos minutos), ajustável depois no editor",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "risco",
+      "texto": "sem nenhum filtro, e-mails automáticos e newsletters também vão gerar aviso no Slack, podendo virar ruído",
+      "fonte": "sugestao"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "A instância já tem o nó n8n-nodes-base.gmailTrigger e credencial gmailOAuth2 configurados, então o gatilho não precisa de nó novo.",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "A instância já tem o nó n8n-nodes-base.slack com credenciais slackApi e slackOAuth2Api, então o envio da DM não precisa de HTTP Request.",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "falta",
+      "texto": "Quem é o destinatário exato da DM no Slack (e-mail ou usuário) será escolhido direto no seletor do nó Slack dentro do editor do n8n, não precisa perguntar aqui.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "Assumindo que o gatilho observa só a Inbox (não spam/lixeira) e usa o intervalo de verificação padrão do gmailTrigger — ajustável depois no editor.",
+      "fonte": "sugestao"
+    },
+    {
+      "tipo": "risco",
+      "texto": "Sem filtro nenhum, uma caixa de e-mail com alto volume pode gerar muitas DMs seguidas no Slack.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "falta",
+      "texto": "Para a mensagem chegar em DM, o nó do Slack precisa do ID (ou e-mail) do usuário destinatário no workspace, não só o nome",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "risco",
+      "texto": "Sem filtro nenhum, qualquer e-mail — incluindo newsletter, spam ou notificações automáticas — vai gerar uma mensagem no Slack",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "falta",
+      "texto": "O Gmail Trigger funciona por consulta periódica (polling), não é um push instantâneo de verdade — normalmente checa a cada 1 minuto",
+      "fonte": "fato"
+    },
+    {
+      "tipo": "sugestao",
+      "texto": "Pode incluir na mensagem um link direto para abrir o e-mail no Gmail",
+      "fonte": "sugestao"
+    }
+  ],
+  "ingredientes": {
+    "nos": [
+      {
+        "tipo": "n8n-nodes-base.gmailTrigger",
+        "versao": 1.2,
+        "usos": 3,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.gmail",
+        "versao": 2.2,
+        "usos": 1,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.slack",
+        "versao": 2.3,
+        "usos": 25,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.slackTrigger",
+        "versao": 1,
+        "usos": 1,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.scheduleTrigger",
+        "versao": 1.2,
+        "usos": 22,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.webhook",
+        "versao": 2.1,
+        "usos": 22,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.respondToWebhook",
+        "versao": 1.5,
+        "usos": 12,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.httpRequest",
+        "versao": 4.2,
+        "usos": 124,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.set",
+        "versao": 3.4,
+        "usos": 147,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.if",
+        "versao": 2.2,
+        "usos": 157,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.filter",
+        "versao": 2.2,
+        "usos": 5,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.noOp",
+        "versao": 1,
+        "usos": 68,
+        "origem": "instancia"
+      }
+    ],
+    "credenciais": [
+      {
+        "tipo": "googleApi",
+        "visto": true,
+        "campos": [
+          "email",
+          "privateKey"
+        ]
+      },
+      {
+        "tipo": "slackApi",
+        "visto": true,
+        "campos": [
+          "accessToken"
+        ]
+      },
+      {
+        "tipo": "slackOAuth2Api",
+        "visto": true,
+        "campos": []
+      }
+    ],
+    "estreitada": true
+  },
+  "sandbox": {
+    "estado": "ok",
+    "id": "p1GvdLOnm2DFlFCU",
+    "nome": "[SANDBOX tester] aviso_slack_email_novo",
+    "criado": true
+  },
+  "gates": {
+    "rodada": 1,
+    "falhas": [],
+    "passou": true
+  },
+  "custoTotal": 0.874
+}

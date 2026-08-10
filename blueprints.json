@@ -244,5 +244,224 @@
     ],
     "custoTotal": 0.6549,
     "exportado": true
+  },
+  {
+    "id": "t4540ba8c48c4",
+    "ideia": "todo dia às 9h, resumo das tarefas abertas do ClickUp no Slack",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T13:49:41.468Z",
+    "terminadoEm": "2026-08-10T13:53:37.428Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 4,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.1194264,
+        "ms": 40512,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.47169249999999996,
+        "ms": 125271,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.5911,
+    "exportado": true
+  },
+  {
+    "id": "t1cd46603ba1e",
+    "ideia": "quero um agente que responde os leads no whatsapp, tira duvida sobre os eventos e manda o link de pagamento quando o lead quiser comprar",
+    "nivel": "sou tecnico",
+    "criadoEm": "2026-08-10T15:18:40.442Z",
+    "terminadoEm": "2026-08-10T15:23:06.603Z",
+    "status": "falhou",
+    "etapaFinal": 4,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 0,
+    "gates": null,
+    "sandbox": null,
+    "fantasma": null,
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.293348,
+        "ms": 54925,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.22960540000000002,
+        "ms": 98472,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.24174839999999997,
+        "ms": 109372,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.7647,
+    "exportado": false
+  },
+  {
+    "id": "t74ee9813fa57",
+    "ideia": "quero um agente que responde os leads no whatsapp, tira duvida sobre os eventos e manda o link de pagamento quando o lead quiser comprar",
+    "nivel": "sou tecnico",
+    "criadoEm": "2026-08-10T15:41:05.732Z",
+    "terminadoEm": "2026-08-10T15:54:43.858Z",
+    "status": "aguardando",
+    "etapaFinal": 6,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 65,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.2226584,
+        "ms": 93175,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.18332040000000002,
+        "ms": 60010,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 2.787425,
+        "ms": 660676,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 3.1934,
+    "exportado": false
+  },
+  {
+    "id": "t7d5d2d0a410b",
+    "ideia": "Quero ser notificado no Slack toda vez que chegar um e-mail para mim",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T16:42:36.386Z",
+    "terminadoEm": "2026-08-10T16:58:37.832Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "ehAgente": false,
+    "rodadasEntrevista": 3,
+    "respostas": 5,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 3,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.1472224,
+        "ms": 58580,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1753344,
+        "ms": 85454,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1135174,
+        "ms": 31327,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.437934,
+        "ms": 101165,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.874,
+    "exportado": true
+  },
+  {
+    "id": "t79cf036a363d",
+    "ideia": "Um fluxo para visualizar meu controle de estoque, hoje o controle de estoque é feito por uma planilha, quero que o fluxo visualize a planilha e me avise no slack os produtos que estão acabando no estoque",
+    "nivel": "nunca mexi",
+    "criadoEm": "2026-08-10T18:43:45.639Z",
+    "terminadoEm": "2026-08-10T18:56:05.152Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "ehAgente": false,
+    "rodadasEntrevista": 4,
+    "respostas": 10,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 8,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.312893,
+        "ms": 75594,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1660564,
+        "ms": 65130,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1792804,
+        "ms": 75949,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1306904,
+        "ms": 35898,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.811513,
+        "ms": 147635,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 1.6004,
+    "exportado": true
   }
 ]

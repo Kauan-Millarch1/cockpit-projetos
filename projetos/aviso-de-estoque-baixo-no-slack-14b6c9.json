@@ -1,0 +1,1117 @@
+{
+  "slug": "aviso-de-estoque-baixo-no-slack-14b6c9",
+  "titulo": "Aviso de estoque baixo no Slack",
+  "ideia": "Um fluxo para visualizar meu controle de estoque, hoje o controle de estoque é feito por uma planilha, quero que o fluxo visualize a planilha e me avise no slack os produtos que estão acabando no estoque",
+  "nivel": "nunca mexi",
+  "ehAgente": false,
+  "salvoEm": "2026-08-10T18:56:05.145Z",
+  "sessaoId": "t79cf036a363d",
+  "chat": [
+    {
+      "quem": "voce",
+      "texto": "Um fluxo para visualizar meu controle de estoque, hoje o controle de estoque é feito por uma planilha, quero que o fluxo visualize a planilha e me avise no slack os produtos que estão acabando no estoque",
+      "at": "2026-08-10T18:43:45.639Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "não disse",
+        "oQueFaz": "olha a planilha de controle de estoque e identifica quais produtos estão com quantidade baixa",
+        "resultado": "um aviso no Slack listando os produtos que estão acabando",
+        "ondeChega": "não disse"
+      },
+      "perguntas": [
+        {
+          "q": "Em qual canal do Slack o aviso deve chegar?",
+          "porque": "Preciso saber exatamente onde a mensagem vai cair para configurar o envio.",
+          "opcoes": [
+            "#estoque",
+            "#operacoes",
+            "Mensagem direta para mim",
+            "Outro canal"
+          ]
+        },
+        {
+          "q": "Sua planilha de estoque está no Google Sheets, Excel Online ou outro lugar?",
+          "porque": "Cada serviço se conecta de um jeito diferente, preciso saber qual é o seu.",
+          "opcoes": [
+            "Google Sheets",
+            "Excel Online (Microsoft)",
+            "Outro serviço"
+          ]
+        },
+        {
+          "q": "A partir de quantas unidades um produto deve ser considerado 'estoque baixo'?",
+          "porque": "Esse número decide quando o fluxo dispara o aviso.",
+          "opcoes": [
+            "Menos de 5 unidades",
+            "Menos de 10 unidades",
+            "Cada produto tem seu próprio mínimo (uma coluna na planilha)",
+            "Ainda não sei, decido depois"
+          ]
+        },
+        {
+          "q": "Com que frequência o fluxo deve olhar a planilha?",
+          "porque": "Isso define o ritmo de verificação do estoque.",
+          "opcoes": [
+            "Uma vez por dia",
+            "A cada hora",
+            "Toda manhã, por exemplo 8h",
+            "Outra frequência"
+          ]
+        },
+        {
+          "q": "O que a mensagem no Slack deve mostrar sobre cada produto com estoque baixo?",
+          "porque": "Isso define o que vai aparecer no aviso, campo a campo.",
+          "opcoes": [
+            "Nome e quantidade restante",
+            "Nome, quantidade e o mínimo esperado",
+            "Nome, quantidade e um link para repor"
+          ],
+          "previa": "slack",
+          "modelos": {
+            "Nome e quantidade restante": ":warning: *Estoque baixo*\n• {{ nome_produto }} — restam {{ quantidade }} unidades",
+            "Nome, quantidade e o mínimo esperado": ":warning: *Estoque baixo*\n• {{ nome_produto }} — {{ quantidade }} unidades (mínimo: {{ quantidade_minima }})",
+            "Nome, quantidade e um link para repor": ":warning: *Estoque baixo*\n• {{ nome_produto }} — {{ quantidade }} unidades\n<{{ link_reposicao }}|Repor agora>"
+          }
+        }
+      ],
+      "at": "2026-08-10T18:45:20.411Z"
+    },
+    {
+      "quem": "voce",
+      "texto": "Outro canal · Google Sheets · Menos de 10 unidades · Toda manhã, por exemplo 8h · Nome, quantidade e um link para repor",
+      "escolhas": true,
+      "at": "2026-08-10T18:46:24.283Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "Toda manhã, por exemplo às 8h",
+        "oQueFaz": "verifica a planilha de estoque no Google Sheets e identifica os produtos com menos de 10 unidades",
+        "resultado": "aviso no Slack com nome, quantidade e link para repor de cada produto com estoque baixo",
+        "ondeChega": "não disse"
+      },
+      "perguntas": [
+        {
+          "q": "Qual é o nome do canal do Slack para onde o aviso deve ir?",
+          "porque": "Você escolheu 'outro canal', mas preciso do nome exato pra configurar o envio certo.",
+          "opcoes": [
+            "#estoque",
+            "#compras",
+            "#geral",
+            "Vou informar depois"
+          ]
+        },
+        {
+          "q": "Se nenhum produto estiver com estoque baixo naquele dia, o fluxo deve avisar que está tudo certo, ou não enviar nada?",
+          "porque": "Isso define se você recebe uma confirmação todo dia ou só quando há um problema de fato.",
+          "opcoes": [
+            "Avisar que está tudo certo",
+            "Não enviar nada"
+          ],
+          "previa": "slack",
+          "modelos": {
+            "Avisar que está tudo certo": "✅ Estoque em dia! Nenhum produto com menos de 10 unidades hoje.",
+            "Não enviar nada": "(nesse caso o fluxo simplesmente não manda mensagem nenhuma)"
+          }
+        },
+        {
+          "q": "Quando houver vários produtos com estoque baixo no mesmo dia, prefere uma única mensagem com a lista de todos, ou uma mensagem separada para cada produto?",
+          "porque": "Isso muda o jeito que o aviso vai aparecer pra você no Slack.",
+          "opcoes": [
+            "Uma mensagem com a lista completa",
+            "Uma mensagem para cada produto"
+          ],
+          "previa": "slack",
+          "modelos": {
+            "Uma mensagem com a lista completa": "*Produtos com estoque baixo:*\n• {{ nome }} — {{ quantidade }} un. <{{ link }}|Repor>\n• {{ nome }} — {{ quantidade }} un. <{{ link }}|Repor>",
+            "Uma mensagem para cada produto": "*{{ nome }}* está com estoque baixo\nQuantidade: {{ quantidade }}\n<{{ link }}|Repor agora>"
+          }
+        }
+      ],
+      "at": "2026-08-10T18:47:29.414Z"
+    },
+    {
+      "quem": "voce",
+      "texto": "#estoque · Avisar que está tudo certo · Uma mensagem com a lista completa",
+      "escolhas": true,
+      "at": "2026-08-10T18:48:37.891Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "Todo dia de manhã, por exemplo às 8h.",
+        "oQueFaz": "O fluxo abre sua planilha de estoque no Google Sheets, olha a quantidade de cada produto e separa os que estão com menos de 10 unidades.",
+        "resultado": "Uma mensagem no Slack com a lista de todos os produtos em estoque baixo (nome, quantidade e link para repor). Se nenhum produto estiver baixo, ele avisa que está tudo certo.",
+        "ondeChega": "Canal #estoque no Slack"
+      },
+      "perguntas": [
+        {
+          "q": "Qual é a planilha do Google Sheets com o seu controle de estoque?",
+          "porque": "Preciso saber exatamente qual planilha o fluxo vai abrir todo dia de manhã.",
+          "opcoes": [
+            "Tenho uma planilha única com todos os produtos",
+            "Tenho várias abas, uma por categoria",
+            "Vou colar o nome ou o link da planilha"
+          ]
+        },
+        {
+          "q": "Na planilha, como estão nomeadas as colunas de nome do produto e de quantidade, e já existe uma coluna com o link para repor cada produto?",
+          "porque": "O fluxo precisa saber exatamente de qual coluna tirar cada informação da mensagem.",
+          "opcoes": [
+            "As colunas são Produto, Quantidade e Link",
+            "Tenho essas colunas, mas com outros nomes — vou informar",
+            "Não tenho coluna de link; quero usar o link da própria planilha"
+          ]
+        }
+      ],
+      "at": "2026-08-10T18:49:53.841Z"
+    },
+    {
+      "quem": "voce",
+      "texto": "Tenho uma planilha única com todos os produtos · As colunas são Produto, Quantidade e Link",
+      "escolhas": true,
+      "at": "2026-08-10T18:50:22.017Z"
+    },
+    {
+      "quem": "tester",
+      "texto": null,
+      "entendi": {
+        "quando": "Toda manhã, às 8h",
+        "oQueFaz": "Olha a planilha de estoque no Google Sheets e verifica quais produtos estão com menos de 10 unidades",
+        "resultado": "Uma mensagem no Slack com a lista dos produtos em estoque baixo (nome, quantidade e link para repor) — ou avisando que está tudo certo, se nenhum estiver baixo",
+        "ondeChega": "Canal #estoque no Slack"
+      },
+      "perguntas": [],
+      "at": "2026-08-10T18:50:57.916Z"
+    }
+  ],
+  "respostas": [
+    {
+      "q": "Em qual canal do Slack o aviso deve chegar?",
+      "r": "Outro canal"
+    },
+    {
+      "q": "Sua planilha de estoque está no Google Sheets, Excel Online ou outro lugar?",
+      "r": "Google Sheets"
+    },
+    {
+      "q": "A partir de quantas unidades um produto deve ser considerado 'estoque baixo'?",
+      "r": "Menos de 10 unidades"
+    },
+    {
+      "q": "Com que frequência o fluxo deve olhar a planilha?",
+      "r": "Toda manhã, por exemplo 8h"
+    },
+    {
+      "q": "O que a mensagem no Slack deve mostrar sobre cada produto com estoque baixo?",
+      "r": "Nome, quantidade e um link para repor"
+    },
+    {
+      "q": "Qual é o nome do canal do Slack para onde o aviso deve ir?",
+      "r": "#estoque"
+    },
+    {
+      "q": "Se nenhum produto estiver com estoque baixo naquele dia, o fluxo deve avisar que está tudo certo, ou não enviar nada?",
+      "r": "Avisar que está tudo certo"
+    },
+    {
+      "q": "Quando houver vários produtos com estoque baixo no mesmo dia, prefere uma única mensagem com a lista de todos, ou uma mensagem separada para cada produto?",
+      "r": "Uma mensagem com a lista completa"
+    },
+    {
+      "q": "Qual é a planilha do Google Sheets com o seu controle de estoque?",
+      "r": "Tenho uma planilha única com todos os produtos"
+    },
+    {
+      "q": "Na planilha, como estão nomeadas as colunas de nome do produto e de quantidade, e já existe uma coluna com o link para repor cada produto?",
+      "r": "As colunas são Produto, Quantidade e Link"
+    }
+  ],
+  "escolhasCred": [],
+  "wf": {
+    "name": "Aviso de estoque baixo no Slack",
+    "nodes": [
+      {
+        "name": "agendar_todo_dia_8h",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -260,
+          300
+        ],
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "days",
+                "triggerAtHour": 8
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "buscar_linhas_do_estoque",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          -40,
+          300
+        ],
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "mode": "url",
+            "value": "[PREENCHER]"
+          },
+          "sheetName": {
+            "__rl": true,
+            "mode": "name",
+            "value": "[PREENCHER]"
+          },
+          "options": {}
+        }
+      },
+      {
+        "name": "filtrar_estoque_baixo",
+        "type": "n8n-nodes-base.filter",
+        "typeVersion": 2.2,
+        "position": [
+          180,
+          300
+        ],
+        "alwaysOutputData": true,
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "cond_quantidade_baixa",
+                "leftValue": "={{ $json.Quantidade }}",
+                "rightValue": 10,
+                "operator": {
+                  "type": "number",
+                  "operation": "lt"
+                }
+              }
+            ],
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            }
+          },
+          "options": {}
+        }
+      },
+      {
+        "name": "tem_produto_com_estoque_baixo",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          400,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "cond_tem_produto",
+                "leftValue": "={{ $json.Produto }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            }
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        }
+      },
+      {
+        "name": "formatar_linha_do_produto",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          640,
+          200
+        ],
+        "parameters": {
+          "mode": "manual",
+          "includeOtherFields": false,
+          "assignments": {
+            "assignments": [
+              {
+                "id": "campo_linha",
+                "name": "linha",
+                "type": "string",
+                "value": "=• {{ $json.Produto }} — {{ $json.Quantidade }} un. — repor: {{ $json.Link || 'link não informado' }}"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "name": "montar_lista_de_produtos",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          860,
+          200
+        ],
+        "executeOnce": true,
+        "parameters": {
+          "mode": "manual",
+          "includeOtherFields": false,
+          "assignments": {
+            "assignments": [
+              {
+                "id": "campo_lista",
+                "name": "lista",
+                "type": "string",
+                "value": "={{ $('formatar_linha_do_produto').all().map(item => item.json.linha).join('\\n') }}"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "name": "slack_avisar_estoque_baixo",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          1080,
+          200
+        ],
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "mode": "name",
+            "value": "estoque"
+          },
+          "text": "=:warning: *Estoque baixo* — produtos com menos de 10 unidades:\n\n{{ $json.lista }}",
+          "otherOptions": {
+            "mrkdwn": true,
+            "includeLinkToWorkflow": false
+          }
+        }
+      },
+      {
+        "name": "slack_avisar_estoque_ok",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 2.3,
+        "position": [
+          640,
+          420
+        ],
+        "parameters": {
+          "select": "channel",
+          "channelId": {
+            "__rl": true,
+            "mode": "name",
+            "value": "estoque"
+          },
+          "text": ":white_check_mark: Estoque conferido: nenhum produto com menos de 10 unidades hoje.",
+          "otherOptions": {
+            "mrkdwn": true,
+            "includeLinkToWorkflow": false
+          }
+        }
+      }
+    ],
+    "connections": {
+      "agendar_todo_dia_8h": {
+        "main": [
+          [
+            {
+              "node": "buscar_linhas_do_estoque",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "buscar_linhas_do_estoque": {
+        "main": [
+          [
+            {
+              "node": "filtrar_estoque_baixo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "filtrar_estoque_baixo": {
+        "main": [
+          [
+            {
+              "node": "tem_produto_com_estoque_baixo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "tem_produto_com_estoque_baixo": {
+        "main": [
+          [
+            {
+              "node": "formatar_linha_do_produto",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "slack_avisar_estoque_ok",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "formatar_linha_do_produto": {
+        "main": [
+          [
+            {
+              "node": "montar_lista_de_produtos",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "montar_lista_de_produtos": {
+        "main": [
+          [
+            {
+              "node": "slack_avisar_estoque_baixo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    }
+  },
+  "provenance": {
+    "agendar_todo_dia_8h": {
+      "origem": "instancia",
+      "nota": "26 usos nos seus fluxos"
+    },
+    "buscar_linhas_do_estoque": {
+      "origem": "instancia",
+      "nota": "1 usos nos seus fluxos"
+    },
+    "filtrar_estoque_baixo": {
+      "origem": "instancia",
+      "nota": "7 usos nos seus fluxos"
+    },
+    "tem_produto_com_estoque_baixo": {
+      "origem": "instancia",
+      "nota": "166 usos nos seus fluxos"
+    },
+    "formatar_linha_do_produto": {
+      "origem": "instancia",
+      "nota": "154 usos nos seus fluxos"
+    },
+    "montar_lista_de_produtos": {
+      "origem": "instancia",
+      "nota": "154 usos nos seus fluxos"
+    },
+    "slack_avisar_estoque_baixo": {
+      "origem": "instancia",
+      "nota": "30 usos nos seus fluxos"
+    },
+    "slack_avisar_estoque_ok": {
+      "origem": "instancia",
+      "nota": "30 usos nos seus fluxos"
+    }
+  },
+  "report": "**Resumo:** Todo dia às 8h o fluxo lê a planilha de estoque no Google Sheets, separa os produtos com menos de 10 unidades e manda uma única mensagem no canal `#estoque` do Slack — com nome, quantidade e link de reposição de cada um, ou um aviso de que está tudo certo quando não houver nenhum.\n\n## O que cada nó faz\n\n| Nó | O que faz |\n| --- | --- |\n| `agendar_todo_dia_8h` | Dispara o fluxo uma vez por dia, às 8h (fuso da instância do n8n). |\n| `buscar_linhas_do_estoque` | Lê todas as linhas da aba de estoque no Google Sheets. Cada linha vira um item com os campos `Produto`, `Quantidade` e `Link`. |\n| `filtrar_estoque_baixo` | Mantém só as linhas com `Quantidade` menor que 10. Está com \"sempre devolver dados\" ligado: quando nenhum produto passa, ele devolve um item vazio — é isso que permite o fluxo continuar e avisar que está tudo certo. |\n| `tem_produto_com_estoque_baixo` | Decide o caminho: se o item tem `Produto` preenchido, vai pelo ramo de estoque baixo; se veio vazio, vai pelo ramo do \"tudo certo\". |\n| `formatar_linha_do_produto` | Monta uma linha de texto por produto: `• Nome — X un. — repor: link`. Se a linha da planilha estiver sem link, escreve \"link não informado\" no lugar. |\n| `montar_lista_de_produtos` | Junta todas essas linhas num único texto (`lista`), para sair uma mensagem só em vez de uma por produto. Roda uma vez por execução. |\n| `slack_avisar_estoque_baixo` | Envia no `#estoque` a mensagem com o título de alerta e a lista completa. |\n| `slack_avisar_estoque_ok` | Envia no `#estoque` a mensagem de \"nenhum produto com estoque baixo hoje\". |\n\n## Preencher à mão antes de ligar o fluxo\n\nDois campos, os dois no nó `buscar_linhas_do_estoque`:\n\n1. **`documentId`** — a URL da sua planilha de estoque no Google Sheets. Está como `[PREENCHER]`. Você não informou qual é a planilha, só que é uma única com todos os produtos; no editor dá para escolher da lista da sua conta.\n2. **`sheetName`** — o nome da aba dentro dessa planilha. Também está como `[PREENCHER]`, pelo mesmo motivo.\n\nAlém disso, o n8n vai pedir, na primeira abertura, a **credencial do Google Sheets** e a **credencial do Slack** — elas não vão no arquivo de propósito, você escolhe as suas no editor.\n\nO canal `#estoque`, o corte de 10 unidades, o horário das 8h e os nomes de coluna `Produto`, `Quantidade` e `Link` já vieram das suas respostas e estão gravados no fluxo — não precisa mexer.\n\n## Um trecho não vai aparecer na simulação\n\nO nó `montar_lista_de_produtos` usa uma expressão que junta as linhas de todos os produtos numa só (`.map()` + `.join()`). O cockpit não consegue avaliar esse tipo de expressão, então o campo `lista` vai aparecer como **«não simulada»** — e, por tabela, o texto da mensagem em `slack_avisar_estoque_baixo` mostra o título mas não a lista preenchida.\n\nO normal seria isolar isso num nó `Code`, mas **esta instância do n8n não tem nó `Code` no catálogo**, então a junção precisou ficar numa expressão de `Set`. Está concentrada num único campo, num único nó, justamente para não espalhar. O resto do fluxo (filtro, decisão, linha de cada produto, mensagem de \"tudo certo\") simula normalmente.\n\n## Dois pontos que valem sua conferência\n\n- **Quantidade como texto.** Se a coluna `Quantidade` na planilha estiver formatada como texto em vez de número, o filtro ainda funciona — ele está em validação flexível de tipo. Mas se houver células vazias ou com texto tipo \"esgotado\", elas não contam como menos de 10 e ficariam de fora do aviso.\n- **Uma linha por produto.** O fluxo assume que cada linha da planilha é um produto. Se a mesma planilha tiver linhas de cabeçalho extras ou totais no fim, elas entram na conta como se fossem produtos.\n",
+  "fantasma": {
+    "ok": true,
+    "passos": [
+      {
+        "no": "agendar_todo_dia_8h",
+        "tipo": "n8n-nodes-base.scheduleTrigger",
+        "notas": [],
+        "papel": "início",
+        "json": {
+          "timestamp": "2026-08-11T08:00:00.000-03:00",
+          "Readable date": "August 11th 2026, 8:00:00 am",
+          "Readable time": "8:00:00 am",
+          "Day of week": "Tuesday",
+          "Year": "2026",
+          "Month": "August",
+          "Day of month": "11",
+          "Hour": "08",
+          "Minute": "00",
+          "Second": "00",
+          "Timezone": "America/Sao_Paulo (UTC-03:00)"
+        },
+        "semente": true
+      },
+      {
+        "no": "buscar_linhas_do_estoque",
+        "tipo": "n8n-nodes-base.googleSheets",
+        "notas": [],
+        "papel": "destino",
+        "envio": {
+          "tabela": "[PREENCHER]"
+        }
+      },
+      {
+        "no": "filtrar_estoque_baixo",
+        "tipo": "n8n-nodes-base.filter",
+        "notas": [
+          {
+            "expr": "$json.Quantidade",
+            "motivo": "chega vazio: nenhum nó anterior define este campo"
+          },
+          {
+            "motivo": "não sei o que `filter` devolve e não recebi semente: tudo depois deste nó chega vazio"
+          }
+        ],
+        "papel": "serviço externo",
+        "envio": {
+          "conditions": {
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "cond_quantidade_baixa",
+                "leftValue": "",
+                "rightValue": 10,
+                "operator": {
+                  "type": "number",
+                  "operation": "lt"
+                }
+              }
+            ],
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            }
+          }
+        },
+        "semente": false,
+        "json": {}
+      },
+      {
+        "no": "tem_produto_com_estoque_baixo",
+        "tipo": "n8n-nodes-base.if",
+        "notas": [
+          {
+            "expr": "$json.Produto",
+            "motivo": "chega vazio: nenhum nó anterior define este campo"
+          }
+        ],
+        "papel": "decisão",
+        "ramo": "falso",
+        "json": {}
+      },
+      {
+        "no": "slack_avisar_estoque_ok",
+        "tipo": "n8n-nodes-base.slack",
+        "notas": [],
+        "papel": "destino",
+        "envio": {
+          "canal": "estoque",
+          "texto": ":white_check_mark: Estoque conferido: nenhum produto com menos de 10 unidades hoje."
+        }
+      }
+    ],
+    "superficies": [
+      {
+        "no": "buscar_linhas_do_estoque",
+        "superficie": "linha",
+        "rotulo": "Google Sheets",
+        "envio": {
+          "tabela": "[PREENCHER]"
+        }
+      },
+      {
+        "no": "slack_avisar_estoque_ok",
+        "superficie": "slack",
+        "rotulo": "Slack",
+        "envio": {
+          "canal": "estoque",
+          "texto": ":white_check_mark: Estoque conferido: nenhum produto com menos de 10 unidades hoje."
+        }
+      }
+    ],
+    "pendencias": [
+      {
+        "no": "filtrar_estoque_baixo",
+        "expr": "$json.Quantidade",
+        "motivo": "chega vazio: nenhum nó anterior define este campo"
+      },
+      {
+        "no": "filtrar_estoque_baixo",
+        "motivo": "não sei o que `filter` devolve e não recebi semente: tudo depois deste nó chega vazio"
+      },
+      {
+        "no": "tem_produto_com_estoque_baixo",
+        "expr": "$json.Produto",
+        "motivo": "chega vazio: nenhum nó anterior define este campo"
+      }
+    ],
+    "jsonFinal": {}
+  },
+  "sementes": {
+    "agendar_todo_dia_8h": {
+      "timestamp": "2026-08-11T08:00:00.000-03:00",
+      "Readable date": "August 11th 2026, 8:00:00 am",
+      "Readable time": "8:00:00 am",
+      "Day of week": "Tuesday",
+      "Year": "2026",
+      "Month": "August",
+      "Day of month": "11",
+      "Hour": "08",
+      "Minute": "00",
+      "Second": "00",
+      "Timezone": "America/Sao_Paulo (UTC-03:00)"
+    },
+    "buscar_linhas_do_estoque": {
+      "row_number": 2,
+      "Produto": "Caneca Térmica 500ml",
+      "Quantidade": 4,
+      "Link": "https://fornecedor.exemplo.com/repor/caneca-termica-500ml"
+    },
+    "slack_avisar_estoque_baixo": {
+      "ok": true,
+      "channel": "C08ESTOQUE1",
+      "ts": "1786532400.000100",
+      "message": {
+        "type": "message",
+        "subtype": "bot_message",
+        "text": ":warning: *Estoque baixo* — produtos com menos de 10 unidades:\n\n• Caneca Térmica 500ml — 4 un. — repor: https://fornecedor.exemplo.com/repor/caneca-termica-500ml",
+        "bot_id": "B08N8NBOT1",
+        "ts": "1786532400.000100"
+      }
+    },
+    "slack_avisar_estoque_ok": {
+      "ok": true,
+      "channel": "C08ESTOQUE1",
+      "ts": "1786532400.000200",
+      "message": {
+        "type": "message",
+        "subtype": "bot_message",
+        "text": ":white_check_mark: Estoque conferido: nenhum produto com menos de 10 unidades hoje.",
+        "bot_id": "B08N8NBOT1",
+        "ts": "1786532400.000200"
+      }
+    }
+  },
+  "sementesOrigem": "escritas junto do fluxo",
+  "achados": [
+    {
+      "tipo": "falta",
+      "texto": "Ainda não sei se o fluxo deve olhar a planilha inteira ou só uma aba específica.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "risco",
+      "texto": "Se os nomes das colunas da planilha mudarem, o fluxo pode parar de identificar a quantidade certa.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "Quando nenhum produto estiver com estoque baixo, o fluxo simplesmente não envia nada — só avisa quando há algo errado.",
+      "fonte": "sugestao"
+    },
+    {
+      "tipo": "falta",
+      "texto": "Ainda não sei qual coluna da planilha tem o link de reposição — vou assumir que já existe essa coluna preenchida.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "falta",
+      "texto": "A planilha exata (arquivo e aba) do Google Sheets vai ser escolhida direto na montagem do fluxo, conectando sua conta do Google.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "Também é possível guardar um histórico dos avisos de estoque baixo, se quiser acompanhar isso ao longo do tempo.",
+      "fonte": "sugestao"
+    },
+    {
+      "tipo": "risco",
+      "texto": "Se as colunas da planilha forem renomeadas ou reorganizadas no futuro, o fluxo pode parar de identificar corretamente a quantidade de cada produto.",
+      "fonte": "sugestao"
+    },
+    {
+      "tipo": "falta",
+      "texto": "suposição: se a planilha não puder ser lida no horário programado (fora do ar, sem permissão etc.), o fluxo não vai enviar nenhum aviso naquele dia, em vez de avisar sobre o erro.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "falta",
+      "texto": "Vamos assumir que a planilha do Google Sheets a ser lida é a sua planilha única de estoque, e você vai selecioná-la (o arquivo) ao conectar sua conta Google durante a montagem do fluxo.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "falta",
+      "texto": "Vamos assumir que os produtos estão na primeira aba da planilha, com a primeira linha contendo os títulos Produto, Quantidade e Link.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "risco",
+      "texto": "Se o Google Sheets ou o Slack estiverem fora do ar no horário do envio (8h), vamos assumir que o fluxo não reenvia sozinho — ele só tenta de novo na manhã seguinte, sem alerta extra de falha.",
+      "fonte": "a-confirmar"
+    },
+    {
+      "tipo": "ideia",
+      "texto": "Se fizer sentido depois, dá para destacar separadamente na mensagem os produtos que zeraram o estoque, diferente dos que só estão baixos.",
+      "fonte": "sugestao"
+    }
+  ],
+  "ingredientes": {
+    "nos": [
+      {
+        "tipo": "n8n-nodes-base.googleSheetsTool",
+        "versao": 4.7,
+        "usos": 3,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.googleSheets",
+        "versao": 4.7,
+        "usos": 1,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.slack",
+        "versao": 2.3,
+        "usos": 30,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.slackTrigger",
+        "versao": 1,
+        "usos": 1,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.scheduleTrigger",
+        "versao": 1.2,
+        "usos": 26,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.webhook",
+        "versao": 2.1,
+        "usos": 23,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.respondToWebhook",
+        "versao": 1.5,
+        "usos": 14,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.httpRequest",
+        "versao": 4.2,
+        "usos": 131,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.set",
+        "versao": 3.4,
+        "usos": 154,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.if",
+        "versao": 2.2,
+        "usos": 166,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.filter",
+        "versao": 2.2,
+        "usos": 7,
+        "origem": "instancia"
+      },
+      {
+        "tipo": "n8n-nodes-base.noOp",
+        "versao": 1,
+        "usos": 71,
+        "origem": "instancia"
+      }
+    ],
+    "credenciais": [
+      {
+        "tipo": "googleSheetsOAuth2Api",
+        "campos": [],
+        "visto": true,
+        "existentes": [
+          {
+            "tipo": "googleSheetsOAuth2Api",
+            "id": "QmxUFvyFOMpND68w",
+            "nome": "credencial_google",
+            "usos": 4
+          },
+          {
+            "tipo": "googleSheetsOAuth2Api",
+            "id": "8ZmCqbrCpxo1STCE",
+            "nome": "Google Sheets account",
+            "usos": 1
+          }
+        ]
+      },
+      {
+        "tipo": "slackApi",
+        "campos": [
+          "accessToken"
+        ],
+        "visto": true,
+        "existentes": [
+          {
+            "tipo": "slackApi",
+            "id": "DDfSw5dkEV8CJuZN",
+            "nome": "Slack - ePuro Monitoring",
+            "usos": 18
+          },
+          {
+            "tipo": "slackApi",
+            "id": "y2ydt0p4oaRug6qC",
+            "nome": "Slack account 3",
+            "usos": 2
+          },
+          {
+            "tipo": "slackApi",
+            "id": "lVT8mZNIud5vNlWH",
+            "nome": "Slack account 5",
+            "usos": 1
+          },
+          {
+            "tipo": "slackApi",
+            "id": "Qguw70mTDOC30tzY",
+            "nome": "Slack account 6",
+            "usos": 1
+          },
+          {
+            "tipo": "slackApi",
+            "id": "0k2VhPrBIMQiwvth",
+            "nome": "Slack account 8",
+            "usos": 1
+          }
+        ]
+      },
+      {
+        "tipo": "slackOAuth2Api",
+        "campos": [],
+        "visto": true,
+        "existentes": [
+          {
+            "tipo": "slackOAuth2Api",
+            "id": "vk8W2J7TfpTFvoSv",
+            "nome": "Slack account",
+            "usos": 2
+          },
+          {
+            "tipo": "slackOAuth2Api",
+            "id": "5FfuImRiPbTTZ9Y7",
+            "nome": "Slack Ecommerce Puro",
+            "usos": 2
+          }
+        ]
+      }
+    ],
+    "porNo": [
+      {
+        "no": "buscar_linhas_do_estoque",
+        "tipo": "n8n-nodes-base.googleSheets",
+        "opcoes": [
+          {
+            "tipo": "googleSheetsOAuth2Api",
+            "campos": [],
+            "visto": true,
+            "existentes": [
+              {
+                "tipo": "googleSheetsOAuth2Api",
+                "id": "QmxUFvyFOMpND68w",
+                "nome": "credencial_google",
+                "usos": 4
+              },
+              {
+                "tipo": "googleSheetsOAuth2Api",
+                "id": "8ZmCqbrCpxo1STCE",
+                "nome": "Google Sheets account",
+                "usos": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "no": "slack_avisar_estoque_baixo",
+        "tipo": "n8n-nodes-base.slack",
+        "opcoes": [
+          {
+            "tipo": "slackApi",
+            "campos": [
+              "accessToken"
+            ],
+            "visto": true,
+            "existentes": [
+              {
+                "tipo": "slackApi",
+                "id": "DDfSw5dkEV8CJuZN",
+                "nome": "Slack - ePuro Monitoring",
+                "usos": 18
+              },
+              {
+                "tipo": "slackApi",
+                "id": "y2ydt0p4oaRug6qC",
+                "nome": "Slack account 3",
+                "usos": 2
+              },
+              {
+                "tipo": "slackApi",
+                "id": "lVT8mZNIud5vNlWH",
+                "nome": "Slack account 5",
+                "usos": 1
+              },
+              {
+                "tipo": "slackApi",
+                "id": "Qguw70mTDOC30tzY",
+                "nome": "Slack account 6",
+                "usos": 1
+              },
+              {
+                "tipo": "slackApi",
+                "id": "0k2VhPrBIMQiwvth",
+                "nome": "Slack account 8",
+                "usos": 1
+              }
+            ]
+          },
+          {
+            "tipo": "slackOAuth2Api",
+            "campos": [],
+            "visto": true,
+            "existentes": [
+              {
+                "tipo": "slackOAuth2Api",
+                "id": "vk8W2J7TfpTFvoSv",
+                "nome": "Slack account",
+                "usos": 2
+              },
+              {
+                "tipo": "slackOAuth2Api",
+                "id": "5FfuImRiPbTTZ9Y7",
+                "nome": "Slack Ecommerce Puro",
+                "usos": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "no": "slack_avisar_estoque_ok",
+        "tipo": "n8n-nodes-base.slack",
+        "opcoes": [
+          {
+            "tipo": "slackApi",
+            "campos": [
+              "accessToken"
+            ],
+            "visto": true,
+            "existentes": [
+              {
+                "tipo": "slackApi",
+                "id": "DDfSw5dkEV8CJuZN",
+                "nome": "Slack - ePuro Monitoring",
+                "usos": 18
+              },
+              {
+                "tipo": "slackApi",
+                "id": "y2ydt0p4oaRug6qC",
+                "nome": "Slack account 3",
+                "usos": 2
+              },
+              {
+                "tipo": "slackApi",
+                "id": "lVT8mZNIud5vNlWH",
+                "nome": "Slack account 5",
+                "usos": 1
+              },
+              {
+                "tipo": "slackApi",
+                "id": "Qguw70mTDOC30tzY",
+                "nome": "Slack account 6",
+                "usos": 1
+              },
+              {
+                "tipo": "slackApi",
+                "id": "0k2VhPrBIMQiwvth",
+                "nome": "Slack account 8",
+                "usos": 1
+              }
+            ]
+          },
+          {
+            "tipo": "slackOAuth2Api",
+            "campos": [],
+            "visto": true,
+            "existentes": [
+              {
+                "tipo": "slackOAuth2Api",
+                "id": "vk8W2J7TfpTFvoSv",
+                "nome": "Slack account",
+                "usos": 2
+              },
+              {
+                "tipo": "slackOAuth2Api",
+                "id": "5FfuImRiPbTTZ9Y7",
+                "nome": "Slack Ecommerce Puro",
+                "usos": 2
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "estreitada": true
+  },
+  "sandbox": {
+    "estado": "ok",
+    "id": "3pk6711IFuBuqjz6",
+    "nome": "[SANDBOX tester] Aviso de estoque baixo no Slack",
+    "criado": true
+  },
+  "gates": {
+    "rodada": 1,
+    "falhas": [],
+    "passou": true
+  },
+  "custoTotal": 1.6004
+}

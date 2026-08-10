@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-10T11:25:52.074Z",
+  "savedAt": "2026-08-10T14:20:00.265Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -1464,6 +1464,186 @@
       "appliedAt": "2026-08-10T11:25:52.067Z",
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-07T18:24:10.560Z"
+    },
+    {
+      "runId": "rmsnao7ct1",
+      "key": "azwM3PgGtSbGTCsn|imagem|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** o nó `imagem` referenciava o nó inexistente `pegar_mensagem`; troquei a expressão para ler `message.image.id` do trigger, espelhando o branch de áudio.\n\n## Causa raiz\n\nO nó `imagem` (`n8n-nodes-base.set`) tinha uma única atribuição:\n\n```\nmsg.image = {{ $('pegar_mensagem').first().json.msg.image }}\n```\n\nNão existe nenhum nó chamado `pegar_mensagem` neste fluxo. Confirmei por duas vias:\n\n- `nodes-index.md` não lista esse nome (os nomes parecidos são `preparar_mensagem`, `selecionar_mensagem` e `pegar_id1`).\n- `Grep` por `pegar_mensagem` em `workflow.json` retorna **uma única** ocorrência: a própria expressão na linha 562. Ou seja, é uma referência órfã, não um nó renomeado em outro lugar.\n\nÉ exatamente isso que o n8n reporta como `NodeOperationError: Referenced node doesn't exist`, e explica o tempo de 7ms: o nó falha na resolução da expressão, antes de qualquer I/O.\n\nO provável histórico é uma cópia do branch de áudio (`Edit Fields3`) com o nome de origem trocado depois — o branch de imagem é um clone estrutural do de áudio:\n\n| | áudio (funciona) | imagem (quebrado) |\n|---|---|---|\n| Set | `Edit Fields3` → `audio` = `$('When Executed by Another Workflow').first().json.message.audio.id` | `imagem` → `msg.image` = `$('pegar_mensagem')...` |\n| resolve mídia | `HTTP Request` → `graph.facebook.com/v21.0/{{ $json.audio }}` | `get_image_url` → `graph.facebook.com/v21.0/{{ $json.msg.image }}` |\n| baixa | `download_audio` → `{{ $json.url }}` | `download_image` → `{{ $json.url }}` |\n\n## O que mudei\n\nSó o `value` da atribuição do nó `imagem`:\n\n```diff\n- ={{ $('pegar_mensagem').first().json.msg.image }}\n+ ={{ $('When Executed by Another Workflow').first().json.message.image.id }}\n```\n\nNada mais: mesmo nome de campo (`msg.image`), mesmo `type`, mesmo `id` de atribuição, nenhum nó novo, nenhuma reconexão, nenhum outro nó tocado.\n\nDuas decisões que valem registro:\n\n- **Por que o trigger e não `parametros`?** O nó `parametros` também monta um `msg.image`, mas com `message.image.url`. O `get_image_url` concatena o valor na base da Graph API (`.../v21.0/` + valor), então ele precisa do **media ID**, não de uma URL — concatenar uma URL ali geraria um endpoint inválido. Além disso, o payload de imagem recebido da WhatsApp Cloud API traz `image.id`, e não `image.url`, então `parametros.msg.image` tende a vir vazio. Por isso segui o padrão do branch de áudio, que usa `.id` e funciona.\n- **Por que manter o nome de campo `msg.image`?** Porque `get_image_url` lê `$json.msg.image`. Mantendo o nome, o patch fica em um nó só; renomear obrigaria a mexer no `get_image_url` também.\n\n## Por que isso resolve\n\nA falha é de resolução de expressão, não de dado: o n8n não encontra o nó citado e aborta o nó. Apontando para um nó que existe e está no caminho executado (o trigger `When Executed by Another Workflow` é a origem de tudo, portanto sempre disponível em runtime), a expressão resolve e o nó passa a emitir o media ID que o `get_image_url` espera. É o mesmo caminho que o branch de áudio já percorre em produção.\n\n## Risco residual\n\n- **Não validei em execução.** Não tenho acesso à instância nem a um payload real de exemplo daqui; a conclusão de que o campo correto é `message.image.id` vem do paralelo com o branch de áudio (`message.audio.id`) e do formato que o `get_image_url` exige, não de um payload observado. Se o fluxo pai entregar a imagem em outro caminho (por exemplo já com URL resolvida), o campo a usar muda e o patch precisa de ajuste.\n- **Não tratei mídia ausente.** Se `message.image.id` vier vazio, o `imagem` agora passa sem erro e o `get_image_url` chama `.../v21.0/undefined`, falhando com erro HTTP em vez de erro de expressão. Isso é diagnosticável, mas não é bonito. Deixei de fora de propósito para manter o patch mínimo — se o Kauan quiser, cabe um `If` ou um fallback na expressão antes do `get_image_url` num segundo passo.\n- **Nada foi feito quanto ao `msg.image` de `parametros`**, que continua lendo `message.image.url` e provavelmente vazio. Não é a causa da falha e ninguém no caminho de imagem consome esse campo, então não toquei; fica como dívida separada.\n",
+      "fixNote": "Claude (cockpit) [imagem]: o nó imagem referenciava o nó inexistente pegarmensagem; troquei a expressão para ler message.image.id do trigger, espelhando o branch de áudio.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.69407,
+      "startedAt": "2026-08-10T13:56:03.008Z",
+      "finishedAt": "2026-08-10T13:58:12.527Z",
+      "appliedAt": "2026-08-10T13:59:53.074Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-10T11:25:52.052Z"
+    },
+    {
+      "runId": "rmsnbexdi1",
+      "key": "azwM3PgGtSbGTCsn|Analyze image|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** `Analyze image` lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (`data`), consumindo o arquivo que `download_image` já baixa.\n\n## Causa raiz\n\nO nó `Analyze image` está em modo de entrada por URL (o parâmetro `inputType` não está preenchido, e o\npadrão do nó é `url`), com:\n\n```\nimageUrls: ={{ $json.msg.image }}\n```\n\nMas o item que chega nele vem de `download_image`, um HTTP Request com\n`responseFormat: \"file\"`. Esse nó devolve o arquivo em **binário** e um `json` **vazio** (`{}`). Ou seja,\n`$json.msg` não existe naquele ponto do fluxo, a expressão resolve para `undefined`, e o código interno da\noperação *analyze* faz `imageUrls.split(',')` para aceitar múltiplas URLs — daí o\n`Cannot read properties of undefined (reading 'split')`. O erro é do parâmetro, não da chamada à OpenAI:\no nó falhou em 7ms, antes de qualquer requisição.\n\nO campo `msg.image` existe, mas três nós antes: `imagem` (Set) grava nele o **ID de mídia** do WhatsApp\n(`message.image.id`), que `get_image_url` troca pela URL de download e `download_image` finalmente baixa.\nEntão havia dois problemas empilhados no mesmo parâmetro:\n\n1. o caminho `$json.msg.image` não é visível a partir do item do `download_image`; e\n2. mesmo se fosse, o valor ali é um ID de mídia, não uma URL — e a URL real que o\n   `get_image_url` retorna é um *lookaside* da Meta que só responde com o Bearer token do WhatsApp.\n   A OpenAI não conseguiria baixar essa URL. É exatamente por isso que o `download_image` existe.\n\nIsto é um bug determinístico, não intermitência de dado: **todo** evento de imagem que chega nesse ramo\nfalha aqui. Aparece só 1× em 24h porque mensagem de imagem é rara nesse fluxo, não porque depende de dado.\n\n## O que mudei\n\nSó o bloco `parameters` do nó `Analyze image` (nenhum nó novo, nenhuma reconexão):\n\n- `inputType: \"base64\"` — passa o nó para o modo \"Binary File(s)\".\n- `binaryPropertyName: \"data\"` — nome da propriedade binária de entrada.\n- removi `imageUrls`, que era a expressão quebrada e não é lida nesse modo.\n- adicionei uma `notes` explicando por que não se volta para o modo URL.\n\n`data` é o nome correto: `download_image` não define `outputPropertyName` nas opções, então usa o padrão do\nHTTP Request. (Os nós de áudio irmãos, `download_audio` e `download_audio1`, definem\n`outputPropertyName: \"audio\"` explicitamente — o de imagem não, confirmando o padrão.)\n\n## Por que isso resolve\n\nNo modo binário o nó não avalia mais `imageUrls`, então o `.split` de `undefined` deixa de existir. Ele lê o\nbinário `data` do item de entrada, converte para base64 e envia inline para o `gpt-4o` — que é o caminho que\nfunciona para mídia do WhatsApp, já que os bytes só podem ser obtidos com a credencial da Meta e o fluxo já\nos obteve em `download_image`.\n\nA saída não muda de forma: com `simplify` no padrão, o nó continua devolvendo `{ role, content }`, e o\n`Edit Fields4` a jusante segue lendo `$json.content` como antes.\n\n## Risco residual\n\n- **Não validei a correção executando.** Não tenho acesso à instância nem a uma execução de teste; a\n  conclusão vem da leitura do fluxo e da mensagem de erro. A confirmação real é reenviar uma imagem depois\n  de aplicar.\n- **`maxTokens` continua no padrão (300).** O prompt pede \"transcreva todo o texto\", e uma imagem com muito\n  texto pode vir truncada. Não mexi porque não é a causa da falha; se a transcrição sair cortada, é aqui\n  (`options.maxTokens`).\n- **Nada trata o caso da imagem ausente.** Se `message.image.id` não vier no payload do trigger, a quebra\n  passa a acontecer antes, em `get_image_url`/`download_image` (URL malformada ou 400 da Meta), não mais no\n  `Analyze image`. Deliberadamente não adicionei guarda: seria mudança maior que a necessária e essa falha\n  não é a observada aqui.\n- **Não sei se o `download_image` está de fato entregando um binário válido** nessa execução — ele levou\n  866ms e não deu erro, o que é consistente com download bem-sucedido, mas eu não vi o conteúdo do item.\n  Se o *lookaside* tivesse devolvido um JSON de erro com HTTP 200, o binário existiria mas não seria imagem,\n  e o novo erro viria da OpenAI (imagem inválida) em vez do `.split`.\n",
+      "fixNote": "Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (data), consumindo o arquivo que downloadimage já baixa.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.8406275000000001,
+      "startedAt": "2026-08-10T14:16:49.790Z",
+      "finishedAt": "2026-08-10T14:19:38.710Z",
+      "appliedAt": "2026-08-10T14:20:00.258Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-10T13:59:53.121Z"
     }
   ]
 }

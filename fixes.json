@@ -77,6 +77,42 @@
       "markedAt": "2026-08-10T11:27:36.905Z",
       "maxExecIdAtFix": "175706",
       "note": "Claude ajustou o outro fluxo do Iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|imagem|NodeOperationError",
+      "markedAt": "2026-08-10T13:59:53.211Z",
+      "maxExecIdAtFix": "176670",
+      "note": "Claude (cockpit) [imagem]: o nó imagem referenciava o nó inexistente pegarmensagem; troquei a expressão para ler message.image.id do trigger, espelhando o branch de áudio."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|imagem|NodeOperationError",
+      "markedAt": "2026-08-10T14:00:33.313Z",
+      "maxExecIdAtFix": "176669",
+      "note": "Claude ajustou o fluxo do iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Analyze image|NodeOperationError",
+      "markedAt": "2026-08-10T14:20:00.349Z",
+      "maxExecIdAtFix": "176800",
+      "note": "Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (data), consumindo o arquivo que downloadimage já baixa."
+    },
+    {
+      "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
+      "markedAt": "2026-08-10T17:13:04.241Z",
+      "maxExecIdAtFix": "177133",
+      "note": "Fluxo teste, já ajustei"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-10T19:16:56.218Z",
+      "maxExecIdAtFix": "177589",
+      "note": "Fluxo de teste"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-10T19:17:03.533Z",
+      "maxExecIdAtFix": "177581",
+      "note": "Fluxo de teste"
     }
   ],
   "history": [
@@ -163,6 +199,42 @@
       "markedAt": "2026-08-10T11:27:36.905Z",
       "maxExecIdAtFix": "175706",
       "note": "Claude ajustou o outro fluxo do Iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|imagem|NodeOperationError",
+      "markedAt": "2026-08-10T13:59:53.211Z",
+      "maxExecIdAtFix": "176670",
+      "note": "Claude (cockpit) [imagem]: o nó imagem referenciava o nó inexistente pegarmensagem; troquei a expressão para ler message.image.id do trigger, espelhando o branch de áudio."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|imagem|NodeOperationError",
+      "markedAt": "2026-08-10T14:00:33.313Z",
+      "maxExecIdAtFix": "176669",
+      "note": "Claude ajustou o fluxo do iago"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Analyze image|NodeOperationError",
+      "markedAt": "2026-08-10T14:20:00.349Z",
+      "maxExecIdAtFix": "176800",
+      "note": "Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (data), consumindo o arquivo que downloadimage já baixa."
+    },
+    {
+      "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
+      "markedAt": "2026-08-10T17:13:04.241Z",
+      "maxExecIdAtFix": "177133",
+      "note": "Fluxo teste, já ajustei"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-10T19:16:56.218Z",
+      "maxExecIdAtFix": "177589",
+      "note": "Fluxo de teste"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-10T19:17:03.533Z",
+      "maxExecIdAtFix": "177581",
+      "note": "Fluxo de teste"
     }
   ]
 }
