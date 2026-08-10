@@ -325,6 +325,23 @@ details.jsonbox .inner{padding:0 13px 13px}
   -webkit-box-orient:vertical;overflow:hidden}
 .proj .pm,.proj .pd{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj{position:relative}
+.proj-menu{position:absolute;top:8px;right:8px}
+/* Some até o mouse chegar, mas NUNCA some do teclado: `focus-within` mantém o
+   botão visível para quem navega com Tab, senão o menu não existiria para ele. */
+.dots{opacity:0;background:none;border:1px solid transparent;border-radius:7px;padding:1px 6px;
+  font-size:15px;line-height:1.1;color:var(--txt-faint);cursor:pointer}
+.proj:hover .dots,.proj:focus-within .dots,.dots:focus-visible{opacity:1}
+.dots:hover{background:var(--surface-2);border-color:var(--line);color:var(--txt)}
+.pop{position:absolute;top:26px;right:0;z-index:5;min-width:132px;background:var(--raised);
+  border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:2px}
+.pop-i{text-align:left;background:none;border:none;border-radius:7px;padding:7px 9px;
+  font-size:12px;color:var(--txt-dim);cursor:pointer}
+.pop-i:hover{background:var(--surface-2);color:var(--txt)}
+.pop-i.risco{color:var(--risk-txt)}
+.pop-i.risco:hover{background:var(--risk-soft)}
+.outro-campo{margin-top:9px;width:100%}
 
 .erro{border:1px solid var(--risk-soft);background:var(--risk-soft);color:var(--risk-txt);
   border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
@@ -502,10 +519,63 @@ function telaAbertura(aviso) {
     app.querySelectorAll("[data-nivel]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
   }));
   app.querySelectorAll(".eg").forEach(b => b.addEventListener("click", () => { ta.value = b.textContent; ta.focus(); }));
-  app.querySelectorAll(".proj").forEach(b => b.addEventListener("click", async () => {
-    try { telaProjeto(await callApi("/api/tester/projeto/" + encodeURIComponent(b.dataset.slug))); }
-    catch (e) { const av = document.createElement("div"); av.className = "avisobar"; av.textContent = e.message; $(".open-in").appendChild(av); }
-  }));
+  app.querySelectorAll(".proj").forEach(card => {
+    const slug = card.dataset.slug;
+    const abrir = async () => {
+      try { telaProjeto(await callApi("/api/tester/projeto/" + encodeURIComponent(slug))); }
+      catch (e) { avisoAbertura(e.message); }
+    };
+    clicavel(card, "abrir projeto", ev => { if (!ev.target.closest(".proj-menu")) abrir(); });
+
+    const dots = card.querySelector(".dots"), pop = card.querySelector(".pop");
+    dots.addEventListener("click", ev => {
+      ev.stopPropagation();
+      const abrindo = pop.hasAttribute("hidden");
+      // Um menu aberto por vez: dois abertos viram dois alvos para o mesmo Esc.
+      app.querySelectorAll(".pop").forEach(x => x.setAttribute("hidden", ""));
+      app.querySelectorAll(".dots").forEach(x => x.setAttribute("aria-expanded", "false"));
+      if (abrindo) { pop.removeAttribute("hidden"); dots.setAttribute("aria-expanded", "true"); }
+    });
+
+    pop.querySelectorAll(".pop-i").forEach(item => item.addEventListener("click", async ev => {
+      ev.stopPropagation();
+      pop.setAttribute("hidden", "");
+      dots.setAttribute("aria-expanded", "false");
+
+      if (item.dataset.acao === "renomear") {
+        const titulo = card.querySelector(".pt");
+        const antes = titulo.textContent;
+        const campo = document.createElement("input");
+        campo.className = "campo"; campo.value = antes; campo.maxLength = 120;
+        titulo.replaceWith(campo);
+        campo.focus(); campo.select();
+        const salvar = async () => {
+          const novo = campo.value.trim();
+          if (!novo || novo === antes) { await inicio(); return; }
+          try { await callApi("/api/tester/projeto/" + encodeURIComponent(slug) + "/renomear", corpo({ titulo: novo })); }
+          catch (e) { avisoAbertura(e.message); }
+          await inicio();
+        };
+        campo.addEventListener("keydown", e2 => {
+          if (e2.key === "Enter") { e2.preventDefault(); salvar(); }
+          if (e2.key === "Escape") inicio();
+        });
+        campo.addEventListener("blur", salvar);
+        return;
+      }
+
+      // Excluir apaga o arquivo. A pasta é rastreada no git, então o desfazer
+      // existe — mas quem clica precisa saber que está apagando.
+      if (!confirm("Excluir «" + card.querySelector(".pt").textContent + "»?\n\nO arquivo sai da pasta projetos/. Como ela é versionada, dá para recuperar com git.")) return;
+      try { await callApi("/api/tester/projeto/" + encodeURIComponent(slug), { method: "DELETE" }); }
+      catch (e) { avisoAbertura(e.message); }
+      await inicio();
+    }));
+  });
+  document.addEventListener("click", () => {
+    app.querySelectorAll(".pop").forEach(x => x.setAttribute("hidden", ""));
+    app.querySelectorAll(".dots").forEach(x => x.setAttribute("aria-expanded", "false"));
+  });
   $("#comecar").addEventListener("click", comecar);
   pintarRodape(null);
   $("#cab").textContent = "";
@@ -676,14 +746,25 @@ function cartaoEntendi(e) {
    uma pergunta reformulada. */
 function pergunta(q) {
   const escolhida = S.respostas[q.q];
+  const opcoes = q.opcoes || [];
+  // Resposta que não está entre as sugestões só pode ter vindo do campo livre —
+  // então ele reabre já preenchido, e a escolha sobrevive ao repaint do SSE.
+  const ehOutro = escolhida !== undefined && !opcoes.includes(escolhida);
   return '<div class="q" data-q="' + esc(q.q) + '"><div class="qt">' + esc(q.q) + "</div>" +
     (q.porque ? '<div class="qw">' + esc(q.porque) + "</div>" : "") +
     '<div class="opts" role="radiogroup" aria-label="' + esc(q.q) + '">' +
-    (q.opcoes || []).map(o => {
+    opcoes.map(o => {
       const on = escolhida === o;
       return '<button type="button" class="chip resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
         on + '" data-resp="' + esc(o) + '">' + esc(o) + "</button>";
-    }).join("") + "</div></div>";
+    }).join("") +
+    '<button type="button" class="chip resp outro' + (ehOutro ? " on" : "") + '" role="radio" aria-checked="' +
+      ehOutro + '">Outro…</button>' +
+    "</div>" +
+    '<input class="campo outro-campo" type="text" maxlength="200" placeholder="escreva a sua resposta"' +
+      ' aria-label="outra resposta para: ' + esc(q.q) + '"' +
+      (ehOutro ? "" : " hidden") + ' value="' + esc(ehOutro ? escolhida : "") + '">' +
+    "</div>";
 }
 
 function portao(titulo, desc, botao, custo) {
@@ -955,14 +1036,24 @@ function entrega(s) {
 /* Cartões dos projetos guardados, na tela de abertura. */
 function cardsProjetos() {
   if (!S.projetos || !S.projetos.length) return "";
+  // O card é `div`, não `button`: ele tem um botão de menu dentro, e botão
+  // dentro de botão é HTML inválido — o navegador desfaz o aninhamento e o menu
+  // deixa de existir. `clicavel()` devolve o teclado ao card.
   return '<div class="projs"><div class="projs-h">[ SEUS PROJETOS ]<span>' + S.projetos.length + "</span></div>" +
     '<div class="projs-g">' + S.projetos.map(p =>
-      '<button type="button" class="proj" data-slug="' + esc(p.slug) + '">' +
+      '<div class="proj" data-slug="' + esc(p.slug) + '">' +
+        '<div class="proj-menu">' +
+          '<button type="button" class="dots" aria-label="opções de ' + esc(p.titulo) + '" aria-expanded="false">⋯</button>' +
+          '<div class="pop" hidden>' +
+            '<button type="button" class="pop-i" data-acao="renomear">Renomear</button>' +
+            '<button type="button" class="pop-i risco" data-acao="excluir">Excluir</button>' +
+          "</div>" +
+        "</div>" +
         '<span class="pt">' + esc(p.titulo) + "</span>" +
         '<span class="pi">' + esc(p.ideia || "") + "</span>" +
         '<span class="pm">' + p.nos + " nós · " + esc((p.tipos || []).slice(0, 3).join(", ")) + "</span>" +
         '<span class="pd">' + esc(dataCurta(p.salvoEm)) + (p.simulou ? " · simulou" : "") + "</span>" +
-      "</button>").join("") + "</div></div>";
+      "</div>").join("") + "</div></div>";
 }
 function dataCurta(iso) {
   try {
@@ -1089,14 +1180,37 @@ function ligarEventos(s) {
     const grupo = b.closest(".q");
     const chave = grupo && grupo.dataset.q;
     if (!chave) return;
+    const campo = grupo.querySelector(".outro-campo");
+    const ehOutro = b.classList.contains("outro");
+
+    if (ehOutro) {
+      // "Outro…" abre o campo e passa a mandar. O valor só existe quando ele
+      // digita — marcar sem texto guardaria a palavra "Outro" como resposta.
+      const abrindo = campo.hasAttribute("hidden");
+      if (abrindo) { campo.removeAttribute("hidden"); campo.focus(); }
+      else { campo.setAttribute("hidden", ""); delete S.respostas[chave]; }
+      marcar(grupo, abrindo ? b : null);
+      if (!abrindo) campo.value = "";
+      else if (campo.value.trim()) S.respostas[chave] = campo.value.trim();
+      return;
+    }
+
     const jaEra = S.respostas[chave] === b.dataset.resp;
     if (jaEra) delete S.respostas[chave]; else S.respostas[chave] = b.dataset.resp;
-    grupo.querySelectorAll(".resp").forEach(x => {
-      const on = !jaEra && x === b;
-      x.classList.toggle("on", on);
-      x.setAttribute("aria-checked", String(on));
-    });
+    if (campo) { campo.setAttribute("hidden", ""); campo.value = ""; }
+    marcar(grupo, jaEra ? null : b);
   }));
+
+  app.querySelectorAll(".outro-campo").forEach(campo => {
+    const grupo = campo.closest(".q");
+    const chave = grupo && grupo.dataset.q;
+    campo.addEventListener("input", () => {
+      const v = campo.value.trim();
+      if (v) S.respostas[chave] = v; else delete S.respostas[chave];
+    });
+    // Enter aqui confirma a resposta, não envia o formulário.
+    campo.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); campo.blur(); } });
+  });
 
   const enviar = $("#enviar"), ta = $("#resposta");
   if (ta) {
@@ -1143,6 +1257,25 @@ async function mandar() {
 
 const rota = sub => "/api/tester/session/" + encodeURIComponent(S.snap.id) + "/" + sub;
 const corpo = o => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(o) });
+
+/* Marca uma opção e desmarca as irmãs. Uma função só, porque a seleção acontece
+   em três lugares (chip, "Outro…", e o repaint) e três cópias divergiriam. */
+function marcar(grupo, alvo) {
+  grupo.querySelectorAll(".resp").forEach(x => {
+    const on = x === alvo;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-checked", String(on));
+  });
+}
+
+/* Aviso na tela de abertura (a de corrida usa alertaInline). */
+function avisoAbertura(msg) {
+  const alvo = $(".open-in");
+  if (!alvo) return;
+  const d = document.createElement("div");
+  d.className = "avisobar"; d.textContent = msg;
+  alvo.appendChild(d);
+}
 
 function alertaInline(msg) {
   const st = $("#stream");

@@ -209,5 +209,40 @@
     ],
     "custoTotal": 1.2114,
     "exportado": true
+  },
+  {
+    "id": "tb8e4643e3678",
+    "ideia": "avisar no Slack quando cair pedido novo",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T12:53:25.659Z",
+    "terminadoEm": "2026-08-10T13:00:31.252Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 5,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.1123704,
+        "ms": 37739,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.5425085000000001,
+        "ms": 147731,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.6549,
+    "exportado": true
   }
 ]

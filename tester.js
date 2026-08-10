@@ -889,6 +889,34 @@ async function listarProjetos() {
   return out.sort((a, b) => String(b.salvoEm).localeCompare(String(a.salvoEm)));
 }
 
+/* Renomear NÃO mexe no nome do arquivo. O slug é a identidade do projeto — a
+ * URL que abre ele, a chave do card — e renomear um arquivo por causa de um
+ * título editado criaria duplicata na primeira vez que alguém voltasse atrás. */
+async function renomearProjeto(slug, titulo) {
+  const p = await lerProjeto(slug);
+  if (!p) { const e = new Error("projeto não encontrado"); e.status = 404; throw e; }
+  const novo = so(titulo).slice(0, 120);
+  if (!novo) { const e = new Error("o nome não pode ficar vazio"); e.status = 400; throw e; }
+  p.titulo = novo;
+  p.renomeadoEm = new Date().toISOString();
+  const alvo = dentro(PROJETOS_DIR, slug + ".json");
+  const tmp = alvo + ".tmp";
+  await fsp.writeFile(tmp, JSON.stringify(p, null, 2), "utf8");
+  await fsp.rename(tmp, alvo);
+  return { slug, titulo: novo };
+}
+
+/* Excluir apaga o arquivo de verdade. Este repositório evita deletar coisa, mas
+ * aqui o dono do dado é o Kauan, ele pediu o botão, e a pasta é rastreada no
+ * git — então o desfazer existe e é `git checkout projetos/<slug>.json`. */
+async function excluirProjeto(slug) {
+  if (!/^[a-z0-9-]{1,64}$/.test(String(slug || ""))) { const e = new Error("identificador inválido"); e.status = 400; throw e; }
+  const alvo = dentro(PROJETOS_DIR, slug + ".json");
+  try { await fsp.unlink(alvo); }
+  catch { const e = new Error("projeto não encontrado"); e.status = 404; throw e; }
+  return { removido: slug };
+}
+
 async function lerProjeto(slug) {
   if (!/^[a-z0-9-]{1,64}$/.test(String(slug || ""))) return null;
   try { return JSON.parse(await fsp.readFile(dentro(PROJETOS_DIR, slug + ".json"), "utf8")); }
@@ -1052,4 +1080,4 @@ async function ledger() {
 }
 
 module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger, validar,
-  salvarProjeto, listarProjetos, lerProjeto, SANDBOX_PREFIX };
+  salvarProjeto, listarProjetos, lerProjeto, renomearProjeto, excluirProjeto, SANDBOX_PREFIX };

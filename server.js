@@ -529,10 +529,23 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/tester/projetos") return json(res, 200, await tester.listarProjetos());
 
     if (p.startsWith("/api/tester/projeto/")) {
-      const slug = decodeURIComponent(p.slice("/api/tester/projeto/".length));
+      const resto = p.slice("/api/tester/projeto/".length);
+      const [slug, acao] = resto.split("/");
       if (!/^[a-z0-9-]{1,64}$/.test(slug)) return json(res, 400, { error: "identificador inválido" });
-      const proj = await tester.lerProjeto(slug);
-      return proj ? json(res, 200, proj) : json(res, 404, { error: "projeto não encontrado" });
+
+      if (!acao && req.method === "GET") {
+        const proj = await tester.lerProjeto(slug);
+        return proj ? json(res, 200, proj) : json(res, 404, { error: "projeto não encontrado" });
+      }
+      if (!acao && req.method === "DELETE") {
+        try { return json(res, 200, await tester.excluirProjeto(slug)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
+      if (acao === "renomear" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+        try { return json(res, 200, await tester.renomearProjeto(slug, body.titulo)); }
+        catch (err) { return json(res, err.status || 500, { error: String(err && err.message || err) }); }
+      }
     }
 
     if (p === "/api/tester/projeto" && req.method === "POST") {
