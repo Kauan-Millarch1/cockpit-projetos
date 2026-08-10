@@ -165,7 +165,7 @@ function snapshot(s) {
     id: s.id, gen: s.gen, versao: s.versao || 0,
     ideia: s.ideia, nivel: s.nivel,
     status: s.status, etapa: s.etapa, etapas: s.etapas, atividade: s.atividade || null,
-    chat: s.chat, entendi: s.entendi, perguntas: s.perguntas, achados: s.achados,
+    chat: s.chat, entendi: s.entendi, perguntas: s.perguntas, respostas: s.respostas || [], achados: s.achados,
     doc: s.doc ? { slug: s.doc.slug, servico: s.doc.servico, fontes: s.doc.fontes, texto: s.doc.texto } : null,
     pesquisaPulada: s.pesquisaPulada || null,
     ingredientes: s.ingredientes,
@@ -329,6 +329,14 @@ function promptDesenhar(s, correcoes) {
     "",
     "O que a pessoa quer:",
     JSON.stringify(s.entendi, null, 2),
+    (s.respostas && s.respostas.length)
+      ? [
+          "",
+          "Ela respondeu explicitamente às perguntas abaixo. Estas respostas MANDAM: se alguma delas",
+          "contradizer o resumo acima, siga a resposta.",
+          ...s.respostas.map(r => "- " + r.q + "\n  -> " + r.r)
+        ].join("\n")
+      : "",
     "",
     s.doc ? "Ficha da API externa (leia o arquivo `doc.md` para o detalhe):\n" + s.doc.texto.slice(0, 4000) : "",
     "",
@@ -782,12 +790,13 @@ async function iniciar({ ideia, nivel }) {
   const s = {
     id, gen: 1, dir, criadoEm: new Date().toISOString(),
     ideia: String(ideia).slice(0, 2000), nivel: String(nivel || "sei o básico"),
-    status: "correndo", etapa: 1, // `pendente` (ainda não começou) e `espera` (parou e depende de você) são
+    status: "correndo", etapa: 1,
+    // `pendente` (ainda não começou) e `espera` (parou e depende de você) são
     // estados diferentes. Usar o mesmo nome para os dois deixava as sete etapas
     // desenhadas como se todas estivessem esperando decisão.
     etapas: ETAPAS.map(e => ({ ...e, estado: "pendente" })),
     chat: [{ quem: "voce", texto: String(ideia).slice(0, 2000), at: new Date().toISOString() }],
-    entendi: null, perguntas: [], achados: [], servicos: [],
+    entendi: null, perguntas: [], achados: [], servicos: [], respostas: [],
     doc: null, ingredientes: { nos: [], credenciais: [] }, wf: null, provenance: {},
     gates: null, sandbox: null, sementes: null, fantasma: null,
     custo: [], log: [], versao: 0
@@ -830,9 +839,30 @@ async function entender(s, gen) {
 /* Resposta do usuário. `seguir` é o portão da etapa 1; texto livre a qualquer
  * momento cancela o que está correndo e recomeça DAQUELA etapa — a geração
  * muda, e todo emit/escrita confere a geração antes de agir. */
-async function responder(id, { texto, seguir }) {
+async function responder(id, { texto, seguir, respostas }) {
   const s = sessions.get(id);
   if (!s) { const e = new Error("sessão não encontrada"); e.status = 404; throw e; }
+
+  /* As escolhas nos cartões de pergunta. Chegam junto do "pode seguir" e vão
+   * para o prompt da construção — NÃO disparam uma rodada nova de entendimento.
+   * A rodada custaria ~20s e uma cobrança de contexto para reescrever um cartão
+   * que já está certo; o que falta não é entender de novo, é levar a resposta
+   * adiante. Elas entram no chat como registro do que foi escolhido. */
+  if (Array.isArray(respostas) && respostas.length) {
+    s.respostas = respostas
+      .filter(r => r && typeof r.q === "string" && typeof r.r === "string")
+      .slice(0, 6)
+      .map(r => ({ q: r.q.slice(0, 300), r: r.r.slice(0, 200) }));
+    if (s.respostas.length) {
+      s.chat.push({
+        quem: "voce",
+        texto: s.respostas.map(r => r.r).join(" · "),
+        escolhas: true,
+        at: new Date().toISOString()
+      });
+      emit(s, "chat", { chat: s.chat });
+    }
+  }
 
   if (texto) {
     s.chat.push({ quem: "voce", texto: String(texto).slice(0, 2000), at: new Date().toISOString() });

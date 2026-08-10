@@ -413,7 +413,9 @@ function clicavel(el, rotulo, fn) {
   return el;
 }
 
-const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null };
+const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desenhado: null, capab: null,
+  // escolhas de chip, por TEXTO da pergunta; sobrevivem ao repaint do SSE
+  respostas: {} };
 
 /* ---------------------------------------------------------------- abertura */
 
@@ -593,10 +595,22 @@ function cartaoEntendi(e) {
     "</div>";
 }
 
+/* Clicar numa opção JÁ É a resposta. Não escreve nada no campo de baixo e não
+   exige um segundo clique em Enviar: a escolha fica marcada no próprio cartão e
+   viaja junto do "pode seguir".
+   As escolhas são guardadas pelo TEXTO da pergunta, não pela posição — o SSE
+   repinta a tela a cada evento, e um índice sobreviveria a um repaint mas não a
+   uma pergunta reformulada. */
 function pergunta(q) {
-  return '<div class="q"><div class="qt">' + esc(q.q) + "</div>" +
+  const escolhida = S.respostas[q.q];
+  return '<div class="q" data-q="' + esc(q.q) + '"><div class="qt">' + esc(q.q) + "</div>" +
     (q.porque ? '<div class="qw">' + esc(q.porque) + "</div>" : "") +
-    '<div class="opts">' + (q.opcoes || []).map(o => '<button type="button" class="chip resp" data-resp="' + esc(o) + '">' + esc(o) + "</button>").join("") + "</div></div>";
+    '<div class="opts" role="radiogroup" aria-label="' + esc(q.q) + '">' +
+    (q.opcoes || []).map(o => {
+      const on = escolhida === o;
+      return '<button type="button" class="chip resp' + (on ? " on" : "") + '" role="radio" aria-checked="' +
+        on + '" data-resp="' + esc(o) + '">' + esc(o) + "</button>";
+    }).join("") + "</div></div>";
 }
 
 function portao(titulo, desc, botao, custo) {
@@ -841,16 +855,31 @@ function ligarEventos(s) {
   const seguir = $("#seguir");
   if (seguir) seguir.addEventListener("click", async () => {
     seguir.disabled = true;
-    try { S.snap = await callApi(rota("reply"), corpo({ seguir: true })); pintar(); }
-    catch (e) { seguir.disabled = false; alertaInline(e.message); }
+    // As escolhas vão JUNTO. Antes elas só existiam como texto no campo de
+    // baixo, então clicar e apertar "pode seguir" sem enviar o texto perdia a
+    // resposta silenciosamente — e o fluxo era montado ignorando o que ele
+    // acabou de responder.
+    const respostas = Object.entries(S.respostas).map(([q, r]) => ({ q, r }));
+    try {
+      S.snap = await callApi(rota("reply"), corpo({ seguir: true, respostas }));
+      S.respostas = {};
+      pintar();
+    } catch (e) { seguir.disabled = false; alertaInline(e.message); }
   });
 
+  // Seleção única por pergunta, resolvida no próprio cartão. Clicar de novo na
+  // mesma opção desmarca — dá para voltar atrás sem recarregar nada.
   app.querySelectorAll(".resp").forEach(b => b.addEventListener("click", () => {
-    const ta = $("#resposta");
-    if (!ta) return;
-    ta.value = (ta.value ? ta.value + " · " : "") + b.textContent;
-    ta.focus();
-    b.setAttribute("aria-pressed", "true"); b.classList.add("on");
+    const grupo = b.closest(".q");
+    const chave = grupo && grupo.dataset.q;
+    if (!chave) return;
+    const jaEra = S.respostas[chave] === b.dataset.resp;
+    if (jaEra) delete S.respostas[chave]; else S.respostas[chave] = b.dataset.resp;
+    grupo.querySelectorAll(".resp").forEach(x => {
+      const on = !jaEra && x === b;
+      x.classList.toggle("on", on);
+      x.setAttribute("aria-checked", String(on));
+    });
   }));
 
   const enviar = $("#enviar"), ta = $("#resposta");

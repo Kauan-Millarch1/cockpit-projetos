@@ -571,7 +571,10 @@ const server = http.createServer(async (req, res) => {
         const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
         const texto = typeof body.texto === "string" ? body.texto.trim().slice(0, 2000) : null;
         try {
-          return json(res, 200, await tester.responder(id, { texto: texto || null, seguir: !!body.seguir }));
+          return json(res, 200, await tester.responder(id, {
+            texto: texto || null, seguir: !!body.seguir,
+            respostas: Array.isArray(body.respostas) ? body.respostas.slice(0, 6) : null
+          }));
         } catch (err) {
           return json(res, err.status || 500, { error: String(err && err.message || err) });
         }
