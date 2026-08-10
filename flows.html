@@ -526,21 +526,59 @@ main { padding: 22px 26px 90px; min-width: 0; }
 .filterchip.paused { color: var(--warn-txt); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); padding: 2px 9px; }
 .card.filt { box-shadow: inset 0 0 0 1px var(--accent); }
 
-/* --------------------------------------------------------------------- rail */
-.rail h4 { font-family: var(--font-num); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-faint); margin: 0 0 9px 6px; }
+/* Estrela e remover, no canto do card. Escondidos até o hover/foco para não
+   virar 36 ícones repetidos numa grade de 18 cards — MENOS a estrela ativa,
+   que é informação (diz por que o card está em primeiro) e fica sempre.
+   A estrela cheia é --accent: estado de UI, nunca cor de status. */
+.card-acts { position: absolute; top: 9px; right: 9px; display: flex; gap: 4px; z-index: 2; }
+.cact { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 7px;
+  color: var(--txt-faint); opacity: 0; transition: opacity .12s, color .12s, border-color .12s; }
+.cact svg { width: 14px; height: 14px; }
+.card:hover .cact, .card:focus-within .cact, .cact.on { opacity: 1; }
+.cact:hover { color: var(--txt); border-color: var(--accent-line); }
+.cact.fav.on { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+/* Sem hover não existe "aparecer no hover": no toque os botões ficam visíveis
+   e com alvo de 40px, que é o piso deste projeto para toque. */
+@media (hover: none) {
+  .cact { opacity: 1; width: 38px; height: 38px; }
+}
+
+.hidden-row { display: flex; align-items: baseline; gap: 10px; }
+.linkbtn { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-num);
+  font-size: 10.5px; color: var(--accent-txt); text-decoration: underline; text-underline-offset: 2px; }
+.linkbtn:hover { color: var(--txt); }
+
+/* --------------------------------------------------------------------- rail
+   O item tem duas linhas: nome + contagem em cima, "N fluxos · N exec" embaixo.
+   A segunda linha é o que faz o trilho responder "qual projeto trabalha mais"
+   sem hover — antes essa resposta vivia só no title. A falha vira uma PÍLULA
+   (`3 falhas`), não um "3✕" solto: número vermelho sem moldura lê como ruído
+   de renderização, com moldura lê como aviso. A barra de status continua sendo
+   a âncora de cor, agora com a altura das duas linhas. */
+.rail h4 { font-family: var(--font-num); font-size: 10px; letter-spacing: .1em; margin: 0 0 10px 6px; }
+.rail h4 .idx { color: var(--brand-txt); }
 .rail-item {
-  display: grid; grid-template-columns: 4px 1fr auto; gap: 9px; align-items: center;
-  padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 13px; margin-bottom: 2px;
+  display: grid; grid-template-columns: 4px minmax(0,1fr) auto; gap: 4px 10px; align-items: center;
+  padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 13px; margin-bottom: 3px;
   border: 1px solid transparent;
 }
-.rail-item:hover { background: var(--surface-2); }
+.rail-item:hover { background: var(--surface-2); border-color: var(--line-soft); }
 .rail-item.sel { background: var(--accent-soft); border-color: var(--accent-line); }
-.rail-item i.bar { width: 4px; height: 15px; border-radius: 2px; background: var(--cold); }
+.rail-item.sel .nm { color: var(--txt); font-weight: 600; }
+.rail-item i.bar { grid-row: 1 / span 2; width: 4px; align-self: stretch; border-radius: 2px; background: var(--cold); }
+/* Item sem meta (o "Todos") volta a uma linha: a barra não estica o vazio. */
+.rail-item.only i.bar { grid-row: 1; height: 15px; align-self: center; }
 .rail-item.s-ok i.bar{background:var(--ok)} .rail-item.s-warn i.bar{background:var(--warn)}
 .rail-item.s-risk i.bar{background:var(--risk)} .rail-item.s-cold i.bar{background:var(--cold)}
-.rail-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-dim); }
 .rail-item .ct { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); font-variant-numeric: tabular-nums; }
-.rail-item .ct.bad { color: var(--risk-txt); font-weight: 700; }
+.rail-item .meta { grid-column: 2 / span 2; font-family: var(--font-num); font-size: 9.5px;
+  color: var(--txt-faint); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .ct.bad { font-size: 9px; letter-spacing: .04em; color: var(--risk-txt); font-weight: 700;
+  background: var(--risk-soft); border: 1px solid color-mix(in srgb, var(--risk) 30%, transparent);
+  border-radius: 999px; padding: 2px 7px; }
 
 .pill { font-family: var(--font-num); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; border: 1px solid; }
 .pill.ok{color:var(--ok-txt);background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
@@ -1013,7 +1051,11 @@ button.gate { font-family: var(--font-num); cursor: pointer; }
   .shell { grid-template-columns: minmax(0,1fr); }
   .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px; }
   .rail h4 { display: none; }
+  /* No trilho horizontal os chips voltam a uma linha: a meta dobraria a altura
+     da faixa inteira por causa do chip mais largo. */
   .rail-item { min-height: 40px; flex: 0 0 auto; }
+  .rail-item .meta { display: none; }
+  .rail-item i.bar { grid-row: 1; height: 15px; align-self: center; }
   main { padding: 16px 14px 70px; }
   .kpi .val { font-size: 26px; }
   .stage { height: 340px; }
@@ -1095,7 +1137,7 @@ textarea, input { caret-color: var(--accent); }
 
 <div class="shell">
   <aside class="rail">
-    <h4>Projetos</h4>
+    <h4><span class="idx">[ PROJETOS ]</span></h4>
     <div id="rail"></div>
   </aside>
 
@@ -1149,6 +1191,7 @@ textarea, input { caret-color: var(--accent); }
 
     <div class="eyebrow"><span class="idx">[ 05 / 05 ]</span> <span>Fluxos com atividade</span> <span class="rule"></span> <span id="cards-hint"></span></div>
     <div class="cards" id="cards"></div>
+    <details class="dormant" id="hiddenflows" style="display:none"></details>
     <details class="dormant" id="dormant"></details>
   </main>
 </div>
@@ -1375,9 +1418,119 @@ function effectOf(node, run) {
   };
 }
 
-// Nomes que são rascunho, não operação. Só usados para rotular a lista
-// colapsada — o filtro real de porta de entrada é atividade, não nome.
-const SCRATCH = /^(my workflow|my sub-workflow|teste|sandbox)|\(descartavel\)|\(apagar\)|^\[sf-test\]|^\[test-runner\]|^\{branch\}/i;
+/* Nomes que são rascunho, não operação.
+ *
+ * Isto ROTULA a lista colapsada e, desde 2026-08-10, também FILTRA a porta de
+ * entrada — mas só o que nunca rodou (ver `naPorta`). Uma cópia de teste parada
+ * e ativa é ruído; uma cópia de teste que rodou e quebrou é informação, e
+ * esconder falha por causa do nome seria a pior troca possível.
+ *
+ * `\(tester\)` entrou porque `[ROBERTO] Agent — Iago Comercial (TESTER)` estava
+ * na porta de entrada com 0 execuções, só por estar `active`. Medido na
+ * instância: o regex novo pega 25 fluxos (7 a mais que o antigo) e NENHUM deles
+ * tem execução na janela — em particular ele não pega `Agente Iago Comercial`,
+ * o fluxo de verdade, com 87. Ao mexer aqui, refaça essa contagem: um falso
+ * positivo aqui apaga um fluxo de produção da tela. */
+const SCRATCH = /^(my workflow|my sub-workflow|teste|sandbox)|\((?:descartavel|apagar|tester|teste|test)\)|^\[sf-test\]|^\[test-runner\]|^\[sandbox|^\{branch\}/i;
+
+/* QUEM APARECE NA PORTA DE ENTRADA.
+ *
+ * A regra era "executou na janela OU está ativo". Ela tem um furo estrutural: um
+ * sub-fluxo chamado por `executeWorkflow` NUNCA pode estar `active` no n8n —
+ * quem acorda é o pai. Então `Agente eContrate`, 108 nós, produção, ficava na
+ * lista colapsada por estar quieto nas últimas 24h, enquanto o pai que o chama
+ * (`WhatsApp API Oficial`, 645 execuções) estava no topo do quadro.
+ *
+ * O terceiro critério conserta isso sem lista fixa de ids: **é chamado por um
+ * fluxo vivo**. Vivo = ativo ou com execução na janela. Medido: entram 3 fluxos
+ * (eContrate e dois Tools do Iago), não 40.
+ *
+ * `f.calledByLive` chega vazio até `/api/n8n/callers` responder — 20s na
+ * primeira vez, cache de 15 min depois. Enquanto isso a tela mostra o que já
+ * sabe e diz que ainda está lendo, em vez de afirmar uma lista completa. */
+function naPorta(f) {
+  const rodou = f.total > 0;
+  if (SCRATCH.test(f.name) && !rodou) return false;
+  return rodou || f.active || (f.calledByLive && f.calledByLive.length > 0);
+}
+
+/* ---------------------------------------------------- favorito e removido
+ *
+ * Preferência de VISÃO, não fato: qual card fica fixo em cima (estrela) e qual
+ * sai do quadro (remover). Por isso mora aqui no bloco de julgamento e persiste
+ * no localStorage do browser — o servidor continua emitindo só fatos, e uma
+ * preferência de tela não tem por que virar rota.
+ *
+ * A regra do removido é a MESMA disciplina do fixState: o discriminador é o id
+ * de execução, monotônico e vindo da instância, comparado como BigInt — nunca o
+ * relógio. Ao remover, guarda-se o maior id que aquele fluxo tinha; quando um
+ * id MAIOR aparecer, o card volta sozinho e a marca é apagada. Um fluxo com
+ * zero execuções guarda "0", então a primeira execução da vida dele também o
+ * traz de volta. Remover não é arquivar: é "me chama quando isto acordar".
+ *
+ * Favorito e removido são mutuamente exclusivos — estrelar tira da lista de
+ * removidos e remover apaga a estrela. Os dois ao mesmo tempo não significam
+ * nada, e um card fixo que não aparece seria o pior estado possível. */
+const PREFS_KEY = "cockpit.flows.prefs.v1";
+
+function loadPrefs() {
+  try {
+    const j = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+    return j && typeof j === "object" && !Array.isArray(j) ? j : {};
+  } catch { return {}; }
+}
+function savePrefs(p) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* modo privado */ }
+}
+
+function newestExecIdOf(f) {
+  let max = null;
+  for (const r of f.runs || []) {
+    try { const v = BigInt(r.id); if (max == null || v > max) max = v; } catch { /* id não numérico */ }
+  }
+  return max;
+}
+
+/* Lê a preferência E resolve o retorno automático num lugar só. Devolve
+ * { fav, hidden } já com a marca vencida apagada — quem chama nunca vê um
+ * removido que deveria ter voltado. */
+function cardPref(f) {
+  const p = S.prefs[f.id];
+  if (!p) return { fav: false, hidden: false };
+  if (p.hideAfter != null) {
+    const newest = newestExecIdOf(f);
+    let voltou = false;
+    try { voltou = newest != null && newest > BigInt(p.hideAfter); } catch { voltou = true; }
+    if (voltou) { delete S.prefs[f.id]; savePrefs(S.prefs); return { fav: false, hidden: false }; }
+  }
+  return { fav: p.fav === true, hidden: p.hideAfter != null };
+}
+
+function toggleFav(f) {
+  const era = S.prefs[f.id] && S.prefs[f.id].fav === true;
+  if (era) delete S.prefs[f.id];
+  else S.prefs[f.id] = { fav: true };            // apaga hideAfter junto, de propósito
+  savePrefs(S.prefs);
+  renderAll();
+}
+function hideCard(f) {
+  const newest = newestExecIdOf(f);
+  S.prefs[f.id] = { hideAfter: newest == null ? "0" : String(newest) };
+  savePrefs(S.prefs);
+  renderAll();
+}
+function unhideCard(id) {
+  delete S.prefs[id];
+  savePrefs(S.prefs);
+  renderAll();
+}
+
+/* Por que este fluxo está no quadro, quando não é por atividade própria. */
+function motivoPorta(f) {
+  if (f.total > 0 || f.active) return null;
+  const p = (f.calledByLive || [])[0];
+  return p ? "chamado por " + p.name : null;
+}
 
 // Convenção de nome do n8n: "[PROJETO] Tipo — Descrição".
 function projectOf(name) {
@@ -1411,6 +1564,13 @@ function errNodeLabel(f, prefix, parens) {
 function diagnose(f) {
   const n = v => v.toLocaleString("pt-BR");
   if (f.total === 0) {
+    // Sub-fluxo não tem gatilho próprio para estar mudo: ele roda quando o pai
+    // manda. "Gatilho pode estar mudo" aqui mandaria investigar o lugar errado.
+    const pai = (f.calledByLive || [])[0];
+    if (pai && !f.active) {
+      return "Sub-fluxo de " + pai.name + ". Não foi chamado nas últimas " + WINDOW_H +
+        "h — quem dispara é o fluxo que chama, então olhe lá primeiro.";
+    }
     return f.active
       ? "Ativo, mas nenhuma execução nas últimas " + WINDOW_H + "h. Gatilho pode estar mudo."
       : "Desativado e sem execuções na janela.";
@@ -1642,11 +1802,14 @@ const S = {
   fixes: new Map(),
   history: [],
   locate: new Map(),      // locKey(wfId, no) -> resposta de /api/n8n/locate (fato: onde o no vive)
+  callers: null,          // /api/n8n/callers — grafo de chamada (fato). null = ainda não lido
+  callersErro: null,      // por que não deu para ler — nunca silencioso
   fixesError: null,      // por que a leitura das marcas falhou — nunca silenciosa
   errFilterWf: null,      // filtro do quadro de erros — separado do fluxo no palco
   fetchedAt: null, lastPoll: null, instance: "", lastError: null,
   selectedProject: null, selectedWf: null, loadedExec: null,
   selectedExec: null,     // id da execução que está no palco — marca a linha no Ao vivo
+  prefs: loadPrefs(),     // favorito/removido por fluxo — julgamento de tela, ver cardPref()
   graph: null, view: null
 };
 
@@ -1686,11 +1849,32 @@ function flowsWithActivity() {
       : null;
     const topErrorOrigin = topErrorNode ? originOf(wf.id, topErrorNode, topErrLast) : null;
 
+    /* Chamadores VIVOS deste fluxo. O servidor manda o grafo de chamada cru
+     * (fato); "vivo" é juízo e mora aqui.
+     *
+     * Duas coisas medidas na tela e corrigidas:
+     *   - Cópia de teste ATIVA não conta como chamador vivo. `[ROBERTO] Agent —
+     *     Iago Comercial (TESTER)` está `active` e com 0 execuções, e por isso
+     *     estava levando o crédito de dois Tools que o agente DE VERDADE chama —
+     *     a tela dizia "sub-fluxo de ... (TESTER)". Pior: um Tool chamado só
+     *     pela cópia de teste entraria no quadro pela força dela.
+     *   - A ordem é por execução, decrescente. Quem tem execução é evidência;
+     *     quem só está ativo é possibilidade. O rótulo do cartão usa o primeiro,
+     *     então o primeiro tem que ser o que tem prova atrás. */
+    const chamadores = (S.callers && S.callers.porFilho && S.callers.porFilho[wf.id]) || [];
+    const calledByLive = chamadores
+      .map(c => ({ c, pai: S.workflows.get(c.id), execs: (byWf.get(c.id) || []).length }))
+      .filter(({ c, pai, execs }) => pai && (execs > 0 || (pai.active && !SCRATCH.test(c.name))))
+      .sort((a, b) => b.execs - a.execs)
+      .map(({ c }) => c);
+
     const f = {
       ...wf,
       project: projectOf(wf.name),
       short: shortName(wf.name),
       scratch: SCRATCH.test(wf.name),
+      calledBy: chamadores,
+      calledByLive,
       total: runs.length,
       errors: errs.length,
       errRate: runs.length ? errs.length / runs.length : 0,
@@ -1819,7 +2003,10 @@ function springNumber(node, from, to, fmt = v => Math.round(v).toLocaleString("p
 function renderRail(flows) {
   const groups = new Map();
   for (const f of flows) {
-    if (f.total === 0 && !f.active) continue;
+    // MESMA regra dos cartões, chamada — não recopiada. Enquanto era uma cópia
+    // (`f.total === 0 && !f.active`), o trilho contava 14 e o quadro mostrava
+    // 17, e o contador do trilho é onde se confere se algo está faltando.
+    if (!naPorta(f)) continue;
     if (!groups.has(f.project)) groups.set(f.project, { name: f.project, flows: 0, execs: 0, errors: 0 });
     const g = groups.get(f.project);
     g.flows++; g.execs += f.total; g.errors += f.errors;
@@ -1827,7 +2014,7 @@ function renderRail(flows) {
   const list = [...groups.values()].sort((a, b) => b.execs - a.execs || a.name.localeCompare(b.name));
 
   const box = $("#rail"); box.innerHTML = "";
-  const all = el("div", "rail-item" + (S.selectedProject == null ? " sel" : ""));
+  const all = el("div", "rail-item only" + (S.selectedProject == null ? " sel" : ""));
   all.append(el("i", "bar"), el("span", "nm", "Todos"), el("span", "ct", String(list.reduce((s, g) => s + g.flows, 0))));
   clickable(all, "Ver todos os projetos", () => { S.selectedProject = null; S.errFilterWf = null; renderAll(); });
   box.append(all);
@@ -1835,8 +2022,15 @@ function renderRail(flows) {
   for (const g of list) {
     const st = g.errors >= BANDS.errCountRisk ? "risk" : g.errors > 0 ? "warn" : g.execs > 0 ? "ok" : "cold";
     const it = el("div", "rail-item s-" + st + (S.selectedProject === g.name ? " sel" : ""));
-    const ct = el("span", "ct" + (g.errors ? " bad" : ""), g.errors ? g.errors + "✕" : String(g.flows));
+    // Falha em pílula com a palavra; sem falha, a contagem de fluxos de sempre.
+    const ct = el("span", "ct" + (g.errors ? " bad" : ""),
+      g.errors ? g.errors + (g.errors === 1 ? " falha" : " falhas") : String(g.flows));
     it.append(el("i", "bar"), el("span", "nm", g.name), ct);
+    // A segunda linha responde "quem trabalha mais" sem hover. Zero execução é
+    // dito por extenso — "0 exec" numa lista inteira delas parece erro de dado.
+    it.append(el("span", "meta",
+      g.flows + (g.flows === 1 ? " fluxo" : " fluxos") + " · " +
+      (g.execs ? g.execs.toLocaleString("pt-BR") + " exec 24h" : "sem execução 24h")));
     it.title = g.name + " — " + g.flows + " fluxos, " + g.execs + " execuções, " + g.errors + " falhas";
     // Trocar de projeto zera o filtro por fluxo: senão o quadro fica vazio
     // mostrando um filtro de fluxo que nem pertence ao projeto escolhido.
@@ -1847,14 +2041,23 @@ function renderRail(flows) {
 }
 
 function renderCards(flows) {
-  const shown = flows.filter(f => (f.total > 0 || f.active) && (!S.selectedProject || f.project === S.selectedProject));
-  const dormant = flows.filter(f => !(f.total > 0 || f.active) && (!S.selectedProject || f.project === S.selectedProject));
+  const noProjeto = flows.filter(f => naPorta(f) && (!S.selectedProject || f.project === S.selectedProject));
+  const dormant = flows.filter(f => !naPorta(f) && (!S.selectedProject || f.project === S.selectedProject));
+  // cardPref resolve o retorno automático: um removido cujo fluxo executou de
+  // novo já volta desta chamada com a marca apagada.
+  const shown = [], hidden = [];
+  for (const f of noProjeto) (cardPref(f).hidden ? hidden : shown).push(f);
   shown.sort((a, b) => {
+    // Estrela vence status: fixo é fixo. Dentro de cada grupo, a ordem de
+    // sempre — pior primeiro, depois volume.
+    const fav = (cardPref(b).fav ? 1 : 0) - (cardPref(a).fav ? 1 : 0);
+    if (fav) return fav;
     const rank = { risk: 0, warn: 1, cold: 2, ok: 3 };
     return rank[a.status] - rank[b.status] || b.total - a.total;
   });
 
-  $("#cards-hint").textContent = shown.length + " de " + flows.length;
+  $("#cards-hint").textContent = shown.length + " de " + flows.length +
+    (hidden.length ? " · " + hidden.length + " removido(s) por você" : "");
   const box = $("#cards"); box.innerHTML = "";
 
   if (!shown.length) {
@@ -1874,8 +2077,40 @@ function renderCards(flows) {
       c.style.setProperty("--mx", (ev.clientX - r.left) + "px");
       c.style.setProperty("--my", (ev.clientY - r.top) + "px");
     });
-    c.append(el("div", "proj", f.project + (f.active ? " · ativo" : " · inativo")));
+    // Sub-fluxo não tem estado próprio de "ativo": dizer "inativo" num fluxo que
+    // roda o dia inteiro pela mão do pai é a leitura errada. Quando ele está no
+    // quadro por causa do chamador, o rótulo diz isso.
+    const motivo = motivoPorta(f);
+    c.append(el("div", "proj", f.project + (motivo ? " · " + motivo : (f.active ? " · ativo" : " · inativo"))));
     c.append(el("h3", null, f.short));
+
+    /* Estrela e remover. Botões de verdade (não área do card clicável), com o
+       clique parado antes de chegar ao card — senão fixar um fluxo também o
+       colocaria no palco e filtraria o quadro de erros, três efeitos por um
+       clique. Glifos desenhados no mesmo traço dos ícones do palco; a estrela
+       cheia usa --accent (movimento/estado de UI), nunca cor de status. */
+    const pref = cardPref(f);
+    const acts = el("div", "card-acts");
+    const bFav = el("button", "cact fav" + (pref.fav ? " on" : ""));
+    bFav.type = "button";
+    bFav.setAttribute("aria-pressed", String(pref.fav));
+    bFav.setAttribute("aria-label", (pref.fav ? "Tirar dos favoritos: " : "Fixar no topo: ") + f.short);
+    bFav.title = pref.fav ? "Tirar dos favoritos" : "Fixar no topo";
+    bFav.innerHTML = '<svg viewBox="0 0 24 24" fill="' + (pref.fav ? "currentColor" : "none") +
+      '" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M12 3.6l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6-5.1-2.8-5.1 2.8 1.1-5.6L3.8 9.5l5.7-.7z"/></svg>';
+    bFav.addEventListener("click", ev => { ev.stopPropagation(); toggleFav(f); });
+
+    const bHide = el("button", "cact");
+    bHide.type = "button";
+    bHide.setAttribute("aria-label", "Remover do quadro: " + f.short + " — volta sozinho na próxima execução");
+    bHide.title = "Remover do quadro — volta sozinho na próxima execução";
+    bHide.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    bHide.addEventListener("click", ev => { ev.stopPropagation(); hideCard(f); });
+
+    acts.append(bFav, bHide);
+    c.append(acts);
     c.append(el("div", "diag", f.diag));
 
     // 24 baldes de 1h: a forma da barra diz quando o fluxo trabalha
@@ -1915,11 +2150,38 @@ function renderCards(flows) {
   });
   seenCardIds = new Set(shown.map(f => f.id));
 
+  /* Os removidos têm porta de volta À VISTA — mesma razão da lixeira do Tester:
+     uma lista que some sem endereço é um card que ninguém sabe como recuperar.
+     E a linha diz a regra de retorno, porque "removido" aqui não é arquivado:
+     é "me chama quando isto acordar". */
+  const hbox = $("#hiddenflows"); hbox.innerHTML = "";
+  hbox.style.display = hidden.length ? "" : "none";
+  if (hidden.length) {
+    hbox.append(el("summary", null, "▸ " + hidden.length + " removido(s) do quadro por você — voltam sozinhos na próxima execução"));
+    const list = el("div", "dlist");
+    for (const f of hidden.sort((a, b) => a.name.localeCompare(b.name))) {
+      const row = el("div", "hidden-row");
+      row.append(el("span", null, f.name));
+      const back = el("button", "linkbtn", "trazer de volta");
+      back.type = "button";
+      back.setAttribute("aria-label", "Trazer " + f.short + " de volta ao quadro");
+      back.addEventListener("click", () => unhideCard(f.id));
+      row.append(back);
+      list.append(row);
+    }
+    hbox.append(list);
+  }
+
   const d = $("#dormant"); d.innerHTML = "";
   if (dormant.length) {
     const nScratch = dormant.filter(f => f.scratch).length;
+    // Enquanto o grafo de chamada não chega, esta lista pode estar guardando um
+    // sub-fluxo de produção — e ela não pode passar por completa antes disso.
+    const cav = S.callersErro
+      ? " · não li quem chama quem (" + S.callersErro + "), pode haver sub-fluxo ativo aqui"
+      : (S.callers ? "" : " · ainda lendo quem chama quem…");
     d.append(el("summary", null, "▸ " + dormant.length + " fluxos sem atividade e desativados"
-      + (nScratch ? " (" + nScratch + " são rascunho/teste)" : "")));
+      + (nScratch ? " (" + nScratch + " são rascunho/teste)" : "") + cav));
     const list = el("div", "dlist");
     for (const f of dormant.sort((a, b) => a.name.localeCompare(b.name))) {
       const row = el("div", null, f.name);
@@ -4266,6 +4528,30 @@ function showFailure(msg) {
   $("#fixed").innerHTML = ""; $("#fixed").style.display = "none";
 }
 
+/* Grafo de chamada. Falha de leitura NÃO é silenciosa: sem ele os sub-fluxos de
+   produção voltam a ficar escondidos, e a lista colapsada mentiria dizendo que
+   eles não têm atividade. Mesma razão do `S.fixesError`. */
+async function loadCallers() {
+  try {
+    const r = await fetch("/api/n8n/callers");
+    const txt = await r.text();
+    let body = null;
+    try { body = JSON.parse(txt); } catch { /* não é JSON */ }
+    if (!r.ok || !body || typeof body !== "object" || Array.isArray(body) || !body.porFilho) {
+      throw new Error(r.status === 404
+        ? "esta rota não existe no servidor que está rodando — ele subiu antes desta versão do server.js"
+        : "o servidor respondeu " + r.status);
+    }
+    S.callers = body;
+    S.callersErro = body.falhas > 0
+      ? body.falhas + " fluxo(s) não deram para ler: a lista de sub-fluxos pode estar incompleta"
+      : null;
+  } catch (e) {
+    S.callers = null;
+    S.callersErro = String(e && e.message || e);
+  }
+}
+
 async function boot() {
   showLoading();
   setLive("", "conectando");
@@ -4304,6 +4590,14 @@ async function boot() {
         selectWorkflow(pick.id, (errRun || pick.runs[0])?.id || null);
       }
     }
+    // O grafo de chamada vem DEPOIS do primeiro desenho, de propósito: são 68
+    // leituras de workflow, ~20s na primeira vez (cache de 15 min no servidor).
+    // Bloquear o boot com isso trocaria "o painel abre em 1s" por "o painel abre
+    // em 21s" para acrescentar 3 cartões. Em modo estático ele é aguardado,
+    // senão a captura headless congela antes de os sub-fluxos aparecerem.
+    if (STATIC_MODE) { await loadCallers(); renderAll(); }
+    else loadCallers().then(() => renderAll());
+
     // ?static=1 congela o painel numa leitura só. O SSE mantém uma conexão
     // aberta indefinidamente, o que impede captura headless e embed simples.
     if (STATIC_MODE) setLive("", "modo estático");
