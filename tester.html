@@ -126,8 +126,10 @@ button{font:inherit;color:inherit}
 .msg.me{margin-left:auto;text-align:right}
 .msg.me .body{display:inline-block;text-align:left;background:var(--raised);border:1px solid var(--line);
   border-radius:12px 12px 4px 12px;padding:10px 13px;font-size:13px;line-height:1.6;color:var(--txt);white-space:pre-wrap}
-.msg.sys .body{font-size:13px;line-height:1.68;color:var(--txt-dim);border-left:2px solid var(--accent-line);
-  padding-left:13px;white-space:pre-wrap}
+/* Sem barra colorida na lateral. Quem fala já está dito no rótulo "TESTER" logo
+   acima, e a fala do sistema já se distingue da sua por não ter balão. Uma
+   listra de acento aqui seria decoração pagando por informação que já existe. */
+.msg.sys .body{font-size:13px;line-height:1.68;color:var(--txt-dim);white-space:pre-wrap}
 
 .card{border:1px solid var(--line);background:var(--surface);border-radius:12px;overflow:hidden;max-width:70ch}
 .card .ch{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line-soft);
@@ -191,8 +193,19 @@ button{font:inherit;color:inherit}
 .surf{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px;max-width:70ch}
 .surf .sh{font-family:var(--font-num);font-size:9.5px;letter-spacing:.06em;color:var(--txt-faint);margin-bottom:10px}
 .bubble{border-radius:12px;padding:10px 12px;font-size:12.8px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
-.bubble.slack{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid #4A154B}
-.bubble.whatsapp{background:var(--ok-soft);border:1px solid var(--line);border-radius:12px 12px 12px 4px}
+/* A superfície de destino se lê pela FORMA e pelo RÓTULO, nunca por cor
+   emprestada de marca alheia.
+   - o roxo do Slack (#4A154B) era cor solta, fora do sistema de tokens: no dia
+     em que o tema mudar ela não muda junto, e o painel inteiro é construído em
+     cima de tokens justamente para isso não acontecer;
+   - o verde do WhatsApp vinha de `--ok-soft`, que é COR DE STATUS. Este repo
+     reserva ok/warn/risk para dizer se algo está bem ou mal — usá-la como
+     enfeite de balão gasta o único vocabulário que precisa continuar querendo
+     dizer uma coisa só. Um balão verde ali sugeriria "deu certo", e nada aqui
+     executou.
+   O canto assimétrico e a linha "WhatsApp · <número>" fazem o trabalho. */
+.bubble.slack,.bubble.whatsapp{background:var(--surface-2);border:1px solid var(--line)}
+.bubble.whatsapp{border-radius:12px 12px 12px 4px}
 .bubble .meta{font-family:var(--font-num);font-size:10px;color:var(--txt-faint);margin-bottom:6px}
 .naosim{color:var(--warn-txt);background:var(--warn-soft);border-radius:5px;padding:0 4px;
   font-family:var(--font-num);font-size:11px}
