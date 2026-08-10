@@ -118,6 +118,11 @@ button{font:inherit;color:inherit}
 .split{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
 .stream{padding:18px 20px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;
   border-right:1px solid var(--line-soft);min-width:0}
+/* Filho de coluna flex encolhe por padrão. Sem isto os cartões eram ESPREMIDOS
+   quando a conversa passava da altura da coluna, em vez de a coluna rolar — o
+   "O que eu entendi" aparecia cortado no meio da última linha, e a faixa de
+   atividade virava um risco fino. */
+.stream > *{flex:0 0 auto}
 .side{padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;background:var(--surface-2);min-width:0}
 .composer-wrap{padding:0 20px 16px;border-right:1px solid var(--line-soft)}
 
@@ -163,9 +168,16 @@ button{font:inherit;color:inherit}
 .canvas{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-deep);
   background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
   background-size:26px 26px;position:relative;max-width:none}
-.canvas svg{display:block;width:100%;height:260px}
+.canvas svg{display:block;width:100%;height:320px;touch-action:none}
 .canvas .corner{position:absolute;top:9px;left:12px;font-family:var(--font-num);font-size:10px;
-  color:var(--txt-faint);letter-spacing:.05em}
+  color:var(--txt-faint);letter-spacing:.05em;pointer-events:none}
+.canvas-ctl{position:absolute;top:7px;right:9px}
+.canvas-hint{position:absolute;bottom:8px;left:12px;font-family:var(--font-num);font-size:9.5px;
+  color:var(--txt-faint);opacity:.75;pointer-events:none}
+/* O nome do nó pode ser longo (`clickup_buscar_tarefas_abertas`). Aqui ele não é
+   cortado: dá para aproximar e ler. Sem `paint-order` a borda do texto some
+   contra o fio que passa por trás. */
+.nd .nm{paint-order:stroke;stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
 .edge{fill:none;stroke:var(--wire);stroke-width:1.6;stroke-linecap:round;
   stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
 .edge.drawing{stroke:var(--accent);animation:draw .42s ease forwards}
@@ -262,6 +274,22 @@ details.jsonbox .inner{padding:0 13px 13px}
 .band .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 auto;
   animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* Faixa de processamento. Duas linhas: o que está acontecendo agora (etapa) e o
+   detalhe do que a sessão está fazendo neste segundo. O detalhe muda toda hora
+   e por isso NÃO pode ser a linha principal — quem olha quer saber onde está,
+   não qual arquivo foi tocado. */
+.proc{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--accent-line);
+  border-radius:12px;background:var(--accent-soft);max-width:70ch}
+.proc .spin{width:16px;height:16px;flex:0 0 auto;border-radius:50%;
+  border:2px solid var(--accent-line);border-top-color:var(--accent);animation:girar .8s linear infinite}
+.proc .col{min-width:0;flex:1}
+.proc .t1{font-size:12.8px;color:var(--txt);font-weight:600}
+.proc .t2{font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc .passo{font-family:var(--font-num);font-size:10px;color:var(--accent-txt);flex:0 0 auto}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.proc .spin{animation:none;border-top-color:var(--accent-line)}}
 .band .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-num);font-size:11px}
 
 /* rodapé: muda conforme o que REALMENTE aconteceu (PLAN.md §10) */
@@ -545,9 +573,7 @@ function blocosStream(s) {
     }
   }
 
-  if (s.status === "correndo" && s.etapa === 1 && !s.entendi) {
-    out.push('<div class="band"><span class="dot"></span><span class="txt" id="atividade">' + esc(s.atividade || "lendo a sua ideia…") + "</span></div>");
-  }
+  if (s.status === "correndo" && s.etapa === 1 && !s.entendi) out.push(faixaProc(s));
 
   for (const q of s.perguntas || []) out.push(pergunta(q));
 
@@ -576,12 +602,25 @@ function blocosStream(s) {
 
   if (s.status === "pronta" && s.wf) out.push(entrega(s));
 
-  if (s.status === "correndo" && s.etapa > 1) {
-    out.push('<div class="band"><span class="dot"></span><span class="txt" id="atividade">' + esc(s.atividade || "trabalhando…") + "</span></div>");
-  }
+  if (s.status === "correndo" && s.etapa > 1) out.push(faixaProc(s));
 
   if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
   return out.join("");
+}
+
+/* A faixa que diz onde a esteira está. A linha de cima é a ETAPA, que é o que
+   responde "quanto falta"; a de baixo é o detalhe do segundo, que muda rápido
+   demais para ser a informação principal. */
+function faixaProc(s) {
+  const e = (s.etapas || []).find(x => x.n === s.etapa) || {};
+  const titulo = s.etapa === 1 && !s.entendi
+    ? "Lendo a sua ideia…"
+    : "Processando a próxima etapa — " + (e.nome || "");
+  return '<div class="proc" role="status" aria-live="polite">' +
+    '<span class="spin" aria-hidden="true"></span>' +
+    '<span class="col"><span class="t1">' + esc(titulo) + "</span>" +
+    '<span class="t2" id="atividade">' + esc(s.atividade || "começando…") + "</span></span>" +
+    '<span class="passo">' + String(s.etapa).padStart(2, "0") + " / 07</span></div>";
 }
 
 function cartaoEntendi(e) {
@@ -651,14 +690,24 @@ function glyphDe(t) {
 }
 
 function canvas(s) {
-  return '<div class="canvas" id="canvas" role="img" aria-label="desenho do fluxo: ' +
-    s.wf.nodes.length + ' nós"><div class="corner" id="corner"></div></div>';
+  return '<div class="canvas" id="canvas">' +
+    '<div class="corner" id="corner"></div>' +
+    '<div class="canvas-ctl"><button type="button" class="iconbtn" id="fit">ajustar</button></div>' +
+    '<div class="canvas-hint">arraste para mover · role para aproximar · duplo clique para ajustar</div></div>';
 }
 
-/* Revela o desenho nó a nó. O documento já está pronto quando isto roda — o
-   contador diz `[ N NÓS · M CONEXÕES ]` e não "escrevendo 3 de 5", porque
-   afirmar que está escrevendo o terceiro enquanto os cinco já existem seria a
-   mesma família de mentira que o resto desta tela evita. */
+/* Revela o desenho nó a nó e deixa navegar com o mouse.
+ *
+ * Duas decisões que vieram de olhar a tela funcionando:
+ *   - FILEIRA ÚNICA. O ziguezague economizava largura mas empilhava o rótulo de
+ *     um nó em cima do vizinho, e metade dos nomes sumia da tela. Com pan e zoom
+ *     a largura deixou de ser problema, então a fileira reta ganha.
+ *   - A câmera é DESTE svg. O palco do flows.html tem uma câmera singleton;
+ *     dirigi-la daqui moveria a outra tela por baixo.
+ *
+ * O contador mostra a contagem final quando termina, e "MONTANDO i / n" durante
+ * a revelação — ele revela um documento que já está pronto, e não afirma estar
+ * escrevendo o terceiro nó enquanto os cinco já existem. */
 function desenharSeNovo(s) {
   const host = $("#canvas");
   if (!host || !s.wf) return;
@@ -666,10 +715,10 @@ function desenharSeNovo(s) {
   const jaEra = S.desenhado === assinatura;
 
   const nodes = s.wf.nodes.filter(n => !/stickyNote/i.test(n.type));
-  const W = 62, H = 46, GAP = 150;
-  const largura = Math.max(560, nodes.length * GAP + 60);
-  const alt = 230;
-  const pos = nodes.map((n, i) => [30 + i * GAP, i % 2 ? alt / 2 + 12 : alt / 2 - H - 30]);
+  const W = 64, H = 48, GAP = 176, PAD = 44, LINHA = 66;
+  const largura = PAD * 2 + Math.max(1, nodes.length) * GAP;
+  const alt = 200;
+  const pos = nodes.map((n, i) => [PAD + i * GAP, LINHA]);
 
   const ordem = new Map(nodes.map((n, i) => [n.name, i]));
   const arestas = [];
@@ -682,37 +731,38 @@ function desenharSeNovo(s) {
   }
 
   const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 " + largura + " " + alt);
-  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  const gE = document.createElementNS(ns, "g"), gN = document.createElementNS(ns, "g");
-  svg.append(gE, gN);
+  const mk = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = mk("svg", { viewBox: "0 0 " + largura + " " + alt, preserveAspectRatio: "xMidYMid meet",
+    role: "img", "aria-label": "desenho do fluxo com " + nodes.length + " nos" });
+  const cam = mk("g", { class: "cam" });
+  const gE = mk("g", {}), gN = mk("g", {});
+  cam.append(gE, gN);
+  svg.appendChild(cam);
 
-  const paths = arestas.map(([a, b]) => {
-    const [x1, y1] = pos[a], [x2, y2] = pos[b];
+  const paths = arestas.map(par => {
+    const [x1, y1] = pos[par[0]], [x2, y2] = pos[par[1]];
     const ax = x1 + W, ay = y1 + H / 2, bx = x2, by = y2 + H / 2;
-    const p = document.createElementNS(ns, "path");
-    p.setAttribute("class", "edge");
-    p.setAttribute("d", "M" + ax + "," + ay + " C" + (ax + 58) + "," + ay + " " + (bx - 58) + "," + by + " " + bx + "," + by);
+    const p = mk("path", { class: "edge", d: "M" + ax + "," + ay + " C" + (ax + 64) + "," + ay + " " + (bx - 64) + "," + by + " " + bx + "," + by });
     gE.appendChild(p);
     p.style.setProperty("--len", Math.ceil(p.getTotalLength()) + "px");
     return p;
   });
 
   const gs = nodes.map((n, i) => {
-    const [x, y] = pos[i];
-    const g = document.createElementNS(ns, "g");
-    g.setAttribute("class", "nd");
-    const mk = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
-    g.appendChild(mk("rect", { class: "face", x, y, width: W, height: H, rx: 9 }));
+    const x = pos[i][0], y = pos[i][1];
+    const g = mk("g", { class: "nd" });
+    g.appendChild(mk("rect", { class: "face", x: x, y: y, width: W, height: H, rx: 10 }));
     const gl = mk("g", { class: "glyph", transform: "translate(" + (x + W / 2) + "," + (y + H / 2) + ")" });
     gl.innerHTML = GLYPH[glyphDe(n.type)];
     g.appendChild(gl);
-    g.appendChild(mk("circle", { class: "port", cx: x, cy: y + H / 2, r: 2.6 }));
-    g.appendChild(mk("circle", { class: "port", cx: x + W, cy: y + H / 2, r: 2.6 }));
-    const nm = mk("text", { class: "nm", x: x + W / 2, y: y + H + 13 }); nm.textContent = n.name.slice(0, 22);
-    const ty = mk("text", { class: "ty", x: x + W / 2, y: y + H + 23 }); ty.textContent = String(n.type).replace("n8n-nodes-base.", "").slice(0, 22);
-    g.append(nm, ty, mk("rect", { class: "caret", x: x + W + 5, y: y + H / 2 - 6, width: 2, height: 12 }));
+    g.appendChild(mk("circle", { class: "port", cx: x, cy: y + H / 2, r: 2.8 }));
+    g.appendChild(mk("circle", { class: "port", cx: x + W, cy: y + H / 2, r: 2.8 }));
+    const nm = mk("text", { class: "nm", x: x + W / 2, y: y + H + 15 }); nm.textContent = n.name;
+    const ty = mk("text", { class: "ty", x: x + W / 2, y: y + H + 26 });
+    ty.textContent = String(n.type).replace("n8n-nodes-base.", "").replace("@n8n/n8n-nodes-langchain.", "ia/");
+    const tt = mk("title", {});
+    tt.textContent = n.name + "  ·  " + n.type + (n.typeVersion ? "  v" + n.typeVersion : "");
+    g.append(nm, ty, mk("rect", { class: "caret", x: x + W + 6, y: y + H / 2 - 6, width: 2, height: 12 }), tt);
     gN.appendChild(g);
     return g;
   });
@@ -720,7 +770,50 @@ function desenharSeNovo(s) {
   host.querySelectorAll("svg").forEach(x => x.remove());
   host.appendChild(svg);
   const corner = $("#corner");
-  const rotulo = "[ " + nodes.length + " NÓS · " + arestas.length + " CONEXÕES ]";
+  const rotulo = "[ " + nodes.length + " NOS · " + arestas.length + " CONEXOES ]";
+
+  /* ------------------------------------------------------------- a câmera */
+  const cm = { x: 0, y: 0, k: 1 };
+  const aplicar = () => cam.setAttribute("transform", "translate(" + cm.x + "," + cm.y + ") scale(" + cm.k + ")");
+  const ajustar = () => { cm.x = 0; cm.y = 0; cm.k = 1; aplicar(); };
+  const escala = () => largura / (svg.getBoundingClientRect().width || largura);
+
+  let arrasto = null;
+  svg.addEventListener("pointerdown", ev => {
+    arrasto = { x: ev.clientX, y: ev.clientY, cx: cm.x, cy: cm.y };
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* sem captura */ }
+    svg.style.cursor = "grabbing";
+  });
+  svg.addEventListener("pointermove", ev => {
+    if (!arrasto) return;
+    // O ponteiro anda em pixel de tela; a câmera vive em unidade do viewBox.
+    const e = escala();
+    cm.x = arrasto.cx + (ev.clientX - arrasto.x) * e;
+    cm.y = arrasto.cy + (ev.clientY - arrasto.y) * e;
+    aplicar();
+  });
+  const soltar = ev => {
+    arrasto = null; svg.style.cursor = "grab";
+    try { svg.releasePointerCapture(ev.pointerId); } catch (e) { /* já solto */ }
+  };
+  svg.addEventListener("pointerup", soltar);
+  svg.addEventListener("pointercancel", soltar);
+  svg.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const e = largura / (r.width || largura);
+    // Ponto sob o cursor, em unidade do desenho: o zoom mantém ele parado.
+    const px = (ev.clientX - r.left) * e, py = (ev.clientY - r.top) * e;
+    const k2 = Math.min(3, Math.max(0.35, cm.k * (ev.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    cm.x = px - (px - cm.x) * (k2 / cm.k);
+    cm.y = py - (py - cm.y) * (k2 / cm.k);
+    cm.k = k2;
+    aplicar();
+  }, { passive: false });
+  svg.addEventListener("dblclick", ajustar);
+  svg.style.cursor = "grab";
+  const fit = $("#fit");
+  if (fit) fit.addEventListener("click", ajustar);
 
   const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (jaEra || reduzido) {
@@ -735,17 +828,23 @@ function desenharSeNovo(s) {
   // redesenhar tudo a cada evento. Movimento sem informação nova vira ruído.
   (async () => {
     for (let i = 0; i < gs.length; i++) {
-      if (i > 0 && paths[i - 1]) { paths[i - 1].classList.add("drawing"); await esperar(420); paths[i - 1].classList.replace("drawing", "done"); }
+      if (i > 0 && paths[i - 1]) {
+        paths[i - 1].classList.add("drawing");
+        await esperar(400);
+        paths[i - 1].classList.remove("drawing");
+        paths[i - 1].classList.add("done");
+      }
       gs[i].classList.add("writing");
       corner.textContent = "[ MONTANDO " + (i + 1) + " / " + gs.length + " ]";
-      await esperar(430);
+      await esperar(400);
       gs[i].classList.remove("writing"); gs[i].classList.add("built");
-      await esperar(90);
+      await esperar(80);
     }
     paths.forEach(p => p.classList.add("done"));
     corner.textContent = rotulo;
   })();
 }
+
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 
 /* ------------------------------------------------------------- o fantasma */

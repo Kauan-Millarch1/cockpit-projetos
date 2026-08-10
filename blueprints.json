@@ -121,5 +121,46 @@
     ],
     "custoTotal": 0.8986,
     "exportado": false
+  },
+  {
+    "id": "t10ee20e87f86",
+    "ideia": "todo dia às 9h, resumo das tarefas abertas do ClickUp no Slack",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-10T12:16:23.355Z",
+    "terminadoEm": "2026-08-10T12:20:10.441Z",
+    "status": "aguardando",
+    "etapaFinal": 6,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 6,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.0985754,
+        "ms": 29269,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0.41571450000000004,
+        "ms": 99195,
+        "comRede": false
+      },
+      {
+        "sessao": "sementes",
+        "usd": 0.1096014,
+        "ms": 31811,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 0.6239,
+    "exportado": false
   }
 ]

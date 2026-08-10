@@ -150,7 +150,45 @@ function diz(s, texto, nivel) {
   if (s.log.length > 400) s.log.shift();
   emit(s, "log", linha);
 }
-function atividade(s, rotulo) { s.atividade = scrub(rotulo).slice(0, 160); emit(s, "atividade", { atividade: s.atividade }); }
+/* O que a faixa de atividade mostra.
+ *
+ * Antes ela recebia a última linha crua do modelo e o nome cru da ferramenta, o
+ * que produziu duas telas ruins de verdade: uma faixa escrita ``` (o modelo
+ * tinha acabado de abrir um bloco de código) e outra escrita
+ * `Write C:\...\.tester-runs\t10ee20e87f86` — caminho absoluto da máquina, que
+ * não diz nada para quem está olhando e ainda vaza estrutura interna. */
+const FERRAMENTA_PT = {
+  Write: "escrevendo", Edit: "ajustando", Read: "lendo", Glob: "procurando arquivo",
+  Grep: "procurando", WebSearch: "pesquisando na web", WebFetch: "lendo a página"
+};
+const so = t => String(t || "").replace(/\s+/g, " ").trim();
+
+function atividadeFerramenta(nome, alvo) {
+  const verbo = FERRAMENTA_PT[nome] || nome.toLowerCase();
+  const a = so(alvo);
+  if (!a) return verbo;
+  // Caminho absoluto vira só o nome do arquivo; URL vira só o domínio.
+  if (/^https?:\/\//i.test(a)) { try { return verbo + " " + new URL(a).hostname; } catch { return verbo; } }
+  if (/[\\/]/.test(a)) return verbo + " " + a.split(/[\\/]/).filter(Boolean).pop();
+  return verbo + " " + a.slice(0, 60);
+}
+
+/* Frase do modelo só vira atividade se for uma frase. Cerca de código, linha de
+ * pontuação, marcador solto e trecho curto demais são ruído. */
+function fraseUtil(txt) {
+  const t = so(txt);
+  if (t.length < 12) return null;
+  if (/^[`~#>*\-_=\[\]{}()|.,:;!?\s]+$/.test(t)) return null;
+  if (/^```/.test(t)) return null;
+  return t;
+}
+
+function atividade(s, rotulo) {
+  const t = so(rotulo);
+  if (!t) return;
+  s.atividade = scrub(t).slice(0, 160);
+  emit(s, "atividade", { atividade: s.atividade });
+}
 
 function etapa(s, n, estado, nota) {
   s.etapa = n;
@@ -233,12 +271,13 @@ function rodar(s, { rotulo, prompt, ferramentas, cwd, modelo, comRede }) {
           for (const c of ev.message.content) {
             if (c.type === "text" && c.text) {
               texto += c.text;
-              const frase = c.text.trim().split(/\n+/).filter(Boolean).pop();
+              const frase = fraseUtil(c.text.split(/\n+/).filter(Boolean).pop());
               if (frase) atividade(s, frase.slice(0, 140));
             } else if (c.type === "tool_use") {
               const alvo = (c.input && (c.input.file_path || c.input.query || c.input.url || c.input.pattern)) || "";
-              atividade(s, c.name + (alvo ? " " + String(alvo).slice(0, 90) : ""));
-              diz(s, "· " + c.name + " " + String(alvo).slice(0, 120));
+              const humano = atividadeFerramenta(c.name, alvo);
+              atividade(s, humano);
+              diz(s, "· " + humano);
             }
           }
         } else if (ev.type === "result") {
