@@ -336,6 +336,11 @@ details.jsonbox .inner{padding:0 13px 13px}
 .pop{position:absolute;top:26px;right:0;z-index:5;min-width:132px;background:var(--raised);
   border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:var(--shadow);
   display:flex;flex-direction:column;gap:2px}
+/* O atributo `hidden` só esconde porque o padrão dele é `display:none` — QUALQUER
+   `display` declarado ganha dele. Sem esta linha o menu nascia aberto e não
+   fechava com nada, porque o `display:flex` acima vencia o `hidden`. */
+.pop[hidden]{display:none}
+.outro-campo[hidden]{display:none}
 .pop-i{text-align:left;background:none;border:none;border-radius:7px;padding:7px 9px;
   font-size:12px;color:var(--txt-dim);cursor:pointer}
 .pop-i:hover{background:var(--surface-2);color:var(--txt)}
@@ -571,10 +576,6 @@ function telaAbertura(aviso) {
       catch (e) { avisoAbertura(e.message); }
       await inicio();
     }));
-  });
-  document.addEventListener("click", () => {
-    app.querySelectorAll(".pop").forEach(x => x.setAttribute("hidden", ""));
-    app.querySelectorAll(".dots").forEach(x => x.setAttribute("aria-expanded", "false"));
   });
   $("#comecar").addEventListener("click", comecar);
   pintarRodape(null);
@@ -1292,6 +1293,16 @@ function pintarRodape(s) {
 }
 
 /* ---------------------------------------------------------------- boot */
+
+/* Fecha qualquer menu aberto. Registrado UMA vez, no documento: preso ao render
+   dos cards ele era re-registrado a cada volta para a tela inicial, e os
+   ouvintes iam se acumulando. */
+function fecharMenus() {
+  document.querySelectorAll(".pop").forEach(x => x.setAttribute("hidden", ""));
+  document.querySelectorAll(".dots").forEach(x => x.setAttribute("aria-expanded", "false"));
+}
+document.addEventListener("click", fecharMenus);
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") fecharMenus(); });
 
 $("#tema").addEventListener("click", () => {
   const atual = document.documentElement.getAttribute("data-theme");
