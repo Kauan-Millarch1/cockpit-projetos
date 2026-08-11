@@ -1109,6 +1109,17 @@ button.gate { font-family: var(--font-num); cursor: pointer; }
 ::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: var(--txt); }
 textarea, input { caret-color: var(--accent); }
 </style>
+<script>
+/* O tema escolhido em qualquer página vale aqui ANTES do primeiro paint. A
+   leitura já existia no fim do body, mas aí a página pintava no `data-theme`
+   fixo do <html> e trocava depois — um flash do tema errado a cada navegação
+   para quem escolheu o claro. `?theme=` continua vencendo (kiosk/captura). */
+(() => {
+  const q = new URLSearchParams(location.search).get("theme");
+  const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
+  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
 </head>
 <body>
 <div class="backdrop"><i class="gbeam"></i><i class="gbeam b2"></i></div>

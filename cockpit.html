@@ -197,6 +197,16 @@
     .compbar .lbl { flex:0 0 44%; }
   }
 </style>
+<script>
+/* O tema é UM para o produto inteiro — mesma chave e mesma ordem das outras
+   páginas (`?theme=` vence, depois `cockpit-theme`, depois o sistema). No
+   <head> de propósito: depois do primeiro paint seria um flash a cada troca. */
+(() => {
+  const q = new URLSearchParams(location.search).get("theme");
+  const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
+  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
 </head>
 <body>
 
@@ -602,7 +612,9 @@ el("refresh").onclick = () => { detailCache.clear(); load(true); };
 el("theme").onclick = () => {
   const atual = document.documentElement.getAttribute("data-theme");
   const escuro = atual ? atual === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.setAttribute("data-theme", escuro ? "light" : "dark");
+  const novo = escuro ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", novo);
+  try { localStorage.setItem("cockpit-theme", novo); } catch { /* modo privado */ }
 };
 load(false);
 </script>

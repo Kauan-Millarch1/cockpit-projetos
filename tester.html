@@ -686,6 +686,18 @@ details.jsonbox .inner{padding:0 13px 13px}
   .edge{stroke-dashoffset:0}
 }
 </style>
+<script>
+/* O tema é UM para o produto inteiro: escolher claro numa página e a vizinha
+   abrir escura é o mesmo defeito de identidade do cabeçalho triplo. A chave é
+   a que o flows.html já usava (`cockpit-theme`); `?theme=` vence, porque é a
+   flag de captura/kiosk. Roda no <head> de propósito — depois do primeiro
+   paint seria um flash do tema errado a cada navegação. */
+(() => {
+  const q = new URLSearchParams(location.search).get("theme");
+  const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
+  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
 </head>
 <body>
 
@@ -2679,7 +2691,10 @@ document.addEventListener("keydown", ev => { if (ev.key === "Escape") fecharMenu
 $("#tema").addEventListener("click", () => {
   const atual = document.documentElement.getAttribute("data-theme");
   const escuro = atual ? atual === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.setAttribute("data-theme", escuro ? "light" : "dark");
+  const novo = escuro ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", novo);
+  // A mesma chave do flows: o tema é do produto, não da página.
+  try { localStorage.setItem("cockpit-theme", novo); } catch { /* modo privado */ }
 });
 
 // A seta do appbar. Sair não mata nada: a sessão continua no servidor e o card
