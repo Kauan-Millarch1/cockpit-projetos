@@ -222,6 +222,21 @@ button{font:inherit;color:inherit}
    acima, e a fala do sistema já se distingue da sua por não ter balão. Uma
    listra de acento aqui seria decoração pagando por informação que já existe. */
 .msg.sys .body{font-size:13px;line-height:1.68;color:var(--txt-dim);white-space:pre-wrap}
+/* A fala renderizada em markdown leve: os blocos cuidam do espaçamento, então
+   o pre-wrap sai — mantê-lo dobraria cada quebra em espaço fantasma. */
+.msg.sys .body.md{white-space:normal;max-width:70ch}
+.msg.sys .body.md p{margin:0 0 9px}
+.msg.sys .body.md p:last-child{margin-bottom:0}
+.msg.sys .body.md ul,.msg.sys .body.md ol{margin:0 0 9px;padding-left:22px}
+.msg.sys .body.md li{margin-bottom:5px;line-height:1.6}
+.msg.sys .body.md strong{color:var(--txt);font-weight:650}
+.msg.sys .body.md code{font-family:var(--font-num);font-size:11.5px;color:var(--txt);
+  background:var(--surface-2);border:1px solid var(--line-soft);border-radius:5px;padding:1px 5px}
+
+/* O contexto recolhido da conversa de edição (simulação + credenciais). */
+.edctx{max-width:70ch;background:var(--surface)}
+.edctx-in{padding:10px 12px;display:flex;flex-direction:column;gap:12px}
+.edctx-in .surf{border:none;padding:0;max-width:none}
 
 .card{border:1px solid var(--line);background:var(--surface);border-radius:12px;overflow:hidden;max-width:70ch}
 .card .ch{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line-soft);
@@ -1148,6 +1163,41 @@ function restaurarInputs(lista) {
    precisa dele para dizer que classificação foi feita. Um projeto salvo antes
    desta feature não tem o campo, e aí o cartão simplesmente não diz nada, que é
    melhor que afirmar "automação" sobre algo que nunca foi classificado. */
+/* Markdown LEVE para a fala do Tester. A resposta de uma conversa de edição
+   vinha como parede de texto — "1. ... 2. ... 3. ..." emendados num parágrafo
+   só, ilegível (medido no primeiro uso real). O subconjunto é deliberado:
+   parágrafo, lista (- e numerada), **negrito** e `código`. Nada de headings,
+   links ou HTML — a fonte é um modelo, e o escape roda ANTES de qualquer
+   transformação: o que entra hostil sai texto. */
+function mdLeve(t) {
+  const linhas = String(t || "").split(/\n/);
+  const out = [];
+  let lista = null;                              // "ul" | "ol" | null
+  const fecha = () => { if (lista) { out.push("</" + lista + ">"); lista = null; } };
+  const inline = s => esc(s)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+  let par = [];
+  const solta = () => { if (par.length) { out.push("<p>" + par.join("<br>") + "</p>"); par = []; } };
+  for (const l of linhas) {
+    const s = l.trim();
+    const mUl = /^[-•]\s+(.*)$/.exec(s);
+    const mOl = /^\d+[.)]\s+(.*)$/.exec(s);
+    if (mUl || mOl) {
+      solta();
+      const tipo = mUl ? "ul" : "ol";
+      if (lista !== tipo) { fecha(); out.push("<" + tipo + ">"); lista = tipo; }
+      out.push("<li>" + inline((mUl || mOl)[1]) + "</li>");
+      continue;
+    }
+    fecha();
+    if (!s) { solta(); continue; }
+    par.push(inline(s));
+  }
+  fecha(); solta();
+  return out.join("");
+}
+
 function blocosConversa(chat, dono) {
   return (chat || []).map(m => {
     if (m.quem === "voce") return '<div class="msg me"><div class="who">VOCÊ</div><div class="body">' + esc(m.texto) + "</div></div>";
@@ -1156,7 +1206,7 @@ function blocosConversa(chat, dono) {
        dele É o cartão de entendimento, e `texto` vem nulo. Numa conversa sobre
        um fluxo salvo é o caso comum: a resposta a uma dúvida é uma frase, e sem
        esta linha ela era descartada e a pergunta ficava sem resposta na tela. */
-    if (m.texto) return '<div class="msg sys"><div class="who">TESTER</div><div class="body">' + esc(m.texto) + "</div></div>";
+    if (m.texto) return '<div class="msg sys"><div class="who">TESTER</div><div class="body md">' + mdLeve(m.texto) + "</div></div>";
     return "";
   }).join("");
 }
@@ -1245,6 +1295,13 @@ function faixaProc(s) {
  * O fluxo salvo não muda em nenhuma delas até o clique em aplicar — e a faixa
  * do topo diz isso o tempo todo, porque a tela mostra o desenho do fluxo e
  * "estou vendo o fluxo" é fácil de confundir com "o fluxo já mudou". */
+/* A ORDEM é a correção de um defeito medido: a conversa vinha primeiro e os
+   artefatos (desenho, simulação, checklist) depois — uma tela inteira deles —
+   então a mensagem recém-enviada aparecia "lá em cima" e a resposta chegava
+   fora da vista. Numa conversa, o que cresce fica embaixo, junto do compositor:
+   o desenho é CONTEXTO e fica no topo; simulação e credenciais viram um bloco
+   recolhido (continuam a um clique, sem dominar a tela); a conversa flui por
+   último, e o pintar() já rola para o fim quando você está perto dele. */
 function blocosEdicao(s) {
   const out = [];
   const nos = (s.wf && s.wf.nodes || []).length;
@@ -1253,11 +1310,22 @@ function blocosEdicao(s) {
     '<div class="edhd-sub">Pergunte, peça mudança, peça coisa nova ou peça para tirar. ' +
     "Nada é gravado enquanto você não aprovar o remendo.</div></div>");
 
+  if (s.wf) out.push(canvas(s));
+
+  const ctx = [];
+  if (!s.proposta && s.fantasma) ctx.push(fantasmaBloco(s));
+  /* Um remendo que acrescenta nó acrescenta credencial junto, e ela não aparece
+     em lugar nenhum do diff — o patch tem `credentials` proibido justamente por
+     isso. A checklist é o único lugar onde esse custo fica visível. */
+  if (!s.proposta && s.wf) ctx.push(checklistCred(s, true));
+  if (ctx.length) {
+    out.push('<details class="ddet edctx"><summary>Simulação e credenciais deste fluxo</summary>' +
+      '<div class="edctx-in">' + ctx.join("") + "</div></details>");
+  }
+
   out.push(blocosConversa(s.chat, s));
 
   if (s.status === "correndo") out.push(faixaProc(s));
-
-  if (s.wf) out.push(canvas(s));
 
   if (s.gatesProposta && !s.gatesProposta.passou && !s.proposta) {
     out.push('<div class="gatefail"><div style="font-size:12.5px;font-weight:600;margin-bottom:7px">' +
@@ -1266,12 +1334,6 @@ function blocosEdicao(s) {
   }
 
   if (s.proposta) out.push(propostaBloco(s));
-  else if (s.fantasma) out.push(fantasmaBloco(s));
-
-  /* Um remendo que acrescenta nó acrescenta credencial junto, e ela não aparece
-     em lugar nenhum do diff — o patch tem `credentials` proibido justamente por
-     isso. A checklist é o único lugar onde esse custo fica visível. */
-  if (!s.proposta && s.wf) out.push(checklistCred(s, true));
 
   if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
   return out.join("");

@@ -1894,6 +1894,36 @@ async function escreverContextoEdicao(s) {
    * decisão já tomada — sem isto o modelo reabre discussão fechada meses atrás,
    * com a diferença de que agora ele decide sozinho. */
   const linhas = ["# A conversa que produziu este fluxo", ""];
+
+  /* O ESTADO antes da história. "Está funcionando?" é a pergunta mais comum de
+   * uma conversa de edição, e a resposta honesta é feita de fatos que a sessão
+   * não tinha: o que os portões verificaram, se o n8n aceitou o schema, o que a
+   * simulação produziu ou recusou, e o que ainda está [PREENCHER]. Sem isto o
+   * modelo deduzia tudo do JSON — acertava, mas gastava a resposta re-derivando
+   * o que o cockpit já sabia. */
+  linhas.push("## O estado deste fluxo agora", "");
+  linhas.push("- Nós: " + (s.wf.nodes || []).length);
+  if (s.gates) linhas.push("- Portões do cockpit: " + (s.gates.passou ? "TODOS PASSARAM (rodada " + s.gates.rodada + ")" : "reprovado"));
+  if (s.sandbox) {
+    linhas.push("- Cópia de teste no n8n: " + (s.sandbox.estado === "ok"
+      ? "aceita pela instância (" + (s.sandbox.nome || "") + ") — prova que o SCHEMA é válido, nunca que o acesso funciona (ela roda sem credencial)"
+      : s.sandbox.estado));
+  }
+  if (s.fantasma) {
+    linhas.push("- Simulação: " + (s.fantasma.ok
+      ? "produziu resultado (o texto e o destino saem do fluxo; os dados são de exemplo)"
+      : "recusada — " + (s.fantasma.recusa || "")));
+  }
+  const pend = acharPreencher(s.wf);
+  if (pend.length) {
+    linhas.push("- Marcadores [PREENCHER] ainda abertos (" + pend.length + "):");
+    for (const p of pend.slice(0, 20)) linhas.push("  - " + p);
+    if (pend.length > 20) linhas.push("  - (e mais " + (pend.length - 20) + ")");
+  } else {
+    linhas.push("- Nenhum [PREENCHER] pendente.");
+  }
+  linhas.push("- O que NENHUMA dessas checagens prova: que o fluxo roda de verdade. A API pública do n8n não tem endpoint de execução — só uma execução real, disparada lá, prova funcionamento.");
+  linhas.push("");
   for (const m of (s.chat || []).slice(-40)) {
     if (m.quem === "voce" && m.texto) linhas.push("**Kauan:** " + m.texto, "");
     else if (m.entendi) linhas.push("**O que ficou entendido:** " + JSON.stringify(m.entendi), "");
@@ -1907,6 +1937,23 @@ async function escreverContextoEdicao(s) {
   await fsp.writeFile(dentro(s.dir, "CONVERSA.md"), linhas.join("\n"), "utf8");
 }
 
+/* Onde o fluxo ainda diz [PREENCHER]. Caminho "nó > parâmetro", porque é isso
+ * que responde "o que falta eu configurar" sem abrir o JSON. */
+function acharPreencher(wf) {
+  const out = [];
+  for (const nd of (wf && wf.nodes) || []) {
+    (function anda(v, caminho) {
+      if (typeof v === "string") {
+        if (v.includes("[PREENCHER]")) out.push(nd.name + " > " + caminho);
+        return;
+      }
+      if (Array.isArray(v)) { v.forEach((x, i) => anda(x, caminho + "[" + i + "]")); return; }
+      if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) anda(x, caminho ? caminho + "." + k : k);
+    })(nd.parameters || {}, "");
+  }
+  return out;
+}
+
 function promptEdicao(s, pedido, correcoes) {
   return [
     "Você conversa com a pessoa sobre um fluxo de n8n que ELA JÁ TEM. O fluxo existe, está salvo, e",
@@ -1918,7 +1965,17 @@ function promptEdicao(s, pedido, correcoes) {
     "  `workflow.json`  — o fluxo como ele está hoje",
     "  `nodes-index.md` — nome exato · tipo · saídas de cada nó",
     "  `catalogo.json`  — os tipos de nó que esta instância aceita, com versões e forma dos parâmetros",
-    "  `CONVERSA.md`    — como este fluxo foi decidido. Decisão que já está aqui NÃO se reabre por conta própria.",
+    "  `CONVERSA.md`    — o ESTADO do fluxo (portões, cópia de teste, simulação, o que falta preencher)",
+    "                     e como ele foi decidido. Decisão que já está aqui NÃO se reabre por conta própria.",
+    "",
+    "O QUE VOCÊ SABE E O QUE NÃO SABE — responda dentro disso, nunca além:",
+    "- Você sabe tudo que está nesses arquivos: cada nó, cada expressão, cada decisão da conversa.",
+    "- Você NÃO executa nada e NÃO enxerga a instância dela. \"Está funcionando?\" tem uma resposta",
+    "  honesta em três partes: o que já foi VERIFICADO (portões, schema aceito pela cópia de teste,",
+    "  simulação), o que FALTA ela fazer ([PREENCHER], credencial, ativar), e o que SÓ uma execução",
+    "  real no n8n prova. Nunca diga que rodou; nunca diga que funciona — diga o que está conferido.",
+    "- Pedido grande também é remendo: dá para acrescentar um subsistema inteiro em um patch",
+    "  (vários `addNodes` + `rewire`). Não recuse por tamanho; recuse por ambiguidade.",
     "",
     "O QUE ELA PEDIU AGORA:",
     "«" + pedido + "»",
@@ -1929,6 +1986,11 @@ function promptEdicao(s, pedido, correcoes) {
     '{ "tipo": "resposta", "texto": "..." }',
     "   Nada muda no fluxo. Perguntar de volta é mais barato que remendar errado — use este formato",
     "   sempre que remendar exigiria adivinhar qual das duas coisas ela quis dizer.",
+    "   COMO ESCREVER `texto` — isto vira uma bolha de chat, não um relatório:",
+    "   - parágrafos curtos separados por linha em branco; lista numerada quando forem passos;",
+    "   - **negrito** no que decide, `código` para nome de nó e de campo;",
+    "   - responda O QUE FOI PERGUNTADO primeiro, em uma frase; o detalhe vem depois;",
+    "   - até ~1500 caracteres, salvo se ela pedir detalhe. Parede de texto não se lê.",
     "",
     "2) É MUDANÇA, e você sabe exatamente qual:",
     '{ "tipo": "patch",',
@@ -2364,7 +2426,7 @@ module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger
   parcialDeWrite,
   abrirEdicao, pedirEdicao, decidirEdicao, desfazerEdicao,
   // Puro e testável sem modelo: é ele que decide o que um patch pode fazer.
-  aplicarRemendo, promptEdicao,
+  aplicarRemendo, promptEdicao, acharPreencher,
   /* Expostos para teste, junto do teto que eles têm que respeitar. São funções
    * puras, e o que se mede nelas é o tamanho: o prompt viaja em `-p` e a linha de
    * comando do Windows tem limite rígido. Um teste que remonta o prompt por fora

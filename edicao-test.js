@@ -12,7 +12,7 @@
 "use strict";
 
 const assert = require("assert");
-const { aplicarRemendo, promptEdicao, PROMPT_MAX } = require("./tester");
+const { aplicarRemendo, promptEdicao, acharPreencher, PROMPT_MAX } = require("./tester");
 
 let ok = 0, bad = 0;
 const t = (nome, fn) => {
@@ -188,6 +188,28 @@ t("o pior caso do prompt de edição cabe no teto interno", () => {
   const p = promptEdicao(s, x(2000), x(4000));
   console.log("         prompt " + p.length + "  teto " + PROMPT_MAX + "  folga " + (PROMPT_MAX - p.length));
   assert.ok(p.length <= PROMPT_MAX, p.length + " chars, teto " + PROMPT_MAX);
+});
+
+t("acharPreencher lista nó > caminho, em profundidade e dentro de array", () => {
+  const wf = { nodes: [
+    { name: "ler_planilha", type: "x", parameters: { documentId: "[PREENCHER]", aba: { nome: "[PREENCHER] nome" } } },
+    { name: "avisar", type: "x", parameters: { canal: "#estoque", lista: ["ok", "[PREENCHER]"] } },
+    { name: "limpo", type: "x", parameters: { a: 1 } }
+  ] };
+  const r = acharPreencher(wf);
+  assert.deepStrictEqual(r.sort(), [
+    "avisar > lista[1]",
+    "ler_planilha > aba.nome",
+    "ler_planilha > documentId"
+  ]);
+  assert.deepStrictEqual(acharPreencher({ nodes: [] }), []);
+});
+
+t("o prompt diz o que a sessão sabe, o que não sabe, e como escrever a resposta", () => {
+  const p = promptEdicao({ nivel: "sei o básico" }, "está funcionando?", null);
+  for (const termo of ["O QUE VOCÊ SABE", "NÃO executa", "três partes", "1500", "negrito"]) {
+    assert.ok(p.includes(termo), "o prompt perdeu: " + termo);
+  }
 });
 
 t("o prompt diz ao modelo os quatro verbos e as recusas que o código aplica", () => {
