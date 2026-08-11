@@ -1990,7 +1990,13 @@ function cardConstrucao() {
   const etapas = a.etapas || [];
   const total = etapas.length || 7;
   const feitas = etapas.filter(e => ESTADO_TAG[e.estado] && ESTADO_TAG[e.estado].ordem >= 2).length;
-  const pct = Math.round(100 * feitas / total);
+  /* A etapa em andamento conta como MEIA. Só as concluídas dava 0% durante toda
+     a etapa 01 — e a entrevista pode ter duas rodadas respondidas e ainda ler
+     como "nada aconteceu", que era exatamente a mentira na tela. Meia etapa é
+     um chute declarado no comentário e monotônico: nunca volta, nunca é 0 com
+     trabalho feito, e 100% continua impossível antes de a última etapa fechar. */
+  const ativa = etapas.some(e => e.estado === "correndo" || e.estado === "espera") ? 0.5 : 0;
+  const pct = Math.min(99, Math.round(100 * (feitas + ativa) / total));
   const atual = etapas.find(e => e.n === a.etapa) || {};
   const rotulo = a.status === "correndo"
     ? (a.modo === "edicao" ? "REMENDANDO AGORA" : "EM CONSTRUÇÃO")
