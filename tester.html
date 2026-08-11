@@ -113,14 +113,18 @@ button{font:inherit;color:inherit}
 .ghost-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 auto;
   animation:ghostdot 1.1s ease-in-out infinite}
 .ghost-bar{height:4px;border-radius:999px;background:var(--line-soft);overflow:hidden;margin-top:7px}
-.ghost-bar i{display:block;height:100%;border-radius:999px;background:var(--accent);
-  transition:width .6s cubic-bezier(.2,.9,.3,1)}
+/* O preenchimento anima por scaleX, não por width: width dispara layout a cada
+   frame da transição, scaleX é composited. A largura fica fixa em 100% e o
+   percentual vira transform — a distorção do raio de borda sob escala é
+   invisível numa barra de 4px. */
+.ghost-bar i{display:block;height:100%;width:100%;border-radius:999px;background:var(--accent);
+  transform-origin:left;transition:transform .6s cubic-bezier(.2,.9,.3,1)}
 .ghost-pct{font-family:var(--font-num);font-size:10.5px;color:var(--txt);font-weight:700}
 @keyframes ghostpulse{0%,100%{border-color:var(--accent-line)}50%{border-color:color-mix(in srgb,var(--accent) 18%,transparent)}}
 @keyframes ghostdot{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){
   .proj.ghost,.ghost-dot{animation:none}
-  .ghost-bar i{transition:none}
+  .ghost-bar i{transition:none}   /* o scaleX aplica na hora; só a suavização sai */
 }
 
 /* ------------------------------------------------------------- abertura */
@@ -1998,7 +2002,7 @@ function cardConstrucao() {
     '<span class="pm">etapa ' + String(a.etapa).padStart(2, "0") + " de " + String(total).padStart(2, "0") +
       (atual.nome ? " · " + esc(atual.nome) : "") + "</span>" +
     '<span class="ghost-bar" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"' +
-      ' aria-label="progresso da construção"><i style="width:' + pct + '%"></i></span>' +
+      ' aria-label="progresso da construção"><i style="transform:scaleX(' + (pct / 100) + ')"></i></span>' +
     '<span class="pm" style="margin-top:5px">' +
       (a.status === "correndo" ? esc(a.atividade || "trabalhando…") : "parada esperando a sua resposta — clica para continuar") +
     "</span></div>";
