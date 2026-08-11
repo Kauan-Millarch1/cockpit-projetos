@@ -58,6 +58,13 @@ if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
+echo  nota permanente do quadro de erros (fixNote)
+echo ==============================================
+node fixnote-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
 echo  caractere de controle nos arquivos servidos
 echo ==============================================
 node caractere-test.js

@@ -826,19 +826,28 @@ function fixNote(run) {
   // Blocos de código saem primeiro: o fallback lê prosa, e um trecho de JS
   // colado no cartão do quadro de erros não se lê de relance nem ensina nada.
   const rep = String(run.report || "").replace(/```[\s\S]*?```/g, " ");
-  // Markdown sai só onde é markdown. A versão anterior removia `_` e `#` em
-  // qualquer posição, e isso corrompia o registro permanente: os nós daqui são
-  // snake_case por convenção, então `filtrar_por_horario` virava
-  // "filtrarporhorario" e o canal "#estoque" virava "estoque" — na única nota
-  // que documenta como a falha foi resolvida.
+  // Markdown sai só onde é markdown. Três lições pagas aqui, todas da mesma
+  // classe — corromper em silêncio a única nota que documenta como a falha foi
+  // resolvida: (1) remover `_` e `#` em qualquer posição mutilava os nós
+  // snake_case ("filtrar_por_horario" → "filtrarporhorario") e o canal
+  // ("#estoque" → "estoque"); (2) apagar as crases ANTES da ênfase deixava o
+  // conteúdo do código participar do parse — "`a*b` e `c*d`" virava "ab e cd",
+  // dois identificadores fabricados; (3) o par de * precisa encostar no
+  // conteúdo, senão "maxTries * waitBetweenTries * 2" e "*.json e *.md" são
+  // lidos como itálico e a conta/glob some. Por isso o texto é fatiado em
+  // código e prosa: ênfase só cai na prosa, crase só perde o invólucro.
+  const stripEnfase = x => x
+    .replace(/\*\*(\S(?:[^*\n]*\S)?)\*\*/g, "$1") // **negrito**, colado no conteúdo
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, "$1")     // *itálico*, colado no conteúdo
+    // _ênfase_ isolada por espaço/pontuação — nunca o _ interno de snake_case
+    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,;:!?]|$)/g, "$1$2");
   const oneLine = s => String(s)
     .replace(/^\s*#{1,6}\s+/gm, "")      // título, só no começo da linha
     .replace(/^\s*>\s?/gm, "")           // citação, só no começo da linha
-    .replace(/`+/g, "")                  // crase é sempre invólucro
-    .replace(/\*\*([^*\n]+)\*\*/g, "$1") // **negrito**
-    .replace(/\*([^*\n]+)\*/g, "$1")     // *itálico*
-    // _ênfase_ isolada por espaço/pontuação — nunca o _ interno de snake_case
-    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,;:!?]|$)/g, "$1$2")
+    .split(/(`+[^`\n]*`+)/)              // separa trecho de código de prosa
+    .map(p => p.startsWith("`") ? p.replace(/`+/g, "") : stripEnfase(p))
+    .join("")
+    .replace(/`+/g, "")                  // crase ímpar que sobrou é invólucro
     .replace(/\s+/g, " ").trim();
   // Uma frase, não um parágrafo. O ponto final só conta como fim de frase
   // seguido de espaço e maiúscula, senão "1.7s" e "n8n-nodes-base.set" cortam.
