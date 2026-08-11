@@ -128,8 +128,12 @@
   select { padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:inherit; font-size:13.5px; }
 
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px 14px; display:flex; flex-direction:column; gap:10px; border-top:3px solid var(--edge,var(--cold)); text-align:left; font:inherit; color:inherit; cursor:pointer; }
-  .card:hover { border-color:var(--accent); }
+  /* A cor de status é uma BARRA embutida à esquerda (o mesmo desenho dos cards
+     do flows.html), não uma borda grossa no topo: borda de 3px briga com o
+     canto arredondado — e o card do flows já tinha resolvido isso. */
+  .card { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:13px 15px 14px 18px; display:flex; flex-direction:column; gap:10px; text-align:left; font:inherit; color:inherit; cursor:pointer; }
+  .card::before { content:""; position:absolute; left:0; top:13px; bottom:13px; width:2px; border-radius:2px; background:var(--edge,var(--cold)); }
+  .card:hover { border-color:var(--accent-line); }
   .card header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
   .card h3 { margin:0; font-size:15px; letter-spacing:-0.01em; overflow-wrap:anywhere; }
   .pill { flex:none; font-size:10.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:3px 8px; border-radius:999px; white-space:nowrap; }
