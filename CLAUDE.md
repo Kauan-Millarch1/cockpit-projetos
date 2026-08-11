@@ -659,6 +659,19 @@ over months of real conversation, and shipping 2k as finished would be a lie. To
 not implemented: each is a separate sub-workflow and the Tester builds one workflow per run, so
 `workflowId.value` is a `[PREENCHER]` and the list of what to build lands in `report.md`.
 
+**Leaving mid-build is safe, and now it has a door.** The session always lived on the server (`?s=`
+reattaches), but that path only existed for whoever knew the URL. The appbar gains **← início**
+during a run — it closes the SSE and nothing else — and the opening screen shows the live build as a
+**translucent, pulsing card** first in the projects grid: percent done (derived from completed
+stages via `ESTADO_TAG`, honest and stepwise), current stage name, and the last activity line.
+`correndo` pulses "EM CONSTRUÇÃO"; `aguardando` says "ESPERANDO VOCÊ — clica para continuar", which
+matters more: an interview parked on a question is the state most likely to be forgotten. Clicking
+is plain `ligar(id)`. The pulse is information (the only thing on that screen actually moving), so
+`prefers-reduced-motion` drops the animation but keeps the card. While the opening screen is up, a
+4s poll refreshes `/api/tester/status` and swaps **only the projects block** — never the page, which
+holds a textarea with live text. The server's `status()` grew `andamento` (facts only: id, stages
+with states, activity); the percent is judgement and the page derives it.
+
 **A saved project carries the whole conversation.** `salvarProjeto` persists `chat` and `respostas`;
 `telaProjeto` replays it with the same `blocosConversa()` the live run uses, plus the drawing and
 the ghost. Projects saved before this existed have no history — the screen says so instead of

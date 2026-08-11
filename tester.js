@@ -2088,7 +2088,30 @@ function status() {
     // Sem o doc o Tester ainda constrói agente, e constrói pior. A tela precisa
     // poder dizer isso antes do build, não depois.
     docAgentes: agentes.docStatus(),
-    emAndamento: [...sessions.values()].some(s => s.status === "correndo")
+    emAndamento: [...sessions.values()].some(s => s.status === "correndo"),
+    /* A sessão viva, para a tela de abertura desenhar o card "em construção".
+     * Sair da página no meio de um build sempre foi seguro — a sessão mora no
+     * servidor e `?s=` reatacha — mas era um caminho que só existia para quem
+     * soubesse da URL. Fatos apenas: as etapas com estado; a porcentagem é
+     * julgamento e é a tela quem a deriva. `correndo` ganha de `aguardando`
+     * (um build ativo importa mais que uma entrevista esperando resposta), e
+     * entre iguais vale a mais recente. */
+    andamento: (() => {
+      const vivas = [...sessions.values()].filter(s => s.status === "correndo" || s.status === "aguardando");
+      if (!vivas.length) return null;
+      vivas.sort((a, b) => (b.status === "correndo") - (a.status === "correndo") ||
+        String(b.criadoEm).localeCompare(String(a.criadoEm)));
+      const s = vivas[0];
+      return {
+        id: s.id, modo: s.modo || "construcao", status: s.status,
+        titulo: s.titulo || s.projetoTitulo || null,
+        ideia: String(s.ideia || "").slice(0, 140),
+        etapa: s.etapa,
+        etapas: (s.etapas || []).map(e => ({ n: e.n, nome: e.nome, estado: e.estado })),
+        atividade: s.atividade || null,
+        ehAgente: s.ehAgente === undefined ? null : s.ehAgente
+      };
+    })()
   };
 }
 
