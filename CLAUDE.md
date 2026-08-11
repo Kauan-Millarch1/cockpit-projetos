@@ -1481,6 +1481,22 @@ never a status color, because status color stays reserved.
 - Cards state a diagnosis in words, not just a score. A number tells you something is wrong; a
   sentence tells you what to do.
 
+## One product, one chrome
+
+Until 2026-08-11 each page had its own header: flows had the flame topbar, the Tester had a
+"◈ COCKPIT" appbar, and `/disco` still wore the whole v1 identity — own amber/navy palette, own
+"Cockpit PROJETOS" brand, navigation living in the sidebar. Switching pages read as switching
+products. **The flows.html topbar is now the chrome of all three**, copied selector by selector
+(flame, wordmark with a `/ page` suffix, the three doors, theme toggle); a change there must be
+repeated in the other two until this becomes a shared file.
+
+`cockpit.html` was retokenized by an **alias layer**: the flows/tester tokens came in, and the v1
+names (`--ink`, `--ink-2`, `--muted`, `--accent-dim`, `--ok-bg`…) became pointers to them, so the
+~500 lines of existing CSS/JS stayed valid without a selector-by-selector rewrite. New rules use the
+new names; the aliases exist for the legacy, not for growth. `BANDS.fg` moved to the `-txt` tokens
+(pill text over soft backgrounds — the same fill-vs-text split flows.html documents), and the page
+gained the same ◐ theme toggle as the others.
+
 ## The motion layer (cult-ui, ported — not installed)
 
 Kauan picked [nolly-studio/cult-ui](https://github.com/nolly-studio/cult-ui) as the movement

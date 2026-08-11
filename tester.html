@@ -82,18 +82,32 @@ button{font:inherit;color:inherit}
 ::-webkit-scrollbar-thumb:hover{background:var(--sb-hov);background-clip:padding-box}
 ::-webkit-scrollbar-corner{background:transparent}
 
-/* ---------------------------------------------------------------- appbar */
-.appbar{display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--line-soft);
-  background:var(--surface);flex:0 0 auto;flex-wrap:wrap}
-.mark{font-family:var(--font-num);font-size:11px;letter-spacing:.1em;color:var(--brand-txt);font-weight:700;text-decoration:none}
-.tabs{display:flex;gap:3px}
-.tab{font-size:12px;color:var(--txt-faint);padding:5px 11px;border-radius:8px;text-decoration:none}
-.tab:hover{background:var(--surface-2);color:var(--txt-dim)}
-.tab.on{color:var(--txt);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
-.appbar .right{margin-left:auto;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
-  display:flex;align-items:center;gap:12px;flex:0 0 auto}
+/* ---------------------------------------------------------------- topbar
+   Copiado do flows.html, seletor a seletor — as três páginas são UM produto, e
+   cada uma com cabeçalho próprio lia como três. Mudança lá tem que ser repetida
+   aqui até o dia em que isto virar arquivo compartilhado. */
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:18px;
+  padding:0 22px;height:58px;flex:0 0 auto;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(14px) saturate(1.2);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em}
+.brand .flame{color:var(--brand);display:grid;place-items:center}
+.brand .wm{font-size:15px;margin:0;font-weight:700;line-height:1.45}
+.brand .wm b{color:var(--txt)}
+.brand .wm span{color:var(--txt-faint);font-weight:500}
+.pages{display:flex;gap:2px;flex:0 0 auto}
+.pages a{font-size:12px;color:var(--txt-faint);padding:5px 11px;border-radius:8px;
+  text-decoration:none;white-space:nowrap}
+.pages a:hover{background:var(--surface-2);color:var(--txt-dim)}
+.pages a[aria-current="page"]{color:var(--txt);background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.topbar .sep{width:1px;height:20px;background:var(--line)}
+.topbar .meta{font-family:var(--font-num);font-size:11.5px;color:var(--txt-faint);letter-spacing:.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.spacer{flex:1}
 .iconbtn{background:none;border:1px solid var(--line);border-radius:8px;padding:4px 9px;
-  font-size:11px;color:var(--txt-faint);cursor:pointer}
+  font-size:11px;color:var(--txt-faint);cursor:pointer;flex:0 0 auto}
 .iconbtn:hover{background:var(--surface-2);color:var(--txt-dim)}
 .iconbtn[hidden]{display:none}
 
@@ -675,22 +689,31 @@ details.jsonbox .inner{padding:0 13px 13px}
 </head>
 <body>
 
-<div class="appbar">
-  <a class="mark" href="/">◈ COCKPIT</a>
+<!-- O MESMO topbar do flows.html, classe a classe: as três páginas são um
+     produto, e cada uma com cabeçalho próprio lia como três. A chama, o
+     wordmark e as três portas são idênticos; o que muda é o sufixo do wordmark
+     e o que vive à direita (aqui: voltar, o título da corrida e o tema). -->
+<header class="topbar">
+  <div class="brand">
+    <span class="flame" aria-hidden="true">
+      <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+    </span>
+    <h1 class="wm"><b>COCKPIT</b> <span>/ tester</span></h1>
+  </div>
+  <div class="sep"></div>
+  <nav class="pages" aria-label="telas do cockpit">
+    <a href="/">Fluxos</a>
+    <a href="/disco">Disco</a>
+    <a href="/tester" aria-current="page">Tester</a>
+  </nav>
   <!-- Volta para a abertura SEM matar a construção: a sessão mora no servidor
        e continua correndo; o card "em construção" na abertura é o caminho de
        volta. Escondido fora da corrida — na abertura não há para onde voltar. -->
   <button class="iconbtn" id="voltar" type="button" hidden aria-label="voltar para o início — a construção continua rodando">← início</button>
-  <div class="tabs">
-    <a class="tab" href="/">Fluxos</a>
-    <a class="tab" href="/disco">Disco</a>
-    <a class="tab on" href="/tester" aria-current="page">Tester</a>
-  </div>
-  <div class="right">
-    <span id="cab"></span>
-    <button class="iconbtn" id="tema" type="button" title="alternar tema">tema</button>
-  </div>
-</div>
+  <div class="spacer"></div>
+  <span class="meta" id="cab"></span>
+  <button class="iconbtn" id="tema" type="button" title="alternar tema">◐</button>
+</header>
 
 <main id="app"></main>
 <div class="foot" id="foot"><span>nada foi criado no n8n</span><span>·</span><span>nenhuma chamada feita</span></div>

@@ -5,28 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit de Projetos</title>
 <style>
+  /* Tokens: os MESMOS do flows.html e do tester.html — as três páginas são um
+     produto, e esta era a única com paleta própria (âmbar sobre azul-marinho,
+     da v1). Os nomes antigos (--ink, --muted, --accent-dim, --ok-bg…) viram
+     ALIASES apontando para os tokens novos, então todo o CSS e o JS abaixo
+     continuam válidos sem reescrever seletor por seletor. Escrever regra nova?
+     Use os nomes novos; os aliases existem para o legado, não para crescer. */
   :root {
     color-scheme: light dark;
-    --bg:#F1F3F6; --surface:#FFFFFF; --surface-2:#F7F9FB; --line:#DCE2E9; --line-soft:#E8EDF2;
-    --ink:#121821; --ink-2:#47546A; --muted:#7B8798;
-    --accent:#B4700E; --accent-dim:#EFE0C6;
-    --ok:#2C7F53; --ok-bg:#DFF0E7; --warn:#A9740B; --warn-bg:#F6E9CE;
-    --risk:#B14A26; --risk-bg:#F7E1D8; --cold:#64707F; --cold-bg:#E5E9EE;
+    --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005; --raised:#FFFFFF;
+    --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+    --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+    --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055; --accent-txt:#3B48E0;
+    --brand:#FF5A1F; --brand-txt:#D04919;
+    --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+    --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --risk-soft:#DC2B3A14; --cold-soft:#8B90A014;
+    --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+    --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+    --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
     --radius:10px;
-    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --font-num: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    /* aliases da v1 -> tokens do sistema */
+    --ink:var(--txt); --ink-2:var(--txt-dim); --muted:var(--txt-faint);
+    --accent-dim:var(--accent-soft);
+    --ok-bg:var(--ok-soft); --warn-bg:var(--warn-soft); --risk-bg:var(--risk-soft); --cold-bg:var(--cold-soft);
+    --font-ui:var(--font);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#0D1218; --surface:#151C25; --surface-2:#1B242F; --line:#26313E; --line-soft:#1F2833;
-      --ink:#E7ECF3; --ink-2:#A6B2C2; --muted:#6E7C8D;
-      --accent:#EDAB4B; --accent-dim:#3A2E18;
-      --ok:#56C18A; --ok-bg:#16301F; --warn:#E4B155; --warn-bg:#322611;
-      --risk:#E9805A; --risk-bg:#341C13; --cold:#7E8DA0; --cold-bg:#1E262F;
+    :root:not([data-theme="light"]) {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+      --brand:#FF5A1F; --brand-txt:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
     }
   }
-  :root[data-theme="dark"]{--bg:#0D1218;--surface:#151C25;--surface-2:#1B242F;--line:#26313E;--line-soft:#1F2833;--ink:#E7ECF3;--ink-2:#A6B2C2;--muted:#6E7C8D;--accent:#EDAB4B;--accent-dim:#3A2E18;--ok:#56C18A;--ok-bg:#16301F;--warn:#E4B155;--warn-bg:#322611;--risk:#E9805A;--risk-bg:#341C13;--cold:#7E8DA0;--cold-bg:#1E262F;}
-  :root[data-theme="light"]{--bg:#F1F3F6;--surface:#FFFFFF;--surface-2:#F7F9FB;--line:#DCE2E9;--line-soft:#E8EDF2;--ink:#121821;--ink-2:#47546A;--muted:#7B8798;--accent:#B4700E;--accent-dim:#EFE0C6;--ok:#2C7F53;--ok-bg:#DFF0E7;--warn:#A9740B;--warn-bg:#F6E9CE;--risk:#B14A26;--risk-bg:#F7E1D8;--cold:#64707F;--cold-bg:#E5E9EE;}
+  :root[data-theme="dark"]{
+    --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+    --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+    --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+    --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c; --accent-txt:#606CF5;
+    --brand:#FF5A1F; --brand-txt:#FF5A1F;
+    --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+    --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+    --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+  }
 
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-ui); font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased; }
@@ -35,19 +60,34 @@
   .num { font-family:var(--font-num); font-variant-numeric:tabular-nums; }
   h1,h2,h3 { text-wrap:balance; }
 
-  .shell { display:grid; grid-template-columns:250px 1fr; min-height:100vh; }
-  .rail { border-right:1px solid var(--line); background:var(--surface); padding:20px 14px; display:flex; flex-direction:column; gap:20px; position:sticky; top:0; height:100vh; overflow-y:auto; }
-  .brand { display:flex; align-items:baseline; gap:8px; padding:0 8px; }
-  .brand b { font-size:17px; letter-spacing:-0.02em; }
-  .brand span { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  /* Topbar copiado do flows.html, seletor a seletor — mudança lá repete aqui
+     até o dia em que isto virar arquivo compartilhado. */
+  .topbar { position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:18px;
+    padding:0 22px; height:58px;
+    background:color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter:blur(14px) saturate(1.2);
+    border-bottom:1px solid var(--line); }
+  .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; }
+  .brand .flame { color:var(--brand); display:grid; place-items:center; }
+  .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; }
+  .brand .wm b { color:var(--txt); }
+  .brand .wm span { color:var(--txt-faint); font-weight:500; }
+  .pages { display:flex; gap:2px; flex:0 0 auto; }
+  .pages a { font-size:12px; color:var(--txt-faint); padding:5px 11px; border-radius:8px;
+    text-decoration:none; white-space:nowrap; }
+  .pages a:hover { background:var(--surface-2); color:var(--txt-dim); }
+  .pages a[aria-current="page"] { color:var(--txt); background:var(--accent-soft);
+    box-shadow:inset 0 0 0 1px var(--accent-line); }
+  .topbar .sep { width:1px; height:20px; background:var(--line); }
+  .spacer { flex:1; }
+  .iconbtn { background:none; border:1px solid var(--line); border-radius:8px; padding:4px 9px;
+    font-size:11px; color:var(--txt-faint); cursor:pointer; flex:0 0 auto; }
+  .iconbtn:hover { background:var(--surface-2); color:var(--txt-dim); }
+
+  .shell { display:grid; grid-template-columns:250px 1fr; min-height:calc(100vh - 58px); }
+  .rail { border-right:1px solid var(--line); background:var(--surface); padding:20px 14px; display:flex; flex-direction:column; gap:20px; position:sticky; top:58px; height:calc(100vh - 58px); overflow-y:auto; }
   .navgroup { display:flex; flex-direction:column; gap:2px; }
   .navgroup h4 { margin:0 0 6px 8px; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:600; }
-  /* Navegação entre as três telas. Usa os tokens DESTA página — ela tem uma
-     paleta própria (--ink/--muted/--accent-dim), e importar os nomes da outra
-     faria o link ficar invisível num dos temas. */
-  .pages a { display:block; font-size:13px; color:var(--ink-2); text-decoration:none; padding:6px 8px; border-radius:6px; }
-  .pages a:hover { background:var(--surface-2); color:var(--ink); }
-  .pages a[aria-current="page"] { color:var(--ink); background:var(--accent-dim); font-weight:600; }
   .nav { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; border-radius:7px; border:0; width:100%; background:transparent; color:var(--ink-2); font:inherit; font-size:14px; text-align:left; cursor:pointer; }
   .nav:hover { background:var(--surface-2); color:var(--ink); }
   .nav[aria-current="true"] { background:var(--accent-dim); color:var(--ink); font-weight:600; }
@@ -156,17 +196,29 @@
 </head>
 <body>
 
+<!-- O MESMO topbar do flows.html, classe a classe. A navegação morava na
+     lateral com marca própria ("Cockpit PROJETOS"), e trocar de página trocava
+     de produto inteiro na cara de quem olha. A lateral continua existindo para
+     o que é DESTA tela: saúde e varredura. -->
+<header class="topbar">
+  <div class="brand">
+    <span class="flame" aria-hidden="true">
+      <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+    </span>
+    <h1 class="wm"><b>COCKPIT</b> <span>/ disco</span></h1>
+  </div>
+  <div class="sep"></div>
+  <nav class="pages" aria-label="telas do cockpit">
+    <a href="/">Fluxos</a>
+    <a href="/disco" aria-current="page">Disco</a>
+    <a href="/tester">Tester</a>
+  </nav>
+  <div class="spacer"></div>
+  <button class="iconbtn" id="theme" type="button" title="alternar tema">◐</button>
+</header>
+
 <div class="shell">
   <nav class="rail">
-    <div class="brand"><b>Cockpit</b><span>projetos</span></div>
-    <!-- As três portas de entrada. Sem isto cada tela só era alcançável
-         digitando a URL, e quem abria esta não sabia que o Tester existia. -->
-    <nav class="navgroup pages" aria-label="telas do cockpit">
-      <h4>Telas</h4>
-      <a href="/">Fluxos n8n</a>
-      <a href="/disco" aria-current="page">Disco</a>
-      <a href="/tester">Tester</a>
-    </nav>
     <div class="navgroup" id="nav-status"><h4>Saúde</h4></div>
     <div class="navgroup">
       <h4>Varredura</h4>
@@ -183,11 +235,14 @@
    O servidor entrega fatos; nada além daqui julga um projeto.
    ========================================================================= */
 
+/* `fg` (texto em pill) usa os tokens `-txt`, calibrados para AA sobre o fundo
+ * soft; `color` (preenchimento de barra) segue no token base — a regra do
+ * flows.html: cor de status como fill e como texto são dois tokens. */
 const BANDS = [
-  { key:"ativo",   label:"Ativo",   maxDays:14,       color:"var(--ok)",   bg:"var(--ok-bg)",   fg:"var(--ok)" },
-  { key:"atencao", label:"Atenção", maxDays:45,       color:"var(--warn)", bg:"var(--warn-bg)", fg:"var(--warn)" },
-  { key:"parado",  label:"Parado",  maxDays:120,      color:"var(--risk)", bg:"var(--risk-bg)", fg:"var(--risk)" },
-  { key:"frio",    label:"Frio",    maxDays:Infinity, color:"var(--cold)", bg:"var(--cold-bg)", fg:"var(--cold)" }
+  { key:"ativo",   label:"Ativo",   maxDays:14,       color:"var(--ok)",   bg:"var(--ok-bg)",   fg:"var(--ok-txt)" },
+  { key:"atencao", label:"Atenção", maxDays:45,       color:"var(--warn)", bg:"var(--warn-bg)", fg:"var(--warn-txt)" },
+  { key:"parado",  label:"Parado",  maxDays:120,      color:"var(--risk)", bg:"var(--risk-bg)", fg:"var(--risk-txt)" },
+  { key:"frio",    label:"Frio",    maxDays:Infinity, color:"var(--cold)", bg:"var(--cold-bg)", fg:"var(--cold-txt)" }
 ];
 
 const WEIGHTS = { momentum:60, documented:25, versioned:15 };
@@ -538,6 +593,13 @@ function render() {
 
 window.addEventListener("hashchange", render);
 el("refresh").onclick = () => { detailCache.clear(); load(true); };
+// Mesmo alternador das outras duas páginas: escolher tema numa tela e a
+// vizinha ignorar seria o mesmo defeito de identidade que este topbar corrige.
+el("theme").onclick = () => {
+  const atual = document.documentElement.getAttribute("data-theme");
+  const escuro = atual ? atual === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", escuro ? "light" : "dark");
+};
 load(false);
 </script>
 </body>
