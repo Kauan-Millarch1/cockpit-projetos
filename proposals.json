@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-10T14:20:00.265Z",
+  "savedAt": "2026-08-11T11:51:17.735Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -1644,6 +1644,186 @@
       "appliedAt": "2026-08-10T14:20:00.258Z",
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-10T13:59:53.121Z"
+    },
+    {
+      "runId": "rmsol132v1",
+      "key": "gtpqDeEz9FSQa7pg|filtrar_por_horario|Error",
+      "wfId": "gtpqDeEz9FSQa7pg",
+      "wfName": "[ROBERTO] Cron — Proactive Outreach",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Liguei retry (3x, 5s) em `filtrar_por_horario` porque a falha foi o task runner de Code do n8n Cloud não aceitar a task em 60s, não o código.\n\n## Causa raiz\n\nA falha **não está no código** do nó `filtrar_por_horario`. A mensagem é explícita:\n\n> Task request timed out after 60 seconds — *\"Your Code node task was not matched to a runner within the timeout period. This indicates that the task runner is currently down, or not ready, or at capacity.\"*\n\nOu seja: no n8n Cloud, todo nó Code é executado por um **task runner** externo. O nó ficou 1min na fila esperando um runner livre, estourou o timeout de 60s e morreu **antes de executar uma linha**. Isso é consistente com o tempo registrado (1min exato = o timeout) e com o código do nó, que é um `filter` + `slice` trivial — não tem nada ali que leve 1 minuto.\n\nPortanto é indisponibilidade momentânea de infraestrutura do lado do n8n Cloud, não erro de dado nem de lógica. Ocorreu 1× em 24h, o que combina com evento transitório e não com bug determinístico.\n\nO que o fluxo contribui para o problema: ele é um consumidor pesado do pool de runners. `loop_leads` (splitInBatches sem `batchSize`, ou seja, 1 por iteração) chama `Code in JavaScript` uma vez por lead, e o cron dispara a cada 15 minutos. São dezenas de tasks de Code curtas em rajada, exatamente o padrão que a própria mensagem de erro pede para espaçar. Isso aumenta a chance de bater em \"at capacity\", mas não é a causa direta desta execução.\n\n## O que mudei\n\nUm nó, três campos de comportamento (nenhum parâmetro, nenhuma credencial, nenhuma conexão):\n\n- `filtrar_por_horario`: `retryOnFail: true`, `maxTries: 3`, `waitBetweenTries: 5000`\n- Mais uma `notes` no nó registrando a data, a mensagem e o motivo do retry, para quem abrir o editor daqui a três meses.\n\nNão mexi no `jsCode`, não adicionei nó, não redesenhei o caminho.\n\n## Por que isso resolve\n\nTimeout de fila é o caso clássico em que repetir funciona: a segunda tentativa, 5s depois, cai em outro momento do pool de runners e normalmente é aceita. Com 3 tentativas o nó tem até ~3min para conseguir um runner — folga confortável dentro de uma janela de cron de 15 minutos, sem risco de a execução invadir a próxima.\n\nDeixei o `onError` no padrão (parar a execução) **de propósito**. `continueRegularOutput` faria a execução ficar verde passando lista vazia adiante, e o resultado seria pior que a falha: nenhum lead contactado e nenhum aviso. Do jeito que está, se as 3 tentativas falharem a falha continua aparecendo no painel de erros.\n\n## Risco residual\n\n- **Não corrige o runner.** Se o runner da instância estiver realmente fora (não apenas ocupado), as 3 tentativas falham e o erro volta igual. Essa parte é do lado do n8n Cloud, não tem correção no workflow.\n- **Os outros nós Code continuam sem retry** (`Code in JavaScript`, `30 em 30`, `log_erro_envio`, e os do ramo `*1`). Deixei assim porque a regra é correção mínima e só este nó falhou — mas `Code in JavaScript` roda uma vez por lead dentro do loop e está igualmente exposto. Se a mesma assinatura aparecer nele, a correção é a mesma.\n- **Recomendação que não apliquei** (mudança maior, precisa da sua decisão): reduzir a pressão sobre o runner definindo `batchSize` em `loop_leads` e/ou trocando `Code in JavaScript` por um nó Set — montar aquele JSON do WhatsApp não precisa de runner. Isso atacaria o \"at capacity\" na origem em vez de contorná-lo.\n- **Duas observações que encontrei e não toquei**, porque não são esta falha: (1) o ramo *true* do nó `If` está vazio — leads com `utm_campaign=imersao-financeira` **e** `utm_source=manychat` entram num caminho sem saída e nunca chegam a `filtrar_por_horario`; (2) `buscar_leads_pendentes` usa `returnAll: true` sobre todo `status=new`, então o volume que entra no Code cresce sem limite conforme a tabela cresce. Nenhuma das duas explica o timeout de fila desta execução, mas vale olhar.\n",
+      "fixNote": "Claude (cockpit) [filtrar_por_horario]: Liguei retry (3x, 5s) em filtrar_por_horario porque a falha foi o task runner de Code do n8n Cloud não aceitar a task em 60s, não o código.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.7253974999999999,
+      "startedAt": "2026-08-11T11:33:46.333Z",
+      "finishedAt": "2026-08-11T11:35:51.977Z",
+      "appliedAt": "2026-08-11T11:36:17.434Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-06-22T11:56:09.440Z"
+    },
+    {
+      "runId": "rmsolk7kd2",
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "wfId": "3pk6711IFuBuqjz6",
+      "wfName": "[SANDBOX tester] Aviso de estoque baixo no Slack",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Não corrigido por patch — a causa é o app do Slack não ser membro do #estoque; deixei o nó anotado com o diagnóstico e a ação humana necessária.\n\n## Causa raiz\n\nAs duas mensagens da assinatura (`not_in_channel` e `channel_not_found`) não são duas causas distintas: são as duas faces do mesmo problema, do lado do Slack.\n\nO nó `slack_avisar_estoque_baixo` aponta para o canal **por nome**:\n\n```json\n\"channelId\": { \"__rl\": true, \"mode\": \"name\", \"value\": \"estoque\" }\n```\n\nCom `mode: \"name\"`, o n8n precisa resolver o nome para um ID antes de postar, e essa resolução só enxerga canais visíveis ao app da credencial:\n\n- app **não enxerga** o canal (privado, ou fora do escopo do token) → `channel_not_found`;\n- app **enxerga** o canal mas **não é membro** dele → `not_in_channel`.\n\nNos dois casos a raiz é a mesma: **o app do Slack dessa credencial não está no canal #estoque**. Isso se resolve dentro do Slack (`/invite @<app>` no canal, mais escopos `chat:write` e `channels:read` / `groups:read`), não em parâmetro de nó — e credenciais eu não toco, por regra.\n\nO caminho de dados está descartado como suspeito: os 5 nós anteriores executaram sem erro, `montar_lista_de_produtos` entregou o campo `lista`, e o erro veio do próprio Slack com código de canal, não de payload inválido ou texto vazio.\n\n## O que mudei\n\nSó uma coisa, no nó `slack_avisar_estoque_baixo`:\n\n- `notes` — o diagnóstico acima, a ação humana necessária no Slack, e a melhoria recomendada (trocar o canal para `mode: \"id\"` depois que o convite for feito);\n- `notesInFlow: true` — para a nota aparecer no canvas, e não só no painel do nó.\n\nNenhum parâmetro, nenhuma conexão, nenhuma credencial, nenhum nó novo.\n\n**Não coloquei `onError` de propósito.** Tratar o erro aqui significaria a execução terminar \"com sucesso\" sem que ninguém receba o aviso de estoque baixo — exatamente a única coisa que esse fluxo faz. Prefiro que continue estourando e aparecendo no quadro de erros até o convite ser feito. Se você preferir o contrário (falhar quieto e ser avisado por outro caminho), é uma decisão sua, não minha, e o patch muda em uma linha.\n\n## Por que isso resolve\n\n**Não resolve.** Esse patch não faz a mensagem voltar a ser postada. Ele só faz a falha parar de ser um mistério: quem abrir o fluxo daqui a três meses lê no próprio nó o que aconteceu e o que precisa ser feito, em vez de reabrir a investigação do zero.\n\nA correção de verdade é o convite do app ao canal #estoque, feito por humano no Slack. Depois disso vale trocar o canal para ID — o ID não está neste export, por isso não escrevi nenhum.\n\n## Risco residual\n\n- **A raiz é provável, não confirmada.** Eu não tenho acesso ao Slack para verificar a lista de membros do #estoque nem os escopos do token. Duas hipóteses alternativas que os mesmos erros também admitiriam: o canal foi renomeado/arquivado, ou existe mais de um canal parecido e a credencial aponta para um workspace diferente do esperado. Todas se checam no mesmo lugar — abrindo o #estoque no Slack.\n- **`slack_avisar_estoque_ok` tem exatamente a mesma configuração de canal** e vai falhar do mesmo jeito quando o ramo \"nenhum produto com estoque baixo\" rodar. Não patchei esse nó porque o pedido é correção mínima e ele não apareceu na falha, mas o convite ao app conserta os dois de uma vez.\n- `notesInFlow: true` adiciona um bloco de texto embaixo do nó no canvas. É poluição visual, e é intencional.\n- Fora do escopo desta falha, mas visível no export: `buscar_linhas_do_estoque` está com `documentId` e `sheetName` em `[PREENCHER]`. Não mexi — não é a causa desta falha e o fluxo está `active: false`.\n",
+      "fixNote": "Claude (cockpit) [slack_avisar_estoque_baixo]: Não corrigido por patch — a causa é o app do Slack não ser membro do #estoque; deixei o nó anotado com o diagnóstico e a ação humana necessária.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.5746359999999999,
+      "startedAt": "2026-08-11T11:48:38.627Z",
+      "finishedAt": "2026-08-11T11:51:17.727Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-10T18:53:35.641Z"
     }
   ]
 }

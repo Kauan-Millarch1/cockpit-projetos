@@ -826,7 +826,20 @@ function fixNote(run) {
   // Blocos de código saem primeiro: o fallback lê prosa, e um trecho de JS
   // colado no cartão do quadro de erros não se lê de relance nem ensina nada.
   const rep = String(run.report || "").replace(/```[\s\S]*?```/g, " ");
-  const oneLine = s => String(s).replace(/[`*_#>]/g, "").replace(/\s+/g, " ").trim();
+  // Markdown sai só onde é markdown. A versão anterior removia `_` e `#` em
+  // qualquer posição, e isso corrompia o registro permanente: os nós daqui são
+  // snake_case por convenção, então `filtrar_por_horario` virava
+  // "filtrarporhorario" e o canal "#estoque" virava "estoque" — na única nota
+  // que documenta como a falha foi resolvida.
+  const oneLine = s => String(s)
+    .replace(/^\s*#{1,6}\s+/gm, "")      // título, só no começo da linha
+    .replace(/^\s*>\s?/gm, "")           // citação, só no começo da linha
+    .replace(/`+/g, "")                  // crase é sempre invólucro
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1") // **negrito**
+    .replace(/\*([^*\n]+)\*/g, "$1")     // *itálico*
+    // _ênfase_ isolada por espaço/pontuação — nunca o _ interno de snake_case
+    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,;:!?]|$)/g, "$1$2")
+    .replace(/\s+/g, " ").trim();
   // Uma frase, não um parágrafo. O ponto final só conta como fim de frase
   // seguido de espaço e maiúscula, senão "1.7s" e "n8n-nodes-base.set" cortam.
   const firstSentence = s => {
