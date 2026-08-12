@@ -174,13 +174,141 @@ button { font-family: inherit; }
    a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
    existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
    comum espremeria a navegação até quebrar. */
-.pages { display: flex; gap: 2px; flex: 0 0 auto; }
-.pages a { font-size: 12px; color: var(--txt-faint); padding: 5px 11px; border-radius: 8px;
-  text-decoration: none; white-space: nowrap; }
-.pages a:hover { background: var(--surface-2); color: var(--txt-dim); }
-.pages a[aria-current="page"] { color: var(--txt); background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent-line); }
-.pages a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* ═══════════════════════════════════════════════════════ NAV — as três portas
+   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html e
+   cockpit.html — gerado por preview/aplicar-nav.js e travado por
+   nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
+   e nunca insira um segundo bloco (foi assim que o rabo de um bloco antigo
+   ficou pendurado no flows.html e a página morreu com "Illegal return
+   statement").
+
+   A cápsula é ícone-primeiro: o rótulo existe na porta ativa, sob o cursor e no
+   foco de teclado. O fundo do ativo NÃO é pintado por cada porta — é UM
+   elemento que viaja, a .lente, movida por mola no JS. Enquanto cada porta
+   pintava o próprio fundo não havia o que animar entre elas: o estado aparecia
+   e desaparecia.
+
+   Cor: corpo e aro da lente são --accent, que neste painel significa MOVIMENTO.
+   Status (ok/warn/risk/cold) continua reservado e não entra na navegação. */
+.nvd{position:relative;display:flex;align-items:center;gap:3px;padding:3px;
+  border-radius:999px;flex:0 0 auto;background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--line-soft)}
+.nvd a{position:relative;z-index:1;display:flex;align-items:center;height:30px;
+  padding:0 9px;border-radius:999px;color:var(--txt-faint);text-decoration:none;
+  transition:color .22s ease}
+.nvd a:hover{color:var(--txt-dim)}
+.nvd a[aria-current="page"]{color:var(--txt)}
+.nvd a[aria-current="page"] .ic{color:var(--accent-txt)}
+.nvd a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nvd .ic{display:grid;transition:transform .3s cubic-bezier(.2,.9,.15,1)}
+.nvd a[aria-current="page"] .ic{transform:translateY(-.5px)}
+/* O rótulo abre por CSS e a lente NÃO é sincronizada com esta transição: ela
+   persegue a geometria da porta ativa quadro a quadro, então o alvo se move
+   enquanto o rótulo abre e a chegada fica arrastada. É de onde vem a sensação
+   de líquido — não há keyframe de viagem em nenhum lugar.
+   Abre também no foco de teclado: navegando por Tab, um ícone sozinho não diz
+   para onde se vai. */
+.nvd .lb{display:flex;align-items:center;gap:7px;max-width:0;overflow:hidden;
+  opacity:0;white-space:nowrap;font-size:12.5px;font-weight:500;
+  transition:max-width .34s cubic-bezier(.2,.9,.15,1),opacity .24s ease,
+    margin-left .34s cubic-bezier(.2,.9,.15,1)}
+.nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
+  max-width:130px;opacity:1;margin-left:7px}
+/* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
+   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   que nenhum rótulo. */
+.nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
+  color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
+  padding:1px 4px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--line);
+  line-height:1.5}
+/* ─────────────────────────────────────────────────────────── a lente de vidro
+   Cinco camadas, cada uma respondendo por uma coisa que vidro faz:
+     1. corpo tingido translúcido;
+     2. backdrop-filter — o que está ATRÁS aparece desfocado. Por isso a lente
+        fica ABAIXO das portas (z-index 0): acima, desfocaria o próprio ícone e
+        o rótulo, que é o contrário do que vidro faz com o objeto que carrega;
+     3. realce especular no topo, que dá volume;
+     4. o aro: linha clara em cima, escura embaixo. Sombra externa NEUTRA — a
+        regra da casa não abre exceção de halo colorido para vidro;
+     5. refração de borda (::before): um anel de 3px onde o backdrop é mais
+        desfocado, recortado com a mesma máscara xor que o .beam já usa aqui.
+   --x/--w/--sx/--sy vêm da mola. A largura é animada como LARGURA mesmo: a
+   lente é out-of-flow, então mudar a largura dela não reflui nada, e fazer isso
+   com scaleX transformaria a cápsula numa elipse (o raio de 999px viraria oval).
+   A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
+   fundo é quase branco e chapado, onde blur não produz efeito e brightness
+   pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+  transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
+  transform-origin:var(--org,center);
+  border-radius:999px;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(130% 170% at 28% -12%,
+      color-mix(in srgb,#fff 62%,transparent), transparent 58%),
+    color-mix(in srgb,var(--accent) 12%,transparent);
+  backdrop-filter:blur(9px) saturate(1.5) contrast(1.06);
+  -webkit-backdrop-filter:blur(9px) saturate(1.5) contrast(1.06);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb,var(--accent) 42%,transparent),
+    inset 0 1.5px 0 color-mix(in srgb,#fff 90%,transparent),
+    inset 0 -3px 5px -2px rgba(10,10,20,.13),
+    0 3px 10px -7px rgba(10,10,20,.40)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .nvd .lente{
+    background:
+      radial-gradient(130% 170% at 28% -10%,
+        color-mix(in srgb,#fff 17%,transparent), transparent 62%),
+      color-mix(in srgb,var(--accent) 22%,transparent);
+    backdrop-filter:blur(7px) saturate(1.9) brightness(1.06);
+    -webkit-backdrop-filter:blur(7px) saturate(1.9) brightness(1.06);
+    box-shadow:
+      inset 0 0 0 1px var(--accent-line),
+      inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
+      inset 0 -2px 3px -1px rgba(0,0,0,.22),
+      0 2px 9px -6px rgba(0,0,0,.55)}
+}
+:root[data-theme="dark"] .nvd .lente{
+  background:
+    radial-gradient(130% 170% at 28% -10%,
+      color-mix(in srgb,#fff 17%,transparent), transparent 62%),
+    color-mix(in srgb,var(--accent) 22%,transparent);
+  backdrop-filter:blur(7px) saturate(1.9) brightness(1.06);
+  -webkit-backdrop-filter:blur(7px) saturate(1.9) brightness(1.06);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
+    inset 0 -2px 3px -1px rgba(0,0,0,.22),
+    0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  padding:3px;pointer-events:none;
+  backdrop-filter:blur(2px) saturate(2.4);
+  -webkit-backdrop-filter:blur(2px) saturate(2.4);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude}
+/* O brilho que corre na chegada. Nasce em opacity 0 e é disparado por classe:
+   um realce varrendo sozinho seria movimento sem informação atrás. */
+.nvd .lente::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  opacity:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 34%,
+    color-mix(in srgb,#fff 55%,transparent) 47%,transparent 60%)}
+.nvd .lente.varre::after{animation:navvarrer .62s cubic-bezier(.2,.75,.2,1) 1}
+@keyframes navvarrer{
+  0%{opacity:0;transform:translateX(-40%)}
+  22%{opacity:.9}
+  100%{opacity:0;transform:translateX(40%)}}
+/* Em tela estreita o rótulo sai de cena, inclusive o do ativo: o sufixo do
+   wordmark ao lado já diz em que tela você está, e três rótulos abertos
+   estouravam a barra em 390px. */
+@media (max-width:620px){
+  .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
+    max-width:0;opacity:0;margin-left:0}
+}
+@media (prefers-reduced-motion: reduce){
+  /* O estado fica e o vidro fica — blur parado não é movimento. Somem a viagem,
+     o esticão e a varredura. A mola é desligada no JS pela mesma consulta. */
+  .nvd .lb,.nvd .ic,.nvd a{transition:none}
+  .nvd .lente.varre::after{animation:none}
+}
 .topbar .sep { width: 1px; height: 20px; background: var(--line); }
 .meta { font-family: var(--font-num); font-size: 11.5px; color: var(--txt-faint); letter-spacing: .02em; }
 .meta b { color: var(--txt-dim); font-weight: 500; }
@@ -1132,10 +1260,11 @@ textarea, input { caret-color: var(--accent); }
     <h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1>
   </div>
   <div class="sep"></div>
-  <nav class="pages" aria-label="telas do cockpit">
-    <a href="/" aria-current="page">Fluxos</a>
-    <a href="/disco">Disco</a>
-    <a href="/tester">Tester</a>
+  <nav class="nvd" aria-label="telas do cockpit">
+    <span class="lente" aria-hidden="true"></span>
+    <a href="/" data-porta="fluxos" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Fluxos</span><kbd>alt 1</kbd></span></a>
+    <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
+    <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
   </nav>
   <div class="sep"></div>
   <div class="meta" id="instance">—</div>
@@ -4674,6 +4803,135 @@ for (const [x, y] of [[14, 20], [72, 20], [32, 64], [88, 52]]) {
 setInterval(() => { if (S.workflows.size) renderKpis(flowsWithActivity()); }, 10000);
 
 boot();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════ NAV — a lente de vidro
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html e cockpit.html,
+   gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
+
+   As três portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   lente nunca seria vista viajando — cada página nasceria com ela parada no
+   lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
+   voa até a atual no carregamento. Mesma disciplina do resto do painel: só
+   anima quando há informação nova atrás (você trocou de tela); F5 na mesma
+   porta não anima nada, e uma aba nova também não, porque ali você não veio de
+   lugar algum.
+
+   Nada aqui julga: a navegação não tem estado de saúde, não lê fato nenhum e
+   não faz uma única chamada. */
+(function () {
+  "use strict";
+  var nav = document.querySelector(".nvd");
+  if (!nav) return;
+  var lente = nav.querySelector(".lente");
+  if (!lente) return;
+
+  var CHAVE = "cockpit.nav.v1";
+  var reduzir = function () {
+    return matchMedia("(prefers-reduced-motion: reduce)").matches;
+  };
+
+  /* Mesmo integrador do springNumber() — passo fixo de 16ms, porque com a aba em
+     segundo plano o dt real explode e a mola diverge em vez de assentar. A
+     afinação é OUTRA de propósito: lá a razão de amortecimento é ~0,97, porque
+     um contador que passa do valor e volta lê como dado errado; aqui é ~0,54,
+     porque passar e voltar é o que faz parecer líquido. */
+  var K = 170, C = 14, M = 1;
+  /* Quanto a velocidade vira deformação. Medido: em 0,055 o esticão grudava no
+     teto e deformação constante lê como escala fixa, não como física. */
+  var ESTICA = 0.022, TETO = 0.16;
+
+  var x = 0, vx = 0, w = 30, vw = 0, vivo = false;
+
+  function alvo() {
+    var a = nav.querySelector('[aria-current="page"]');
+    if (!a) return null;
+    /* Lido A CADA QUADRO: o rótulo abre por CSS, então o destino se move. */
+    var ax = a.offsetLeft, aw = a.offsetWidth;
+    /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
+       4px lê como intenção e é pouco para não parecer erro. */
+    var h = nav.querySelector("a:hover");
+    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    return { x: ax, w: aw };
+  }
+
+  /* A deformação SAI da velocidade da própria mola: estica no eixo do movimento
+     e comprime no outro, volume preservado. É o que separa vidro líquido de
+     pastilha com easing. A origem segue o sentido do movimento — com origem no
+     centro a lente esticava para os dois lados e vazava para fora do leito. */
+  function pintar(v) {
+    var d = Math.min(TETO, Math.abs(v) * ESTICA / 100);
+    lente.style.setProperty("--x", x.toFixed(2) + "px");
+    lente.style.setProperty("--w", w.toFixed(2) + "px");
+    lente.style.setProperty("--sx", (1 + d).toFixed(3));
+    lente.style.setProperty("--sy", (1 - d * 0.72).toFixed(3));
+    if (Math.abs(v) > 12) {
+      lente.style.setProperty("--org", v > 0 ? "left center" : "right center");
+    }
+  }
+
+  function assentar() {
+    var t = alvo();
+    if (!t) return;
+    x = t.x; w = t.w; vx = 0; vw = 0;
+    lente.style.setProperty("--org", "center");
+    pintar(0);
+  }
+
+  function passo() {
+    var t = alvo();
+    if (!t) { vivo = false; return; }
+    if (reduzir()) { assentar(); vivo = false; return; }
+    var i, dt = 0.016;
+    for (i = 0; i < 2; i++) {
+      vx += ((-K * (x - t.x) - C * vx) / M) * dt; x += vx * dt;
+      vw += ((-K * (w - t.w) - C * vw) / M) * dt; w += vw * dt;
+    }
+    pintar(vx);
+    if (Math.abs(t.x - x) < 0.35 && Math.abs(vx) < 3 &&
+        Math.abs(t.w - w) < 0.35 && Math.abs(vw) < 3) {
+      x = t.x; w = t.w; vx = 0; vw = 0; pintar(0); vivo = false; return;
+    }
+    requestAnimationFrame(passo);
+  }
+
+  function acordar() { if (!vivo) { vivo = true; requestAnimationFrame(passo); } }
+
+  var aqui = (nav.querySelector('[aria-current="page"]') || {}).dataset;
+  aqui = aqui ? aqui.porta : null;
+
+  /* A partida. Se a porta anterior desta aba não é esta, a lente nasce lá e voa
+     para cá. Só então a varredura de brilho se paga: ela marca uma chegada. */
+  var de = null;
+  try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
+  var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
+
+  if (origem && !reduzir()) {
+    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+    pintar(0);
+    lente.classList.add("varre");
+    acordar();
+  } else {
+    assentar();
+  }
+  try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
+
+  nav.addEventListener("pointerover", acordar);
+  nav.addEventListener("pointerout", acordar);
+  addEventListener("resize", assentar);
+
+  /* O atalho que o chip promete. Navega de verdade; alt+dígito não digita nada
+     em campo de texto, então não precisa de guarda contra o compositor. */
+  addEventListener("keydown", function (ev) {
+    if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
+    var i = "123".indexOf(ev.key);
+    if (i < 0) return;
+    var a = nav.querySelectorAll("a")[i];
+    if (!a || a.getAttribute("aria-current") === "page") return;
+    ev.preventDefault();
+    location.href = a.getAttribute("href");
+  });
+}());
 </script>
 </body>
 </html>

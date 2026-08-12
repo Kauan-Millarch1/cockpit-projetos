@@ -65,6 +65,12 @@ if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
+echo  navegacao: um bloco so, nas tres paginas
+echo ==============================================
+node nav-sync-test.js
+if errorlevel 1 set FALHOU=1
+echo.
+echo ==============================================
 echo  caractere de controle nos arquivos servidos
 echo ==============================================
 node caractere-test.js

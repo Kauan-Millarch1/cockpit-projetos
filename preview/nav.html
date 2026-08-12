@@ -1,0 +1,1712 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cockpit — navegação (preview)</title>
+<style>
+
+/* ==========================================================================
+   TOKENS
+   Dark is the house style (Panda Video: near-black navy, electric indigo).
+   Light is the same instrument rendered as a blueprint (Firecrawl: paper white,
+   hairline grid, mono annotations). Both are first-class; the toggle wins in
+   either direction because :root[data-theme] is declared after the media query.
+   ========================================================================== */
+:root {
+  --bg:        #06060B;
+  --bg-deep:   #040408;
+  --surface:   #0E0F1A;
+  --surface-2: #14162454;
+  --raised:    #171A2B;
+  --line:      rgba(255,255,255,.09);
+  --line-soft: rgba(255,255,255,.05);
+  --grid:      rgba(255,255,255,.028);
+  --grid-bold: rgba(255,255,255,.055);
+
+  /* Escada de três degraus, e os três precisam ser degraus de verdade.
+     Levar `--txt-faint` até o AA aproximou os dois tons de baixo: `.nd text.ty`
+     (o tipo do nó) usa faint e `.nd text.nm` (o nome) usa dim, e no tema claro os
+     dois ficaram a 10 pontos de canal um do outro — o desenho passou a separar os
+     rótulos só pelo tamanho da fonte. Por isso o degrau de cima também se move:
+     dim vai a ~9:1 (escurece no claro, clareia no escuro), o que reabre a
+     distância E melhora a legibilidade dele. Mexer só no faint obrigaria a
+     escolher entre AA e hierarquia. */
+  --txt:       #E9EBF5;
+  --txt-dim:   #AAAFC2;
+  --txt-faint: #777D92;   /* 4.5:1 no PIOR fundo, não no mais fácil */
+
+  --accent:      #5865F5;
+  --accent-soft: #5865F51f;
+  --accent-line: #5865F55c;
+  --brand:       #FF5A1F;   /* identity only: wordmark, section index, sparkles */
+
+  /* RESERVED. Status only — never a chart series, never a node-kind tint. */
+  --ok:    #2FD48F;
+  --warn:  #F5A524;
+  --risk:  #FF4F5E;
+  --cold:  #59617D;
+  --ok-soft:   #2FD48F1a;
+  --warn-soft: #F5A5241a;
+  --risk-soft: #FF4F5E1a;
+  --cold-soft: #59617D1a;
+
+  /* ---------------------------------------------------------- texto colorido
+     Segundo conjunto, SÓ para cor de texto. As cores acima foram calibradas
+     como preenchimento, borda e barra de status — onde não existe requisito de
+     contraste — e reusá-las em texto pequeno reprova o AA: medido, o tema claro
+     reprovava --ok (3,39), --warn (3,64), --risk na pill (4,20), --cold (3,18) e
+     --brand (3,12), e o escuro reprovava --cold (3,11) e --accent (4,17).
+     Separar os dois usos é o que deixa a barra vermelha com o vermelho exato que
+     o Kauan calibrou E o rótulo legível — mexer no token único obrigaria a
+     escolher um dos dois. Onde a cor original já passava, o par é o mesmo valor. */
+  --ok-txt:     #2FD48F;
+  --warn-txt:   #F5A524;
+  --risk-txt:   #FF4F5E;
+  --cold-txt:   #798096;
+  --accent-txt: #606CF5;
+  --brand-txt:  #FF5A1F;
+
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+
+  --font: "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --font-num: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", ui-monospace, monospace;
+  --r: 12px;
+
+  /* ------------------------------------------------------------- o palco
+     A caixa do nó, a porta e o fio têm tokens próprios porque são superfície
+     de desenho, não de interface: `--raised` é calibrado para cartão sobre
+     `--surface`, e o palco tem outro fundo. A cor do ícone NÃO mora aqui —
+     ela é do serviço e vive no mapa `ICONS`, junto do desenho. */
+  --node-face: #1B1D2E;
+  --node-edge: rgba(255,255,255,.14);
+  --port:      #6E7590;
+  --wire:      #6A7089;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #FAFAF9; --bg-deep: #F4F4F2; --surface: #FFFFFF; --surface-2: #00000005;
+    --raised: #FFFFFF;
+    --line: rgba(10,10,20,.11); --line-soft: rgba(10,10,20,.06);
+    --grid: rgba(10,10,20,.045); --grid-bold: rgba(10,10,20,.08);
+    --txt: #14151C; --txt-dim: #3F424D; --txt-faint: #666973;
+    --accent: #3B48E0; --accent-soft: #3B48E014; --accent-line: #3B48E055;
+    --ok: #0E9F6E; --warn: #B7791F; --risk: #DC2B3A; --cold: #8B90A0;
+    --ok-soft: #0E9F6E14; --warn-soft: #B7791F14; --risk-soft: #DC2B3A14; --cold-soft: #8B90A014;
+    --ok-txt: #0B8159; --warn-txt: #9A661A; --risk-txt: #D02937; --cold-txt: #6D717E;
+    --accent-txt: #3B48E0; --brand-txt: #D04919;
+    --shadow: 0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
+    --node-face: #FFFFFF; --node-edge: rgba(10,10,20,.16); --port: #9AA0B4; --wire: #A8AEC0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #06060B; --bg-deep: #040408; --surface: #0E0F1A; --surface-2: #14162454; --raised: #171A2B;
+  --line: rgba(255,255,255,.09); --line-soft: rgba(255,255,255,.05);
+  --grid: rgba(255,255,255,.028); --grid-bold: rgba(255,255,255,.055);
+  --txt: #E9EBF5; --txt-dim: #AAAFC2; --txt-faint: #777D92;
+  --accent: #5865F5; --accent-soft: #5865F51f; --accent-line: #5865F55c;
+  --ok: #2FD48F; --warn: #F5A524; --risk: #FF4F5E; --cold: #59617D;
+  --ok-soft: #2FD48F1a; --warn-soft: #F5A5241a; --risk-soft: #FF4F5E1a; --cold-soft: #59617D1a;
+  --ok-txt: #2FD48F; --warn-txt: #F5A524; --risk-txt: #FF4F5E; --cold-txt: #798096;
+  --accent-txt: #606CF5; --brand-txt: #FF5A1F;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --node-face: #1B1D2E; --node-edge: rgba(255,255,255,.14); --port: #6E7590; --wire: #6A7089;
+}
+:root[data-theme="light"] {
+  --bg: #FAFAF9; --bg-deep: #F4F4F2; --surface: #FFFFFF; --surface-2: #00000005; --raised: #FFFFFF;
+  --line: rgba(10,10,20,.11); --line-soft: rgba(10,10,20,.06);
+  --grid: rgba(10,10,20,.045); --grid-bold: rgba(10,10,20,.08);
+  --txt: #14151C; --txt-dim: #3F424D; --txt-faint: #666973;
+  --accent: #3B48E0; --accent-soft: #3B48E014; --accent-line: #3B48E055;
+  --ok: #0E9F6E; --warn: #B7791F; --risk: #DC2B3A; --cold: #8B90A0;
+  --ok-soft: #0E9F6E14; --warn-soft: #B7791F14; --risk-soft: #DC2B3A14; --cold-soft: #8B90A014;
+  --ok-txt: #0B8159; --warn-txt: #9A661A; --risk-txt: #D02937; --cold-txt: #6D717E;
+  --accent-txt: #3B48E0; --brand-txt: #D04919;
+  --shadow: 0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
+  --node-face: #FFFFFF; --node-edge: rgba(10,10,20,.16); --port: #9AA0B4; --wire: #A8AEC0;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--txt); font-family: var(--font);
+  font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; }
+button { font-family: inherit; }
+
+/* ------------------------------------------------------- blueprint backdrop */
+/* `overflow: hidden` porque o feixe da malha viaja para fora da caixa e a
+   camada é `position: fixed` — que o `overflow-x: hidden` do body não recorta.
+   Sem isso a decoração do fundo cria rolagem horizontal na página. */
+.backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.backdrop::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 30%, transparent 78%);
+}
+.backdrop::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 45% at 50% -12%, var(--accent-soft), transparent 70%);
+}
+.spark { position: fixed; width: 11px; height: 11px; z-index: 0; pointer-events: none; opacity: .8; }
+.spark svg { display: block; }
+
+/* ------------------------------------------------------------------- topbar */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 18px;
+  padding: 0 22px; height: 58px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -.02em; }
+.brand .flame { color: var(--brand); display: grid; place-items: center; }
+.brand .wm { font-size: 15px; margin: 0; font-weight: 700; line-height: 1.45; }
+.brand .wm b { color: var(--txt); }
+.brand .wm span { color: var(--txt-faint); font-weight: 500; }
+
+/* As três portas de entrada. Antes disto cada tela só era alcançável digitando
+   a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
+   existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
+   comum espremeria a navegação até quebrar. */
+.pages { display: flex; gap: 2px; flex: 0 0 auto; }
+.pages a { font-size: 12px; color: var(--txt-faint); padding: 5px 11px; border-radius: 8px;
+  text-decoration: none; white-space: nowrap; }
+.pages a:hover { background: var(--surface-2); color: var(--txt-dim); }
+.pages a[aria-current="page"] { color: var(--txt); background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line); }
+.pages a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar .sep { width: 1px; height: 20px; background: var(--line); }
+
+/* ------------------------------------------------------- modo gravação (REC)
+   Borra o que não pode aparecer numa filmagem: a fatia de dado de cliente que o
+   painel mostra de propósito (nome, contato mascarado, texto de mensagem) e as
+   mensagens de erro, que podem embutir telefone. Tudo isso carrega a classe
+   `sens` no render. O estado mora em localStorage com chave única do produto
+   (`cockpit-rec`) — ligar aqui liga no /tester e no /disco. O borrão NUNCA abre
+   no hover: a tela pode estar sendo filmada neste exato momento. O pulso do ⏺
+   é informação (a página está em modo gravação), então reduced-motion tira a
+   animação e mantém o estado visível. */
+.rec .dot { display: inline-block; }
+[data-rec="1"] .rec { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+[data-rec="1"] .rec .dot { animation: recpulse 1.6s ease-in-out infinite; }
+@keyframes recpulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.sens { transition: filter .45s ease; }
+[data-rec="1"] .sens { filter: blur(7px); user-select: none; }
+.rec-wave { position: fixed; inset: 0; z-index: 400; pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  [data-rec="1"] .rec .dot { animation: none; }
+  .sens { transition: none; }
+}
+.meta { font-family: var(--font-num); font-size: 11.5px; color: var(--txt-faint); letter-spacing: .02em; }
+.meta b { color: var(--txt-dim); font-weight: 500; }
+.spacer { flex: 1; }
+.livedot { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-num); font-size: 11.5px; color: var(--txt-dim); }
+.livedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--cold); }
+.livedot.on i { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: beat 2.4s infinite; }
+.livedot.off i { background: var(--risk); }
+@keyframes beat { 0%{box-shadow:0 0 0 0 var(--ok-soft)} 70%{box-shadow:0 0 0 8px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+
+.btn {
+  height: 32px; padding: 0 13px; border-radius: 8px; cursor: pointer;
+  background: var(--raised); color: var(--txt); border: 1px solid var(--line);
+  font-size: 13px; display: inline-flex; align-items: center; gap: 7px;
+  transition: border-color .16s, background .16s, transform .08s;
+}
+.btn:hover { border-color: var(--accent-line); }
+.btn:active { transform: translateY(1px); }
+.btn.ghost { background: transparent; }
+/* Verde só como affordance de ação, nunca como status de fluxo — cor de status
+   fica reservada para ok/warn/risk/cold nos cartões. */
+.btn.ok { color: var(--ok-txt); border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: var(--ok-soft); }
+.btn.ok:hover { border-color: var(--ok); }
+.btn[disabled] { opacity: .55; cursor: default; }
+
+/* -------------------------------------------------------------------- shell */
+.shell { position: relative; z-index: 1; display: grid; grid-template-columns: 250px minmax(0,1fr); align-items: start; }
+.rail {
+  position: sticky; top: 58px; height: calc(100vh - 58px); overflow-y: auto;
+  border-right: 1px solid var(--line); padding: 18px 14px 40px;
+}
+main { padding: 22px 26px 90px; min-width: 0; }
+
+.eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--txt-faint); margin: 0 0 12px;
+}
+.eyebrow .idx { color: var(--brand-txt); }
+.eyebrow .rule { flex: 1; height: 1px; background: var(--line-soft); }
+
+/* ---------------------------------------------------------------- kpi strip */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 10px; margin-bottom: 26px; }
+.kpi {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 13px 15px 14px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.kpi .lbl { font-family: var(--font-num); font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--txt-faint); }
+.kpi .val { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 600; letter-spacing: -.02em; margin-top: 5px; line-height: 1.05; }
+.kpi .sub { font-size: 11.5px; color: var(--txt-dim); margin-top: 3px; }
+.kpi.is-ok   .val { color: var(--ok-txt); }
+.kpi.is-warn .val { color: var(--warn-txt); }
+.kpi.is-risk .val { color: var(--risk-txt); }
+.kpi.is-cold .val { color: var(--cold-txt); }
+
+/* -------------------------------------------------------------------- panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.panel-hd { display: flex; align-items: center; gap: 12px; padding: 12px 15px; border-bottom: 1px solid var(--line-soft); }
+/* Nome de fluxo é longo (visto: "Agente Iago Comercial" em painel de 740px) e
+   o flex encolhia os botões até o rótulo quebrar debaixo do ícone. Quem cede
+   espaço é o texto, com reticências; o controle nunca se deforma. */
+.panel-hd h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em;
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-hd .hint { font-family: var(--font-num); font-size: 11px; color: var(--txt-faint);
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-hd .btn { flex: 0 0 auto; white-space: nowrap; }
+.panel-hd .eyebrow { flex: 0 0 auto; }
+.eyebrow .idx { white-space: nowrap; }
+
+.split { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 14px; margin-bottom: 30px; align-items: start; }
+@media (max-width: 1180px) { .split { grid-template-columns: minmax(0,1fr); } }
+
+/* --------------------------------------------------------------- flow stage */
+/* O palco fala o vocabulário do editor do n8n: malha de pontos em vez de
+   quadriculado, porque é o fundo que o Kauan tem na cabeça quando abre o n8n —
+   e porque um grid de linhas compete com os fios, que são a informação. */
+.stage { position: relative; height: 460px;
+  background:
+    linear-gradient(var(--surface-2), var(--surface-2)),
+    radial-gradient(circle at 1px 1px, var(--grid-bold) 1px, transparent 0);
+  background-size: auto, 22px 22px;
+  border-radius: 0 0 var(--r) var(--r); overflow: hidden; cursor: grab; }
+.stage.dragging { cursor: grabbing; }
+.stage svg { display: block; width: 100%; height: 100%; }
+.stage .corner { position: absolute; font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em; color: var(--txt-faint); opacity: .65; }
+.stage .corner.tl { top: 9px; left: 11px; } .stage .corner.br { bottom: 9px; right: 11px; }
+
+/* ---------------------------------------------------------------- os fios
+   Bézier horizontal com seta no destino. A seta não é enfeite: num grafo de
+   188 nós, sem ela não dá para saber quem chama quem. */
+.edge { fill: none; stroke: var(--wire); stroke-width: 1.6; stroke-linecap: round; }
+.edge.aux { stroke-dasharray: 4 4; opacity: .7; }
+.edge.ran { stroke: var(--ok); }
+.edge.flowing { stroke: var(--accent); stroke-dasharray: 7 8; animation: drift 1.1s linear infinite; }
+.edge.lit { stroke: var(--accent); stroke-width: 2.4; }
+@keyframes drift { to { stroke-dashoffset: -30; } }
+.tip { fill: var(--wire); }
+.tip.ran { fill: var(--ok); }
+.tip.lit { fill: var(--accent); }
+
+/* ------------------------------------------------------------------- os nós
+   Quadrado com ícone e rótulo embaixo, como no editor. A cor do GLIFO é do
+   serviço (identidade); a cor da BORDA é do estado. Elas nunca ocupam o mesmo
+   lugar, então a reserva da cor de status continua valendo onde importa. */
+.nd .face { fill: var(--node-face); stroke: var(--node-edge); stroke-width: 1.2; }
+.nd .glyph { stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.nd .nm { fill: var(--txt); font-family: var(--font); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+.nd .ty { fill: var(--txt-faint); font-family: var(--font-num); font-size: 7.5px; text-anchor: middle; }
+.nd .port { fill: var(--node-face); stroke: var(--port); stroke-width: 1.3; }
+/* Tempo medido do nó. Só existe quando o nó rodou de fato — é o que separa
+   desenho de telemetria, e por isso nunca aparece em nó pendente. */
+.nd .ms { fill: var(--txt-faint); font-family: var(--font-num); font-size: 7.5px; text-anchor: middle; opacity: 0; }
+.nd.ran .ms, .nd.failed .ms, .nd.hot .ms { opacity: 1; }
+.nd.ran .ms { fill: var(--ok-txt); }
+.nd.failed .ms { fill: var(--risk-txt); }
+
+.nd.pending { opacity: .5; }
+.nd.disabled .face { stroke-dasharray: 4 3; }
+.nd.disabled .nm { fill: var(--txt-faint); }
+.nd.ran .face { stroke: var(--ok); stroke-width: 1.6; }
+.nd.ran .badge { opacity: 1; }
+.nd.failed .face { stroke: var(--risk); stroke-width: 2.2; fill: color-mix(in srgb, var(--risk) 12%, var(--node-face)); }
+.nd.failed .badge-bad { opacity: 1; }
+.nd.failed { animation: alarm 1.6s ease-in-out infinite; }
+@keyframes alarm { 50% { filter: drop-shadow(0 0 7px var(--risk)); } }
+.nd.hot .face { stroke: var(--accent); stroke-width: 2.4; filter: drop-shadow(0 0 8px var(--accent)); }
+.nd .badge, .nd .badge-bad { opacity: 0; transition: opacity .2s; }
+.nd .badge circle { fill: var(--ok); }
+.nd .badge-bad circle { fill: var(--risk); }
+.nd .badge path, .nd .badge-bad path { stroke: var(--bg-deep); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.pulse { fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+
+/* ---------------------------------------------------------- sticky notes
+   São conteúdo do fluxo: é onde está escrito o nome da etapa. Entram atrás de
+   tudo e continuam FORA do bounding box da câmera (`isAnnotation`) — só
+   deixaram de ser invisíveis. O título mistura a cor da nota com `--txt`
+   porque o amarelo puro sobre o bege do tema claro fica em ~2,5:1. */
+.sticky .bg { fill: var(--sticky, #F5A524); fill-opacity: .10; stroke: var(--sticky, #F5A524); stroke-opacity: .38; stroke-width: 1; }
+.sticky .ttl { fill: color-mix(in srgb, var(--sticky, #F5A524) 62%, var(--txt)); font-family: var(--font); font-weight: 700; font-size: 11px; letter-spacing: .04em; }
+.sticky .bdy { fill: var(--txt-faint); font-family: var(--font); font-size: 8.5px; }
+
+/* ------------------------------------------------- O QUE ACONTECEU
+   A resposta para "rodou, mas fez o quê". Uma linha por efeito, e o que sai do
+   sistema (mensagem enviada, linha gravada, API chamada) vem primeiro e
+   marcado, porque é o que não dá para desfazer. Os campos são NOMES de campo,
+   nunca valores — o conteúdo do payload não atravessa o servidor. */
+.happened { border-top: 1px solid var(--line-soft); padding: 10px 15px 12px; }
+.happened .hd {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 8px;
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .14em; color: var(--txt-faint);
+}
+.happened .hd b { color: var(--txt-dim); font-weight: 600; letter-spacing: 0; font-family: var(--font); font-size: 12px; }
+.happened .row {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: baseline;
+  padding: 5px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px;
+}
+.happened .row:last-child { border-bottom: 0; }
+.happened .row .ic { align-self: center; }
+.happened .row .ic svg { display: block; }
+.happened .row .nm { color: var(--txt); }
+.happened .row .vb { color: var(--txt-dim); }
+.happened .row .fields {
+  font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint);
+  display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.happened .row .ms { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); }
+.happened .row.ext .nm { font-weight: 600; }
+.happened .row.bad .nm, .happened .row.bad .vb { color: var(--risk-txt); }
+.happened .none { font-size: 12.5px; color: var(--txt-faint); }
+
+/* A prosa: o que a execução fez, em frases. Vem antes da lista porque é a
+   resposta; a lista é a prova, e prova fica guardada até ser pedida. */
+.happened .prosa { display: grid; gap: 6px; margin-bottom: 10px; }
+.happened .linha { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.happened .linha .rot {
+  font-family: var(--font-num); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--txt-faint); flex: 0 0 auto; min-width: 54px;
+}
+.happened .linha .rot.out { color: var(--ok-txt); }
+.happened .linha.quem .val { color: var(--txt); font-weight: 600; }
+.happened .linha .val { color: var(--txt-dim); min-width: 0; }
+.happened .linha .para { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); }
+/* O que foi dito aparece como citação, não como dado: é conteúdo de alguém, e a
+   tipografia tem que lembrar disso. Contato já vem mascarado do servidor. */
+.happened .fala {
+  quotes: "“" "”"; color: var(--txt); background: var(--surface-2);
+  border: 1px solid var(--line-soft); border-radius: 8px; padding: 3px 9px;
+  font-size: 12.5px; line-height: 1.5; min-width: 0;
+}
+.happened .nodelist { margin-top: 4px; }
+.happened .nodelist > summary {
+  cursor: pointer; list-style: none; font-family: var(--font-num); font-size: 10.5px;
+  color: var(--txt-faint); padding: 4px 0;
+}
+.happened .nodelist > summary::-webkit-details-marker { display: none; }
+.happened .nodelist > summary::before { content: "▸ "; }
+.happened .nodelist[open] > summary::before { content: "▾ "; }
+.happened .nodelist > summary:hover { color: var(--accent-txt); }
+.happened .nodelist > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+/* A lista longa rola dentro de si: 105 nós empurrariam o quadro de erros para
+   fora da tela toda vez que alguém abrisse o detalhe. */
+.happened .listabox { max-height: 320px; overflow-y: auto; }
+
+.stage-bar { display: flex; align-items: center; gap: 10px; padding: 9px 15px; border-top: 1px solid var(--line-soft); flex-wrap: nowrap; }
+.stage-bar .step { flex: 1; font-family: var(--font-num); font-size: 11px; color: var(--txt-dim); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- live feed */
+.feed { max-height: 528px; overflow-y: auto; }
+.feed-row {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 9px; align-items: center;
+  padding: 8px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer;
+  font-size: 12.5px;
+}
+.feed-row:hover { background: var(--accent-soft); }
+.feed-row .t { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); font-variant-numeric: tabular-nums; }
+.feed-row .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-dim); }
+.feed-row .d { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); font-variant-numeric: tabular-nums; }
+/* Faixa "no palco": mesma linguagem do item selecionado (barra à esquerda em
+   accent), acima da lista e fora da rolagem, para continuar respondendo "qual
+   estou vendo" mesmo quando a linha correspondente já saiu das 200. */
+.feed-sel {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 7px 14px; border-bottom: 1px solid var(--line-soft);
+  background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent);
+  font-size: 12px;
+}
+.feed-sel.err { background: var(--risk-soft); box-shadow: inset 3px 0 0 var(--risk); }
+.feed-sel .lbl { font-family: var(--font-num); font-size: 9.5px; letter-spacing: .14em; color: var(--accent-txt); }
+.feed-sel.err .lbl { color: var(--risk-txt); }
+.feed-sel .who { color: var(--txt); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-sel .off { font-family: var(--font-num); font-size: 10px; color: var(--txt-faint); }
+
+.feed-row.new { animation: land .5s ease-out; }
+/* A execução que está no palco. A lista tem 200 linhas e o desenho vem de uma
+   delas: sem marca, não dá para saber de qual. A barra à esquerda é o mesmo
+   vocabulário do item selecionado na trilha de projetos. */
+.feed-row.sel {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.feed-row.sel .n { color: var(--txt); font-weight: 600; }
+.feed-row.sel.err { background: color-mix(in srgb, var(--risk) 14%, transparent); box-shadow: inset 3px 0 0 var(--risk); }
+@keyframes land { from { background: var(--accent-soft); transform: translateY(-6px); opacity: 0; } }
+.feed-row.err { background: var(--risk-soft); }
+.dotst { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 1px; }
+
+/* --------------------------------------------------------------- flow cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px 15px 13px; box-shadow: var(--shadow); cursor: pointer; position: relative;
+  transition: border-color .16s, transform .12s;
+}
+.card:hover { border-color: var(--accent-line); transform: translateY(-2px); }
+.card.sel { border-color: var(--accent); }
+.card::before { content: ""; position: absolute; left: 0; top: 13px; bottom: 13px; width: 2px; border-radius: 2px; background: var(--cold); }
+.card.s-ok::before   { background: var(--ok); }
+.card.s-warn::before { background: var(--warn); }
+.card.s-risk::before { background: var(--risk); }
+.card.s-cold::before { background: var(--cold); }
+.card h3 { margin: 0 0 2px; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+.card .proj { font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--txt-faint); }
+.card .diag { font-size: 12.5px; color: var(--txt-dim); margin: 8px 0 10px; min-height: 34px; }
+.card .stats { display: flex; gap: 14px; font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); font-variant-numeric: tabular-nums; }
+.card .stats b { color: var(--txt); font-weight: 600; }
+.spark-row { display: flex; gap: 2px; align-items: flex-end; height: 20px; margin: 9px 0 2px; }
+.spark-row i { flex: 1; min-width: 2px; border-radius: 1px; background: var(--ok); opacity: .75; }
+.spark-row i.e { background: var(--risk); opacity: 1; }
+.spark-row i.z { background: var(--line); }
+
+/* -------------------------------------------------------------- error board */
+.errs { display: grid; gap: 10px; }
+.err {
+  border: 1px solid var(--line); border-left: 2px solid var(--risk); border-radius: 10px;
+  background: var(--surface); padding: 12px 14px; display: grid; gap: 6px;
+}
+.err .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.err .cnt { font-family: var(--font-num); font-size: 12px; font-weight: 700; color: var(--risk-txt); background: var(--risk-soft); border: 1px solid color-mix(in srgb, var(--risk) 35%, transparent); border-radius: 6px; padding: 1px 7px; }
+.err .wf { font-size: 13px; font-weight: 600; }
+.err .node { font-family: var(--font-num); font-size: 11px; color: var(--txt); background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+.err .proj { font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--txt-faint); }
+/* Falha de sub-workflow. O n8n reporta o erro do filho NO PAI, então o nome do
+   nó ao lado do nome do fluxo afirmava uma coisa falsa: o nó não está lá. O
+   chip do fluxo filho entra entre os dois, e o nó ganha contorno de "não é
+   daqui" — a linha explicativa embaixo termina de contar. */
+.err .sub {
+  font-family: var(--font-num); font-size: 10.5px; color: var(--accent-txt);
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  border-radius: 5px; padding: 1px 6px; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.err .node.foreign { border-style: dashed; color: var(--txt-dim); }
+.err .when.origin { color: var(--accent-txt); }
+.err .msg { font-family: var(--font-num); font-size: 11.5px; color: var(--txt-dim); line-height: 1.5; word-break: break-word; }
+.err .when { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); }
+.err .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Corrigido continua visível, só perde o peso visual da barra vermelha. */
+.err.fixed { border-left-color: var(--ok); opacity: .72; }
+.err.fixed:hover { opacity: 1; }
+.err.reopened { border-left-color: var(--warn); }
+/* Nota do Kauan e sugestão heurística: barra à esquerda para separar do texto
+   cru do n8n. Nota usa o accent (é dele), sugestão fica em tom apagado — para
+   não competir com a mensagem real do erro. */
+.err .note, .err .tip {
+  font-size: 12px; line-height: 1.5; padding: 6px 10px; border-radius: 7px;
+  border-left: 2px solid var(--accent-line); background: var(--surface-2); color: var(--txt-dim);
+}
+.err .note { color: var(--txt); border-left-color: var(--accent); }
+.err .note.past { color: var(--txt-dim); border-left-color: var(--line); font-family: var(--font-num); font-size: 11.5px; }
+.err .tip { border-left-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+.err .fixform { display: grid; gap: 8px; margin-top: 4px; padding: 10px; border: 1px dashed var(--line); border-radius: 9px; background: var(--surface-2); }
+.err .fixform label { font-family: var(--font-num); font-size: 11px; color: var(--txt-dim); }
+.err .fixform textarea {
+  min-height: 66px; resize: vertical; padding: 8px 10px; font: inherit; font-size: 12.5px;
+  color: var(--txt); background: var(--surface); border: 1px solid var(--line); border-radius: 7px;
+}
+.err .fixform textarea:focus { outline: none; border-color: var(--accent); }
+/* Sem escopo em `.err`: o mesmo aviso serve dentro do cartão (POST falhou) e no
+   topo do quadro inteiro (GET das marcas falhou). */
+.fixerr { font-family: var(--font-num); font-size: 11.5px; line-height: 1.5; color: var(--risk-txt); background: var(--risk-soft); border-radius: 6px; padding: 6px 9px; }
+
+/* Confirmação de que salvou: verde e assenta. Roda só DEPOIS da resposta do
+   servidor — verde antes de gravar seria mentira quando o POST falha. */
+.err.settling { animation: settle .55s ease-out forwards; }
+@keyframes settle {
+  0%   { border-left-color: var(--risk); background: var(--surface); }
+  35%  { border-left-color: var(--ok); background: var(--ok-soft); transform: none; }
+  100% { border-left-color: var(--ok); background: var(--ok-soft); transform: scale(.985); opacity: .35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .err.settling { animation: none; border-left-color: var(--ok); background: var(--ok-soft); }
+}
+
+.filterchip {
+  display: inline-flex; align-items: center; gap: 7px; margin-right: 10px;
+  font-family: var(--font-num); font-size: 10.5px; text-transform: none; letter-spacing: 0;
+  color: var(--txt); background: var(--accent-soft);
+  border: 1px solid var(--accent-line); border-radius: 20px; padding: 2px 4px 2px 9px;
+}
+.filterchip button { font: inherit; cursor: pointer; color: var(--txt-dim); background: transparent; border: 0; padding: 2px 6px; border-radius: 14px; }
+.filterchip button:hover { color: var(--txt); background: var(--surface-2); }
+.filterchip.paused { color: var(--warn-txt); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); padding: 2px 9px; }
+.card.filt { box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* Estrela e remover, no canto do card. Escondidos até o hover/foco para não
+   virar 36 ícones repetidos numa grade de 18 cards — MENOS a estrela ativa,
+   que é informação (diz por que o card está em primeiro) e fica sempre.
+   A estrela cheia é --accent: estado de UI, nunca cor de status. */
+.card-acts { position: absolute; top: 9px; right: 9px; display: flex; gap: 4px; z-index: 2; }
+.cact { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 7px;
+  color: var(--txt-faint); opacity: 0; transition: opacity .12s, color .12s, border-color .12s; }
+.cact svg { width: 14px; height: 14px; }
+.card:hover .cact, .card:focus-within .cact, .cact.on { opacity: 1; }
+.cact:hover { color: var(--txt); border-color: var(--accent-line); }
+.cact.fav.on { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+/* Sem hover não existe "aparecer no hover": no toque os botões ficam visíveis
+   e com alvo de 40px, que é o piso deste projeto para toque. */
+@media (hover: none) {
+  .cact { opacity: 1; width: 38px; height: 38px; }
+}
+
+.hidden-row { display: flex; align-items: baseline; gap: 10px; }
+.linkbtn { background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-num);
+  font-size: 10.5px; color: var(--accent-txt); text-decoration: underline; text-underline-offset: 2px; }
+.linkbtn:hover { color: var(--txt); }
+
+/* --------------------------------------------------------------------- rail
+   O item tem duas linhas: nome + contagem em cima, "N fluxos · N exec" embaixo.
+   A segunda linha é o que faz o trilho responder "qual projeto trabalha mais"
+   sem hover — antes essa resposta vivia só no title. A falha vira uma PÍLULA
+   (`3 falhas`), não um "3✕" solto: número vermelho sem moldura lê como ruído
+   de renderização, com moldura lê como aviso. A barra de status continua sendo
+   a âncora de cor, agora com a altura das duas linhas. */
+.rail h4 { font-family: var(--font-num); font-size: 10px; letter-spacing: .1em; margin: 0 0 10px 6px; }
+.rail h4 .idx { color: var(--brand-txt); }
+.rail-item {
+  display: grid; grid-template-columns: 4px minmax(0,1fr) auto; gap: 4px 10px; align-items: center;
+  padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 13px; margin-bottom: 3px;
+  border: 1px solid transparent;
+}
+.rail-item:hover { background: var(--surface-2); border-color: var(--line-soft); }
+.rail-item.sel { background: var(--accent-soft); border-color: var(--accent-line); }
+.rail-item.sel .nm { color: var(--txt); font-weight: 600; }
+.rail-item i.bar { grid-row: 1 / span 2; width: 4px; align-self: stretch; border-radius: 2px; background: var(--cold); }
+/* Item sem meta (o "Todos") volta a uma linha: a barra não estica o vazio. */
+.rail-item.only i.bar { grid-row: 1; height: 15px; align-self: center; }
+.rail-item.s-ok i.bar{background:var(--ok)} .rail-item.s-warn i.bar{background:var(--warn)}
+.rail-item.s-risk i.bar{background:var(--risk)} .rail-item.s-cold i.bar{background:var(--cold)}
+.rail-item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-dim); }
+.rail-item .ct { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); font-variant-numeric: tabular-nums; }
+.rail-item .meta { grid-column: 2 / span 2; font-family: var(--font-num); font-size: 9.5px;
+  color: var(--txt-faint); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .ct.bad { font-size: 9px; letter-spacing: .04em; color: var(--risk-txt); font-weight: 700;
+  background: var(--risk-soft); border: 1px solid color-mix(in srgb, var(--risk) 30%, transparent);
+  border-radius: 999px; padding: 2px 7px; }
+
+.pill { font-family: var(--font-num); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; border: 1px solid; }
+.pill.ok{color:var(--ok-txt);background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.pill.warn{color:var(--warn-txt);background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.pill.risk{color:var(--risk-txt);background:var(--risk-soft);border-color:color-mix(in srgb,var(--risk) 35%,transparent)}
+.pill.cold{color:var(--cold-txt);background:var(--cold-soft);border-color:color-mix(in srgb,var(--cold) 35%,transparent)}
+
+.empty, .loading, .failure { padding: 30px 18px; text-align: center; color: var(--txt-dim); font-size: 13px; }
+.failure { color: var(--risk-txt); font-family: var(--font-num); font-size: 12px; }
+.loading .bars { display: grid; gap: 8px; max-width: 420px; margin: 0 auto 14px; }
+.loading .bars i { height: 9px; border-radius: 5px; background: linear-gradient(90deg, var(--line-soft), var(--line), var(--line-soft)); background-size: 200% 100%; animation: shim 1.3s linear infinite; }
+@keyframes shim { to { background-position: -200% 0; } }
+
+details.dormant { margin-top: 14px; }
+details.dormant summary { cursor: pointer; font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); letter-spacing: .06em; padding: 8px 0; }
+details.dormant .dlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 6px; margin-top: 8px; }
+details.dormant .dlist div { font-size: 12px; color: var(--txt-faint); padding: 6px 9px; border: 1px solid var(--line-soft); border-radius: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ================================================================== AVISOS
+   UM vocabulário para toda mensagem do sistema, nas três páginas.
+
+   Antes havia quatro: `.avisobar` na abertura, `alertaInline()` na corrida,
+   `.anxerro` nos anexos e o `confirm()` nativo (já removido). Quatro jeitos de
+   dizer a mesma coisa é o que faz um painel parecer montado por quatro pessoas —
+   e o aviso é justamente o momento em que ele precisa ser mais confiável.
+
+   Dois MODOS, um só desenho:
+     `.aviso`         — ancorado, fica onde o problema está (campo, seção, caixa).
+     `.avisos > .aviso` — evento: o CONTAINER e que faz flutuar, sai sozinho.
+   E quatro TIPOS, que só trocam a cor e o glifo: erro, alerta, ok, info.
+
+   O tipo decide o comportamento, não só a cor: erro e alerta NÃO somem sozinhos
+   (quem precisa ler não pode perder a frase), ok e info somem em 4,5s com a
+   barra mostrando o tempo — uma coisa que vai desaparecer tem que dizer isso.
+
+   Cor de status aqui é uso canônico: `--*-txt` no texto e `-soft` no fundo, que
+   é a mesma divisão fill-vs-text que o resto do produto já segue. */
+.aviso{display:flex;gap:9px;align-items:flex-start;text-align:left;
+  font-size:12px;line-height:1.6;border-radius:10px;padding:10px 12px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--txt-dim)}
+.aviso .ai{flex:0 0 auto;font-size:11px;line-height:1.55;opacity:.95}
+.aviso .ac{flex:1 1 auto;min-width:0}
+.aviso .at{display:block;font-weight:650;color:var(--txt);margin-bottom:2px}
+.aviso .ax{flex:0 0 auto;border:none;background:none;cursor:pointer;padding:1px 4px;
+  border-radius:5px;color:inherit;opacity:.55;font-size:13px;line-height:1}
+.aviso .ax:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}
+/* A borda sai da PRÓPRIA cor do tipo (`currentColor`), não de um token por
+   variante: `--risk-line` e `--ok-line` não existem neste produto, e inventar
+   quatro tokens novos para uma borda seria quatro lugares para dessincronizar.
+   Assim os quatro tipos têm exatamente o mesmo peso de contorno. */
+.aviso.erro,.aviso.alerta,.aviso.ok,.aviso.info{border-color:color-mix(in srgb,currentColor 30%,transparent)}
+/* A cor é PUXADA para o texto base. Medido no DOM vivo, com o `-soft` composto
+   sobre o fundo da página: `--risk-txt` puro dava 4,41 no claro, `--warn-txt`
+   4,30, `--ok-txt` 4,29 e `--accent-txt` 4,38 no escuro — quatro reprovações de
+   AA (4,5) em texto de 12px. É a armadilha que este projeto já documentou: token
+   calibrado como preenchimento não é token de texto, e `-txt` sozinho foi
+   calibrado contra `--surface`, não contra o próprio `-soft`.
+   A mistura mantém a cor reconhecível (o vermelho continua vermelho) e sobe o
+   contraste com folga. Mexeu em token de status? Re-meça — não confie na captura. */
+.aviso.erro{background:var(--risk-soft);color:color-mix(in srgb,var(--risk-txt) 72%,var(--txt))}
+.aviso.alerta{background:var(--warn-soft);color:color-mix(in srgb,var(--warn-txt) 72%,var(--txt))}
+.aviso.ok{background:var(--ok-soft);color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt))}
+.aviso.info{background:var(--accent-soft);color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt))}
+/* O glifo fica na cor CHEIA: ele é forma, não texto corrido, e é o que mantém a
+   identidade do tipo legível de longe. */
+.aviso.erro .ai{color:var(--risk-txt)}
+.aviso.alerta .ai{color:var(--warn-txt)}
+.aviso.ok .ai{color:var(--ok-txt)}
+.aviso.info .ai{color:var(--accent-txt)}
+.aviso.bloco{max-width:700px;margin:16px auto 0}
+
+/* A pilha. `fixed` no alto à direita, abaixo do topbar: não cobre o compositor
+   (embaixo), não cobre o cabeçalho (em cima), e é para onde o olho vai depois de
+   clicar num botão do cabeçalho. Empilha para baixo; o mais novo entra por cima.
+   `pointer-events` só nos cartões — a pilha inteira não pode roubar clique da
+   página atrás dela. */
+.avisos{position:fixed;top:70px;right:18px;z-index:60;display:flex;flex-direction:column;gap:8px;
+  width:min(380px,calc(100vw - 36px));pointer-events:none}
+.avisos .aviso{pointer-events:auto;box-shadow:var(--shadow);backdrop-filter:blur(8px);
+  animation:avin .26s cubic-bezier(.2,.9,.3,1) both}
+.aviso.saindo{animation:avout .18s ease-in both}
+@keyframes avin{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes avout{from{opacity:1}to{opacity:0;transform:translateX(10px)}}
+/* A barra do tempo restante. Só existe onde há auto-dismiss — desenhar uma barra
+   parada num aviso que não sai seria prometer que ele vai sumir. */
+.aviso .abar{position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:currentColor;opacity:.35;transform-origin:left;animation:avbar linear both}
+@keyframes avbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.avisos .aviso{position:relative;overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .avisos .aviso,.aviso.saindo{animation-duration:1ms;animation-delay:0s}
+  /* A barra continua encurtando: ela é INFORMAÇÃO (quanto falta), não enfeite.
+     O que sai é o deslize de entrada, que é decoração. */
+  .aviso .abar{animation-duration:inherit}
+}
+@media (max-width:520px){ .avisos{top:auto;bottom:14px;right:12px;left:12px;width:auto} }
+
+/* ==========================================================================
+   CAMADA DE MOVIMENTO — receitas portadas do cult-ui (nolly-studio/cult-ui)
+   O repositório é React + Tailwind + framer-motion e se instala por copy-paste
+   de componente. Colar de lá exigiria npm, build e React num painel que hoje é
+   um HTML só, sem dependência nenhuma — então o que veio foi a RECEITA visual,
+   reescrita em CSS/WAAPI puro:
+     border-beam-button  -> .beam        (feixe cônico girando na borda)
+     texture-button      -> .btn         (bevel de duas camadas + brilho interno)
+     texture-card        -> .kpi/.card   (sheen diagonal + realce superior)
+     glow-button         -> .card        (brilho que segue o cursor, --mx/--my)
+     animated-number     -> springNumber (mola, no JS)
+     grid-beam           -> .backdrop    (feixe viajando sobre a malha)
+     terminal-animation  -> .hoff-term   (linhas mono aparecendo em sequência)
+   A cor do movimento é SEMPRE --accent. Status (ok/warn/risk/cold) continua
+   reservado e --brand segue sendo identidade, nunca decoração de estado.
+   ========================================================================== */
+@property --beam-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+/* Feixe de borda: o gradiente cônico gira e um mask de duas camadas recorta só
+   a moldura de 1px. Sem o mask o gradiente vazaria por cima do conteúdo. */
+.beam { position: relative; }
+.beam::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit;
+  padding: 1px; pointer-events: none; opacity: 0;
+  background: conic-gradient(from var(--beam-a),
+    transparent 0deg, transparent 300deg,
+    color-mix(in srgb, var(--accent) 25%, transparent) 330deg,
+    var(--accent) 352deg, #fff 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  transition: opacity .22s;
+}
+.beam.on::after, .beam:hover::after { opacity: 1; animation: beamspin 2.6s linear infinite; }
+@keyframes beamspin { to { --beam-a: 360deg; } }
+/* O painel do handoff precisa de `overflow: hidden` para os cantos das faixas
+   internas — e isso recorta o próprio ::after, que em `inset: -1px` fica
+   inteiramente fora do clip: o feixe simplesmente não aparecia. Em `inset: 0`
+   ele desenha na borda interna, dentro do recorte. Verificado por captura. */
+.hoff.beam::after { inset: 0; }
+
+/* Bevel do texture-button: moldura em gradiente + preenchimento em gradiente +
+   linha de luz no topo. O :active afunda 1px e apaga a luz — o botão responde
+   ao toque em vez de só trocar de cor. */
+.btn {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+    linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+  transition: background .16s, box-shadow .18s, transform .09s, color .16s;
+}
+.btn:hover {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 13%, var(--raised)), var(--raised)) padding-box,
+    linear-gradient(180deg, var(--accent-line), var(--line)) border-box;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 10%, transparent), 0 2px 6px rgba(0,0,0,.22);
+}
+.btn:active { transform: translateY(1px); box-shadow: inset 0 2px 5px rgba(0,0,0,.22); }
+.btn.ghost { background: transparent padding-box, linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow: none; }
+.btn.ghost:hover { background: var(--accent-soft) padding-box, linear-gradient(180deg, var(--accent-line), var(--line)) border-box; }
+.btn.ok {
+  color: var(--ok-txt);   /* o preenchimento usa --ok; só o rótulo precisa do 4.5 */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 16%, var(--raised)), var(--ok-soft)) padding-box,
+              linear-gradient(180deg, color-mix(in srgb, var(--ok) 55%, transparent), color-mix(in srgb, var(--ok) 25%, transparent)) border-box;
+}
+.btn.ok:hover { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ok) 22%, transparent), 0 2px 6px rgba(0,0,0,.22); }
+.btn[disabled] { opacity: .55; cursor: default; transform: none; }
+/* O painel não declarava foco em lugar nenhum: o outline padrão do Chrome caía
+   sobre a borda em gradiente do botão e praticamente desaparecia. Anel explícito,
+   com offset, para o foco ser visível em cima de qualquer variante. */
+.btn:focus-visible,
+.rail-item:focus-visible, .card:focus-visible, .feed-row:focus-visible,
+summary:focus-visible, .filterchip button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+/* Foco de teclado nunca deve depender só de cor: o anel vem acompanhado do
+   mesmo realce que o hover dá. */
+.rail-item:focus-visible, .feed-row:focus-visible { background: var(--accent-soft); }
+
+/* Sheen do texture-card: uma faixa diagonal fixa, quase invisível, que dá
+   volume ao cartão sem virar gradiente colorido (cor de status é reservada). */
+.kpi::after, .panel::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(147deg, color-mix(in srgb, var(--txt) 5%, transparent) 0%, transparent 42%);
+}
+.panel { position: relative; }
+.kpi { transition: border-color .2s, transform .2s, box-shadow .2s; }
+.kpi:hover { border-color: var(--accent-line); transform: translateY(-2px); box-shadow: var(--shadow), 0 10px 24px -18px rgba(0,0,0,.55); }
+.kpi .val { transition: color .3s; }
+
+/* Brilho que segue o cursor (glow-button). --mx/--my são escritos no pointermove;
+   sem hover o raio fica em opacity 0 e não custa nada. */
+.card { --mx: 50%; --my: 50%; overflow: hidden; }
+.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  opacity: 0; transition: opacity .25s;
+  background: radial-gradient(220px circle at var(--mx) var(--my), var(--accent-soft), transparent 65%);
+}
+.card:hover::after { opacity: 1; }
+.card:hover { box-shadow: var(--shadow), 0 14px 30px -20px rgba(0,0,0,.55); }
+
+/* grid-beam: um feixe horizontal atravessa a malha do fundo devagar. É o único
+   movimento ambiente da página, por isso é lento e de baixa opacidade. */
+.backdrop .gbeam {
+  position: absolute; left: -30%; width: 60%; height: 1px; top: 22%;
+  background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+  filter: blur(.4px); opacity: .55;
+  animation: gbeam 13s cubic-bezier(.4,0,.25,1) infinite;
+}
+.backdrop .gbeam.b2 { top: 61%; animation-duration: 19s; animation-delay: 5s; opacity: .35; }
+@keyframes gbeam { 0% { transform: translateX(0); } 100% { transform: translateX(250%); } }
+
+/* Aparição escalonada dos cartões: --i é o índice, definido no render. */
+.rise { animation: rise .42s cubic-bezier(.2,.8,.25,1) both; animation-delay: calc(var(--i, 0) * 28ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+
+/* ==========================================================================
+   HANDOFF — a tela do "Mandar pro Claude"
+   Oito etapas, cada uma correspondendo a trabalho que acontece de verdade:
+   assinatura em memória, GET do grafo, localização do nó, GET da execução,
+   diagnóstico heurístico, sessão headless do Claude Code, portas de validação
+   determinísticas e a revisão do diff. A tela termina num diff esperando
+   aprovação, e diz em voz alta que nada foi escrito no n8n até o clique. Uma
+   tela que animasse "corrigido" com o nó intacto na instância seria a mesma
+   mentira do relógio vivo sobre dado velho — e essa é a linha que este painel
+   não cruza.
+   ========================================================================== */
+.hoff-scrim {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--bg-deep) 72%, transparent);
+  backdrop-filter: blur(9px) saturate(1.1);
+  animation: scrimin .28s ease-out both;
+}
+@keyframes scrimin { from { opacity: 0; } }
+.hoff {
+  position: relative; width: min(1080px, 100%); max-height: min(88vh, 860px);
+  /* Quatro faixas: cabeçalho, corpo, briefing, rodapé. O briefing só é inserido
+     no fim, mas a faixa precisa existir desde já — com três faixas ele caía numa
+     linha implícita e passava por cima do terminal. */
+  display: grid; grid-template-rows: auto minmax(0,1fr) auto auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow), 0 50px 110px -50px rgba(0,0,0,.85);
+  overflow: hidden; transform-origin: top left;
+}
+.hoff-hd { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); }
+.hoff-hd .idx { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em; color: var(--brand-txt); }
+.hoff-hd h2 { margin: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+.hoff-hd .sig { font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hoff-hd .spacer { flex: 1; }
+
+.hoff-body { display: grid; grid-template-columns: 300px minmax(0,1fr); gap: 0; min-height: 0; }
+.hoff-steps { border-right: 1px solid var(--line-soft); padding: 16px 14px; overflow-y: auto; background: var(--surface-2); }
+.hoff-step { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 8px 6px; border-radius: 8px; opacity: .38; transition: opacity .3s, background .3s; }
+.hoff-step .mark {
+  width: 18px; height: 18px; border-radius: 50%; margin-top: 2px;
+  border: 1px solid var(--line); display: grid; place-items: center;
+  font-family: var(--font-num); font-size: 9px; color: var(--txt-faint);
+}
+.hoff-step .nm { font-size: 12.5px; color: var(--txt-dim); line-height: 1.35; }
+.hoff-step .sub { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); margin-top: 2px; }
+.hoff-step.on { opacity: 1; background: var(--accent-soft); }
+.hoff-step.on .mark { border-color: var(--accent); color: var(--accent-txt); animation: markspin 1s linear infinite; }
+.hoff-step.on .nm { color: var(--txt); font-weight: 600; }
+@keyframes markspin { to { transform: rotate(360deg); } }
+.hoff-step.done { opacity: 1; }
+.hoff-step.done .mark { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: var(--ok-soft); color: var(--ok-txt); animation: none; }
+.hoff-step.warnst .mark { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: var(--warn-soft); color: var(--warn-txt); animation: none; }
+
+/* Três faixas fixas por posição explícita, não por ordem de inserção: a faixa
+   de atividade é REMOVIDA do DOM quando a corrida acaba, e com auto-placement o
+   terminal subiria para a linha `auto` e encolheria para a altura do texto. */
+.hoff-main { display: grid; grid-template-rows: 244px auto minmax(0,1fr); min-height: 0; }
+.hoff-mini { grid-row: 1; }
+.hoff-act  { grid-row: 2; }
+.hoff-term { grid-row: 3; }
+
+/* ------------------------------------------------- ATIVIDADE (o que ele faz)
+   O terminal mostra tudo, e é justamente por isso que "o que está acontecendo
+   agora" se perdia nele: 40 linhas rolando enterram a única que importa. Esta
+   faixa carrega um fato por vez, sobrescrito, em tamanho legível de longe —
+   mais a barra, que é a resposta para "quanto falta".
+
+   A barra mede TEMPO contra a mediana das corridas anteriores, não etapas
+   concluídas: das oito etapas, sete levam milissegundos e uma leva três
+   minutos, então uma barra por etapa saltaria para 60% e ficaria parada. */
+.hoff-act {
+  border-bottom: 1px solid var(--line-soft); background: var(--surface-2);
+  padding: 11px 18px 12px; display: grid; gap: 8px;
+}
+.hoff-act .act-line { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.hoff-act .dot {
+  width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--accent); box-shadow: 0 0 0 0 var(--accent-line);
+  animation: actpulse 1.9s ease-out infinite;
+}
+@keyframes actpulse {
+  0% { box-shadow: 0 0 0 0 var(--accent-line); }
+  70%, 100% { box-shadow: 0 0 0 7px transparent; }
+}
+.hoff-act .act-txt {
+  font-size: 13.5px; color: var(--txt); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hoff-act .act-stage { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .1em; color: var(--accent-txt); flex: 0 0 auto; }
+.hoff-act .act-round {
+  margin-left: auto; flex: 0 0 auto;
+  font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint);
+  border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px;
+}
+.pbar { height: 5px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+/* Cresce por `transform`, não por `width`: a barra atualiza a cada segundo
+   durante minutos, e animar largura recalcula layout a cada quadro. */
+.pfill {
+  height: 100%; width: 100%; border-radius: inherit;
+  transform: scaleX(0); transform-origin: left center;
+  background: linear-gradient(90deg, var(--accent-line), var(--accent));
+  transition: transform .9s linear;
+}
+/* Sem histórico não existe denominador, e uma barra parada em 30% seria uma
+   afirmação falsa. A listra em movimento diz "andando, duração desconhecida" —
+   que é exatamente o que se sabe. */
+.pbar.unknown .pfill {
+  transform: scaleX(1);
+  background: repeating-linear-gradient(115deg,
+    var(--accent-line) 0 10px, transparent 10px 22px);
+  animation: pslide 1.1s linear infinite;
+}
+@keyframes pslide { to { background-position: 44px 0; } }
+.pbar.over .pfill { background: linear-gradient(90deg, var(--warn), var(--warn)); }
+.hoff-act .act-foot {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint);
+}
+.hoff-act .act-foot b { color: var(--txt-dim); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .hoff-act .dot { animation: none; }
+  .pbar.unknown .pfill { animation: none; }
+  .pfill { transition: none; }
+}
+.hoff-mini {
+  position: relative; border-bottom: 1px solid var(--line-soft);
+  background:
+    linear-gradient(var(--surface-2), var(--surface-2)),
+    repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 24px);
+  overflow: hidden;
+}
+.hoff-mini svg { display: block; width: 100%; height: 100%; }
+/* Chip em vez de texto solto: num grafo de 188 nós o rótulo cai atrás de um nó
+   e some. O fundo o mantém legível sem precisar reservar espaço no layout. */
+.hoff-mini .corner {
+  position: absolute; top: 8px; left: 10px; z-index: 1;
+  font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em; color: var(--txt-dim);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line-soft); border-radius: 5px; padding: 2px 7px;
+}
+.hoff-mini .idle { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); }
+
+/* terminal-animation: linhas mono entrando uma a uma, com cursor de bloco. */
+.hoff-term { overflow-y: auto; padding: 14px 18px 18px; font-family: var(--font-num); font-size: 11.5px; line-height: 1.72; }
+.hoff-term .ln { display: flex; gap: 9px; color: var(--txt-dim); animation: lnin .3s ease-out both; }
+@keyframes lnin { from { opacity: 0; transform: translateY(4px); } }
+.hoff-term .ln .g { color: var(--txt-faint); flex: 0 0 auto; }
+.hoff-term .ln.hd { color: var(--accent-txt); margin-top: 10px; }
+.hoff-term .ln.hd:first-child { margin-top: 0; }
+.hoff-term .ln.bad { color: var(--risk-txt); }
+.hoff-term .ln.warn { color: var(--warn-txt); }
+.hoff-term .ln.good { color: var(--ok-txt); }
+.hoff-term .ln .tx { min-width: 0; word-break: break-word; }
+.hoff-term .caret { display: inline-block; width: 7px; height: 13px; background: var(--accent); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.hoff-ft { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+.hoff-ft .truth { flex: 1; min-width: 260px; font-size: 12px; color: var(--txt-dim); line-height: 1.45; }
+.hoff-ft .truth b { color: var(--txt); font-weight: 600; }
+.hoff-brief {
+  width: calc(100% - 36px); height: 108px; min-height: 68px; max-height: 40vh; resize: vertical;
+  margin: 0 18px 12px;
+  font-family: var(--font-num); font-size: 11px; line-height: 1.55;
+  color: var(--txt); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px;
+}
+.hoff-brief:focus { outline: none; border-color: var(--accent); }
+
+/* --------------------------------------------------------------------------
+   REVISÃO — a tela de pull request da proposta do Claude.
+   Ela ocupa a mesma faixa onde o briefing ficava, porque substitui exatamente
+   aquilo: antes o cockpit entregava texto para colar, agora entrega um diff
+   para aprovar. Rola sozinha e tem teto de altura — um nó de agente tem 15k
+   caracteres de prompt e sem teto o rodapé com os botões sai da tela, que é
+   justamente onde a decisão acontece.
+   -------------------------------------------------------------------------- */
+.hoff.reviewing { max-height: min(93vh, 940px); }
+.hoff.reviewing .hoff-main { grid-template-rows: 132px auto minmax(0,1fr); }
+.hoff-pr {
+  border-top: 1px solid var(--line-soft); background: var(--surface-2);
+  overflow-y: auto; max-height: 48vh; padding: 14px 18px 16px;
+}
+.hoff-pr .prhd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.hoff-pr .prhd .idx { font-family: var(--font-num); font-size: 10px; letter-spacing: .16em; color: var(--brand-txt); }
+.hoff-pr .prhd h3 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+.hoff-pr .prhd .sum { font-family: var(--font-num); font-size: 11px; color: var(--txt-faint); }
+
+.gates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.gate {
+  font-family: var(--font-num); font-size: 10.5px; line-height: 1.4;
+  padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line);
+  color: var(--txt-dim);
+}
+.gate.ok   { color: var(--ok-txt);   border-color: color-mix(in srgb, var(--ok) 38%, transparent);   background: var(--ok-soft); }
+.gate.bad  { color: var(--risk-txt); border-color: color-mix(in srgb, var(--risk) 42%, transparent); background: var(--risk-soft); }
+.gate.skip { color: var(--cold-txt); border-color: var(--line); background: var(--cold-soft); }
+/* O report do Claude é longo por bom motivo, e empurra o diff para fora da
+   vista logo onde a decisão acontece. O atalho custa uma linha e evita a
+   rolagem às cegas. */
+button.gate { font-family: var(--font-num); cursor: pointer; }
+.gate.jump { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+.gate.jump:hover { border-color: var(--accent); }
+.gate.jump:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.report {
+  font-size: 12.5px; line-height: 1.62; color: var(--txt-dim);
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 12px;
+}
+.report h4 { margin: 12px 0 4px; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--txt); }
+.report h4:first-child { margin-top: 0; }
+.report p { margin: 0 0 7px; }
+.report li { margin-left: 16px; }
+.report code { font-family: var(--font-num); font-size: 11.5px; background: var(--surface-2); border-radius: 4px; padding: 1px 4px; }
+
+.dnode { border: 1px solid var(--line-soft); border-radius: 10px; background: var(--surface); margin-bottom: 8px; overflow: hidden; }
+.dnode > summary {
+  cursor: pointer; list-style: none; padding: 9px 12px;
+  display: flex; gap: 9px; align-items: center; font-size: 12.5px; color: var(--txt);
+}
+.dnode > summary::-webkit-details-marker { display: none; }
+.dnode > summary:hover { background: var(--accent-soft); }
+.dnode > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dnode .tag { font-family: var(--font-num); font-size: 9.5px; letter-spacing: .1em; padding: 2px 6px; border-radius: 5px; flex: 0 0 auto; }
+.dnode .tag.added    { color: var(--ok-txt);   background: var(--ok-soft);   border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.dnode .tag.modified { color: var(--warn-txt); background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+.dnode .tag.removed  { color: var(--risk-txt); background: var(--risk-soft); border: 1px solid color-mix(in srgb, var(--risk) 35%, transparent); }
+.dnode .ty { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dnode .body { border-top: 1px solid var(--line-soft); overflow-x: auto; }
+.dl { display: block; white-space: pre; font-family: var(--font-num); font-size: 11px; line-height: 1.6; padding: 0 12px; color: var(--txt-dim); }
+.dl.add  { background: color-mix(in srgb, var(--ok) 12%, transparent);   color: var(--ok-txt); }
+.dl.del  { background: color-mix(in srgb, var(--risk) 12%, transparent); color: var(--risk-txt); }
+.dl.skip { color: var(--txt-faint); font-style: italic; background: var(--surface-2); }
+
+.edgelist { font-family: var(--font-num); font-size: 11px; line-height: 1.7; color: var(--txt-dim); margin-bottom: 10px; }
+.edgelist .add { color: var(--ok-txt); }
+.edgelist .del { color: var(--risk-txt); }
+
+/* O resultado de aplicar. Fica dentro da faixa de revisão, acima do diff, para
+   que a próxima coisa lida depois do clique seja o que de fato aconteceu. */
+.applied {
+  font-size: 12.5px; line-height: 1.55; border-radius: 10px; padding: 11px 13px; margin-bottom: 12px;
+  border: 1px solid color-mix(in srgb, var(--ok) 38%, transparent); background: var(--ok-soft); color: var(--ok-txt);
+}
+.applied.bad { border-color: color-mix(in srgb, var(--risk) 42%, transparent); background: var(--risk-soft); color: var(--risk-txt); }
+.applied.warn { border-color: color-mix(in srgb, var(--warn) 42%, transparent); background: var(--warn-soft); color: var(--warn-txt); }
+
+/* --------------------------------------------------------------- CONCLUÍDO
+   O recibo. Depois de aplicar, a faixa de revisão troca de papel: o topo passa
+   a ser o que aconteceu, e o diff desce para um `details` fechado — auditoria
+   continua ao alcance sem competir com a informação nova. O título sobe um
+   degrau de tamanho porque é o fim de um fluxo de decisão, não mais um bloco
+   entre outros; nenhuma cor nova entra, o verde é o mesmo `--ok` de sempre. */
+.hoff-pr .prhd h3.done-title { font-size: 16.5px; letter-spacing: -.015em; }
+.notecard {
+  border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft);
+  padding: 11px 13px; margin-bottom: 12px;
+}
+.notecard .nhd {
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent-txt); margin-bottom: 5px;
+}
+.notecard .ntx { font-size: 13px; line-height: 1.55; color: var(--txt); }
+.donediff > summary {
+  cursor: pointer; list-style: none; font-family: var(--font-num); font-size: 11px;
+  color: var(--txt-faint); padding: 6px 0;
+}
+.donediff > summary::-webkit-details-marker { display: none; }
+.donediff > summary::before { content: "▸ "; }
+.donediff[open] > summary::before { content: "▾ "; }
+.donediff > summary:hover { color: var(--txt-dim); }
+.donediff > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* Movimento reduzido: a tela ainda roda todas as etapas e ainda copia — só que
+   sem morph, sem giro e sem entrada escalonada. Nenhuma informação se perde. */
+@media (prefers-reduced-motion: reduce) {
+  .beam.on::after, .beam:hover::after { animation: none; }
+  .backdrop .gbeam { display: none; }
+  .rise { animation: none; }
+  .hoff-scrim, .hoff-term .ln { animation: none; }
+  .hoff-step.on .mark { animation: none; }
+  .card::after { display: none; }
+}
+
+@media (max-width: 900px) {
+  .hoff-scrim { padding: 10px; }
+  .hoff { max-height: 94vh; }
+  /* O `.spacer` com `flex: 1` empurrava o Fechar para uma terceira linha só
+     dele. Sem ele, `margin-left: auto` encosta o botão na direita do título. */
+  .hoff-hd { flex-wrap: wrap; row-gap: 4px; }
+  .hoff-hd .spacer { display: none; }
+  .hoff-hd .btn:last-of-type { margin-left: auto; }
+  .hoff-hd .sig { flex-basis: 100%; order: 9; }
+  .hoff-body { grid-template-columns: minmax(0,1fr); }
+  .hoff-steps { border-right: 0; border-bottom: 1px solid var(--line-soft); max-height: 148px; }
+  .hoff-main { grid-template-rows: 150px minmax(0,1fr); }
+  .hoff-brief { width: calc(100% - 20px); margin: 0 10px 10px; height: 84px; }
+  /* Em 390px o desenho do fluxo e a revisão não cabem juntos, e entre os dois
+     quem decide é a revisão — o grafo já foi visto durante as etapas. */
+  .hoff.reviewing .hoff-mini { display: none; }
+  .hoff.reviewing .hoff-main { grid-template-rows: minmax(0,1fr); }
+  /* Em 390px a faixa de revisão come o corpo inteiro. Medido: a trilha do grid
+     ficou em 26px enquanto o corpo continuava com 132px, e o terminal foi
+     pintado por cima do cabeçalho da revisão.
+     `min-height` no ITEM não cria espaço — o item passa a estourar a trilha, e
+     como `.hoff-body` não tem overflow próprio o excesso vaza para a linha
+     seguinte. O piso tem que estar na TRILHA (`minmax`), e a faixa de revisão
+     tem que ter teto para sobrar altura para ela. As etapas somem: são
+     histórico, e o que decide já chegou. */
+  .hoff.reviewing .hoff-steps { display: none; }
+  .hoff.reviewing { grid-template-rows: auto minmax(110px, 1fr) auto auto; }
+  .hoff-pr { max-height: 40vh; padding: 12px; }
+  .dnode > summary { flex-wrap: wrap; }
+  .dnode .ty { margin-left: 0; flex-basis: 100%; }
+  .hoff-term { padding: 12px 12px 14px; }
+  /* Alvo de toque: o botão do cabeçalho ficava em 32px, abaixo do piso de 40. */
+  .hoff-ft .btn, .hoff-hd .btn { min-height: 40px; }
+  /* A topbar é uma linha flex sem quebra: em 390px o conteúdo soma ~660px e
+     empurrava a página inteira para a rolagem horizontal. Ela vira duas faixas,
+     com a URL da instância descendo para a segunda — nada é escondido, só
+     reordenado, porque em tela pequena o orçamento é outro, não menor. */
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 6px; padding: 8px 14px; }
+  .topbar .sep { display: none; }
+  .topbar .btn { flex: 0 0 auto; min-height: 40px; }
+  .topbar .spacer { flex: 1 1 auto; }
+  #instance { order: 9; flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* No desktop os controles do painel não encolhem (senão o rótulo quebra sob o
+     ícone). Em 390px isso vira estouro horizontal, então aqui quem quebra é a
+     linha inteira — o controle continua íntegro, só desce. */
+  .panel-hd { flex-wrap: wrap; row-gap: 8px; }
+  .panel-hd .btn { min-height: 40px; }
+
+  .shell { grid-template-columns: minmax(0,1fr); }
+  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px; }
+  .rail h4 { display: none; }
+  /* No trilho horizontal os chips voltam a uma linha: a meta dobraria a altura
+     da faixa inteira por causa do chip mais largo. */
+  .rail-item { min-height: 40px; flex: 0 0 auto; }
+  .rail-item .meta { display: none; }
+  .rail-item i.bar { grid-row: 1; height: 15px; align-self: center; }
+  main { padding: 16px 14px 70px; }
+  .kpi .val { font-size: 26px; }
+  .stage { height: 340px; }
+}
+
+/* ==========================================================================
+   SUPERFÍCIES DO NAVEGADOR — a parte do painel que não foi desenhada
+   A barra de rolagem nativa do Windows (trilho branco, setas nas pontas, canto
+   quadrado) é o único pedaço da tela que não pertence a nenhum tema: aparecia
+   como uma faixa clara dentro do modal escuro do handoff. Aqui ela vira um
+   pill flutuante tirado da mesma escada de texto do resto — trilho invisível,
+   polegar em `--txt`, hover em `--accent` (movimento e realce são de accent;
+   cor de status continua reservada).
+
+   `background-clip: content-box` sobre uma borda transparente é o que dá a
+   folga lateral: a calha continua com 12px de alvo de clique, mas o polegar
+   desenha 6px. Estreitar a calha em vez disso deixaria a barra bonita e difícil
+   de pegar com o mouse.
+
+   Chromium ignora os pseudo-elementos `::-webkit-scrollbar` assim que
+   `scrollbar-color` está declarado no mesmo elemento — por isso a via padrão
+   (Firefox) fica dentro de `@supports not selector(...)`, e não lado a lado.
+   ========================================================================== */
+::-webkit-scrollbar { width: 12px; height: 12px; background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--txt) 20%, transparent);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--accent) 58%, transparent); }
+::-webkit-scrollbar-thumb:active { background-color: var(--accent); }
+/* As setas das pontas são o traço mais datado da barra nativa e não levam a
+   lugar nenhum que a roda do mouse não leve. */
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+@supports not selector(::-webkit-scrollbar) {
+  html, body, .rail, .feed, .hoff-steps, .hoff-term, .hoff-pr, .dnode .body, textarea {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--txt) 24%, transparent) transparent;
+  }
+}
+
+/* O terminal e a faixa de revisão crescem enquanto a sessão roda: sem calha
+   reservada, a linha que faz o conteúdo passar da altura empurra tudo 12px
+   para a esquerda no meio da leitura. */
+.hoff-term, .hoff-pr, .hoff-steps { scrollbar-gutter: stable; }
+
+::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: var(--txt); }
+textarea, input { caret-color: var(--accent); }
+
+
+/* ═══════════════════════════════════════════ as variantes (CSS autoral, proposta)
+   Cada uma num namespace próprio (.nv-a … .nv-f) para não colidir com o .pages
+   que está no ar — a barra "HOJE" no topo desta página é a referência-contrária e
+   tem que continuar sendo exatamente o que se vê hoje.
+   NOTA para quem editar este gerador: NENHUM backtick pode entrar neste template
+   literal, nem dentro de comentário CSS. Ele fecha a string e o erro que sai
+   aponta para uma linha de CSS ("css.pages is not a function"), não para a causa.
+   Isto já custou duas rodadas aqui. */
+/* ---- A · Trilho segmentado */
+.nv-a{position:relative;display:flex;align-items:center;padding:3px;border-radius:11px;
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line-soft);flex:0 0 auto}
+.nv-a a{position:relative;z-index:1;display:flex;align-items:center;gap:6px;padding:6px 12px;
+  font-size:12.5px;font-weight:500;color:var(--txt-faint);text-decoration:none;white-space:nowrap;
+  border-radius:8px;transition:color .18s ease}
+.nv-a a svg{opacity:.62;transition:opacity .18s ease,transform .3s cubic-bezier(.2,.9,.15,1)}
+.nv-a a:hover{color:var(--txt-dim)}
+.nv-a a:hover svg{opacity:1}
+.nv-a a[aria-current=page]{color:var(--txt);font-weight:600}
+.nv-a a[aria-current=page] svg{opacity:1;color:var(--accent-txt);transform:translateY(-.5px)}
+/* Anima width DE PROPÓSITO, e o detector de design reclama disto. Duas razões:
+   a pastilha é position:absolute, então a largura dela não reflui nada em volta —
+   o custo fica numa caixa fora do fluxo; e a alternativa (scaleX) esmagaria o
+   anel de 1px e o raio de 8px, que aqui NÃO são enfeite: a borda da pastilha é o
+   que faz o ativo se ler por forma em vez de por mais tinta. */
+.nv-a .glide{position:absolute;top:3px;bottom:3px;left:0;width:var(--w,0);border-radius:8px;
+  transform:translateX(var(--x,0));pointer-events:none;
+  background:color-mix(in srgb,var(--raised) 92%,var(--accent));
+  box-shadow:inset 0 0 0 1px var(--accent-line),0 1px 2px rgba(0,0,0,.10),0 6px 14px -12px rgba(0,0,0,.5);
+  transition:transform .34s cubic-bezier(.2,.9,.15,1),width .34s cubic-bezier(.2,.9,.15,1)}
+.nv-a .sg{position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;
+  box-shadow:0 0 0 2px var(--bg)}
+/* ---- B · Sublinhado com feixe */
+.nv-b{position:relative;display:flex;align-self:stretch;align-items:stretch;gap:2px;margin-bottom:-1px;flex:0 0 auto}
+.nv-b a{display:flex;align-items:center;gap:7px;padding:0 13px;font-size:12.5px;font-weight:500;
+  color:var(--txt-faint);text-decoration:none;white-space:nowrap;position:relative;
+  transition:color .18s ease,background .18s ease}
+.nv-b a svg{opacity:.6;transition:opacity .18s ease}
+.nv-b a:hover{color:var(--txt-dim);background:linear-gradient(180deg,transparent 40%,var(--surface-2))}
+.nv-b a:hover svg{opacity:1}
+.nv-b a[aria-current=page]{color:var(--txt);font-weight:600}
+.nv-b a[aria-current=page] svg{opacity:1;color:var(--accent-txt)}
+/* Mesma decisão da pastilha do A: fora do fluxo, então a largura não reflui a
+   barra. Aqui scaleX seria viável, mas manter os dois indicadores com a mesma
+   mecânica é o que permite comparar A e B pelo desenho, e não pelo motor. */
+.nv-b .bar{position:absolute;bottom:0;left:0;height:2px;width:var(--w,0);border-radius:2px 2px 0 0;
+  background:var(--accent);box-shadow:0 -2px 14px -3px var(--accent);pointer-events:none;
+  transform:translateX(var(--x,0));
+  transition:transform .32s cubic-bezier(.2,.9,.15,1),width .32s cubic-bezier(.2,.9,.15,1)}
+.nv-b .sg{position:absolute;top:14px;right:6px;width:5px;height:5px;border-radius:50%}
+/* ---- C · Suspenso horizontal */
+.nv-c{position:relative;flex:0 0 auto}
+.nv-c .trg{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 11px;border-radius:10px;
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line-soft);cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--txt);border:0;font-family:inherit;white-space:nowrap;
+  transition:box-shadow .18s ease,background .18s ease}
+.nv-c .trg:hover,.nv-c .trg[aria-expanded=true]{background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.nv-c .trg svg.ic{color:var(--accent-txt)}
+.nv-c .trg .ch{width:9px;height:9px;color:var(--txt-faint);transition:transform .26s cubic-bezier(.2,.9,.15,1)}
+.nv-c .trg[aria-expanded=true] .ch{transform:rotate(180deg)}
+.nv-c .pane{position:absolute;top:calc(100% + 9px);left:-11px;z-index:60;display:grid;
+  grid-template-columns:repeat(3,minmax(200px,1fr));gap:4px;padding:6px;
+  border-radius:14px;border:1px solid var(--line);background:var(--raised);
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 26px 60px -30px rgba(0,0,0,.55);
+  opacity:0;transform:translateY(-7px) scale(.985);filter:blur(3px);pointer-events:none;
+  transition:opacity .2s ease,transform .3s cubic-bezier(.2,.9,.15,1),filter .2s ease}
+.nv-c[data-open="1"] .pane{opacity:1;transform:none;filter:none;pointer-events:auto}
+.nv-c .pane a{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:stretch;
+  padding:11px 12px;border-radius:10px;text-decoration:none;border:1px solid transparent}
+/* A descrição tem 2 ou 3 linhas conforme a tela. Sem empurrar o fato para o
+   rodapé da célula, os três fatos ficam em três alturas diferentes e a linha de
+   baixo do painel vira um degrau. */
+.nv-c .pane a>span:last-child{display:flex;flex-direction:column;min-height:100%}
+.nv-c .pane .fx{margin-top:auto;padding-top:7px}
+.nv-c .pane a:hover{background:var(--surface-2);border-color:var(--line-soft)}
+.nv-c .pane a[aria-current=page]{background:var(--accent-soft);border-color:var(--accent-line)}
+.nv-c .pane .tile{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line-soft);color:var(--txt-dim)}
+.nv-c .pane a[aria-current=page] .tile{color:var(--accent-txt);background:var(--raised);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+/* display:block nos dois — são span dentro de span, e sem isto o nome cola na
+   descrição numa linha só ("Fluxoso que rodou, o que quebrou"). */
+.nv-c .pane .nm{display:block;font-size:13px;font-weight:600;color:var(--txt);line-height:1.3}
+/* O painel vive sobre var(--raised), que é MAIS CLARO que var(--surface) — e
+   var(--txt-faint) foi calibrado contra surface. Medido aqui: 3,72 no tema
+   escuro, falha de AA em 11,5px. Como isto é a copy que justifica a variante,
+   sobe para txt-dim; o fato, que é etiqueta, ganha a mistura que o resto do
+   painel já usa para cor sobre fundo tingido. */
+.nv-c .pane .ds{display:block;font-size:11.5px;color:var(--txt-dim);line-height:1.45;margin-top:2px}
+.nv-c .pane .fx{display:flex;align-items:center;gap:6px;
+  font-family:var(--font-num);font-size:10px;letter-spacing:.03em;
+  color:color-mix(in srgb,var(--txt-faint) 62%,var(--txt))}
+.nv-c .pane .sg{width:6px;height:6px;border-radius:50%}
+/* ---- D · Cápsula ícone-primeiro */
+.nv-d{display:flex;align-items:center;gap:3px;padding:3px;border-radius:999px;
+  background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line-soft);flex:0 0 auto}
+.nv-d a{position:relative;display:flex;align-items:center;height:30px;padding:0 9px;border-radius:999px;
+  color:var(--txt-faint);text-decoration:none;
+  transition:color .18s ease,background .2s ease,box-shadow .2s ease}
+.nv-d a:hover{color:var(--txt-dim);background:var(--raised)}
+.nv-d a[aria-current=page]{color:var(--txt);background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.nv-d a[aria-current=page] svg.ic{color:var(--accent-txt)}
+/* max-width animado: aqui o reflow é o EFEITO pretendido — a cápsula cresce e
+   as vizinhas cedem espaço. Não existe versão com transform que produza isso,
+   e por isso o defeito não é de performance e sim de interação: o alvo se move
+   debaixo do cursor. Está escrito no "contra" da variante, onde ele é decidido. */
+.nv-d .lb{display:flex;align-items:center;gap:7px;max-width:0;overflow:hidden;opacity:0;
+  white-space:nowrap;font-size:12.5px;font-weight:500;
+  transition:max-width .32s cubic-bezier(.2,.9,.15,1),opacity .2s ease,margin-left .32s cubic-bezier(.2,.9,.15,1)}
+.nv-d a:hover .lb,.nv-d a[aria-current=page] .lb{max-width:120px;opacity:1;margin-left:7px}
+/* 9px é o menor texto da barra: medido 4,33 escuro / 4,46 claro com txt-faint,
+   as duas abaixo de AA. A mistura sobe para ~6 sem virar um segundo rótulo. */
+.nv-d kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
+  color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
+  padding:1px 4px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--line);line-height:1.5}
+.nv-d .sg{position:absolute;top:3px;right:5px;width:5px;height:5px;border-radius:50%;
+  box-shadow:0 0 0 2px var(--surface)}
+/* ---- E · Índice em colchete */
+.nv-e{display:flex;align-items:center;gap:15px;flex:0 0 auto}
+.nv-e a{position:relative;display:flex;align-items:center;gap:7px;padding:6px 1px;
+  font-family:var(--font-num);font-size:11px;letter-spacing:.075em;text-transform:uppercase;
+  color:var(--txt-faint);text-decoration:none;white-space:nowrap;transition:color .18s ease}
+.nv-e a svg{opacity:.55;transition:opacity .18s ease}
+.nv-e a .br{color:var(--line);transition:color .22s ease}
+.nv-e a:hover{color:var(--txt-dim)}
+.nv-e a:hover svg{opacity:.9}
+.nv-e a:hover .br{color:var(--txt-faint)}
+.nv-e a[aria-current=page]{color:var(--txt)}
+.nv-e a[aria-current=page] svg{opacity:1;color:var(--accent-txt)}
+.nv-e a[aria-current=page] .br{color:var(--accent)}
+.nv-e a::after{content:"";position:absolute;left:0;right:0;bottom:1px;height:1px;
+  background:var(--accent);transform:scaleX(0);transform-origin:left center;
+  transition:transform .3s cubic-bezier(.2,.9,.15,1)}
+.nv-e a:hover::after{transform:scaleX(.35)}
+.nv-e a[aria-current=page]::after{transform:scaleX(1)}
+.nv-e .sg{width:5px;height:5px;border-radius:50%;margin-left:1px}
+/* ---- F · Portas com sinal */
+.nv-f{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.nv-f a{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 10px;border-radius:10px;
+  text-decoration:none;border:1px solid transparent;
+  transition:background .18s ease,border-color .18s ease}
+.nv-f a:hover{background:var(--surface-2);border-color:var(--line-soft)}
+.nv-f a svg{opacity:.6;color:var(--txt-faint);transition:opacity .18s ease}
+.nv-f a:hover svg{opacity:1}
+.nv-f a[aria-current=page]{background:var(--accent-soft);border-color:var(--accent-line)}
+.nv-f a[aria-current=page] svg{opacity:1;color:var(--accent-txt)}
+.nv-f .tx{display:flex;flex-direction:column;gap:1px;line-height:1.15}
+.nv-f .nm{font-size:12px;font-weight:500;color:var(--txt-dim);white-space:nowrap}
+.nv-f a[aria-current=page] .nm{color:var(--txt);font-weight:600}
+.nv-f .fx{display:flex;align-items:center;gap:5px;font-family:var(--font-num);font-size:10px;
+  letter-spacing:.03em;color:var(--txt-faint);white-space:nowrap}
+.nv-f .sg{width:5px;height:5px;border-radius:50%;flex:0 0 auto}
+
+/* ══════════════════════════════════════════════════ só do preview: a moldura */
+body{display:block;padding:0;background:var(--bg-deep);overflow-x:hidden}
+.pv{max-width:1180px;margin:0 auto;padding:30px 24px 90px}
+.pv h1{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}
+.pv .sub{font-size:13px;color:var(--txt-faint);line-height:1.65;max-width:80ch;margin:0 0 6px}
+.pv .sub code{font-family:var(--font-num);font-size:12px;color:var(--txt-dim)}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:20px 0 4px;
+  position:sticky;top:0;z-index:80;padding:10px 0;
+  background:linear-gradient(180deg,var(--bg-deep) 72%,transparent)}
+.ctrl .lbl{font-family:var(--font-num);font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--txt-faint);margin-right:2px}
+.vr{margin-top:34px;padding-top:26px;border-top:1px solid var(--line-soft)}
+.vh{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.vh h2{font-size:17px;margin:0;letter-spacing:-.01em}
+.tag{font-family:var(--font-num);font-size:10.5px;letter-spacing:.08em;color:var(--txt-faint);
+  padding:2px 7px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line)}
+.rec-tag{font-family:var(--font-num);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--accent-txt);padding:3px 8px;border-radius:999px;background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-line)}
+.fica{font-size:13px;color:var(--txt-dim);line-height:1.6;max-width:82ch;margin:0 0 16px}
+/* A barra vive sobre var(--bg), então a moldura tem que ser var(--bg) — julgar o
+   contraste do ativo sobre o fundo errado é o jeito de aprovar algo que não se
+   lê na tela real. */
+.moldura{border-radius:14px;border:1px solid var(--line);background:var(--bg);
+  overflow:visible;box-shadow:var(--shadow)}
+.moldura .topbar{position:static;border-radius:14px 14px 0 0;border-bottom:1px solid var(--line)}
+/* A moldura tem 1130px, a tela real tem 1440. Sem estas três, o wordmark quebra
+   em duas linhas e o "ao vivo" empilha — ruído que não é da navegação e que
+   sequestra a comparação. Na página real quem encolhe é o nome do fluxo. */
+.moldura .brand,.moldura .livedot{flex:0 0 auto;white-space:nowrap}
+.moldura .meta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.moldura::after{content:"";display:block;height:74px;border-radius:0 0 14px 14px;
+  background:
+    linear-gradient(90deg,var(--surface-2) 0 34%,transparent 34%) no-repeat 22px 22px/240px 11px,
+    linear-gradient(90deg,var(--surface-2) 0 34%,transparent 34%) no-repeat 22px 42px/380px 11px}
+/* Altura explícita: transform não infla a caixa do pai, então o filho escalado
+   1,7× pintava fora de uma moldura de 58px e a variante F (duas linhas) saía
+   cortada pela metade — exatamente a linha que ela existe para mostrar. */
+.zoom{margin-top:12px;height:100px;border-radius:12px;border:1px dashed var(--line);
+  background:var(--bg);padding:0;overflow:hidden}
+.zi{transform:scale(1.7);transform-origin:0 0;width:58.8%;pointer-events:auto}
+/* A costura fica: a variante B apoia a barra de accent NELA, e sem a linha o
+   indicador aparece solto no meio do nada. */
+.zi .topbar{position:static;background:transparent;backdrop-filter:none;
+  border-bottom:1px solid var(--line)}
+.dupla{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:16px}
+.dupla h3{font-family:var(--font-num);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  margin:0 0 5px;color:var(--txt-faint);font-weight:600}
+.dupla p{margin:0;font-size:12.5px;line-height:1.62;color:var(--txt-dim)}
+.dupla div:last-child h3{color:var(--warn-txt)}
+.movel{display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:16px;margin-top:14px}
+.mf{width:390px;border-radius:14px;border:1px solid var(--line);background:var(--bg);overflow:hidden}
+/* As regras móveis do flows.html moram numa media query de VIEWPORT, e este
+   quadro é um contêiner de 390px dentro de uma janela de 1440 — então elas não
+   entram sozinhas e o quadro mentiria, mostrando uma barra que não quebra.
+   Transcritas do bloco @media (max-width:...) do flows.html; se ele mudar lá,
+   muda aqui. */
+.mf .topbar{position:static;height:auto;min-height:56px;flex-wrap:wrap;row-gap:6px;
+  padding:8px 14px;gap:10px}
+.mf .topbar .sep{display:none}
+.mf .topbar .btn{flex:0 0 auto;min-height:40px}
+.mf .topbar .spacer{flex:1 1 auto}
+.mf .topbar .brand{flex:0 0 auto}
+.mf .cap{font-family:var(--font-num);font-size:10px;letter-spacing:.05em;color:var(--txt-faint);
+  padding:7px 12px;border-top:1px solid var(--line-soft)}
+.nota{font-size:12px;color:var(--txt-faint);line-height:1.65;max-width:82ch;margin:26px 0 0;
+  padding:14px 16px;border-radius:12px;background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--line-soft)}
+.nota b{color:var(--txt-dim)}
+@media (max-width:880px){.dupla{grid-template-columns:1fr;gap:14px}}
+</style>
+</head>
+<body>
+<div class="pv">
+  <h1>Navegação — seis formatos para as três portas</h1>
+  <p class="sub">Gerado de <code>flows.html</code> por <code>preview/gen-nav-preview.js</code>.
+    Os tokens e o topbar são extraídos do arquivo, não copiados — este preview não consegue divergir
+    do chrome real. O CSS das variantes é autoral: elas ainda não existem na página.</p>
+  <p class="sub"><b>Clique nas portas.</b> O que decide entre estas seis não cabe num print: o
+    indicador que desliza, o painel que desce, o rótulo que abre no hover, o foco pelo teclado
+    (Tab). Em <code>D</code>, <code>alt+1/2/3</code> troca de tela.</p>
+
+  <div class="ctrl">
+    <span class="lbl">conferir em</span>
+    <button class="btn ghost" type="button" id="tema">◐ trocar tema</button>
+    <button class="btn ghost" type="button" id="sinal" aria-pressed="false">● ligar sinal em A · B · D · E</button>
+    <button class="btn ghost" type="button" id="mov" aria-pressed="false">▭ 390px</button>
+    <button class="btn ghost" type="button" id="rm" aria-pressed="false">⏸ reduced-motion</button>
+  </div>
+
+  <section class="vr" id="v-hoje">
+    <div class="vh"><span class="tag">HOJE</span><h2>O que está no ar</h2></div>
+    <p class="fica">Texto puro, e o ativo é um tint de <code>--accent-soft</code> a 8%. É a
+      referência-contrária: as três portas têm o mesmo peso, nada diz onde você está antes de ler, e
+      nenhuma delas diz o que a tela faz.</p>
+    <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="pages" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page">Fluxos</a><a href="#disco" data-porta="disco">Disco</a><a href="#tester" data-porta="tester">Tester</a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+    <div class="zoom"><div class="zi"><header class="topbar"><nav class="pages" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page">Fluxos</a><a href="#disco" data-porta="disco">Disco</a><a href="#tester" data-porta="tester">Tester</a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  </section>
+
+
+<section class="vr" id="v-a" data-desliza="1">
+  <div class="vh">
+    <span class="tag">A</span>
+    <h2>Trilho segmentado</h2>
+    <span class="rec-tag">recomendo</span>
+  </div>
+  <p class="fica">Um leito só, e uma pastilha elevada que DESLIZA para a porta clicada.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="nv-a" aria-label="telas do cockpit"><i class="glide"></i><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span></a><a href="#disco" data-porta="disco"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span></a><a href="#tester" data-porta="tester"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span></a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><nav class="nv-a" aria-label="telas do cockpit"><i class="glide"></i><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span></a><a href="#disco" data-porta="disco"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span></a><a href="#tester" data-porta="tester"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span></a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>O ativo se lê pela forma (pastilha branca sobre leito afundado), não por um tint de 8%. O deslize é o único momento de movimento, e ele carrega informação: mostra de onde você veio.</p></div>
+    <div><h3>contra</h3><p>É o vocabulário de segmented control que a Linear e a Vercel usam — familiar, mas não é uma ideia nova.</p></div>
+  </div>
+</section>
+
+<section class="vr" id="v-b" data-desliza="1">
+  <div class="vh">
+    <span class="tag">B</span>
+    <h2>Sublinhado com feixe</h2>
+    
+  </div>
+  <p class="fica">As portas ocupam a altura inteira da barra e o ativo é uma barra de 2px que desliza na costura, com brilho de accent.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="nv-b" aria-label="telas do cockpit"><i class="bar"></i><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span></a><a href="#disco" data-porta="disco"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span></a><a href="#tester" data-porta="tester"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span></a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><nav class="nv-b" aria-label="telas do cockpit"><i class="bar"></i><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span></a><a href="#disco" data-porta="disco"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span></a><a href="#tester" data-porta="tester"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span></a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>Zero moldura: nada de caixa dentro de caixa. Ancorar na borda inferior amarra a navegação AO conteúdo abaixo, que é o que ela governa. Mais leve de todas.</p></div>
+    <div><h3>contra</h3><p>Sem contêiner, as três portas competem com o wordmark e com o `meta` do lado. E o brilho é o único lugar onde um halo colorido entra — o resto do painel proíbe.</p></div>
+  </div>
+</section>
+
+<section class="vr" id="v-c" data-desliza="0">
+  <div class="vh">
+    <span class="tag">C</span>
+    <h2>Suspenso horizontal</h2>
+    
+  </div>
+  <p class="fica">Uma porta só na barra — a atual — e ela abre um painel de largura inteira com as três telas, cada uma com o que ela responde e um fato ao vivo.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><div class="nv-c" data-open="0"><button class="trg" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="pane-c"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Fluxos</span><svg class="ch" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><nav class="pane" id="pane-c" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Fluxos</span><span class="ds">o que rodou, o que quebrou e em qual nó</span><span class="fx"><i class="sg" style="background:var(--risk)"></i>2 falhas · 24h</span></span></a><a href="#disco" data-porta="disco"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Disco</span><span class="ds">os projetos no disco: vivos, parados, apodrecendo</span><span class="fx"><i class="sg" style="background:var(--cold)"></i>21 projetos</span></span></a><a href="#tester" data-porta="tester"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Tester</span><span class="ds">descreve a ideia, sai o fluxo desenhado</span><span class="fx"><i class="sg" style="background:var(--accent)"></i>1 construindo</span></span></a></nav></div><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><div class="nv-c" data-open="0"><button class="trg" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="pane-c"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Fluxos</span><svg class="ch" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><nav class="pane" id="pane-c" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Fluxos</span><span class="ds">o que rodou, o que quebrou e em qual nó</span><span class="fx"><i class="sg" style="background:var(--risk)"></i>2 falhas · 24h</span></span></a><a href="#disco" data-porta="disco"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Disco</span><span class="ds">os projetos no disco: vivos, parados, apodrecendo</span><span class="fx"><i class="sg" style="background:var(--cold)"></i>21 projetos</span></span></a><a href="#tester" data-porta="tester"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><span class="nm">Tester</span><span class="ds">descreve a ideia, sai o fluxo desenhado</span><span class="fx"><i class="sg" style="background:var(--accent)"></i>1 construindo</span></span></a></nav></div><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>É o único formato onde cabe COPY. Hoje «Disco» é uma palavra que não explica nada; aqui ela vem com «os projetos no disco: vivos, parados, apodrecendo». E devolve espaço na barra, que está cheia (instância, carimbo, ponto vivo, tema, gravar, recarregar).</p></div>
+    <div><h3>contra</h3><p>Custa um clique a mais para trocar de tela, num painel que é para ser operado o dia inteiro. Mega-menu é padrão de site institucional, não de cockpit.</p></div>
+  </div>
+</section>
+
+<section class="vr" id="v-d" data-desliza="0">
+  <div class="vh">
+    <span class="tag">D</span>
+    <h2>Cápsula ícone-primeiro</h2>
+    
+  </div>
+  <p class="fica">Cápsula compacta: só ícones, e o rótulo ABRE no hover e no ativo. Cada porta anuncia seu atalho.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="nv-d" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Fluxos</span><kbd>alt 1</kbd></span></a><a href="#disco" data-porta="disco"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a><a href="#tester" data-porta="tester"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><nav class="nv-d" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Fluxos</span><kbd>alt 1</kbd></span></a><a href="#disco" data-porta="disco"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a><a href="#tester" data-porta="tester"><span class="ic" style="display:grid"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>Menor pegada da barra — devolve ~90px para o nome do fluxo, que hoje é truncado. E é o único formato que ensina o atalho de teclado no lugar onde ele é usado.</p></div>
+    <div><h3>contra</h3><p>Ícone sozinho é aposta: «disco» e «tester» só ficam óbvios depois de aprendidos, e numa tela usada uma vez por semana isso é ruim. Pior: o rótulo abrindo no hover EMPURRA as portas vizinhas — alvo que se move debaixo do cursor. É o único formato aqui com esse defeito, e ele é inseparável da compactação que o justifica.</p></div>
+  </div>
+</section>
+
+<section class="vr" id="v-e" data-desliza="0">
+  <div class="vh">
+    <span class="tag">E</span>
+    <h2>Índice em colchete</h2>
+    
+  </div>
+  <p class="fica">O vocabulário que o painel já fala — colchete mono, caixa alta, tique de accent que cresce da esquerda.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="nv-e" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span><span class="br" aria-hidden="true">]</span></a><a href="#disco" data-porta="disco"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span><span class="br" aria-hidden="true">]</span></a><a href="#tester" data-porta="tester"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span><span class="br" aria-hidden="true">]</span></a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><nav class="nv-e" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fluxos</span><span class="br" aria-hidden="true">]</span></a><a href="#disco" data-porta="disco"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Disco</span><span class="br" aria-hidden="true">]</span></a><a href="#tester" data-porta="tester"><span class="br" aria-hidden="true">[</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Tester</span><span class="br" aria-hidden="true">]</span></a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>É a única variante que não podia estar em nenhum outro produto. O painel já anota tudo em `[ 01 / 05 ]` e `[ 30 NÓS · 33 CONEXÕES ]`: a navegação passa a falar a mesma língua em vez de parecer um componente importado.</p></div>
+    <div><h3>contra</h3><p>Caixa alta em 11px mono é o formato mais difícil de bater contraste, e mono como fantasia de «técnico» é vício conhecido. Aqui ele se paga porque a referência do Kauan (firecrawl) é isso.</p></div>
+  </div>
+</section>
+
+<section class="vr" id="v-f" data-desliza="0">
+  <div class="vh">
+    <span class="tag">F</span>
+    <h2>Portas com sinal</h2>
+    
+  </div>
+  <p class="fica">Cada porta é um bloco de duas linhas: o nome e um fato ao vivo daquela tela.</p>
+  <div class="moldura"><header class="topbar"><div class="brand"><span class="flame" aria-hidden="true"><svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg></span><h1 class="wm"><b>COCKPIT</b> <span>/ fluxos n8n</span></h1></div><div class="sep"></div><nav class="nv-f" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Fluxos</span><span class="fx"><i class="sg" style="background:var(--risk)"></i>2 falhas · 24h</span></span></a><a href="#disco" data-porta="disco"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Disco</span><span class="fx"><i class="sg" style="background:var(--cold)"></i>21 projetos</span></span></a><a href="#tester" data-porta="tester"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Tester</span><span class="fx"><i class="sg" style="background:var(--accent)"></i>1 construindo</span></span></a></nav><div class="sep"></div><div class="meta">ecommercepuro.app.n8n.cloud</div><div class="spacer"></div><div class="meta">14:53:07</div><div class="livedot on"><i></i><span>ao vivo</span></div><button class="btn ghost" type="button" title="Alternar tema">◐</button><button class="btn ghost rec" type="button"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button><button class="btn beam" type="button">Recarregar</button></header></div>
+  <div class="zoom"><div class="zi"><header class="topbar"><nav class="nv-f" aria-label="telas do cockpit"><a href="#fluxos" data-porta="fluxos" aria-current="page"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Fluxos</span><span class="fx"><i class="sg" style="background:var(--risk)"></i>2 falhas · 24h</span></span></a><a href="#disco" data-porta="disco"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Disco</span><span class="fx"><i class="sg" style="background:var(--cold)"></i>21 projetos</span></span></a><a href="#tester" data-porta="tester"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tx"><span class="nm">Tester</span><span class="fx"><i class="sg" style="background:var(--accent)"></i>1 construindo</span></span></a></nav><div class="spacer"></div><button class="btn ghost" type="button">◐</button></header></div></div>
+  <div class="dupla">
+    <div><h3>a favor</h3><p>É a única que trabalha. O produto já sabe que há 2 falhas em 24h e que uma construção está rodando, e hoje a barra não diz nada — você descobre entrando. Uma porta que avisa antes do clique é o que um cockpit deveria ter.</p></div>
+    <div><h3>contra</h3><p>Come a largura toda da barra e desequilibra: três blocos de duas linhas pesam mais que o wordmark. E o fato tem que ser verdade sempre — um número velho ali é pior que nenhum.</p></div>
+  </div>
+</section>
+
+  <div class="movel" id="movel" hidden></div>
+
+  <p class="nota"><b>Os números são amostra.</b> «2 falhas · 24h», «21 projetos» e «1 construindo»
+    estão aqui para provar que a barra aguenta a informação — não para afirmar o estado de agora.
+    Se <code>F</code> (ou o sinal ligado em qualquer variante) for o escolhido, o fato tem que sair
+    dos dados de verdade e o painel tem que saber dizer «não sei» enquanto ele não chegou: um número
+    velho na navegação é pior que nenhum.</p>
+</div>
+
+<script>
+"use strict";
+const raiz = document.documentElement;
+
+/* O indicador que desliza. Sem número mágico: o rótulo muda de largura com o
+   tema e com a fonte do sistema.
+   Usa offsetLeft/offsetWidth e NÃO getBoundingClientRect: a fila de zoom desta
+   página é um clone dentro de um scale(1.7), e o rect vem multiplicado por 1.7
+   enquanto o px que eu escrevo é em coordenada local — a pastilha nascia cobrindo
+   duas portas. offsetLeft é métrica de layout e ignora transform. */
+function posicionar(nav){
+  const ind = nav.querySelector(".glide,.bar");
+  if (!ind) return;
+  const at = nav.querySelector("[aria-current=page]");
+  if (!at) { ind.style.setProperty("--w","0px"); return; }
+  ind.style.setProperty("--x",at.offsetLeft+"px");
+  ind.style.setProperty("--w",at.offsetWidth+"px");
+}
+const todosNavs = () => document.querySelectorAll(".nv-a,.nv-b");
+const recolocar = () => todosNavs().forEach(posicionar);
+
+/* Trocar de porta dentro de uma barra só afeta AQUELA barra — comparar duas
+   variantes exige que cada uma guarde sua própria porta atual. */
+function trocar(escopo, id){
+  escopo.querySelectorAll("[data-porta]").forEach(a => {
+    if (a.dataset.porta === id) a.setAttribute("aria-current","page");
+    else a.removeAttribute("aria-current");
+  });
+  const wm = escopo.querySelector(".wm span");
+  if (wm) wm.textContent = "/ " + (id === "fluxos" ? "fluxos n8n" : id);
+  const trg = escopo.querySelector(".nv-c .trg");
+  if (trg){
+    const a = escopo.querySelector('.nv-c .pane [data-porta="'+id+'"]');
+    if (a) trg.querySelector("span:not(.ic)").textContent = a.querySelector(".nm").textContent;
+    const ic = escopo.querySelector('.nv-c .pane [data-porta="'+id+'"] .tile svg');
+    if (ic) trg.querySelector(".ic").innerHTML = ic.outerHTML;
+  }
+  const nav = escopo.querySelector(".nv-a,.nv-b");
+  if (nav) posicionar(nav);
+}
+
+document.addEventListener("click", ev => {
+  const a = ev.target.closest("[data-porta]");
+  if (a){
+    ev.preventDefault();
+    const escopo = a.closest(".topbar") || document;
+    trocar(escopo, a.dataset.porta);
+    const c = a.closest(".nv-c");
+    if (c) c.dataset.open = "0", c.querySelector(".trg").setAttribute("aria-expanded","false");
+    return;
+  }
+  const t = ev.target.closest(".nv-c .trg");
+  if (t){
+    const c = t.closest(".nv-c");
+    const abre = c.dataset.open !== "1";
+    c.dataset.open = abre ? "1" : "0";
+    t.setAttribute("aria-expanded", String(abre));
+    return;
+  }
+  document.querySelectorAll('.nv-c[data-open="1"]').forEach(c => {
+    c.dataset.open = "0";
+    c.querySelector(".trg").setAttribute("aria-expanded","false");
+  });
+});
+
+/* Hover abre o suspenso com atraso: sem os 130ms, atravessar a barra com o mouse
+   abre e fecha o painel na cara de quem só ia clicar em Recarregar. */
+document.querySelectorAll(".nv-c").forEach(c => {
+  let t = null;
+  c.addEventListener("pointerenter", () => { t = setTimeout(() => {
+    c.dataset.open = "1"; c.querySelector(".trg").setAttribute("aria-expanded","true"); }, 130); });
+  c.addEventListener("pointerleave", () => { clearTimeout(t);
+    c.dataset.open = "0"; c.querySelector(".trg").setAttribute("aria-expanded","false"); });
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") document.querySelectorAll('.nv-c[data-open="1"]').forEach(c => {
+    c.dataset.open = "0"; c.querySelector(".trg").setAttribute("aria-expanded","false");
+    c.querySelector(".trg").focus();
+  });
+  if (ev.altKey && "123".includes(ev.key)){
+    const id = ["fluxos","disco","tester"][+ev.key-1];
+    document.querySelectorAll("#v-d .topbar").forEach(b => trocar(b, id));
+    ev.preventDefault();
+  }
+});
+
+/* ------------------------------------------------------------------ controles */
+document.getElementById("tema").addEventListener("click", () => {
+  const escuro = raiz.getAttribute("data-theme") === "dark"
+    || (!raiz.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  raiz.setAttribute("data-theme", escuro ? "light" : "dark");
+  requestAnimationFrame(recolocar);
+});
+
+const btSinal = document.getElementById("sinal");
+btSinal.addEventListener("click", () => {
+  const on = btSinal.getAttribute("aria-pressed") !== "true";
+  btSinal.setAttribute("aria-pressed", String(on));
+  btSinal.textContent = on ? "● desligar sinal em A · B · D · E" : "● ligar sinal em A · B · D · E";
+  document.querySelectorAll(".sinal").forEach(e => { e.style.display = on ? "" : "none"; });
+  requestAnimationFrame(recolocar);
+});
+btSinal.click(); btSinal.click(); // nasce desligado, mas com os nós já escondidos
+
+const btRm = document.getElementById("rm");
+btRm.addEventListener("click", () => {
+  const on = btRm.getAttribute("aria-pressed") !== "true";
+  btRm.setAttribute("aria-pressed", String(on));
+  document.getElementById("css-rm").disabled = !on;
+});
+
+/* 390px: as mesmas seis barras num quadro estreito. É onde a variante F estoura
+   e onde D ganha — e nada disso aparece no desktop. */
+const btMov = document.getElementById("mov");
+const alvoMov = document.getElementById("movel");
+btMov.addEventListener("click", () => {
+  const on = btMov.getAttribute("aria-pressed") !== "true";
+  btMov.setAttribute("aria-pressed", String(on));
+  alvoMov.hidden = !on;
+  if (!on) return;
+  if (alvoMov.childElementCount) return;
+  document.querySelectorAll(".vr").forEach(v => {
+    const b = v.querySelector(".moldura .topbar");
+    if (!b) return;
+    const q = document.createElement("div");
+    q.className = "mf";
+    q.appendChild(b.cloneNode(true));
+    const c = document.createElement("div");
+    c.className = "cap";
+    c.textContent = v.id.replace("v-","").toUpperCase() + " · 390px";
+    q.appendChild(c);
+    alvoMov.appendChild(q);
+  });
+  requestAnimationFrame(recolocar);
+});
+
+addEventListener("resize", recolocar);
+addEventListener("load", recolocar);
+recolocar();
+</script>
+<style id="css-rm" disabled>
+*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+</style>
+</body>
+</html>

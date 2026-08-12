@@ -1497,6 +1497,71 @@ new names; the aliases exist for the legacy, not for growth. `BANDS.fg` moved to
 (pill text over soft backgrounds — the same fill-vs-text split flows.html documents), and the page
 gained the same ◐ theme toggle as the others.
 
+### The three doors are one capsule with a glass lens that travels
+
+The doors were three text pills whose active state was an `--accent-soft` tint at 8%. Three problems
+of hierarchy, and the first is the one that matters: **nothing said where you were before you read**.
+No icon either, so each door was an abstract word.
+
+They are now an **icon-first capsule**: a drawn icon per door in the same dialect as the canvas
+(viewBox 24, stroke 1.9, round caps, `currentColor` — no emoji, no third-party logo), a label that
+opens on the active door, on hover and **on keyboard focus** (navigating by Tab, a bare icon does not
+say where you are going), and a `alt 1/2/3` chip that announces the shortcut where it is used.
+
+**The active background is not painted by each door — it is one element that travels**, `.lente`,
+moved by a spring in JS. While each door painted its own background there was nothing to animate
+between them: the state appeared and disappeared. Five layers, each answering for something glass
+does: tinted translucent body; `backdrop-filter` (which is why the lens sits **below** the doors — on
+top it would blur its own icon and label, the opposite of what glass does to what it carries); a
+specular highlight for volume; a rim, bright above and dark below, with a **neutral** outer shadow
+because the no-coloured-halo rule takes no exception for glass; and edge refraction, a 3px ring where
+the backdrop is blurred more, cut with the same xor mask `.beam` already uses here.
+
+Four decisions in it that were measured, not reasoned:
+
+- **The lens travels on page load, not on click.** The doors are real navigation: clicking reloads,
+  so the travel would never be seen — every page would be born with the lens already parked. It
+  starts from the door **you came from**, kept in `sessionStorage`, and flies to the current one. Same
+  discipline as the rest of the panel: it only animates when there is new information behind it. F5
+  on the same door animates nothing, and a fresh tab animates nothing either, because there you came
+  from nowhere.
+- **The deformation is derived from the spring's own velocity**, not scripted: `sx = 1 + |v|·k`,
+  `sy = 1 − |v|·k·0.72`, volume preserved. That is what separates liquid glass from a pill with an
+  easing. With the factor at 0.055 the stretch **stuck to the 16% ceiling** for half the flight, and a
+  constant deformation reads as a fixed scale rather than as physics; at 0.022 the peak lands at
+  ~11% without saturating, and a short hop deforms less than a long one.
+- **It is the same integrator as `springNumber()`, deliberately tuned differently.** There the damping
+  ratio is ~0.97 on purpose — a counter that overshoots and comes back reads as wrong data. Here it is
+  ~0.54, because overshooting and coming back is what makes it read as liquid.
+- **The scale origin follows the direction of travel.** With the origin at the centre the lens
+  stretched both ways and **spilled outside the bed**, which reads as a bug; scaling from the trailing
+  edge means the leading edge is what advances, like a blob.
+
+The width is animated as *width*: the lens is out-of-flow, so changing it reflows nothing, and doing
+it with `scaleX` would turn the capsule into an ellipse — the 999px radius would go oval.
+`prefers-reduced-motion` keeps the state and keeps the glass (a still blur is not motion) and drops
+the travel, the stretch and the sweep — verified: **13 distinct frames normally, one frame reduced**.
+
+**The tuning diverged per theme, by measurement.** In light, what is behind is almost white and almost
+flat: `blur` produces nothing and `brightness` would brighten an already bright ground, so the glass
+reads through `contrast`, a crisp top rim and an inner bottom shadow implying thickness. In dark,
+`saturate` + `brightness` do work and the rim can be discreet. Judging it in a preview whose frame was
+flat is what hid this — the panel's own `.backdrop` grid must be **behind** the bar for there to be
+anything to refract.
+
+**Three copies stopped being a thing to remember.** The CSS and the JS are generated once by
+`preview/aplicar-nav.js` and written into the three pages, and **`nav-sync-test.js` fails the day
+someone edits one of them** — byte-identical blocks, one occurrence per file (the duplicated-block
+defect that once left the tail of an old block dangling in `flows.html`), each page marking its own
+door, every `href` pointing at a route `server.js` actually serves, and the shortcut the chip promises
+actually existing. That test is in `testar.cmd`.
+
+**Known, pre-existing, not fixed here:** at 390px the topbar of `/tester` and `/disco` overflows
+horizontally — measured 32px and 13px. The capsule *reduced* it by 53px (111px against the old
+164px) and its labels collapse below 620px on purpose, since the wordmark suffix already says which
+screen you are on. What overflows is the rest of the bar: `flows.html` carries a mobile block that
+wraps it and the other two never got one.
+
 ## The motion layer (cult-ui, ported — not installed)
 
 Kauan picked [nolly-studio/cult-ui](https://github.com/nolly-studio/cult-ui) as the movement
