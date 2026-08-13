@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit de Projetos</title>
+<!-- O favicon é DESENHADO por `/aba.js` (um fluxo: um nó, dois ramos, duas
+     arestas) e animado quando o Tester termina. Nasce vazio de propósito: um
+     `.ico` no disco seria um segundo desenho para manter em sincronia com este,
+     e o desenho já existe em código. -->
+<link rel="icon" href="data:,">
+<script src="/aba.js" defer></script>
 <style>
   /* Tokens: os MESMOS do flows.html e do tester.html — as três páginas são um
      produto, e esta era a única com paleta própria (âmbar sobre azul-marinho,
@@ -213,6 +219,119 @@
     font-size:11px; color:var(--txt-faint); cursor:pointer; flex:0 0 auto; }
   .iconbtn:hover { background:var(--surface-2); color:var(--txt-dim); }
 
+  /* O botão de aviso do sistema, criado por `aba.js`. Ele já se veste com a
+     classe do botão de tema desta página; aqui fica só o que é dele. Copiado
+     seletor a seletor nas três páginas, como o resto do chrome — mexeu aqui,
+     repete lá. `gap` em vez de espaço no texto, e glifo de largura fixa: senão
+     a caixa muda de tamanho ao alternar ○/◉/⊘, e um botão que pula ao ser
+     clicado lê como defeito. Ligado ganha acento porque `○` e `◉` a 11px são
+     quase a mesma mancha — e essa mancha é a única informação que ele carrega. */
+  .avisarbtn { display:inline-flex; align-items:center; gap:5px; }
+  .avisarbtn .dot { width:1em; text-align:center; flex:0 0 auto; }
+  /* `--accent-txt` puro sobre `--accent-soft` mede 4,38 no escuro: falha AA a
+     11px. Mesmo número que os avisos já pagaram, mesmo remédio. O glifo fica com
+     o acento inteiro — ele é forma, não texto corrido. */
+  .avisarbtn.on { color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt));
+    border-color:var(--accent-line); background:var(--accent-soft); }
+  .avisarbtn.on .dot { color:var(--accent-txt); }
+  .avisarbtn.bloq { opacity:.55; }
+
+  /* ----------------------------------------------------- modo gravação (REC)
+     Copiado do flows.html, seletor a seletor, como o resto do chrome. Nesta
+     tela nada carrega `sens` — nome de pasta não é dado de cliente — mas o
+     botão e o estado são do produto inteiro. */
+  .rec .dot { display:inline-block; }
+  [data-rec="1"] .rec { color:var(--accent-txt); border-color:var(--accent-line); background:var(--accent-soft); }
+  [data-rec="1"] .rec .dot { animation:recpulse 1.6s ease-in-out infinite; }
+  @keyframes recpulse { 0%, 100% { opacity:1; } 50% { opacity:.3; } }
+  .sens { transition:filter .45s ease; }
+  [data-rec="1"] .sens { filter:blur(7px); user-select:none; }
+  .rec-wave { position:fixed; inset:0; z-index:400; pointer-events:none;
+    background:color-mix(in srgb, var(--accent) 16%, transparent); }
+  @media (prefers-reduced-motion: reduce) {
+    [data-rec="1"] .rec .dot { animation:none; }
+    .sens { transition:none; }
+  }
+
+/* ================================================================== AVISOS
+   UM vocabulário para toda mensagem do sistema, nas três páginas.
+
+   Antes havia quatro: `.avisobar` na abertura, `alertaInline()` na corrida,
+   `.anxerro` nos anexos e o `confirm()` nativo (já removido). Quatro jeitos de
+   dizer a mesma coisa é o que faz um painel parecer montado por quatro pessoas —
+   e o aviso é justamente o momento em que ele precisa ser mais confiável.
+
+   Dois MODOS, um só desenho:
+     `.aviso`         — ancorado, fica onde o problema está (campo, seção, caixa).
+     `.avisos > .aviso` — evento: o CONTAINER e que faz flutuar, sai sozinho.
+   E quatro TIPOS, que só trocam a cor e o glifo: erro, alerta, ok, info.
+
+   O tipo decide o comportamento, não só a cor: erro e alerta NÃO somem sozinhos
+   (quem precisa ler não pode perder a frase), ok e info somem em 4,5s com a
+   barra mostrando o tempo — uma coisa que vai desaparecer tem que dizer isso.
+
+   Cor de status aqui é uso canônico: `--*-txt` no texto e `-soft` no fundo, que
+   é a mesma divisão fill-vs-text que o resto do produto já segue. */
+.aviso{display:flex;gap:9px;align-items:flex-start;text-align:left;
+  font-size:12px;line-height:1.6;border-radius:10px;padding:10px 12px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--txt-dim)}
+.aviso .ai{flex:0 0 auto;font-size:11px;line-height:1.55;opacity:.95}
+.aviso .ac{flex:1 1 auto;min-width:0}
+.aviso .at{display:block;font-weight:650;color:var(--txt);margin-bottom:2px}
+.aviso .ax{flex:0 0 auto;border:none;background:none;cursor:pointer;padding:1px 4px;
+  border-radius:5px;color:inherit;opacity:.55;font-size:13px;line-height:1}
+.aviso .ax:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}
+/* A borda sai da PRÓPRIA cor do tipo (`currentColor`), não de um token por
+   variante: `--risk-line` e `--ok-line` não existem neste produto, e inventar
+   quatro tokens novos para uma borda seria quatro lugares para dessincronizar.
+   Assim os quatro tipos têm exatamente o mesmo peso de contorno. */
+.aviso.erro,.aviso.alerta,.aviso.ok,.aviso.info{border-color:color-mix(in srgb,currentColor 30%,transparent)}
+/* A cor é PUXADA para o texto base. Medido no DOM vivo, com o `-soft` composto
+   sobre o fundo da página: `--risk-txt` puro dava 4,41 no claro, `--warn-txt`
+   4,30, `--ok-txt` 4,29 e `--accent-txt` 4,38 no escuro — quatro reprovações de
+   AA (4,5) em texto de 12px. É a armadilha que este projeto já documentou: token
+   calibrado como preenchimento não é token de texto, e `-txt` sozinho foi
+   calibrado contra `--surface`, não contra o próprio `-soft`.
+   A mistura mantém a cor reconhecível (o vermelho continua vermelho) e sobe o
+   contraste com folga. Mexeu em token de status? Re-meça — não confie na captura. */
+.aviso.erro{background:var(--risk-soft);color:color-mix(in srgb,var(--risk-txt) 72%,var(--txt))}
+.aviso.alerta{background:var(--warn-soft);color:color-mix(in srgb,var(--warn-txt) 72%,var(--txt))}
+.aviso.ok{background:var(--ok-soft);color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt))}
+.aviso.info{background:var(--accent-soft);color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt))}
+/* O glifo fica na cor CHEIA: ele é forma, não texto corrido, e é o que mantém a
+   identidade do tipo legível de longe. */
+.aviso.erro .ai{color:var(--risk-txt)}
+.aviso.alerta .ai{color:var(--warn-txt)}
+.aviso.ok .ai{color:var(--ok-txt)}
+.aviso.info .ai{color:var(--accent-txt)}
+.aviso.bloco{max-width:700px;margin:16px auto 0}
+
+/* A pilha. `fixed` no alto à direita, abaixo do topbar: não cobre o compositor
+   (embaixo), não cobre o cabeçalho (em cima), e é para onde o olho vai depois de
+   clicar num botão do cabeçalho. Empilha para baixo; o mais novo entra por cima.
+   `pointer-events` só nos cartões — a pilha inteira não pode roubar clique da
+   página atrás dela. */
+.avisos{position:fixed;top:70px;right:18px;z-index:60;display:flex;flex-direction:column;gap:8px;
+  width:min(380px,calc(100vw - 36px));pointer-events:none}
+.avisos .aviso{pointer-events:auto;box-shadow:var(--shadow);backdrop-filter:blur(8px);
+  animation:avin .26s cubic-bezier(.2,.9,.3,1) both}
+.aviso.saindo{animation:avout .18s ease-in both}
+@keyframes avin{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes avout{from{opacity:1}to{opacity:0;transform:translateX(10px)}}
+/* A barra do tempo restante. Só existe onde há auto-dismiss — desenhar uma barra
+   parada num aviso que não sai seria prometer que ele vai sumir. */
+.aviso .abar{position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:currentColor;opacity:.35;transform-origin:left;animation:avbar linear both}
+@keyframes avbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.avisos .aviso{position:relative;overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .avisos .aviso,.aviso.saindo{animation-duration:1ms;animation-delay:0s}
+  /* A barra continua encurtando: ela é INFORMAÇÃO (quanto falta), não enfeite.
+     O que sai é o deslize de entrada, que é decoração. */
+  .aviso .abar{animation-duration:inherit}
+}
+@media (max-width:520px){ .avisos{top:auto;bottom:14px;right:12px;left:12px;width:auto} }
+
   .shell { display:grid; grid-template-columns:250px 1fr; min-height:calc(100vh - 58px); }
   .rail { border-right:1px solid var(--line); background:var(--surface); padding:20px 14px; display:flex; flex-direction:column; gap:20px; position:sticky; top:58px; height:calc(100vh - 58px); overflow-y:auto; }
   .navgroup { display:flex; flex-direction:column; gap:2px; }
@@ -334,6 +453,10 @@
   const q = new URLSearchParams(location.search).get("theme");
   const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  // Modo gravação: estado do produto, como o tema. Nesta tela nada carrega
+  // `sens` (nome de pasta não é dado de cliente), mas o botão vive no chrome
+  // das três páginas e o estado tem que acompanhar.
+  if (localStorage.getItem("cockpit-rec") === "1") document.documentElement.setAttribute("data-rec", "1");
 })();
 </script>
 </head>
@@ -359,6 +482,8 @@
   </nav>
   <div class="spacer"></div>
   <button class="iconbtn" id="theme" type="button" title="alternar tema">◐</button>
+  <button class="iconbtn rec" id="rec" type="button" aria-pressed="false"
+    title="modo gravação — borra dados sensíveis para filmar a tela"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button>
 </header>
 
 <div class="shell">
@@ -746,6 +871,145 @@ el("theme").onclick = () => {
   document.documentElement.setAttribute("data-theme", novo);
   try { localStorage.setItem("cockpit-theme", novo); } catch { /* modo privado */ }
 };
+
+/* ========================================================== avisar / aviso
+   COPIADO do tester.html, bloco a bloco, como o resto do chrome compartilhado.
+   Uma mudanca la tem que ser repetida aqui ate o dia em que isto virar arquivo
+   proprio. `preview/gen-avisos-preview.js` desenha os quatro tipos nos dois
+   modos, e e ele que prova que as tres paginas dizem a mesma coisa do mesmo
+   jeito. Ver o bloco AVISOS no CSS para o porque de cada decisao. */
+const AVISO_GLIFO = { erro: "✕", alerta: "!", ok: "✓", info: "i" };
+const AVISO_VIDA = { ok: 4500, info: 6000 };   // erro e alerta não somem sozinhos
+// Quanto a pausa por hover pode esticar a vida, no máximo. Ver `avisar()`.
+const VIDA_MAX_PAUSA = 20000;
+
+function avisoHtml(msg, tipo, titulo) {
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  return '<div class="aviso ' + t + '" role="' + (t === "erro" ? "alert" : "status") + '">' +
+    '<span class="ai" aria-hidden="true">' + AVISO_GLIFO[t] + "</span>" +
+    '<span class="ac">' + (titulo ? '<span class="at">' + esc(titulo) + "</span>" : "") + esc(msg) + "</span>" +
+    "</div>";
+}
+
+function pilhaAvisos() {
+  let p = document.querySelector(".avisos");
+  if (p) return p;
+  p = document.createElement("div");
+  p.className = "avisos";
+  document.body.appendChild(p);
+  return p;
+}
+
+function avisar(msg, tipo, titulo) {
+  if (!msg) return null;
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  const vida = AVISO_VIDA[t] || 0;
+  const pilha = pilhaAvisos();
+
+  /* Montado por DOM, nunca por `innerHTML`. Duas razões: a mensagem vem de erro
+     de servidor e de nome de arquivo, ou seja de fora, e `textContent` fecha essa
+     porta sem depender de ninguém lembrar de escapar; e assim este bloco é
+     idêntico nas três páginas — o `flows.html` não tem `esc()`. */
+  const cartao = document.createElement("div");
+  cartao.className = "aviso " + t;
+  cartao.setAttribute("role", t === "erro" ? "alert" : "status");
+  cartao.setAttribute("aria-live", t === "erro" ? "assertive" : "polite");
+
+  const gl = document.createElement("span");
+  gl.className = "ai"; gl.setAttribute("aria-hidden", "true"); gl.textContent = AVISO_GLIFO[t];
+  const corpo = document.createElement("span");
+  corpo.className = "ac";
+  if (titulo) {
+    const tt = document.createElement("span");
+    tt.className = "at"; tt.textContent = titulo;
+    corpo.appendChild(tt);
+  }
+  corpo.appendChild(document.createTextNode(msg));
+  const fechar = document.createElement("button");
+  fechar.type = "button"; fechar.className = "ax";
+  fechar.setAttribute("aria-label", "fechar aviso"); fechar.textContent = "×";
+  cartao.append(gl, corpo, fechar);
+  if (vida) {
+    const barra = document.createElement("span");
+    barra.className = "abar"; barra.setAttribute("aria-hidden", "true");
+    barra.style.animationDuration = vida + "ms";
+    cartao.appendChild(barra);
+  }
+
+  const sair = () => {
+    if (!cartao.isConnected) return;
+    cartao.classList.add("saindo");
+    // Espera a animação de saída, mas nunca depende dela: `setTimeout` remove de
+    // qualquer forma, senão um `prefers-reduced-motion` que zera a duração
+    // deixaria o cartão pendurado para sempre.
+    setTimeout(() => cartao.remove(), 200);
+  };
+  fechar.addEventListener("click", sair);
+  if (vida) {
+    let timer = setTimeout(sair, vida);
+    // O mouse em cima pausa a contagem: ler uma frase de 12 palavras leva mais
+    // que 4,5s, e ver o aviso fugir debaixo do cursor é o pior defeito de toast.
+    cartao.addEventListener("mouseenter", () => {
+      clearTimeout(timer);
+      const b = cartao.querySelector(".abar");
+      if (b) b.style.animationPlayState = "paused";
+    });
+    cartao.addEventListener("mouseleave", () => {
+      timer = setTimeout(sair, 1200);
+      const b = cartao.querySelector(".abar");
+      if (b) b.style.animationPlayState = "running";
+    });
+  }
+
+  pilha.appendChild(cartao);
+  // Teto de 4 na tela. Sem ele, uma pasta com oito arquivos recusados vira uma
+  // coluna de avisos que cobre a página inteira — e o oitavo esconde o primeiro.
+  const todos = [...pilha.querySelectorAll(".aviso")];
+  if (todos.length > 4) todos.slice(0, todos.length - 4).forEach(x => x.remove());
+  return cartao;
+}
+
+/* Modo gravação — copiado do flows.html, como o resto do chrome. Mesma chave
+   (`cockpit-rec`): ligar aqui liga nos fluxos e no tester. */
+const REC_KEY = "cockpit-rec";
+function recPaint() {
+  const on = document.documentElement.getAttribute("data-rec") === "1";
+  const b = el("rec");
+  b.querySelector(".lbl").textContent = on ? "REC" : "Gravar";
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.title = on
+    ? "modo gravação ligado — clique para desligar"
+    : "modo gravação — borra dados sensíveis para filmar a tela";
+}
+function recWave(btn) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = btn.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const raio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  const w = document.createElement("div");
+  w.className = "rec-wave";
+  document.body.append(w);
+  w.animate(
+    [{ clipPath: `circle(0px at ${x}px ${y}px)`, opacity: .95 },
+     { clipPath: `circle(${raio}px at ${x}px ${y}px)`, opacity: 0 }],
+    { duration: 700, easing: "cubic-bezier(.22,.61,.36,1)" }
+  ).onfinish = () => w.remove();
+}
+el("rec").onclick = () => {
+  const on = document.documentElement.getAttribute("data-rec") !== "1";
+  if (on) document.documentElement.setAttribute("data-rec", "1");
+  else document.documentElement.removeAttribute("data-rec");
+  try { on ? localStorage.setItem(REC_KEY, "1") : localStorage.removeItem(REC_KEY); } catch { /* modo privado */ }
+  recWave(el("rec"));
+  recPaint();
+};
+addEventListener("storage", e => {
+  if (e.key !== REC_KEY) return;
+  if (e.newValue === "1") document.documentElement.setAttribute("data-rec", "1");
+  else document.documentElement.removeAttribute("data-rec");
+  recPaint();
+});
+recPaint();
 load(false);
 </script>
 <script>
