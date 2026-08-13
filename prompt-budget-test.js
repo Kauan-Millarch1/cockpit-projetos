@@ -44,11 +44,30 @@ function sessaoPior(ehAgente) {
     entendi: { quando: x(300), oQueFaz: x(600), resultado: x(300), ondeChega: x(300) },
     doc: { servico: "mercado pago", texto: x(20000), fontes: [] },
     ingredientes: { nos: Object.keys(cat.nodes).slice(0, 23).map(t2 => ({ tipo: t2 })) },
+    /* Os CINCO arquivos de contexto, com a descrição do tamanho que elas têm de
+     * verdade no `escreverContexto`. A lista viaja INLINE no prompt (só o
+     * conteúdo é que fica no disco), então cada arquivo novo custa uma linha aqui
+     * — e o dia em que alguém adiciona o sexto é o dia em que este caso deixa de
+     * ser o pior caso, exatamente como aconteceu com os 40 anexos. */
     contexto: [
-      { arquivo: "catalogo.json", o_que: "os tipos de nó desta instância", omitidos: [] },
-      { arquivo: "AGENTES.md", o_que: "as sete camadas e as receitas" },
+      { arquivo: "catalogo.json", o_que: "os tipos de nó desta instância, com as versões e a forma dos parâmetros", omitidos: [] },
+      { arquivo: "esquema.json", o_que: "a DEFINIÇÃO de cada nó, na versão em uso: toda propriedade, o enum de cada discriminador, o que é obrigatório, sob qual operação cada chave existe, e o que o nó devolve", omitidos: ["n8n-nodes-base.algumTipoQueNaoCoube", "n8n-nodes-base.outroTipoQueNaoCoube"] },
+      { arquivo: "GRAMATICA.md", o_que: "como se escreve um fluxo: o prefixo `=`, as três camadas de `connections`, a forma dos parâmetros compostos, erro e retry, e as armadilhas medidas" },
+      { arquivo: "LICOES.md", o_que: "o que JÁ DEU ERRADO nestas construções — avisos medidos, não regras; onde o esquema e a gramática discordarem deles, eles perdem" },
+      { arquivo: "AGENTES.md", o_que: "as sete camadas, as receitas de nó com typeVersion, e as armadilhas medidas" },
       { arquivo: "doc.md", o_que: "a ficha da API de mercado pago" }
-    ]
+    ],
+    /* Os anexos no teto: 40 arquivos com nome longo, o que é exatamente o que
+     * uma pasta arrastada produz. Sem eles neste caso, o pior caso do prompt
+     * pararia de ser o pior caso no dia em que alguém anexou uma pasta — e a
+     * falha apareceria como `spawn ENAMETOOLONG`, que não nomeia nem prompt nem
+     * anexo. O `trechoPrompt` tem teto próprio; é ele que este caso prova. */
+    anexos: Array.from({ length: 40 }, (_, i) => ({
+      nome: "documento-de-especificacao-bem-comprido-" + i + ".md",
+      arquivo: "anexos/pasta-do-cliente/subpasta/documento-de-especificacao-bem-comprido-" + i + ".md",
+      tipo: i % 3 === 0 ? "imagem" : "texto", bytes: 200000,
+      dePasta: i > 3, raiz: i > 3 ? "pasta-do-cliente" : null, segredosRemovidos: 0
+    }))
   };
 }
 

@@ -463,5 +463,85 @@
     ],
     "custoTotal": 1.6004,
     "exportado": true
+  },
+  {
+    "id": "tc2fde28760e9",
+    "ideia": "Todo dia de manhã, baixar as planilhas do SFTP do Mercado Livre e jogar\nem Google Sheets. Um fluxo só, um gatilho só.\n\nCONEXÃO: está no anexo PARA_KAUAN.md — host, usuário, autenticação por\nchave privada e os diretórios remotos. A credencial SFTP eu já criei na\nmão no n8n, não precisa inventar nada dela.\n\nO QUE BAIXAR: duas pastas remotas, cpp e polos, mesma estrutura, 7 CSVs\ncada uma. Lista o diretório e baixa tudo que for .csv — não filtra por\nnome (o script Python em anexo filtra 2 arquivos por motivo histórico,\nignora esse filtro).\n\nFORMATO DOS CSV: delimitador ponto-e-vírgula, UTF-8 com BOM, decimal com\nvírgula nos CPP_*/BASE_VENDEDORES e com ponto nos CDP_*. O anexo detalha.\nNão quero conversão de número, quero a coluna como veio.\n\nDESTINO: dois documentos do Google Sheets que EU CRIO NA MÃO antes de\nrodar — um \"MELI CPP\" e um \"MELI POLOS\". As 7 guias de cada um também\ncrio na mão, já com o nome certo. O fluxo NÃO cria documento nem cria\nguia: ele só escreve em guia que já existe. Se a guia não existir, não\ncria — avisa no Slack e segue pros outros arquivos.\n\nCOMO ESCREVER: substituição total todo dia — limpa a guia e escreve o\narquivo inteiro, cabeçalho incluído. Não é acréscimo, senão duplica tudo\na cada dia.\n\nHORÁRIO: todo dia às 6h.\n\nQUANDO DER ERRO: se um arquivo falhar, os outros 13 continuam — não quero\no fluxo inteiro parado por causa de um. No fim, avisa no Slack quantos\narquivos entraram e quais falharam.\n\nQUANDO O ARQUIVO VIER VAZIO: não apaga a guia. Guia com dado de ontem é\nmelhor que guia em branco. Avisa no Slack.",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-11T15:21:15.803Z",
+    "terminadoEm": "2026-08-11T17:20:50.996Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "ehAgente": false,
+    "rodadasEntrevista": 1,
+    "respostas": 4,
+    "pesquisou": true,
+    "pesquisaDoCache": true,
+    "nos": 28,
+    "gates": {
+      "passou": true,
+      "rodada": 3,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.3775119,
+        "ms": 169694,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.26791220000000004,
+        "ms": 117535,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.245788,
+        "ms": 98197,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 1.54408,
+        "ms": 332723,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.47603449999999997,
+        "ms": 142239,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0,
+        "ms": 360373,
+        "comRede": false,
+        "usdDesconhecido": true,
+        "motivo": "a sessão foi interrompida antes de reportar o custo"
+      },
+      {
+        "sessao": "construcao-r2",
+        "usd": 0,
+        "ms": 360063,
+        "comRede": false,
+        "usdDesconhecido": true,
+        "motivo": "a sessão foi interrompida antes de reportar o custo"
+      },
+      {
+        "sessao": "construcao-r3",
+        "usd": 0,
+        "ms": 360094,
+        "comRede": false,
+        "usdDesconhecido": true,
+        "motivo": "a sessão foi interrompida antes de reportar o custo"
+      }
+    ],
+    "custoTotal": 2.9113,
+    "exportado": true
   }
 ]

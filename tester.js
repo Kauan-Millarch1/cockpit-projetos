@@ -29,6 +29,19 @@ const crypto = require("crypto");
 const n8n = require("./n8n");
 const catalog = require("./catalog");
 const agentes = require("./agentes");
+/* O esquema autoritativo dos nós (pacote npm, por versão) e a gramática em
+ * prosa. O catálogo diz o que ESTA instância usa; o esquema diz o que o nó É. Os
+ * dois entram: o catálogo é a prova de existência na conta dele, o esquema é a
+ * definição — e é o único que carrega enum, obrigatoriedade e sob qual operação
+ * cada chave existe. */
+const esquema = require("./esquema");
+const gramatica = require("./gramatica");
+/* O que já deu errado AQUI. O esquema sabe o que o nó aceita e a gramática sabe
+ * como se escreve; nenhum dos dois sabe o que este cockpit erra na prática — e
+ * isso ele já mede três vezes por dia e jogava fora. Lição é ALEGAÇÃO com fonte,
+ * nunca regra: quem promove é o Kauan, à mão. */
+const licoes = require("./licoes");
+const anexos = require("./anexos");
 const { simulate } = require("./simulate");
 // Só os verbos do patch, o diff e o índice de nós. Nada do caminho de escrita
 // em fluxo de produção passa por aqui — ver "edição de projeto" mais abaixo.
@@ -228,6 +241,16 @@ function snapshot(s) {
     doc: s.doc ? { slug: s.doc.slug, servico: s.doc.servico, fontes: s.doc.fontes, texto: s.doc.texto } : null,
     pesquisaPulada: s.pesquisaPulada || null,
     ingredientes: s.ingredientes,
+    /* O que ela anexou. Só os metadados — nome, tipo, tamanho, caminho relativo:
+     * o conteúdo do arquivo nunca entra no snapshot, que viaja a cada evento do
+     * SSE. Um print de 3MB em base64 aqui multiplicaria o tráfego por evento e
+     * não serviria para nada na tela, que só precisa desenhar o chip. */
+    anexos: (s.anexos || []).map(a => ({
+      nome: a.nome, arquivo: a.arquivo, tipo: a.tipo, bytes: a.bytes,
+      dePasta: !!a.dePasta, raiz: a.raiz || null, segredosRemovidos: a.segredosRemovidos || 0
+    })),
+    anexosResumo: anexos.resumo(s.anexos || []),
+    anexosLidos: s.anexosLidos || [],
     wf: s.wf, wfParcial: s.wf ? null : (s.wfParcial || null), provenance: s.provenance,
     /* Só o relatório, nunca uma segunda cópia do fluxo: num agente de 65 nós o
      * documento tem ~66KB e o snapshot viaja a cada evento. A tela compõe o
@@ -265,6 +288,31 @@ const NEGADAS_SEM_REDE = NEGADAS_SEMPRE + ",WebFetch,WebSearch";
  * agentes inline levou o prompt a 49KB e a esteira morreu na etapa 04 com essa
  * mensagem. A margem cobre o binário, as flags e o resto dos argumentos. */
 const PROMPT_MAX = 30000;
+
+/* A entrada de custo de UMA rodada, e por que é função em vez de `if` inline:
+ * é a regra que decide se um gasto entra no ledger como medido ou como cego, e
+ * ela precisa ser testável sem spawnar um CLI de verdade.
+ *
+ * `usd` vem do evento `result`, que é a ÚLTIMA linha que o CLI emite. Um processo
+ * morto no meio nunca chega lá, então `usd` fica 0 — e registrar 0 seria afirmar
+ * que a rodada foi de graça, quando ela pode ter sido a mais cara da corrida. O
+ * teto de custo também passaria a não ver esse gasto. `usdDesconhecido` é a forma
+ * honesta: a linha aparece na tela como "custo não medido" em vez de zero, e o
+ * teto sabe que está cego.
+ *
+ * Cancelar entra pela mesma porta do teto de tempo, e tem que entrar: para o CLI
+ * as duas são a mesma morte. O discriminador é `!usd` — se o `result` chegou
+ * antes da morte, o número é real e vale mais que a suspeita. */
+function custoDaRodada({ rotulo, usd, ms, comRede, morto, cancelada }) {
+  const entrada = { sessao: rotulo, usd, ms, comRede: !!comRede };
+  if ((morto || cancelada) && !usd) {
+    entrada.usdDesconhecido = true;
+    entrada.motivo = morto
+      ? "a sessão foi interrompida antes de reportar o custo"
+      : "você cancelou antes de a sessão reportar o custo";
+  }
+  return entrada;
+}
 
 function rodar(s, { rotulo, prompt, ferramentas, cwd, modelo, comRede, aoUsarFerramenta, tetoMs }) {
   return new Promise(resolve => {
@@ -349,11 +397,88 @@ function rodar(s, { rotulo, prompt, ferramentas, cwd, modelo, comRede, aoUsarFer
        * cara da corrida. O teto de custo também passaria a não ver esse gasto.
        * `usdDesconhecido` é a forma honesta: a linha aparece na tela como "custo
        * não medido" em vez de zero, e o teto sabe que está cego. */
-      const entrada = { sessao: rotulo, usd, ms, comRede: !!comRede };
-      if (morto) { entrada.usdDesconhecido = true; entrada.motivo = "a sessão foi interrompida antes de reportar o custo"; }
+      const entrada = custoDaRodada({
+        rotulo, usd, ms, comRede, morto, cancelada: s.status === "cancelada"
+      });
       s.custo.push(entrada);
       emit(s, "custo", { custo: s.custo });
       resolve({ erro: erro || (code === 0 ? null : "a sessão saiu com código " + code), texto, usd, ms });
+    });
+  });
+}
+
+/* Uma sessão SEM conversa: nenhuma `s`, nenhum SSE, nenhum ledger de custo.
+ *
+ * Existe para o job diário do `novidades.js`, que roda sem ninguém olhando. E
+ * existe AQUI, e não lá, por um motivo só: a cerca desta sessão são os flags do
+ * `rodar()` acima — `--disallowedTools`, `--setting-sources ""`, `envLimpo()`.
+ * Este repositório já mediu que `--allowedTools` NÃO restringe nada (uma sessão
+ * com ele executou shell), e que sem `--setting-sources ""` a sessão carrega o
+ * `CLAUDE.md` global, que nesta máquina tem a chave do n8n em texto puro. Uma
+ * segunda cópia desses flags noutro arquivo divergiria da primeira na primeira
+ * correção feita só de um lado, e o lado que divergisse seria uma sessão sem
+ * cerca. Então há uma cópia, e é esta.
+ *
+ * Devolve o texto e o custo; quem chamou decide o que fazer com os dois. */
+function rodarAvulso({ prompt, ferramentas, cwd, modelo, comRede = false, tetoMs = ROUND_TIMEOUT_MS, aoDizer }) {
+  return new Promise(resolve => {
+    if (String(prompt).length > PROMPT_MAX) {
+      resolve({ erro: "prompt com " + String(prompt).length + " caracteres, acima do teto de " + PROMPT_MAX, texto: "", usd: 0, ms: 0 });
+      return;
+    }
+    const args = [
+      "-p", prompt,
+      "--output-format", "stream-json", "--verbose",
+      "--permission-mode", "acceptEdits",
+      "--allowedTools", ferramentas,
+      "--disallowedTools", comRede ? NEGADAS_SEMPRE : NEGADAS_SEM_REDE,
+      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+      "--setting-sources", "",
+      "--model", modelo || MODELO_CONVERSA
+    ];
+    const t0 = Date.now();
+    const child = spawn(CLAUDE_BIN, args, {
+      cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: envLimpo()
+    });
+    let buf = "", texto = "", usd = 0, erro = null;
+    const timer = setTimeout(() => {
+      erro = "tempo esgotado (" + Math.round(tetoMs / 60000) + " min)";
+      try { child.kill(); } catch { /* já morreu */ }
+    }, tetoMs);
+
+    child.stdout.on("data", chunk => {
+      buf += chunk.toString("utf8");
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const linha = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if (!linha) continue;
+        let ev; try { ev = JSON.parse(linha); } catch { continue; }
+        if (ev.type === "assistant" && ev.message && Array.isArray(ev.message.content)) {
+          for (const c of ev.message.content) {
+            if (c.type === "text" && c.text) texto += c.text;
+            else if (c.type === "tool_use" && aoDizer) {
+              const alvo = (c.input && (c.input.file_path || c.input.pattern || c.input.url)) || "";
+              try { aoDizer("· " + c.name + (alvo ? " " + String(alvo).slice(0, 80) : "")); } catch { /* segue */ }
+            }
+          }
+        } else if (ev.type === "result") {
+          if (typeof ev.total_cost_usd === "number") usd = ev.total_cost_usd;
+          if (ev.is_error) erro = erro || "a sessão terminou com erro";
+          if (typeof ev.result === "string" && !texto) texto = ev.result;
+        }
+      }
+    });
+    child.stderr.on("data", d => { const t = d.toString("utf8").trim(); if (t && aoDizer) aoDizer("stderr: " + t.slice(0, 200)); });
+    child.on("error", e => { clearTimeout(timer); resolve({ erro: String(e && e.message || e), texto, usd, ms: Date.now() - t0 }); });
+    child.on("close", code => {
+      clearTimeout(timer);
+      resolve({
+        erro: erro || (code === 0 ? null : "a sessão saiu com código " + code),
+        texto, usd, ms: Date.now() - t0,
+        // Mesma honestidade do `custoDaRodada`: morta no meio, o `result` nunca
+        // chegou, e 0 não é o mesmo que de graça.
+        usdDesconhecido: !usd && !!erro
+      });
     });
   });
 }
@@ -427,6 +552,11 @@ function promptEntender(s) {
       return c.linhas.concat(c.cortados ? ["(e " + c.cortados + " mensagem(ns) anterior(es), mais antigas, omitidas)"] : []).join("\n");
     })(),
     respondidas,
+    /* O material que ela anexou. Vem depois das respostas e antes do formato de
+     * saída de propósito: é contexto para as perguntas, não instrução de como
+     * responder. O conteúdo dos arquivos não entra aqui — só o caminho e a ordem
+     * de ler, que é a lição do `escreverContexto`. */
+    anexos.trechoPrompt(s.anexos),
     "",
     "Responda SÓ com um bloco ```json com esta forma exata:",
     "{",
@@ -532,6 +662,51 @@ async function escreverContexto(s, silencioso) {
     { instancia: s.catalogo.instancia, geradoEm: s.catalogo.geradoEm, nodes: JSON.parse(fatia.texto) }, null, 2), "utf8");
   escritos.push({ arquivo: "catalogo.json", o_que: "os tipos de nó desta instância, com as versões e a forma dos parâmetros", omitidos: fatia.omitidos });
 
+  /* O esquema, só dos tipos em jogo e só na versão que a instância roda.
+   *
+   * Mandar as cinco versões de um `if` é ensinar quatro formas erradas — a que
+   * vale é uma. A versão pedida sai do catálogo (`versaoMaisUsada`), que é o que
+   * esta conta de fato executa; sem ela, a mais alta do esquema. */
+  if (s.esquema) {
+    const pares = s.ingredientes.nos.map(n => {
+      const c = s.catalogo.nodes[n.tipo];
+      return { tipo: n.tipo, versao: n.versao || (c && c.versaoMaisUsada) || null };
+    });
+    const fe = esquema.fatiaPorVersao(s.esquema, pares, 90000);
+    await fsp.writeFile(dentro(s.dir, "esquema.json"), fe.texto, "utf8");
+    escritos.push({
+      arquivo: "esquema.json",
+      o_que: "a DEFINIÇÃO de cada nó, na versão em uso: toda propriedade, o enum de cada discriminador, o que é obrigatório, sob qual operação cada chave existe, e o que o nó devolve",
+      omitidos: fe.omitidos
+    });
+  }
+
+  /* A gramática. Vale sempre — inclusive quando o esquema não pôde ser lido,
+   * porque ela é justamente a parte que descriptor nenhum carrega. */
+  const gram = gramatica.documento({ ehAgente: !!s.ehAgente });
+  if (gram && gram.length > 200) {
+    await fsp.writeFile(dentro(s.dir, "GRAMATICA.md"), gram, "utf8");
+    escritos.push({ arquivo: "GRAMATICA.md", o_que: "como se escreve um fluxo: o prefixo `=`, as três camadas de `connections`, a forma dos parâmetros compostos, erro e retry, e as armadilhas medidas", chars: gram.length });
+  }
+
+  /* As lições, e só as que valem para os tipos em jogo.
+   *
+   * `null` quando não há nenhuma, de propósito: escrever um `LICOES.md` que só
+   * diz "nada aqui" gasta uma leitura da sessão e ensina que o arquivo não vale
+   * a pena abrir. Um build num cockpit recém-clonado não tem lição nenhuma, e é
+   * o estado normal — não uma falta. */
+  try {
+    const lic = licoes.documento(s.ingredientes.nos.map(n => n.tipo));
+    if (lic) {
+      await fsp.writeFile(dentro(s.dir, "LICOES.md"), lic, "utf8");
+      escritos.push({ arquivo: "LICOES.md", o_que: "o que JÁ DEU ERRADO nestas construções — avisos medidos, não regras; onde o esquema e a gramática discordarem deles, eles perdem", chars: lic.length });
+    }
+  } catch (e) {
+    /* Uma lição ilegível não pode derrubar um build. O resto do contexto vale
+     * sozinho, e a ausência aparece no log em vez de virar silêncio. */
+    if (!silencioso) diz(s, "não consegui montar o LICOES.md: " + String(e && e.message), "warn");
+  }
+
   if (s.ehAgente) {
     const partes = [
       "# Como se constrói um agente conversacional nesta instância",
@@ -586,9 +761,19 @@ function promptDesenhar(s, correcoes) {
     "",
     "LEIA ESTES ARQUIVOS ANTES DE ESCREVER — eles estão no diretório atual e são o que você precisa saber:",
     ...(s.contexto || []).map(c => "  `" + c.arquivo + "` — " + c.o_que),
+    /* Os anexos entram na construção também, e por um motivo específico: é aqui
+     * que o nome REAL da coluna do CSV ou o formato exato visto no print vira
+     * expressão dentro do nó. A entrevista lê para perguntar; a construção lê
+     * para escrever o parâmetro certo em vez de um sinônimo plausível. */
+    (s.anexos || []).length
+      ? "  `anexos/INDICE.md` — a árvore do que a pessoa anexou (" + s.anexos.length + " arquivo(s)). " +
+        "Abra o que decide parâmetro: nome de coluna, formato de mensagem, identificador de destino. " +
+        "O que estiver escrito num anexo vale mais que a sua suposição — e o que NÃO estiver em anexo nenhum " +
+        "continua saindo como `[PREENCHER]`."
+      : "",
     s.ehAgente
-      ? "\nCOMECE por `AGENTES.md`. Ela é a especificação do que construir, não material de apoio: as sete\ncamadas que ela descreve são obrigatórias, e os portões reprovam a maioria dos casos em que faltam."
-      : "\nCOMECE por `catalogo.json` — é ele que diz quais tipos e versões existem.",
+      ? "\nCOMECE por `AGENTES.md`. Ela é a especificação do que construir, não material de apoio: as sete\ncamadas que ela descreve são obrigatórias, e os portões reprovam a maioria dos casos em que faltam.\nDepois leia `GRAMATICA.md` e `esquema.json`: o primeiro diz COMO escrever, o segundo diz quais\nchaves existem em cada nó na versão em uso."
+      : "\nCOMECE por `esquema.json` e `GRAMATICA.md`. O `esquema.json` é a DEFINIÇÃO dos nós que você vai\nusar — toda propriedade, o enum de cada discriminador, o que é obrigatório e sob qual operação cada\nchave existe. Ele vale mais que a sua memória: foi lido do pacote `n8n-nodes-base` desta instância,\ne a sua memória foi treinada em versões que já mudaram de forma. Um parâmetro que não está lá é\nignorado pelo n8n em silêncio, e o portão reprova por isso.",
     ((s.contexto || []).find(c => c.arquivo === "catalogo.json" && (c.omitidos || []).length))
       ? "Tipos que existem na instância e ficaram fora de `catalogo.json`: " +
         (s.contexto.find(c => c.arquivo === "catalogo.json").omitidos.join(", "))
@@ -606,6 +791,13 @@ function promptDesenhar(s, correcoes) {
     "- `type` SÓ pode ser um tipo que está em `catalogo.json`. Tipo fora dele é reprovado sem apelação —",
     "  serviço sem nó dedicado vira `n8n-nodes-base.httpRequest`. Não invente tipo de nó.",
     "- `typeVersion` é OBRIGATÓRIO em todo nó e tem que ser uma das versões de `catalogo.json` para aquele tipo.",
+    "- Todo parâmetro que você escrever tem que existir em `esquema.json` para aquele tipo NAQUELA versão,",
+    "  e valer para o `resource`/`operation` que você escolheu. Chave que não está lá, ou que só existe",
+    "  sob outra operação, é reprovada: o n8n a aceita e ignora, então o fluxo importa limpo e não faz o",
+    "  que foi pedido. Discriminador (`resource`, `operation`, `mode`, `select`, `method`) só aceita valor",
+    "  do enum que está no esquema.",
+    "",
+    gramatica.regrasCurtas(),
     "",
     "COMO ESCREVER AS EXPRESSÕES — isto muda o que a pessoa consegue ver antes de subir o fluxo.",
     "O cockpit simula o fluxo por código, sem executar nada. Ele avalia SÓ este conjunto:",
@@ -685,7 +877,7 @@ const ehGatilho = t => /(?:trigger|cron)$/i.test(String(t || "")) || /\.webhook$
  * os de `agentes.js`, que verificam FUNÇÃO e não estilo — agente sem memória
  * responde toda mensagem como se fosse a primeira, o que não é um fluxo pior, é
  * um fluxo que não faz o que foi pedido. */
-function validar(wf, cat, ehAgente) {
+function validar(wf, cat, ehAgente, esq) {
   const falhas = [];
   const F = m => falhas.push(m);
 
@@ -731,6 +923,37 @@ function validar(wf, cat, ehAgente) {
     }
     for (const [k, v] of Object.entries(nd.parameters || {})) {
       if (typeof v === "string" && SECRET_RE.some(re => new RegExp(re.source).test(v))) F(`o nó \`${nome}\` tem algo com cara de segredo no parâmetro \`${k}\``);
+    }
+
+    /* O PORTÃO QUE ACABA COM O ERRO SILENCIOSO DE PARÂMETRO.
+     *
+     * A API pública do n8n não valida `parameters`. Um `POST` que devolve 200
+     * prova que o SCHEMA DO DOCUMENTO foi aceito e nada sobre as chaves dentro
+     * dele — o defeito aparece na importação, no editor, que é justo quando
+     * alguém está contando com o fluxo. Medido em 99 fluxos publicados: 33 nós
+     * carregam parâmetro que a versão declarada não tem (`range` num
+     * googleSheets v4, `requestMethod` num httpRequest v4). O n8n aceita e
+     * ignora, sem aviso.
+     *
+     * Três achados, cada um com o nome da chave, e a mensagem é o que volta para
+     * o modelo na rodada seguinte — o loop de correção que já funciona.
+     *
+     * FAIL-OPEN em cinco pontos, e cada um impede uma reprovação falsa: sem
+     * esquema, tipo desconhecido, versão aproximada, predicado indeciso e tipo
+     * de parâmetro opaco. Medido: assim o portão marca 1,3% dos nós de fluxos
+     * publicados que funcionam, e o que sobra é parâmetro de versão velha — ou
+     * seja, achado de verdade. Um portão que dispara por falta de conhecimento
+     * bloqueia fluxo bom, que é pior que o defeito que ele caça. */
+    if (esq && !ehSticky(nd.type)) {
+      for (const a of esquema.conferir(esq, nd)) {
+        if (a.tipo === "desconhecida") {
+          F(`o nó \`${nome}\` (\`${nd.type}\` v${nd.typeVersion}) tem o parâmetro \`${a.chave}\`, que não existe nessa versão do nó — o n8n aceita e ignora em silêncio; veja \`esquema.json\``);
+        } else if (a.tipo === "inaplicavel") {
+          F(`o nó \`${nome}\` tem \`${a.chave}\`, que só existe sob outra combinação de resource/operation nessa versão — escrito aqui ele é ignorado sem aviso; veja em \`esquema.json\` quais chaves valem para a operação escolhida`);
+        } else if (a.tipo === "enum") {
+          F(`o nó \`${nome}\` usa \`${a.chave}: ${JSON.stringify(a.valor)}\`, e essa versão só aceita ${a.aceitos.map(x => "`" + x + "`").join(", ")}`);
+        }
+      }
     }
   }
   if ("active" in wf) F("o workflow traz `active` — proibido, nem no arquivo exibido");
@@ -831,6 +1054,11 @@ async function esteira(s) {
     await gravarLedger(s);
 
   } catch (e) {
+    /* Matar o filho no meio faz a etapa levantar exceção, e sem esta linha o
+     * `catch` reescreveria a sessão como "falhou" com um "quebrou: …" na tela —
+     * dizendo que o Tester teve um defeito quando quem parou foi você. Vale para
+     * cancelar E para o texto livre, que já matava o filho desde sempre. */
+    if (!vivo(s, gen)) return;
     s.erro = scrub(String(e && e.message || e));
     s.status = "falhou";
     diz(s, "quebrou: " + s.erro, "erro");
@@ -983,6 +1211,11 @@ function parcialDeWrite(c) {
 
 async function desenhar(s, gen) {
   let correcoes = null;
+  /* O documento da última rodada REPROVADA, guardado só em memória e só até a
+   * rodada seguinte decidir. É o outro lado do delta que vira lição: sem ele, a
+   * rodada que passou não tem contra o que ser comparada, e a informação de qual
+   * erro foi corrigido morre com o processo. */
+  let reprovado = null;
   for (let rodada = 1; rodada <= MAX_ROUNDS; rodada++) {
     if (!vivo(s, gen)) return false;
     /* Reescrito a cada rodada, não só na primeira: a sessão tem `Write` e o
@@ -1006,6 +1239,9 @@ async function desenhar(s, gen) {
           s.wfParcial = parcial;
           emit(s, "wfParcial", { wfParcial: s.wfParcial });
         }
+        // A construção também abre anexo: é aqui que o nome real da coluna do CSV
+        // entra na expressão. O chip marca o que foi lido em qualquer etapa.
+        registrarLeituraAnexo(s, c);
       }
     });
     if (!vivo(s, gen)) return false;
@@ -1014,11 +1250,28 @@ async function desenhar(s, gen) {
     try { wf = JSON.parse(await fsp.readFile(dentro(s.dir, "workflow.json"), "utf8")); }
     catch (e) { correcoes = "não consegui ler `workflow.json`: " + String(e && e.message || e); diz(s, correcoes, "warn"); continue; }
 
-    const falhas = validar(wf, s.catalogo, s.ehAgente);
+    const falhas = validar(wf, s.catalogo, s.ehAgente, s.esquema);
     s.gates = { rodada, falhas, passou: !falhas.length };
     emit(s, "gates", { gates: s.gates });
 
     if (!falhas.length) {
+      /* A rodada passou e a anterior não: aqui está a única lição que este
+       * cockpit consegue tirar de graça, e ele a jogava fora. O que entra é só o
+       * que o portão de ESQUEMA apontou e esta rodada resolveu — comparar os dois
+       * documentos inteiros daria dezenas de diferenças sem relação com a
+       * reprovação, porque a rodada N+1 reescreve o fluxo todo.
+       *
+       * Nunca deixa o build cair: registrar lição é bookkeeping, e um erro aqui
+       * não pode custar uma construção que acabou de dar certo. */
+      if (reprovado && s.esquema) {
+        try {
+          const novas = licoes.registrar(licoes.doPortao({
+            wfFalho: reprovado.wf, wfBom: wf, esquema: s.esquema,
+            ondeMedido: "build:" + s.id + " r" + reprovado.rodada + "→r" + rodada
+          }));
+          if (novas.length) diz(s, "aprendi " + novas.length + " lição(ões) com a rodada reprovada — revise com `node licoes.js`");
+        } catch (e) { diz(s, "não consegui registrar as lições da rodada: " + String(e && e.message), "warn"); }
+      }
       s.wf = wf;
       s.wfParcial = null;                       // o documento validado assume
       s.provenance = proveniencia(s, wf);
@@ -1048,6 +1301,7 @@ async function desenhar(s, gen) {
       return true;
     }
     correcoes = falhas.map(f => "- " + f).join("\n");
+    reprovado = { wf, rodada };
     diz(s, "o validador reprovou " + falhas.length + " ponto(s)", "warn");
   }
   s.erro = "o fluxo proposto não passou nos portões em " + MAX_ROUNDS + " tentativas";
@@ -1404,6 +1658,13 @@ async function salvarProjeto(id, titulo) {
     // A conversa inteira: reabrir um projeto tem que mostrar o que foi dito e
     // decidido, não só o JSON — um mês depois é ISTO que explica o fluxo.
     chat: s.chat, respostas: s.respostas || [],
+    /* Os METADADOS dos anexos, nunca os arquivos. `.tester-runs/` é descartável e
+     * some; guardar cópia dentro de `projetos/` faria um print de 3MB entrar no
+     * git a cada projeto salvo. O que fica é o registro de que o fluxo foi
+     * construído olhando aquele material, com nome e tipo — e a tela diz que os
+     * arquivos em si não estão mais aqui, em vez de mostrar chip que não abre. */
+    anexos: (s.anexos || []).map(a => ({ nome: a.nome, tipo: a.tipo, bytes: a.bytes, dePasta: !!a.dePasta, raiz: a.raiz || null })),
+    anexosLidos: s.anexosLidos || [],
     escolhasCred: s.escolhasCred || [],
     wf: s.wf, provenance: s.provenance,
     report: s.report || null,
@@ -1685,6 +1946,10 @@ async function abrirEdicao(slug) {
   };
   sessions.set(id, s);
   s.catalogo = await catalog.get({});
+  /* Falha mole: sem os pacotes baixados `s.esquema` fica nulo, o portão de
+   * esquema não roda e o Tester se comporta como antes desta feature. O que NÃO
+   * pode acontecer é o build parar porque um esquema não estava lá. */
+  s.esquema = esquema.lerCache();
   diz(s, "abri «" + (p.titulo || p.slug) + "» para conversar: " + (p.wf.nodes || []).length + " nós");
   return { id };
 }
@@ -1794,7 +2059,7 @@ async function rodadaEdicao(s, gen, pedido) {
       }
 
       etapa(s, 3, "correndo");
-      const falhas = validar(alvo.workflow, s.catalogo, s.ehAgente);
+      const falhas = validar(alvo.workflow, s.catalogo, s.ehAgente, s.esquema);
       s.gatesProposta = { rodada, falhas, passou: !falhas.length };
       emit(s, "gates", { gatesProposta: s.gatesProposta });
       if (falhas.length) {
@@ -2052,6 +2317,18 @@ async function decidirEdicao(id, aplicar) {
   s.fantasma = p.fantasma;
   s.chat.push({ quem: "tester", texto: p.resumo, at: new Date().toISOString() });
 
+  /* O Kauan aceitou um patch: é ele corrigindo o modelo, nas coordenadas exatas
+   * de que uma lição precisa. O filtro é o que faz isso prestar — só entra
+   * mudança de FORMA. Trocar o canal do Slack, o telefone ou o id da planilha é
+   * ele dizendo o que quer, não corrigindo um erro meu, e virar lição disso seria
+   * transformar a base num diário de preferências. */
+  try {
+    const novas = licoes.registrar(licoes.daEdicao({
+      antes: anterior, depois: s.wf, ondeMedido: "edicao:" + (s.projetoSlug || s.id)
+    }));
+    if (novas.length) diz(s, "aprendi " + novas.length + " lição(ões) com esta correção — revise com `node licoes.js`");
+  } catch (e) { diz(s, "não consegui registrar as lições da edição: " + String(e && e.message), "warn"); }
+
   await estreitarCredenciais(s, s.wf);
   // A cópia de teste roda DEPOIS do aceite: é escrita no n8n, e escrever por
   // conta de uma proposta que pode ser descartada seria efeito sem decisão.
@@ -2138,8 +2415,44 @@ async function desfazerEdicao(slug) {
 
 /* ------------------------------------------------------------------- API */
 
+/* A VERSÃO DO TESTER, numa frase.
+ *
+ * Não é versão de código — é da BASE: o que ele sabe na hora de construir. A
+ * gramática do n8n, o doc de agentes, o esquema dos nós e as lições em curadoria
+ * mudam o fluxo que sai do build sem mudar uma linha de código, e sem carimbo
+ * "melhorou" é impressão: não há como comparar um fluxo construído hoje com um
+ * de semana passada nem saber qual base produziu cada entrada do `blueprints`.
+ *
+ * Sobe `n` quando muda o que ele SABE, não quando muda como ele desenha; `nota`
+ * diz o que entrou, em poucas palavras. A menor conta rodadas de conhecimento a
+ * partir de 2026-08-12, que é quando o carimbo passou a existir — antes disso
+ * não há número honesto para atribuir.
+ *
+ * Vem do servidor de propósito. Node não recarrega este arquivo: um processo
+ * velho serve a base velha, e a tela só consegue dizer isso se o número vier de
+ * quem está rodando, não de uma constante embutida na página.
+ *
+ * MORA EM `versao.json`, NÃO AQUI. O job diário do `novidades.js` sobe a menor
+ * sozinho quando entra novidade, e um robô editando `.js` é uma classe de risco
+ * que editar dados não tem: uma escrita torta em JSON estraga um campo, a mesma
+ * escrita torta em código derruba o servidor inteiro. Lido a cada chamada, sem
+ * cache: é uma leitura de 100 bytes, e cachear faria o número na tela ficar
+ * velho justamente depois de uma atualização — que é o único momento em que
+ * alguém olha para ele. */
+const VERSAO_ARQ = path.join(__dirname, "versao.json");
+const VERSAO_FALLBACK = { n: "base ?", em: null, nota: "o arquivo `versao.json` não foi lido" };
+
+function lerVersao() {
+  try {
+    const v = JSON.parse(fs.readFileSync(VERSAO_ARQ, "utf8"));
+    if (!v || typeof v.n !== "string") return VERSAO_FALLBACK;
+    return { n: v.n, em: v.em || null, nota: v.nota || null };
+  } catch { return VERSAO_FALLBACK; }
+}
+
 function status() {
   return {
+    versao: lerVersao(),
     cliEncontrado: fs.existsSync(CLAUDE_BIN), cli: CLAUDE_BIN,
     n8nConfigurado: n8n.configured, instancia: n8n.instance,
     sandbox: SANDBOX_ON, tetoUsd: TETO_USD,
@@ -2150,6 +2463,24 @@ function status() {
     // Sem o doc o Tester ainda constrói agente, e constrói pior. A tela precisa
     // poder dizer isso antes do build, não depois.
     docAgentes: agentes.docStatus(),
+    /* A gramática vale para TODO build, não só para agente — então a ausência
+     * dela é uma notícia maior que a do doc de agentes. Mesma forma de resposta,
+     * de propósito: a tela já sabe desenhar `docStatus`. */
+    docGramatica: gramatica.docStatus(),
+    /* O esquema dos nós. Três estados, nunca dois — a lição do `docAgentes`: um
+     * campo ausente jamais pode cair no galho negativo, porque "não baixei os
+     * pacotes" e "esse nó não existe" levam a decisões opostas. Quem lê isto na
+     * tela tem que poder dizer qual dos dois é. */
+    /* `resumo()`, nunca `lerCache()`: este objeto é montado a cada poll da tela
+     * de abertura (4s) e `lerCache()` faz `JSON.parse` de 9,4MB — medido, a rota
+     * respondia em ~190ms de CPU bloqueante num servidor de uma thread que
+     * também segura SSE. O resumo tem cache por mtime. */
+    esquema: esquema.resumo(),
+    /* As lições esperando curadoria. Facts only: contagem por estado e por
+     * fonte. O que fazer com `aRevisar > 0` é julgamento da tela — e sem esta
+     * contagem em algum lugar visível, a base aprende e ninguém nunca olha, que é
+     * o mesmo que não aprender. */
+    licoes: licoes.resumo(),
     emAndamento: [...sessions.values()].some(s => s.status === "correndo"),
     /* A sessão viva, para a tela de abertura desenhar o card "em construção".
      * Sair da página no meio de um build sempre foi seguro — a sessão mora no
@@ -2177,7 +2508,7 @@ function status() {
   };
 }
 
-async function iniciar({ ideia, nivel }) {
+async function iniciar({ ideia, nivel, bandeja }) {
   if ([...sessions.values()].some(s => s.status === "correndo")) { const e = new Error("já existe uma construção em andamento"); e.status = 409; throw e; }
   if (!fs.existsSync(CLAUDE_BIN)) throw new Error("CLI do Claude não encontrado em " + CLAUDE_BIN);
   if (!n8n.configured) throw new Error("n8n não configurado (.env)");
@@ -2198,14 +2529,67 @@ async function iniciar({ ideia, nivel }) {
     entendi: null, titulo: null, perguntas: [], achados: [], servicos: [], respostas: [], rodadaEntrevista: 1,
     doc: null, ingredientes: { nos: [], credenciais: [] }, wf: null, wfParcial: null, provenance: {},
     gates: null, sandbox: null, sementes: null, fantasma: null,
+    anexos: [], anexosLidos: [],
     custo: [], log: [], versao: 0
   };
   sessions.set(id, s);
 
+  /* A bandeja que a tela de abertura encheu antes de a sessão existir. Adotar é
+   * mover o diretório para dentro da corrida — e o inventário sai do DISCO, não
+   * do que a tela disse ter mandado: o que a sessão vai poder abrir é o que
+   * realmente está lá. */
+  if (bandeja) {
+    try {
+      const veio = await anexos.adotar(RUNS_DIR, bandeja, dir);
+      if (veio) {
+        s.anexos = await anexos.inventario(dir);
+        await anexos.escreverIndice(dir, s.anexos);
+        diz(s, "recebi " + s.anexos.length + " anexo(s) — vou olhar antes de perguntar");
+      }
+    } catch (err) {
+      // Anexo perdido não derruba a construção: a ideia escrita continua válida
+      // e a tela precisa saber que o material não chegou, em vez de a sessão
+      // seguir calada sem ele.
+      diz(s, "não consegui aproveitar os anexos: " + (err && err.message || err), "erro");
+    }
+  }
+
   s.catalogo = await catalog.get({});
+  /* Falha mole: sem os pacotes baixados `s.esquema` fica nulo, o portão de
+   * esquema não roda e o Tester se comporta como antes desta feature. O que NÃO
+   * pode acontecer é o build parar porque um esquema não estava lá. */
+  s.esquema = esquema.lerCache();
   etapa(s, 1, "correndo");
   entender(s, s.gen);
   return { id };
+}
+
+/* Anexar com a conversa já aberta. Grava e devolve o snapshot — e NÃO reinicia
+ * etapa nenhuma: quem dispara a releitura é a mensagem que ela manda depois
+ * ("olha esse print"), pelo caminho de texto livre que já existe. Separar as
+ * duas coisas é o que permite arrastar três arquivos e falar uma vez, em vez de
+ * a esteira reiniciar a cada arquivo solto. */
+async function anexar(id, item) {
+  const s = sessions.get(id);
+  if (!s) { const e = new Error("sessão não encontrada"); e.status = 404; throw e; }
+  const r = await anexos.gravar(s.dir, item, s.anexos || []);
+  // A categoria viaja no erro para a tela agrupar as recusas de um lote.
+  if (!r.ok) { const e = new Error(r.motivo); e.status = 400; e.categoria = r.categoria || null; throw e; }
+  s.anexos = [...(s.anexos || []), r.meta];
+  await anexos.escreverIndice(s.dir, s.anexos);
+  diz(s, "anexo recebido: " + r.meta.nome);
+  emit(s, "anexos", { anexos: snapshot(s).anexos, anexosResumo: anexos.resumo(s.anexos) });
+  return snapshot(s);
+}
+
+async function desanexar(id, arquivo) {
+  const s = sessions.get(id);
+  if (!s) { const e = new Error("sessão não encontrada"); e.status = 404; throw e; }
+  await anexos.remover(s.dir, arquivo);
+  s.anexos = (s.anexos || []).filter(a => a.arquivo !== arquivo);
+  await anexos.escreverIndice(s.dir, s.anexos);
+  emit(s, "anexos", { anexos: snapshot(s).anexos, anexosResumo: anexos.resumo(s.anexos) });
+  return snapshot(s);
 }
 
 /* Uma pergunta vinda do modelo é payload, não estrutura de dados confiável. Só
@@ -2253,11 +2637,39 @@ function fecharAberto(s) {
   }
 }
 
+/* Quais anexos a sessão REALMENTE abriu.
+ *
+ * Sem isto, anexar é um ato de fé: a pessoa manda o print, a entrevista faz uma
+ * pergunta que o print já respondia, e não há como saber se ele foi lido ou
+ * ignorado. O `tool_use` do stream-json carrega o caminho, então a leitura é
+ * fato observado — não promessa do prompt. A tela marca o chip do que foi
+ * aberto, e um anexo que ninguém abriu fica visivelmente não aberto. */
+function registrarLeituraAnexo(s, ev) {
+  const alvo = String((ev && ev.input && ev.input.file_path) || "");
+  if (!alvo) return;
+  const norm = alvo.split(/[/\\]/).join("/");
+  for (const a of s.anexos || []) {
+    if (!norm.endsWith(a.arquivo) && !norm.endsWith("/" + a.nome)) continue;
+    if ((s.anexosLidos || []).includes(a.arquivo)) return;
+    s.anexosLidos = [...(s.anexosLidos || []), a.arquivo];
+    emit(s, "anexos", { anexos: snapshot(s).anexos, anexosLidos: s.anexosLidos });
+    return;
+  }
+}
+
 async function entender(s, gen) {
   try {
     const r = await rodar(s, {
       rotulo: "conversa", prompt: promptEntender(s),
-      ferramentas: "Read", cwd: s.dir, modelo: MODELO_CONVERSA, comRede: false
+      /* `Glob` e `Grep` só quando há anexo, e não por economia: a cerca desta
+       * sessão é a lista de ferramentas, e uma entrevista sem material nenhum
+       * não tem o que procurar no disco. Com uma pasta de 200 arquivos as duas
+       * são o que separa explorar de despejar — sem elas o modelo abriria
+       * arquivo por arquivo até o contexto acabar. A cerca que importa continua
+       * sendo `--disallowedTools`: sem Bash e sem rede, medido. */
+      ferramentas: (s.anexos || []).length ? "Read,Glob,Grep" : "Read",
+      cwd: s.dir, modelo: MODELO_CONVERSA, comRede: false,
+      aoUsarFerramenta: ev => registrarLeituraAnexo(s, ev)
     });
     if (!vivo(s, gen)) return;
     const j = jsonDoTexto(r.texto);
@@ -2308,8 +2720,52 @@ async function entender(s, gen) {
     emit(s, "entendi", { entendi: s.entendi, perguntas: s.perguntas, achados: s.achados, servicos: s.servicos });
     emit(s, "espera", { etapa: 1 });
   } catch (e) {
+    if (!vivo(s, gen)) return;                 // parada não é defeito — ver o catch da esteira
     s.erro = scrub(String(e && e.message || e)); s.status = "falhou"; emit(s, "fim", {});
   }
+}
+
+/* Parar no meio, como Ctrl+C num terminal.
+ *
+ * O portão já existia e nunca tinha sido ligado: `vivo()` testa
+ * `s.status !== "cancelada"` desde o primeiro dia e NADA no codebase setava esse
+ * status. Toda etapa já confere a geração antes de emitir, escrever ou saltar —
+ * então cancelar é subir a geração e matar o filho, e a esteira para sozinha no
+ * próximo `if (!vivo(...)) return`.
+ *
+ * NÃO é pausa, e não existe retomar. Quem quer continuar escreve no compositor,
+ * que já reinicia da etapa afetada COM a correção junto; um "retomar" idêntico
+ * refaria exatamente o que foi morto, pelo mesmo preço e pelo mesmo caminho.
+ *
+ * O que sobra na tela sobra de propósito: desenho, etapas concluídas, achados e
+ * gasto continuam. Cancelar é parar de gastar, não apagar o que já foi pago. */
+async function cancelar(id) {
+  const s = sessions.get(id);
+  if (!s) { const e = new Error("sessão não encontrada"); e.status = 404; throw e; }
+  if (s.status === "cancelada") return snapshot(s);   // idempotente: dois Esc não são dois cancelamentos
+  if (s.status !== "correndo") {
+    const e = new Error("esta sessão não está processando nada agora");
+    e.status = 409; throw e;
+  }
+
+  s.gen++;                      // invalida tudo que estiver em voo
+  s.status = "cancelada";       // e a partir daqui `vivo()` responde false
+  s.perguntas = [];
+  s.wfParcial = null;           // rascunho da corrida invalidada: desenhar de novo é começar do zero
+
+  /* O status vem ANTES do kill de propósito: o `close` do filho lê `s.status`
+   * para saber que o custo desta rodada não foi medido. Invertido, a rodada
+   * entraria no ledger como se tivesse custado zero. */
+  try { if (s.filho) s.filho.kill(); } catch { /* já morreu */ }
+
+  const e = (s.etapas || []).find(x => x.n === s.etapa);
+  if (e && e.estado === "correndo") etapa(s, s.etapa, "cancelada", "você parou aqui");
+  diz(s, "cancelado por você", "warn");
+  emit(s, "fim", {});
+  /* Entra no ledger igual a uma que falhou: a corrida existiu e gastou. Uma
+   * cancelada fora do registro faria a soma de gasto do painel mentir por baixo. */
+  await gravarLedger(s);
+  return snapshot(s);
 }
 
 /* Resposta do usuário. `seguir` é o portão da etapa 1; texto livre a qualquer
@@ -2419,7 +2875,12 @@ async function ledger() {
   try { return JSON.parse(await fsp.readFile(LEDGER, "utf8")); } catch { return []; }
 }
 
-module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger, validar,
+module.exports = { status, iniciar, responder, cancelar, resimular, pegar, assinar, ledger, validar,
+  anexar, desanexar,
+  /* Para o job diário do `novidades.js`. A sessão avulsa mora aqui porque a
+     cerca dela são os flags do `rodar()`, e uma segunda cópia deles noutro
+     arquivo seria uma sessão sem cerca no dia em que as duas divergissem. */
+  rodarAvulso, lerVersao, CLAUDE_BIN, MODELO_CONVERSA,
   salvarProjeto, listarProjetos, lerProjeto, lerProjetoParaTela, renomearProjeto, excluirProjeto, SANDBOX_PREFIX,
   listarLixeira, restaurarProjeto, excluirDaLixeira, esvaziarLixeira,
   checklistCredenciais, ligacaoCredenciais, interpretarEscolhaCred, escolherCredencial,
@@ -2427,8 +2888,19 @@ module.exports = { status, iniciar, responder, resimular, pegar, assinar, ledger
   abrirEdicao, pedirEdicao, decidirEdicao, desfazerEdicao,
   // Puro e testável sem modelo: é ele que decide o que um patch pode fazer.
   aplicarRemendo, promptEdicao, acharPreencher,
+  /* Expostos para `cancelar-test.js`. `sessions` é o mapa de verdade: o teste
+   * monta uma sessão com um filho falso e chama a `cancelar` real, em vez de
+   * reimplementar por fora a máquina de estados que ela mexe. `custoDaRodada` é
+   * a regra do gasto cego, que de outro jeito só seria alcançável spawnando o
+   * CLI — ou seja, cobrando do plano para rodar um teste. */
+  sessions, custoDaRodada,
   /* Expostos para teste, junto do teto que eles têm que respeitar. São funções
    * puras, e o que se mede nelas é o tamanho: o prompt viaja em `-p` e a linha de
    * comando do Windows tem limite rígido. Um teste que remonta o prompt por fora
    * envelhece em silêncio — este mede o mesmo texto que vai para o CLI. */
-  promptEntender, promptDesenhar, PROMPT_MAX };
+  promptEntender, promptDesenhar, PROMPT_MAX,
+  /* Exportado para teste: o que a sessão de construção lê do disco é a única
+   * parte desta feature cuja falha é INVISÍVEL — um arquivo que não foi escrito
+   * não dá erro, o modelo só constrói pior. `esquema-test.js` prova que os três
+   * saem. */
+  escreverContexto };

@@ -456,7 +456,13 @@ function simulate(workflow, { seeds = {}, agora = "2026-01-15T09:00:00.000Z" } =
   return { ok: true, passos, superficies, pendencias, jsonFinal: ctx.json };
 }
 
-module.exports = { simulate, NAO_SIMULADA, SURFACES, TRIGGERS };
+/* `resolverTexto` sai daqui porque o `n8n.js` resolve o texto que um nó de envio
+   mandou de verdade, contra o item que de verdade entrou nele. É o mesmo
+   subconjunto medido e o mesmo "sem eval, nunca" — o que muda é a origem do
+   contexto: ali são dados de execução real, aqui são sementes. Um segundo
+   avaliador seria duas definições do que é uma expressão suportada, e elas
+   divergiriam na primeira correção feita só de um lado. */
+module.exports = { simulate, resolverTexto, NAO_SIMULADA, SURFACES, TRIGGERS };
 
 /* -------------------------------------------------------------- auto-teste */
 

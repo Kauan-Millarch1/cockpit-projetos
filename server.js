@@ -12,6 +12,8 @@ const { promisify } = require("node:util");
 const n8n = require("./n8n");
 const claudeFix = require("./claude-fix");
 const tester = require("./tester");
+const novidades = require("./novidades");
+const anexos = require("./anexos");
 
 const execFileAsync = promisify(execFile);
 
@@ -19,6 +21,10 @@ const ROOT = path.resolve(__dirname, "..");          // Desktop\Projects
 const SELF = path.basename(__dirname);               // "Cockpit Projetos"
 const PORT = Number(process.env.PORT || 4317);
 const CACHE_FILE = path.join(__dirname, ".cache-scan.json");
+// O mesmo diretório que o `tester.js` usa. As bandejas de anexo moram debaixo
+// dele (`_bandejas/`), então o caminho tem que ser um só — duas verdades sobre
+// onde ficam os arquivos seria uma bandeja que a sessão nunca encontra.
+const TESTER_RUNS = path.join(__dirname, ".tester-runs");
 
 const IGNORE_DIRS = new Set([
   ".git", "node_modules", ".next", "dist", "build", "out", "venv", ".venv",
@@ -330,6 +336,15 @@ const FIXES_FILE = path.join(__dirname, "fixes.json");
 const FIX_BODY_CAP = 8 * 1024;
 const HISTORY_CAP = 500;
 
+/* Um anexo por requisição, e o corpo dele é o único grande deste servidor.
+ *
+ * O teto é o tamanho de um arquivo (12MB em `anexos.js`) mais o inchaço de ~33%
+ * do base64, mais folga para o resto do JSON. Um-a-um é decisão, não limitação:
+ * mandar 40 arquivos num corpo só significaria segurar ~64MB de string em
+ * memória, sem progresso na tela e com o upload inteiro perdido se um arquivo
+ * fosse recusado no fim. */
+const ANEXO_BODY_CAP = 18 * 1024 * 1024;
+
 // Two lists, different lifetimes:
 //   fixes   — the CURRENT mark per signature. Undo removes from here.
 //   history — append-only log of every mark ever made, with the note. Undo does
@@ -422,6 +437,12 @@ const server = http.createServer(async (req, res) => {
   try {
     if (p === "/" || p === "/index.html") return serveFile(res, path.join(__dirname, "flows.html"), "text/html; charset=utf-8");
     if (p === "/disco") return serveFile(res, path.join(__dirname, "cockpit.html"), "text/html; charset=utf-8");
+    /* O aviso de aba: favicon animado, título piscando, notificação do SO. Um
+     * arquivo servido às três páginas em vez de um quarto bloco copiado — o
+     * topbar e o `.aviso` já são três cópias e essa fila não precisa crescer.
+     * `no-store` como o resto: editar o arquivo e recarregar tem que valer, e um
+     * favicon em cache é justo o tipo de coisa que ninguém pensa em invalidar. */
+    if (p === "/aba.js") return serveFile(res, path.join(__dirname, "aba.js"), "text/javascript; charset=utf-8");
 
     if (p === "/api/n8n/overview") return json(res, 200, await n8n.overview());
 
@@ -532,6 +553,17 @@ const server = http.createServer(async (req, res) => {
 
     if (p === "/api/tester/blueprints") return json(res, 200, await tester.ledger());
 
+    /* As novidades do n8n. O job diário vive no `novidades.js` e escreve sozinho;
+     * estas rotas só mostram e fecham o aviso. `forcar` existe para não ser
+     * preciso esperar 24h para ver se funciona — é o mesmo trabalho, adiantado,
+     * e não pula portão nenhum. */
+    if (p === "/api/novidades" && req.method === "GET") return json(res, 200, novidades.estado());
+    if (p === "/api/novidades/fechar" && req.method === "POST") return json(res, 200, await novidades.fecharAviso());
+    if (p === "/api/novidades/verificar" && req.method === "POST") {
+      const r = await novidades.rodada({ tester, aoDizer: m => console.log("novidades:", m) });
+      return json(res, r.ok ? 200 : 502, { ...r, estado: novidades.estado() });
+    }
+
     // Projetos salvos: o que o Tester produziu e o Kauan decidiu guardar.
     if (p === "/api/tester/projetos") return json(res, 200, await tester.listarProjetos());
 
@@ -604,14 +636,62 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    /* A bandeja: onde os anexos esperam antes de a sessão existir.
+     *
+     * A tela de abertura recebe print e pasta enquanto a pessoa ainda está
+     * escrevendo a ideia — não há id de sessão para pendurar isso. Sem a
+     * bandeja, a interface teria de segurar os arquivos em memória e mandar tudo
+     * no clique de «Começar», que é o corpo gigante que a gravação um-a-um
+     * evita. Bandeja abandonada é limpa por idade no boot.
+     *
+     * Nada aqui interpreta o arquivo: `anexos.js` valida extensão, tamanho e
+     * caminho, e recusa devolvendo a frase que a tela mostra. */
+    if (p === "/api/tester/anexo" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, ANEXO_BODY_CAP) || "{}");
+      try {
+        const bandeja = body.bandeja ? String(body.bandeja) : anexos.novaBandeja();
+        const dir = anexos.dirBandeja(TESTER_RUNS, bandeja);
+        await fsp.mkdir(dir, { recursive: true });
+        const atuais = await anexos.inventario(dir);
+        const r = await anexos.gravar(dir, { nome: body.nome, rel: body.rel, b64: body.b64 }, atuais);
+        // `categoria` atravessa para a tela poder AGRUPAR as recusas de um lote —
+        // uma pasta de projeto recusa vários de uma vez, e um aviso por arquivo
+        // vira uma coluna em que o último esconde o primeiro.
+        if (!r.ok) return json(res, 400, { error: r.motivo, categoria: r.categoria || null, bandeja });
+        const lista = await anexos.inventario(dir);
+        await anexos.escreverIndice(dir, lista);
+        return json(res, 200, { bandeja, anexos: lista, resumo: anexos.resumo(lista) });
+      } catch (err) {
+        return json(res, err.status || 400, { error: String(err && err.message || err) });
+      }
+    }
+
+    // Tirar um chip antes de começar. Só apaga dentro de `anexos/` da bandeja —
+    // o guarda de caminho está em `anexos.js` e é ele que recusa o resto.
+    if (p === "/api/tester/anexo/remover" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+      try {
+        const dir = anexos.dirBandeja(TESTER_RUNS, String(body.bandeja || ""));
+        await anexos.remover(dir, String(body.arquivo || ""));
+        const lista = await anexos.inventario(dir);
+        await anexos.escreverIndice(dir, lista);
+        return json(res, 200, { bandeja: String(body.bandeja), anexos: lista, resumo: anexos.resumo(lista) });
+      } catch (err) {
+        return json(res, err.status || 400, { error: String(err && err.message || err) });
+      }
+    }
+
     if (p === "/api/tester/session" && req.method === "POST") {
       const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
       const ideia = typeof body.ideia === "string" ? body.ideia.trim() : "";
       if (!ideia || ideia.length > 2000) return json(res, 400, { error: "ideia vazia ou longa demais" });
       const NIVEIS = ["nunca mexi", "sei o básico", "sou técnico"];
       const nivel = NIVEIS.includes(body.nivel) ? body.nivel : "sei o básico";
+      // A bandeja é validada por formato aqui e pelo próprio `dirBandeja` lá
+      // dentro: id de fora do processo nunca vira caminho sem passar por regex.
+      const bandeja = /^b[a-f0-9]{6,20}$/.test(String(body.bandeja || "")) ? String(body.bandeja) : null;
       try {
-        return json(res, 202, await tester.iniciar({ ideia, nivel }));
+        return json(res, 202, await tester.iniciar({ ideia, nivel, bandeja }));
       } catch (err) {
         return json(res, err.status || 500, { error: String(err && err.message || err) });
       }
@@ -646,6 +726,17 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      /* Parar no meio. Sem corpo de propósito: não há nada a parametrizar, e um
+       * corpo vazio mantém o Esc da tela a um `fetch` de distância. Escreve
+       * ZERO no n8n — mata o processo local e nada mais. */
+      if (sub === "cancelar" && req.method === "POST") {
+        try {
+          return json(res, 200, await tester.cancelar(id));
+        } catch (err) {
+          return json(res, err.status || 500, { error: String(err && err.message || err) });
+        }
+      }
+
       if (sub === "reply" && req.method === "POST") {
         const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
         const texto = typeof body.texto === "string" ? body.texto.trim().slice(0, 2000) : null;
@@ -657,6 +748,27 @@ const server = http.createServer(async (req, res) => {
         } catch (err) {
           return json(res, err.status || 500, { error: String(err && err.message || err) });
         }
+      }
+
+      /* Anexar com a conversa já aberta. Não reinicia etapa: quem dispara a
+       * releitura é a mensagem seguinte, pelo caminho de texto livre que já
+       * existe. Assim dá para arrastar três arquivos e falar uma vez. */
+      if (sub === "anexo" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, ANEXO_BODY_CAP) || "{}");
+        try {
+          return json(res, 200, await tester.anexar(id, { nome: body.nome, rel: body.rel, b64: body.b64 }));
+        } catch (err) {
+          return json(res, err.status || 400, {
+            error: String(err && err.message || err), categoria: err && err.categoria || null
+          });
+        }
+      }
+
+      if (sub === "desanexar" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+        try {
+          return json(res, 200, await tester.desanexar(id, String(body.arquivo || "")));
+        } catch (err) { return json(res, err.status || 400, { error: String(err && err.message || err) }); }
       }
 
       /* A decisão sobre um remendo. É o único ponto em que o arquivo do projeto
@@ -774,6 +886,16 @@ const server = http.createServer(async (req, res) => {
       }
       if (action === "revert" && req.method === "POST") return json(res, 200, await claudeFix.revert(id));
 
+      /* A segunda escrita que sai da instância, e a única sem desfazer: manda
+         mensagem para pessoa de verdade. O `execId` vem do cliente porque só a
+         tela sabe qual execução está em cima (`newestSampleId`) — e por isso
+         `claudeFix.retry` reconfere de qual fluxo ela é e se ela falhou, em vez
+         de escrever com base no que a página afirmou. */
+      if (action === "retry" && req.method === "POST") {
+        const { execId } = JSON.parse(await readBody(req, 4 * 1024) || "{}");
+        return json(res, 200, await claudeFix.retry(id, execId));
+      }
+
       return json(res, 404, { error: "ação desconhecida" });
     }
 
@@ -801,6 +923,18 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Cockpit em http://localhost:${PORT}`);
   console.log(`Raiz: ${ROOT}`);
+
+  /* O job diário das novidades do n8n.
+   *
+   * Fica AQUI e não num hook do Claude Code: hook dispara em evento de sessão, e
+   * isto tem que acontecer com o Claude fechado. Este processo é o que já fica
+   * aberto o dia inteiro.
+   *
+   * `agendar` bate de hora em hora e o próprio `novidades.js` decide se passaram
+   * 24h — então uma máquina desligada por três dias faz UMA rodada ao voltar, em
+   * vez de nenhuma. Não depende do n8n estar configurado: o feed é do projeto
+   * n8n, não da instância dele. */
+  novidades.agendar({ tester, aoDizer: m => console.log("novidades:", m) });
   if (n8n.configured) {
     console.log(`n8n: ${n8n.instance} — poll a cada ${POLL_MS / 1000}s`);
     pollTick();
@@ -814,4 +948,11 @@ server.listen(PORT, "127.0.0.1", () => {
   } else {
     console.log("n8n: NÃO configurado (falta .env com N8N_BASE_URL e N8N_API_KEY)");
   }
+  /* Bandeja de anexo que ninguém adotou é lixo com arquivo de alguém dentro:
+   * abrir a tela, arrastar uma pasta e fechar o navegador deixa uma para trás.
+   * Some por idade, no boot — e o número aparece, porque um diretório que cresce
+   * em silêncio é o tipo de coisa que só é descoberta quando o disco enche. */
+  anexos.limparBandejas(TESTER_RUNS, 24 * 60 * 60 * 1000)
+    .then(n => { if (n) console.log(`bandejas de anexo abandonadas removidas: ${n}`); })
+    .catch(err => console.log("não consegui limpar bandejas de anexo:", err.message));
 });

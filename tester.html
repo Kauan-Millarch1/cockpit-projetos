@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tester · Cockpit</title>
+<!-- O favicon é DESENHADO por `/aba.js` (um fluxo: um nó, dois ramos, duas
+     arestas) e animado quando o Tester termina. Nasce vazio de propósito: um
+     `.ico` no disco seria um segundo desenho para manter em sincronia com este,
+     e o desenho já existe em código. -->
+<link rel="icon" href="data:,">
+<script src="/aba.js" defer></script>
 <style>
 /* Tokens: os mesmos do flows.html. Mudar cor aqui sem mudar lá é como o painel
    começa a parecer dois produtos. Status color (ok/warn/risk) é RESERVADA:
@@ -96,6 +102,30 @@ button{font:inherit;color:inherit}
 .brand .wm{font-size:15px;margin:0;font-weight:700;line-height:1.45}
 .brand .wm b{color:var(--txt)}
 .brand .wm span{color:var(--txt-faint);font-weight:500}
+/* O carimbo da base. Numeral tabular como todo número deste painel, e `--brand`
+   porque é identidade — a versão não é status, e gastar cor de status aqui
+   queimaria o alarme antes de alguma coisa quebrar. */
+.brand .ver{font-family:var(--font-num);font-size:10px;letter-spacing:.06em;
+  color:var(--brand-txt);border:1px solid var(--line);border-radius:6px;
+  padding:1px 6px;white-space:nowrap;flex:0 0 auto;cursor:default}
+.brand .ver.velho{color:var(--txt-faint)}
+@media (max-width:700px){.brand .ver{display:none}}
+/* A FAIXA DE ATUALIZAÇÃO. Vive FORA do `#app` de propósito: o `#app` é
+   reescrito inteiro a cada evento do SSE, e um aviso lá dentro sumiria e
+   voltaria a cada segundo durante um build — piscando exatamente quando ele
+   está tentando ler. `ok` e não `info`: alguma coisa foi concluída com sucesso,
+   e este é o único aviso deste painel que anuncia um FATO CONSUMADO em vez de
+   uma consequência de um clique. Não some sozinho, por decisão dele. */
+.novband{padding:10px 18px 0}
+.novband .aviso{max-width:none}
+.novband .nv-l{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+.novband .nv-l li{font-size:12px;line-height:1.5;color:var(--txt-dim)}
+.novband .nv-l b{color:var(--txt);font-weight:600}
+.novband .nv-l .nv-v{font-family:var(--font-num);font-size:10px;letter-spacing:.05em;
+  color:var(--txt-faint);margin-left:6px}
+.novband .nv-l a{color:inherit}
+.novband .nv-esq{margin-top:7px;font-size:11.5px;color:var(--warn-txt)}
+.novband .nv-cod{font-family:var(--font-num);font-size:11px}
 /* ═══════════════════════════════════════════════════════ NAV — as três portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html e
    cockpit.html — gerado por preview/aplicar-nav.js e travado por
@@ -240,6 +270,43 @@ button{font:inherit;color:inherit}
 .iconbtn:hover{background:var(--surface-2);color:var(--txt-dim)}
 .iconbtn[hidden]{display:none}
 
+/* O botão de aviso do sistema, criado por `aba.js`. Ele já se veste com a classe
+   do botão de tema desta página; aqui fica só o que é dele. Copiado seletor a
+   seletor nas três páginas, como o resto do chrome — mexeu aqui, repete lá.
+   `gap` em vez de espaço no texto, e glifo de largura fixa: senão a caixa muda
+   de tamanho ao alternar ○/◉/⊘, e um botão que pula ao ser clicado lê como
+   defeito. Ligado ganha acento porque `○` e `◉` a 11px são quase a mesma
+   mancha — e essa mancha é a única informação que o botão carrega. */
+.avisarbtn{display:inline-flex;align-items:center;gap:5px}
+.avisarbtn .dot{width:1em;text-align:center;flex:0 0 auto}
+/* `--accent-txt` puro sobre `--accent-soft` mede 4,38 no escuro: falha AA a
+   11px. É o MESMO número que os avisos já pagaram, e o remédio é o mesmo —
+   misturar com `--txt` mantém o acento reconhecível e sobe o contraste. O glifo
+   fica com o acento inteiro: ele é forma, não texto corrido. */
+.avisarbtn.on{color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt));
+  border-color:var(--accent-line);background:var(--accent-soft)}
+.avisarbtn.on .dot{color:var(--accent-txt)}
+.avisarbtn.bloq{opacity:.55}
+
+/* ------------------------------------------------------- modo gravação (REC)
+   Copiado do flows.html, seletor a seletor, como o resto do chrome. Aqui o que
+   carrega `sens` são os nomes de credencial da conta (a checklist e os chips de
+   desempate) — o resto da tela é o que o Kauan mesmo digitou e a simulação, que
+   é semeada, não dado real. O borrão nunca abre no hover: a tela pode estar
+   sendo filmada agora. */
+.rec .dot{display:inline-block}
+[data-rec="1"] .rec{color:var(--accent-txt);border-color:var(--accent-line);background:var(--accent-soft)}
+[data-rec="1"] .rec .dot{animation:recpulse 1.6s ease-in-out infinite}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sens{transition:filter .45s ease}
+[data-rec="1"] .sens{filter:blur(7px);user-select:none}
+.rec-wave{position:fixed;inset:0;z-index:400;pointer-events:none;
+  background:color-mix(in srgb,var(--accent) 16%,transparent)}
+@media (prefers-reduced-motion: reduce){
+  [data-rec="1"] .rec .dot{animation:none}
+  .sens{transition:none}
+}
+
 /* ------------------------------------------------- card "em construção"
    O projeto que está sendo construído AGORA, visto da tela de abertura. Ele é
    deliberadamente diferente de um projeto guardado: translúcido e com a borda
@@ -327,8 +394,84 @@ button{font:inherit;color:inherit}
 .eg{font-size:11.5px;color:var(--txt-faint);border:1px dashed var(--line);border-radius:999px;
   padding:6px 12px;cursor:pointer;background:none}
 .eg:hover{color:var(--txt-dim);border-color:var(--accent-line)}
-.avisobar{max-width:700px;margin:16px auto 0;font-size:12px;line-height:1.6;border-radius:10px;
-  padding:10px 12px;background:var(--warn-soft);color:var(--warn-txt);border:1px solid var(--warn-soft);text-align:left}
+/* ================================================================== AVISOS
+   UM vocabulário para toda mensagem do sistema, nas três páginas.
+
+   Antes havia quatro: `.avisobar` na abertura, `alertaInline()` na corrida,
+   `.anxerro` nos anexos e o `confirm()` nativo (já removido). Quatro jeitos de
+   dizer a mesma coisa é o que faz um painel parecer montado por quatro pessoas —
+   e o aviso é justamente o momento em que ele precisa ser mais confiável.
+
+   Dois MODOS, um só desenho:
+     `.aviso`         — ancorado, fica onde o problema está (campo, seção, caixa).
+     `.avisos > .aviso` — evento: o CONTAINER e que faz flutuar, sai sozinho.
+   E quatro TIPOS, que só trocam a cor e o glifo: erro, alerta, ok, info.
+
+   O tipo decide o comportamento, não só a cor: erro e alerta NÃO somem sozinhos
+   (quem precisa ler não pode perder a frase), ok e info somem em 4,5s com a
+   barra mostrando o tempo — uma coisa que vai desaparecer tem que dizer isso.
+
+   Cor de status aqui é uso canônico: `--*-txt` no texto e `-soft` no fundo, que
+   é a mesma divisão fill-vs-text que o resto do produto já segue. */
+.aviso{display:flex;gap:9px;align-items:flex-start;text-align:left;
+  font-size:12px;line-height:1.6;border-radius:10px;padding:10px 12px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--txt-dim)}
+.aviso .ai{flex:0 0 auto;font-size:11px;line-height:1.55;opacity:.95}
+.aviso .ac{flex:1 1 auto;min-width:0}
+.aviso .at{display:block;font-weight:650;color:var(--txt);margin-bottom:2px}
+.aviso .ax{flex:0 0 auto;border:none;background:none;cursor:pointer;padding:1px 4px;
+  border-radius:5px;color:inherit;opacity:.55;font-size:13px;line-height:1}
+.aviso .ax:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}
+/* A borda sai da PRÓPRIA cor do tipo (`currentColor`), não de um token por
+   variante: `--risk-line` e `--ok-line` não existem neste produto, e inventar
+   quatro tokens novos para uma borda seria quatro lugares para dessincronizar.
+   Assim os quatro tipos têm exatamente o mesmo peso de contorno. */
+.aviso.erro,.aviso.alerta,.aviso.ok,.aviso.info{border-color:color-mix(in srgb,currentColor 30%,transparent)}
+/* A cor é PUXADA para o texto base. Medido no DOM vivo, com o `-soft` composto
+   sobre o fundo da página: `--risk-txt` puro dava 4,41 no claro, `--warn-txt`
+   4,30, `--ok-txt` 4,29 e `--accent-txt` 4,38 no escuro — quatro reprovações de
+   AA (4,5) em texto de 12px. É a armadilha que este projeto já documentou: token
+   calibrado como preenchimento não é token de texto, e `-txt` sozinho foi
+   calibrado contra `--surface`, não contra o próprio `-soft`.
+   A mistura mantém a cor reconhecível (o vermelho continua vermelho) e sobe o
+   contraste com folga. Mexeu em token de status? Re-meça — não confie na captura. */
+.aviso.erro{background:var(--risk-soft);color:color-mix(in srgb,var(--risk-txt) 72%,var(--txt))}
+.aviso.alerta{background:var(--warn-soft);color:color-mix(in srgb,var(--warn-txt) 72%,var(--txt))}
+.aviso.ok{background:var(--ok-soft);color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt))}
+.aviso.info{background:var(--accent-soft);color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt))}
+/* O glifo fica na cor CHEIA: ele é forma, não texto corrido, e é o que mantém a
+   identidade do tipo legível de longe. */
+.aviso.erro .ai{color:var(--risk-txt)}
+.aviso.alerta .ai{color:var(--warn-txt)}
+.aviso.ok .ai{color:var(--ok-txt)}
+.aviso.info .ai{color:var(--accent-txt)}
+.aviso.bloco{max-width:700px;margin:16px auto 0}
+
+/* A pilha. `fixed` no alto à direita, abaixo do topbar: não cobre o compositor
+   (embaixo), não cobre o cabeçalho (em cima), e é para onde o olho vai depois de
+   clicar num botão do cabeçalho. Empilha para baixo; o mais novo entra por cima.
+   `pointer-events` só nos cartões — a pilha inteira não pode roubar clique da
+   página atrás dela. */
+.avisos{position:fixed;top:70px;right:18px;z-index:60;display:flex;flex-direction:column;gap:8px;
+  width:min(380px,calc(100vw - 36px));pointer-events:none}
+.avisos .aviso{pointer-events:auto;box-shadow:var(--shadow);backdrop-filter:blur(8px);
+  animation:avin .26s cubic-bezier(.2,.9,.3,1) both}
+.aviso.saindo{animation:avout .18s ease-in both}
+@keyframes avin{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes avout{from{opacity:1}to{opacity:0;transform:translateX(10px)}}
+/* A barra do tempo restante. Só existe onde há auto-dismiss — desenhar uma barra
+   parada num aviso que não sai seria prometer que ele vai sumir. */
+.aviso .abar{position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:currentColor;opacity:.35;transform-origin:left;animation:avbar linear both}
+@keyframes avbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.avisos .aviso{position:relative;overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .avisos .aviso,.aviso.saindo{animation-duration:1ms;animation-delay:0s}
+  /* A barra continua encurtando: ela é INFORMAÇÃO (quanto falta), não enfeite.
+     O que sai é o deslize de entrada, que é decoração. */
+  .aviso .abar{animation-duration:inherit}
+}
+@media (max-width:520px){ .avisos{top:auto;bottom:14px;right:12px;left:12px;width:auto} }
 
 /* --------------------------------------------------------------- corrida */
 .split{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
@@ -400,6 +543,63 @@ button{font:inherit;color:inherit}
 .composer textarea{flex:1;border:none;background:none;resize:none;font:inherit;font-size:12.5px;
   color:var(--txt);line-height:1.55;max-height:120px;outline:none;min-height:22px}
 .composer textarea::placeholder{color:var(--txt-faint)}
+
+/* -------------------------------------------------- voz, anexos e a bandeja
+   Duas entradas novas no mesmo lugar onde já se escreve: falar e anexar. Elas
+   dividem a fileira de botões porque são a mesma coisa do ponto de vista de quem
+   usa — dizer o que quer sem digitar.
+
+   O microfone GRAVANDO é a única coisa aqui que pulsa, e pulsa porque é estado
+   perigoso de esquecer: um microfone aberto que ninguém percebeu é pior que um
+   botão feio. `--risk` está reservado para status de fluxo, então a gravação usa
+   `--accent` com um ponto batendo, igual ao modo gravação da tela. */
+.iobar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.iob{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--txt-faint);
+  border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;
+  line-height:1.3;cursor:pointer;min-height:30px;flex:0 0 auto}
+.iob:hover:not(:disabled){color:var(--txt);border-color:var(--accent-line)}
+.iob:disabled{opacity:.45;cursor:default}
+.iob.ouvindo{color:var(--accent-txt);border-color:var(--accent-line);background:var(--accent-soft)}
+.iob.ouvindo .pt{animation:ouvepulse 1.2s ease-in-out infinite}
+@keyframes ouvepulse{0%,100%{opacity:1}50%{opacity:.25}}
+.iob .pt{font-size:9px;line-height:1}
+
+/* O texto que o navegador ainda está adivinhando. Ele aparece esmaecido e em
+   itálico enquanto não é final, porque a Web Speech reescreve a frase inteira
+   várias vezes antes de fechar — mostrar isso como texto normal dá a impressão
+   de que a transcrição está errando, quando ela só não terminou. */
+.ditando{font-style:italic;color:var(--txt-faint)}
+
+.anexos{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.anx{display:inline-flex;align-items:center;gap:7px;max-width:100%;font-size:11px;
+  border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:4px 6px 4px 8px;
+  color:var(--txt-dim);line-height:1.35}
+.anx .ic{font-size:11px;opacity:.8;flex:0 0 auto}
+.anx .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch}
+.anx .sz{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);flex:0 0 auto}
+/* Lido é FATO OBSERVADO, não promessa: sai do `tool_use` da sessão. Por isso
+   ganha marca própria — um anexo que a sessão nunca abriu tem que ser
+   distinguível de um que ela leu, senão anexar é um ato de fé. */
+.anx.lido{border-color:var(--accent-line);color:var(--txt)}
+.anx.lido .ic{opacity:1;color:var(--accent-txt)}
+.anx .x{border:none;background:none;color:var(--txt-faint);cursor:pointer;font-size:13px;
+  line-height:1;padding:2px 4px;border-radius:5px;flex:0 0 auto}
+.anx .x:hover{color:var(--txt);background:var(--raised)}
+.anx.subindo{opacity:.6}
+.anx.ruim{border-color:var(--warn-line,var(--line));color:var(--warn-txt)}
+.anxnota{font-size:10.5px;color:var(--txt-faint);margin-top:6px;line-height:1.5}
+.anxnota b{color:var(--txt-dim);font-weight:600}
+/* Recusa de anexo usa `.aviso.alerta` (ver o bloco AVISOS). Não há classe de
+   erro própria aqui de propósito: era uma das quatro que o vocabulário único
+   substituiu. */
+/* Arrastar para cima da caixa. O alvo é a caixa inteira, não um retângulo
+   pontilhado separado: uma segunda área de soltar seria um lugar a mais para
+   errar, e a caixa já é o lugar onde a conversa acontece. */
+/* `.compzone` é o invólucro dos chips + a caixa. Arrastar sobre ele destaca a
+   CAIXA, não o invólucro: o realce tem que aparecer onde a borda existe. */
+.bigbox.sobre,.composer.sobre{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.compzone.sobre .composer{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+@media (prefers-reduced-motion: reduce){ .iob.ouvindo .pt{animation:none} }
 
 /* ------------------------------------------------------------ o desenho */
 .canvas{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-deep);
@@ -570,6 +770,11 @@ details.jsonbox .inner{padding:0 13px 13px}
 .st.feita .num{color:var(--ok-txt)}
 .st.pulada .num,.st.vazia .num{color:var(--cold-txt)}
 .st.falhou .num,.st.falhou .tag{color:var(--risk-txt)}
+/* Cancelada NÃO é falhou, e a cor é o que diz isso à distância: `--risk` é para
+   o que quebrou sozinho. Parar foi decisão sua, então é o tom frio de "fora de
+   serviço" — o mesmo que a lixeira usa. */
+.st.cancelada .num,.st.cancelada .tag{color:var(--cold-txt)}
+.st.cancelada .nm{color:var(--txt-faint);text-decoration:line-through}
 .st.pendente .num,.st.pendente .nm,.st.pendente .tag{opacity:.6}
 .st.correndo,.st.espera{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-line)}
 .st.correndo .nm,.st.espera .nm{color:var(--txt);font-weight:600}
@@ -609,6 +814,21 @@ details.jsonbox .inner{padding:0 13px 13px}
 .proc .t2{display:block;font-family:var(--font-num);font-size:10.5px;color:var(--txt-faint);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;line-height:1.4}
 .proc .passo{font-family:var(--font-num);font-size:10px;color:var(--accent-txt);flex:0 0 auto}
+/* O botão de parar. Existe porque atalho sozinho é porta que ninguém acha — e o
+   momento em que se procura parar é o momento em que ninguém vai adivinhar uma
+   tecla. Ele carrega o "esc" escrito: quem clica uma vez aprende o atalho. */
+.proc .parar{flex:0 0 auto;font-family:var(--font-num);font-size:10px;line-height:1;
+  display:inline-flex;align-items:center;gap:6px;padding:6px 9px;cursor:pointer;
+  border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--txt-dim)}
+.proc .parar:hover{color:var(--risk-txt);border-color:var(--risk-soft)}
+.proc .parar kbd{font-family:var(--font-num);font-size:8.5px;color:var(--txt-faint);
+  border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+
+/* Parou porque você mandou parar. Deliberadamente NÃO é `.erro`: vermelho aqui
+   gastaria o alarme num evento que você provocou de propósito. */
+.parado{border:1px solid var(--line);background:var(--surface-2);color:var(--txt-dim);
+  border-radius:10px;padding:11px 13px;font-size:12.3px;line-height:1.55;max-width:70ch}
+.parado strong{color:var(--txt)}
 @keyframes girar{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.proc .spin{animation:none;border-top-color:var(--accent-line)}}
 .band .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-num);font-size:11px}
@@ -840,6 +1060,10 @@ details.jsonbox .inner{padding:0 13px 13px}
   const q = new URLSearchParams(location.search).get("theme");
   const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  // Modo gravação: como o tema, o estado é do produto e roda no <head> — o
+  // borrão tem que existir antes do primeiro paint, senão a navegação pisca o
+  // dado que o modo esconde da filmagem.
+  if (localStorage.getItem("cockpit-rec") === "1") document.documentElement.setAttribute("data-rec", "1");
 })();
 </script>
 </head>
@@ -855,6 +1079,10 @@ details.jsonbox .inner{padding:0 13px 13px}
       <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
     </span>
     <h1 class="wm"><b>COCKPIT</b> <span>/ tester</span></h1>
+    <!-- A base que ESTE processo carrega. Preenchido pelo status, nunca escrito
+         aqui: uma constante na página diria a versão do arquivo servido, e o que
+         importa é a do Node que está respondendo. -->
+    <span class="ver" id="ver" hidden></span>
   </div>
   <div class="sep"></div>
   <nav class="nvd" aria-label="telas do cockpit">
@@ -870,8 +1098,13 @@ details.jsonbox .inner{padding:0 13px 13px}
   <div class="spacer"></div>
   <span class="meta" id="cab"></span>
   <button class="iconbtn" id="tema" type="button" title="alternar tema">◐</button>
+  <button class="iconbtn rec" id="rec" type="button" aria-pressed="false"
+    title="modo gravação — borra dados sensíveis para filmar a tela"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button>
 </header>
 
+<!-- Fora do `#app`: ele é reescrito inteiro a cada evento do SSE, e este aviso
+     tem que ficar parado até ele fechar. -->
+<div class="novband" id="novband" hidden></div>
 <main id="app"></main>
 <div class="foot" id="foot"><span>nada foi criado no n8n</span><span>·</span><span>nenhuma chamada feita</span></div>
 
@@ -893,7 +1126,11 @@ const ESTADO_TAG = {
   feita:    { tag: "✓",            ordem: 2 },
   pulada:   { tag: "PULADA",       ordem: 2 },
   vazia:    { tag: "SEM RESULTADO",ordem: 2 },
-  falhou:   { tag: "FALHOU",       ordem: 3 }
+  falhou:   { tag: "FALHOU",       ordem: 3 },
+  /* `ordem: 2` conta a etapa cancelada como concluída no "04 de 07" e no
+     percentual da tela inicial — e conta certo: ela não vai rodar de novo
+     sozinha. Deixá-la em 1 faria o contador andar para trás na hora de parar. */
+  cancelada:{ tag: "VOCÊ PAROU",   ordem: 2 }
 };
 /* Etapa que PARA e espera decisão. Só duas: confirmar a intenção antes de
    gastar, e o acordo sobre o resultado. Ver PLAN.md §4. */
@@ -990,7 +1227,17 @@ async function callApi(url, opts) {
   if (!body || typeof body !== "object" || Array.isArray(body) && !res.ok) {
     if (!res.ok) throw new Error("o servidor respondeu " + res.status);
   }
-  if (!res.ok) throw new Error((body && body.error) || ("o servidor respondeu " + res.status));
+  if (!res.ok) {
+    const err = new Error((body && body.error) || ("o servidor respondeu " + res.status));
+    // Campos que o servidor manda JUNTO com o erro chegam a quem chamou. Hoje é
+    // `categoria` (para agrupar recusas de anexo); sem isto ela morria no `throw`
+    // e a tela só teria a frase, que é o que impede agrupar por motivo.
+    if (body && typeof body === "object") {
+      if (body.categoria) err.categoria = body.categoria;
+      if (body.bandeja) err.bandeja = body.bandeja;
+    }
+    throw err;
+  }
   return body;
 }
 
@@ -1011,7 +1258,387 @@ const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desen
   respostas: {},
   // pan/zoom do grafo e assinatura do fantasma: sem eles cada evento do SSE
   // resetaria a câmera e re-animaria a chegada da mensagem
-  cam: null, fantasmaVisto: null };
+  cam: null, fantasmaVisto: null,
+  /* A bandeja de anexos da tela de abertura: os arquivos já estão no servidor
+     antes de a sessão existir, e `bandeja` é o recibo. `anexosPre` é o que
+     desenhar; `anexoErro` é a última recusa, que tem que aparecer porque um
+     arquivo que sumiu sem explicação é pior que um arquivo negado. */
+  bandeja: null, anexosPre: [], anexoErro: null, subindo: 0,
+  // O ditado por voz. `ouvindo` é o estado do microfone; `parcial` é o que o
+  // navegador ainda está adivinhando e vai reescrever.
+  ouvindo: false, parcial: "", rec: null };
+
+/* ============================================================================
+   VOZ E ANEXOS — as duas entradas que não são o teclado
+   ============================================================================
+
+   VOZ. O ditado é do NAVEGADOR (Web Speech API), não do servidor, e isso é uma
+   decisão de segurança, não de preguiça: transcrever no servidor significaria
+   uma chave de API de terceiro dentro deste processo, que é exatamente o que
+   este projeto evitou até hoje — a chave do n8n nunca sai da máquina e as
+   sugestões do quadro de erros são heurística em código justamente para não
+   virar chamada de modelo no servidor. O preço está dito na tela: depende do
+   Chrome e a transcrição passa pelo Google. Sem suporte, o botão não aparece —
+   um botão que não funciona é pior que a ausência dele.
+
+   ANEXOS. O arquivo vai para o disco da sessão e a sessão do Claude o abre com
+   `Read`. Não existe OCR nosso, nem extrator de PDF, nem parser de planilha: o
+   CLI já lê imagem e PDF nativamente, e escrever isso aqui seria manter para
+   sempre uma versão pior do que já existe. O que este código faz é levar o
+   arquivo até lá e mostrar o que aconteceu com ele. */
+
+const VOZ_OK = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+const ICONE_ANEXO = { imagem: "▣", pdf: "▤", texto: "▥", dados: "▦" };
+const kb = n => n < 1024 * 1024
+  ? Math.max(1, Math.round(n / 1024)) + "KB"
+  : (n / (1024 * 1024)).toFixed(1).replace(".", ",") + "MB";
+
+/* Um chip por anexo. `lidos` vem do servidor e é observação do `tool_use` da
+   sessão — não é "o prompt pediu para ler", é "ela abriu este arquivo". A
+   distinção é o que faz o chip valer alguma coisa.
+
+   O NOME é `sens`: "clientes-2026.csv" identifica cliente, e o modo gravação
+   existe para isso. O tipo e o tamanho ficam legíveis — eles não identificam
+   ninguém e são o que permite conferir que o anexo certo subiu. */
+function chipsAnexos(lista, lidos, podeRemover) {
+  const arr = (lista || []).filter(Boolean);
+  if (!arr.length) return "";
+  const set = new Set(lidos || []);
+  return '<div class="anexos">' + arr.map(a => {
+    const lido = set.has(a.arquivo);
+    return '<span class="anx' + (lido ? " lido" : "") + '"' +
+      (lido ? ' title="a sessão abriu este arquivo"' : ' title="anexado — a sessão decide se precisa abrir"') + ">" +
+      '<span class="ic" aria-hidden="true">' + (ICONE_ANEXO[a.tipo] || "▧") + "</span>" +
+      '<span class="nm sens">' + esc(a.dePasta ? a.arquivo.replace(/^anexos\//, "") : a.nome) + "</span>" +
+      '<span class="sz">' + kb(a.bytes || 0) + "</span>" +
+      (podeRemover
+        ? '<button type="button" class="x" data-tirar="' + esc(a.arquivo) + '" aria-label="tirar ' + esc(a.nome) + '">×</button>'
+        : "") +
+      "</span>";
+  }).join("") + "</div>";
+}
+
+/* A nota embaixo dos chips. Ela diz três coisas que ninguém adivinha: que o
+   custo do anexo é token quando a sessão abre, que texto passou por limpeza de
+   segredo, e que imagem e PDF NÃO passaram — não dá para varrer pixel. Dizer o
+   que não foi feito é a parte que costuma faltar. */
+function notaAnexos(lista) {
+  const arr = (lista || []).filter(Boolean);
+  if (!arr.length) return "";
+  const limpos = arr.reduce((a, x) => a + (x.segredosRemovidos || 0), 0);
+  const visuais = arr.filter(x => x.tipo === "imagem" || x.tipo === "pdf").length;
+  const partes = ["<b>" + arr.length + " anexo(s)</b> — a sessão lê o que precisar e ignora o resto"];
+  if (limpos) partes.push("em texto, " + limpos + " valor(es) com cara de token foram trocados por «segredo removido»");
+  if (visuais) partes.push(visuais + " imagem/PDF não passa por essa limpeza — o cockpit não varre pixel");
+  return '<div class="anxnota">' + partes.join(" · ") + "</div>";
+}
+
+/* A fileira de botões. `pasta` é o mesmo `<input type=file>` com
+   `webkitdirectory`, que é como o navegador entrega uma árvore inteira: cada
+   arquivo chega com `webkitRelativePath`, e é isso que o servidor usa para
+   preservar a estrutura em vez de achatar tudo num diretório só. */
+function barraIO(idPrefixo) {
+  return '<span class="iobar">' +
+    (VOZ_OK
+      ? '<button type="button" class="iob" id="' + idPrefixo + '-mic" aria-pressed="false" ' +
+        'title="ditar em vez de digitar — a transcrição é feita pelo navegador">' +
+        '<span class="pt" aria-hidden="true">●</span> falar</button>'
+      : "") +
+    /* Glifo geométrico, nunca emoji: medido na captura, `📎` e `🗀` saem como
+       caixa vazia nesta fonte — e o resto do produto já é monocromático por
+       decisão (o canvas proíbe emoji e logo de terceiro no mesmo espírito). */
+    '<button type="button" class="iob" id="' + idPrefixo + '-arq" ' +
+      'title="print, PDF, .md, .txt, CSV — a sessão abre e usa o que servir">' +
+      '<span aria-hidden="true">⊕</span> anexar</button>' +
+    '<button type="button" class="iob" id="' + idPrefixo + '-pasta" ' +
+      'title="uma pasta inteira: a sessão explora e escolhe o que importa">' +
+      '<span aria-hidden="true">⊞</span> pasta</button>' +
+    '<input type="file" id="' + idPrefixo + '-fi" multiple hidden ' +
+      'accept="image/png,image/jpeg,image/gif,image/webp,.pdf,.md,.markdown,.txt,.rst,.adoc,.log,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.htm,.js,.mjs,.ts,.jsx,.tsx,.py,.sql,.css">' +
+    '<input type="file" id="' + idPrefixo + '-fp" webkitdirectory directory multiple hidden>' +
+    "</span>";
+}
+
+/* --------------------------------------------------------------- o ditado */
+
+/* Uma instância por vez, `continuous` ligado, `interimResults` ligado.
+   `interim` é o que torna o ditado utilizável no palco: o texto aparece
+   enquanto a pessoa fala em vez de surgir de uma vez no fim.
+   O parcial vive FORA do textarea (num nó irmão), porque escrevê-lo dentro
+   destruiria o que já estava digitado a cada reescrita da frase. */
+function ligarVoz(botao, textarea, ondePreview) {
+  if (!VOZ_OK) return;
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const pinta = () => {
+    botao.classList.toggle("ouvindo", S.ouvindo);
+    botao.setAttribute("aria-pressed", String(S.ouvindo));
+    botao.lastChild.textContent = S.ouvindo ? " ouvindo — clique para parar" : " falar";
+    if (ondePreview) ondePreview.textContent = S.parcial ? S.parcial : "";
+  };
+
+  const parar = () => {
+    S.ouvindo = false; S.parcial = "";
+    if (S.rec) { try { S.rec.stop(); } catch { /* já parou */ } S.rec = null; }
+    pinta();
+  };
+
+  botao.addEventListener("click", () => {
+    if (S.ouvindo) { parar(); return; }
+    const rec = new Rec();
+    rec.lang = "pt-BR";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onresult = ev => {
+      let parcial = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const t = r[0] ? r[0].transcript : "";
+        if (r.isFinal) {
+          // Fecha a frase DENTRO do textarea, respeitando o que já havia: o
+          // ditado é uma segunda mão escrevendo no mesmo campo, não um modo que
+          // toma conta dele.
+          const sep = textarea.value && !/\s$/.test(textarea.value) ? " " : "";
+          textarea.value += sep + t.trim();
+          textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        } else {
+          parcial += t;
+        }
+      }
+      S.parcial = parcial.trim();
+      pinta();
+    };
+    // `no-speech` e `aborted` são rotina (silêncio, ou parar pelo botão) e não
+    // merecem alarme. Permissão negada, sim: sem dizer isso o botão parece
+    // quebrado quando o que falta é um clique no cadeado do navegador.
+    rec.onerror = ev => {
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+        avisar("Libere o microfone no cadeado ao lado do endereço e clique em «falar» de novo.",
+          "alerta", "O navegador bloqueou o microfone");
+      } else if (ev.error === "network") {
+        // A Web Speech transcreve no servidor do navegador: sem rede ela não
+        // funciona, e dizer isso evita a caça a um defeito que não é nosso.
+        avisar("O ditado do Chrome precisa de internet para transcrever. Pode digitar normalmente.",
+          "alerta", "Sem conexão para o ditado");
+      }
+      parar();
+    };
+    rec.onend = () => { if (S.ouvindo) { try { rec.start(); } catch { parar(); } } };
+
+    S.rec = rec; S.ouvindo = true; S.parcial = "";
+    try { rec.start(); pinta(); } catch { parar(); }
+  });
+
+  pinta();
+}
+
+/* --------------------------------------------------------------- os anexos */
+
+const b64De = arquivo => new Promise((ok, falha) => {
+  const fr = new FileReader();
+  fr.onerror = () => falha(new Error("não consegui ler o arquivo"));
+  // `readAsDataURL` devolve "data:tipo;base64,XXXX" — só a cauda interessa.
+  fr.onload = () => { const s = String(fr.result || ""); ok(s.slice(s.indexOf(",") + 1)); };
+  fr.readAsDataURL(arquivo);
+});
+
+/* Manda UM arquivo por requisição. Sequencial de propósito: o corpo fica
+   pequeno, cada recusa é atribuída ao arquivo certo, e a tela mostra progresso
+   real em vez de uma barra que representa 40 arquivos como se fossem um. */
+/* O RESUMO das recusas de um lote, em uma frase.
+   Medido arrastando uma pasta de projeto: `.env`, `.env.example` e uma chave
+   `.pem` foram recusados de uma vez, e cada um virou um aviso — três cartões
+   empilhados para um único fato ("esta pasta tem segredos, que não entram"). Numa
+   pasta de 50 arquivos isso cobre a tela e o último esconde o primeiro.
+   Agrupar por CATEGORIA é o que faz a frase escalar: o número de categorias é
+   fixo, o de arquivos não. */
+/* Singular e plural escritos, não derivados. O primeiro jeito era concatenar um
+   "s" quando havia mais de um, e saiu "3 chave ou segredos" na tela — em
+   português a flexão não cai no fim da frase. Duas strings custam menos que uma
+   regra de flexão que erra em metade dos rótulos. */
+const RECUSA_ROTULO = {
+  segredo: ["chave ou segredo", "chaves e segredos"],
+  converter: ["formato que precisa ser exportado", "formatos que precisam ser exportados"],
+  formato: ["tipo que eu não abro", "tipos que eu não abro"],
+  teto: ["acima do teto", "acima do teto"],
+  vazio: ["arquivo vazio", "arquivos vazios"],
+  ilegivel: ["não chegou legível", "não chegaram legíveis"]
+};
+
+function avisarRecusas(recusas) {
+  if (!recusas.length) return;
+  if (recusas.length === 1) {
+    avisar(recusas[0].motivo, "alerta", recusas[0].nome);
+    return;
+  }
+  // Agrupa por categoria preservando a ordem em que apareceram.
+  const porCat = new Map();
+  for (const r of recusas) {
+    const c = r.categoria || "formato";
+    if (!porCat.has(c)) porCat.set(c, []);
+    porCat.get(c).push(r.nome);
+  }
+  const partes = [...porCat.entries()].map(([c, nomes]) => {
+    const par = RECUSA_ROTULO[c] || [c, c];
+    return nomes.length + " " + par[nomes.length > 1 ? 1 : 0];
+  });
+  const nomes = recusas.map(r => r.nome).slice(0, 6).join(", ") +
+    (recusas.length > 6 ? " e mais " + (recusas.length - 6) : "");
+  /* A frase de segredo é dita por inteiro mesmo no resumo: é a única recusa cuja
+     razão a pessoa precisa entender, porque a mensagem antiga ("não sei abrir")
+     convidava a converter a chave para um formato aceito — ou seja, a insistir. */
+  const temSegredo = porCat.has("segredo");
+  avisar(nomes + (temSegredo ? " — " + MSG_SEGREDO_CURTA : ""), "alerta",
+    recusas.length + " arquivos não entraram: " + partes.join(", "));
+}
+
+const MSG_SEGREDO_CURTA = "chave e segredo não entram, e não é limitação de formato: " +
+  "a sessão não faz nenhuma chamada, então nunca precisa deles.";
+
+async function subirArquivos(files, sessaoId, repintar) {
+  const lista = [...files].slice(0, 40);
+  if (!lista.length) return;
+  S.anexoErro = null;
+  const recusas = [];
+  for (const f of lista) {
+    S.subindo++;
+    if (repintar) repintar();
+    try {
+      const b64 = await b64De(f);
+      // `webkitRelativePath` só existe quando veio de pasta. É ele que preserva
+      // a árvore; sem ele o servidor grava plano, o que é o certo para um print.
+      const rel = f.webkitRelativePath || null;
+      const corpo = { nome: f.name, rel, b64 };
+      if (sessaoId) {
+        const snap = await callApi("/api/tester/session/" + sessaoId + "/anexo", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify(corpo)
+        });
+        S.snap = snap;
+      } else {
+        const r = await callApi("/api/tester/anexo", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...corpo, bandeja: S.bandeja })
+        });
+        S.bandeja = r.bandeja; S.anexosPre = r.anexos || [];
+      }
+    } catch (err) {
+      /* A recusa é do arquivo, não do lote: os outros continuam. Ela nomeia o
+         arquivo, porque "não aceito .docx" sem dizer qual dos oito não ajuda.
+         E vai para a PILHA, uma por arquivo: o campo ancorado guarda só a última,
+         então numa pasta com três arquivos recusados ela veria um terço do
+         problema e concluiria que o resto entrou. */
+      const motivo = String(err && err.message || err);
+      recusas.push({ nome: f.name, motivo, categoria: err && err.categoria || null });
+    } finally {
+      S.subindo--;
+      if (repintar) repintar();
+    }
+  }
+
+  /* Um aviso por LOTE, não por arquivo, e só depois que o lote terminou. O campo
+     ancorado guarda o resumo pelo mesmo motivo: antes ele guardava a última
+     recusa, então numa pasta com três problemas ela lia um terço e concluía que o
+     resto entrou. */
+  if (recusas.length) {
+    S.anexoErro = recusas.length === 1
+      ? recusas[0].nome + ": " + recusas[0].motivo
+      : recusas.length + " arquivos não entraram — " + recusas.map(r => r.nome).slice(0, 6).join(", ") +
+        (recusas.length > 6 ? " e mais " + (recusas.length - 6) : "");
+    avisarRecusas(recusas);
+    if (repintar) repintar();
+  }
+}
+
+async function tirarAnexo(arquivo, sessaoId, repintar) {
+  try {
+    if (sessaoId) {
+      S.snap = await callApi("/api/tester/session/" + sessaoId + "/desanexar", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ arquivo })
+      });
+    } else {
+      const r = await callApi("/api/tester/anexo/remover", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bandeja: S.bandeja, arquivo })
+      });
+      S.anexosPre = r.anexos || [];
+    }
+  } catch (err) { S.anexoErro = String(err && err.message || err); }
+  if (repintar) repintar();
+}
+
+/* Liga tudo num par (caixa, textarea): clique nos botões, colar print, arrastar
+   arquivo ou pasta para cima da caixa, e tirar um chip.
+
+   Colar é o caminho mais curto que existe para um print — Win+Shift+S e Ctrl+V,
+   sem passar por arquivo — e é por isso que ele está aqui e não só o botão.
+   O item colado não tem nome, então ganha um com carimbo de hora: dois prints
+   colados em sequência viram dois arquivos, não um sobrescrito. */
+function ligarIO(idPrefixo, caixa, textarea, sessaoId, repintar) {
+  const $$ = id => document.getElementById(idPrefixo + "-" + id);
+  const mic = $$("mic"), arq = $$("arq"), pasta = $$("pasta"), fi = $$("fi"), fp = $$("fp");
+
+  if (mic && textarea) {
+    let prev = caixa.querySelector(".ditando");
+    if (!prev) {
+      prev = document.createElement("div");
+      prev.className = "ditando";
+      textarea.insertAdjacentElement("afterend", prev);
+    }
+    ligarVoz(mic, textarea, prev);
+  }
+
+  if (arq && fi) {
+    arq.addEventListener("click", () => fi.click());
+    fi.addEventListener("change", () => { subirArquivos(fi.files, sessaoId, repintar); fi.value = ""; });
+  }
+  if (pasta && fp) {
+    /* O diálogo que vem em seguida é do NAVEGADOR, não nosso: "Fazer upload de N
+       arquivos para este site?". Ele é obrigatório em `webkitdirectory`, não tem
+       API para customizar nem para suprimir, e chega com a fonte e a ordem de
+       botões do sistema — a mesma feiura que o `confirm()` tinha, só que esta não
+       dá para substituir.
+       O que dá para fazer é a pessoa não ser pega de surpresa. Um aviso ANTES,
+       que não bloqueia (o seletor abre junto), explicando de quem é a caixa e em
+       que clicar. Isso transforma um susto num passo esperado — e é melhor que um
+       `confirmar()` nosso na frente, que empilharia dois diálogos para uma ação. */
+    pasta.addEventListener("click", () => {
+      avisar("O Chrome vai perguntar se pode enviar os arquivos da pasta — a caixa é dele, não nossa. " +
+        "Clique em «Fazer upload» para continuar.", "info", "A próxima caixa é do navegador");
+      fp.click();
+    });
+    fp.addEventListener("change", () => { subirArquivos(fp.files, sessaoId, repintar); fp.value = ""; });
+  }
+
+  if (textarea) {
+    textarea.addEventListener("paste", ev => {
+      const itens = [...((ev.clipboardData && ev.clipboardData.files) || [])];
+      if (!itens.length) return;          // texto normal segue o caminho normal
+      ev.preventDefault();
+      const nomeados = itens.map(f => f.name && f.name !== "image.png"
+        ? f
+        : new File([f], "print-" + new Date().toISOString().slice(11, 19).replace(/:/g, "") + ".png", { type: f.type }));
+      subirArquivos(nomeados, sessaoId, repintar);
+    });
+  }
+
+  // Arrastar. `dragover` precisa de `preventDefault` senão o navegador abre o
+  // arquivo numa aba nova e a conversa é perdida.
+  const solta = ev => { ev.preventDefault(); caixa.classList.remove("sobre"); };
+  caixa.addEventListener("dragover", ev => { ev.preventDefault(); caixa.classList.add("sobre"); });
+  caixa.addEventListener("dragleave", () => caixa.classList.remove("sobre"));
+  caixa.addEventListener("drop", ev => {
+    solta(ev);
+    const fs = (ev.dataTransfer && ev.dataTransfer.files) || [];
+    if (fs.length) subirArquivos(fs, sessaoId, repintar);
+  });
+
+  caixa.querySelectorAll("[data-tirar]").forEach(b =>
+    b.addEventListener("click", () => tirarAnexo(b.dataset.tirar, sessaoId, repintar)));
+}
 
 /* ---------------------------------------------------------------- abertura */
 
@@ -1025,11 +1652,21 @@ function telaAbertura(aviso) {
         '<div class="boxfoot">' +
           '<span class="lvl">SEU NÍVEL</span>' +
           NIVEIS.map(n => '<button type="button" class="chip' + (n === S.nivel ? " on" : "") + '" data-nivel="' + esc(n) + '" aria-pressed="' + (n === S.nivel) + '">' + esc(n) + '</button>').join("") +
+          barraIO("ab") +
           '<button type="button" class="btn prime go" id="comecar">Começar →</button>' +
         '</div>' +
+        // Os chips ficam DENTRO da caixa, embaixo dos botões: o anexo é parte do
+        // pedido, não um acessório ao lado dele.
+        chipsAnexos(S.anexosPre, [], true) +
+        notaAnexos(S.anexosPre) +
+        (S.subindo ? '<div class="anxnota">subindo ' + S.subindo + " arquivo(s)…</div>" : "") +
+        // Ancorado, e no vocabulário único: a recusa pertence à caixa onde o
+        // arquivo foi soltado, não à pilha do canto.
+        (S.anexoErro ? avisoHtml(S.anexoErro, "alerta") : "") +
       '</div>' +
       '<div class="egs">' + EXEMPLOS.map(e => '<button type="button" class="eg">' + esc(e) + '</button>').join("") + '</div>' +
-      (aviso ? '<div class="avisobar">' + esc(aviso) + '</div>' : "") +
+      (aviso ? '<div class="aviso alerta bloco">' +
+        '<span class="ai" aria-hidden="true">!</span><span class="ac">' + esc(aviso) + "</span></div>" : "") +
       cardsProjetos() +
     '</div></section>';
 
@@ -1042,6 +1679,18 @@ function telaAbertura(aviso) {
     app.querySelectorAll("[data-nivel]").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
   }));
   app.querySelectorAll(".eg").forEach(b => b.addEventListener("click", () => { ta.value = b.textContent; ta.focus(); }));
+  /* Voz e anexos da abertura. O repintar preserva o que está escrito e o foco —
+     subir um arquivo não pode custar a frase que a pessoa estava montando, que é
+     a mesma disciplina de `capturarInputs`/`restaurarInputs` no repaint do SSE. */
+  ligarIO("ab", app.querySelector(".bigbox"), ta, null, () => {
+    const texto = ta.value, foco = document.activeElement === ta, pos = ta.selectionStart;
+    telaAbertura(aviso);
+    const novo = $("#ideia");
+    if (novo) {
+      novo.value = texto;
+      if (foco) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch { /* fora de faixa */ } }
+    }
+  });
   const vl = $("#ver-lixeira");
   if (vl) vl.addEventListener("click", telaLixeira);
   ligarEventosProjetos();
@@ -1144,6 +1793,7 @@ function pollAbertura() {
     let st;
     try { st = await callApi("/api/tester/status"); } catch { return; }
     S.capab = st;
+    carimbarVersao();
     const antes = JSON.stringify(S.andamento || null);
     S.andamento = st.andamento || null;
     if (antes === JSON.stringify(S.andamento)) return;
@@ -1167,17 +1817,28 @@ async function comecar() {
   const ideia = $("#ideia").value.trim();
   if (!ideia) { $("#ideia").focus(); return; }
   const btn = $("#comecar");
+  // Um upload em voo perderia o arquivo: a sessão adotaria a bandeja antes do
+  // último `POST` chegar, e o print ficaria num diretório que já foi movido.
+  if (S.subindo) { btn.textContent = "esperando os anexos…"; return; }
   btn.disabled = true; btn.textContent = "abrindo…";
   try {
     const r = await callApi("/api/tester/session", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ideia, nivel: S.nivel })
+      // A bandeja é adotada pela sessão: os arquivos já estão no servidor, o que
+      // viaja aqui é o recibo. Zerada depois, porque uma bandeja já movida não
+      // existe mais e reusá-la na próxima ideia daria erro sem causa aparente.
+      body: JSON.stringify({ ideia, nivel: S.nivel, bandeja: S.bandeja })
     });
+    S.bandeja = null; S.anexosPre = []; S.anexoErro = null;
     ligar(r.id);
   } catch (e) {
     btn.disabled = false; btn.textContent = "Começar →";
+    // Falhou ao abrir a sessão: erro, e ancorado onde ela clicou. Não some
+    // sozinho — a construção não começou e isso precisa ser lido.
     const av = document.createElement("div");
-    av.className = "avisobar"; av.textContent = e.message;
+    av.className = "aviso erro bloco";
+    av.setAttribute("role", "alert");
+    av.innerHTML = '<span class="ai" aria-hidden="true">✕</span><span class="ac">' + esc(e.message) + "</span>";
     $(".open-in").appendChild(av);
   }
 }
@@ -1392,9 +2053,29 @@ function blocosStream(s) {
   if (s.status === "pronta" && s.wf) out.push(checklistCred(s, true), entrega(s));
 
   if (s.status === "correndo" && s.etapa > 1) out.push(faixaProc(s));
+  if (s.status === "cancelada") out.push(faixaParado(s));
 
   if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
   return out.join("");
+}
+
+/* O que a tela diz depois de você parar.
+ *
+ * Três frases, e as três existem por um motivo. A primeira separa parada de
+ * defeito — sem ela, uma etapa interrompida no meio de uma escrita fica
+ * indistinguível de uma que quebrou. A segunda diz o que SOBROU, porque o
+ * desenho continua na tela e "isto aqui ainda vale?" é a pergunta imediata. A
+ * terceira diz como seguir, e a resposta não é um botão: é o compositor, que
+ * recomeça da etapa afetada já com a correção junto. */
+function faixaParado(s) {
+  const e = (s.etapas || []).find(x => x.n === s.etapa) || {};
+  const cego = (s.custo || []).some(c => c.usdDesconhecido);
+  return '<div class="parado" role="status">' +
+    "<strong>Você parou" + (e.nome ? " em " + esc(e.nome) : "") + ".</strong><br>" +
+    "Nada foi escrito no n8n por causa disto, e o que já tinha ficado pronto continua aí em cima.<br>" +
+    "Para seguir, escreve no campo abaixo o que quer diferente — eu recomeço daquele ponto." +
+    (cego ? "<br>O gasto desta última etapa não foi medido: o custo só chega na linha final do processo, e ele não chegou lá." : "") +
+    "</div>";
 }
 
 /* A faixa que diz onde a esteira está. A linha de cima é a ETAPA, que é o que
@@ -1415,7 +2096,9 @@ function faixaProc(s) {
     '<span class="spin" aria-hidden="true"></span>' +
     '<span class="col"><span class="t1">' + esc(titulo) + "</span>" +
     '<span class="t2" id="atividade">' + esc(s.atividade || "começando…") + "</span></span>" +
-    '<span class="passo">' + String(s.etapa).padStart(2, "0") + " / " + String(total).padStart(2, "0") + "</span></div>";
+    '<span class="passo">' + String(s.etapa).padStart(2, "0") + " / " + String(total).padStart(2, "0") + "</span>" +
+    '<button type="button" class="parar" id="parar" title="parar esta etapa">⨯ parar <kbd>esc</kbd></button>' +
+    "</div>";
 }
 
 /* ----------------------------------------------- conversa sobre um fluxo salvo
@@ -1464,6 +2147,7 @@ function blocosEdicao(s) {
   }
 
   if (s.proposta) out.push(propostaBloco(s));
+  if (s.status === "cancelada") out.push(faixaParado(s));
 
   if (s.erro) out.push('<div class="erro"><strong>Parou aqui.</strong><br>' + esc(s.erro) + "</div>");
   return out.join("");
@@ -1676,15 +2360,40 @@ function acoesEntrevista(s) {
 
 function composer(s) {
   const trabalhando = s.status === "correndo";
-  const dica = s.modo === "edicao"
-    ? (trabalhando
-        ? "escreve aqui pra trocar o pedido — eu largo o atual e começo por este"
-        : "pergunta sobre o fluxo, ou pede o que mudar, acrescentar ou tirar…")
-    : (trabalhando ? "escreve aqui pra corrigir no meio do caminho — eu recomeço deste ponto" : "escreve o que mudar…");
-  return '<div class="composer">' +
+  /* Anexo que a sessão ainda não abriu. A dica muda por causa dele, e a razão
+     não é enfeite: um print sozinho não diz o que fazer com ele. O botão exige
+     texto de propósito — inventar uma frase em nome dela ("olha os anexos")
+     colocaria no chat uma mensagem que ela não escreveu. */
+  const pendentes = (s.anexos || []).filter(a => !(s.anexosLidos || []).includes(a.arquivo)).length;
+  const dica = pendentes
+    ? "anexei " + pendentes + " arquivo(s) — escreve o que eu devo fazer com isso"
+    : s.modo === "edicao"
+      ? (trabalhando
+          ? "escreve aqui pra trocar o pedido — eu largo o atual e começo por este"
+          : "pergunta sobre o fluxo, ou pede o que mudar, acrescentar ou tirar…")
+      : (trabalhando ? "escreve aqui pra corrigir no meio do caminho — eu recomeço deste ponto" : "escreve o que mudar…");
+  /* Os chips dos anexos da SESSÃO ficam acima da caixa, e o `lidos` é o que
+     transforma isso em informação: sai do `tool_use` observado no stream da
+     sessão, então um chip marcado significa "ela abriu este arquivo", nunca "o
+     prompt pediu para abrir". Sem essa distinção, anexar seria fé. */
+  const anx = (s.anexos || []);
+  /* Chips e caixa num invólucro só (`.compzone`), e isso não é arrumação de
+     markup: `ligarIO` liga o `×` de cada chip com um `querySelectorAll` dentro
+     da caixa que recebe. Com os chips como irmãos da `.composer`, esse
+     `querySelectorAll` achava zero botões e tirar um anexo no meio da conversa
+     não fazia nada — sem erro no console, que é a pior forma de não funcionar.
+     Arrastar um arquivo também passa a valer sobre a área inteira, que é onde a
+     mão vai. */
+  return '<div class="compzone">' +
+    (anx.length ? chipsAnexos(anx, s.anexosLidos || [], !trabalhando) + notaAnexos(anx) : "") +
+    (S.subindo ? '<div class="anxnota">subindo ' + S.subindo + " arquivo(s)…</div>" : "") +
+    (S.anexoErro ? avisoHtml(S.anexoErro, "alerta") : "") +
+    '<div class="composer">' +
     '<textarea id="resposta" rows="1" placeholder="' + esc(dica) +
       '" aria-label="sua resposta"></textarea>' +
-    '<button type="button" class="btn" id="enviar">Enviar</button></div>';
+    barraIO("cp") +
+    '<button type="button" class="btn" id="enviar">Enviar</button></div>' +
+    '</div>';
 }
 
 /* ------------------------------------------------------------- o desenho */
@@ -2071,8 +2780,10 @@ function checklistCred(s, vivo) {
     const ops = (x.opcoes || []).map(o => {
       // Nomear vale mais que tipar: "Slack Ecommerce Puro, em 6 fluxos" é
       // acionável, "existe alguma do tipo slackApi" não é.
+      // `sens`: o nome da credencial identifica a conta real — é o que o modo
+      // gravação borra nesta tela.
       const ex = (o.existentes || []).slice(0, 3).map(e =>
-        '<span class="cr-nome">' + esc(e.nome || "(sem nome)") +
+        '<span class="cr-nome"><span class="sens">' + esc(e.nome || "(sem nome)") + "</span>" +
         '<span class="cr-usos">' + e.usos + (e.usos === 1 ? " fluxo" : " fluxos") + "</span></span>").join("");
       const sobra = Math.max(0, (o.existentes || []).length - 3);
       return '<div class="cr-op ' + (o.visto ? "tem" : "nao") + '">' +
@@ -2092,7 +2803,7 @@ function checklistCred(s, vivo) {
     const escolher = (emp && vivo)
       ? '<div class="cr-pick"><span class="cr-nota">qual delas?</span>' +
         emp.candidatos.filter(c => c.id).map(c =>
-          '<button type="button" class="chip cr-esc" data-cred="' + esc(c.id) + '">usar a ' + esc(c.nome) + "</button>").join("") +
+          '<button type="button" class="chip cr-esc" data-cred="' + esc(c.id) + '">usar a <span class="sens">' + esc(c.nome) + "</span></button>").join("") +
         "</div>"
       : (emp
         ? '<div class="cr-nota">mais de uma credencial serviria — abra em «Conversar e editar» para escolher</div>'
@@ -2546,7 +3257,7 @@ async function inicio() {
   if (S.es) { S.es.close(); S.es = null; }
   S.snap = null; S.desenhado = null; S.respostas = {}; S.cam = null; S.fantasmaVisto = null;
   history.replaceState(null, "", "/tester");
-  try { S.capab = await callApi("/api/tester/status"); S.andamento = S.capab.andamento || null; }
+  try { S.capab = await callApi("/api/tester/status"); S.andamento = S.capab.andamento || null; carimbarVersao(); }
   catch { /* mantém o que tinha — o poll da abertura corrige no próximo ciclo */ }
   await carregarProjetos();
   telaAbertura(null);
@@ -2619,6 +3330,12 @@ function ladoDireito(s) {
 /* ------------------------------------------------------------------ eventos */
 
 function ligarEventos(s) {
+  // O botão de parar vive dentro da faixa de processamento, que é redesenhada a
+  // cada evento do SSE — por isso o ouvinte é religado aqui, e não uma vez só
+  // como o Esc. Os dois chamam exatamente a mesma função.
+  const parar = $("#parar");
+  if (parar) parar.addEventListener("click", () => pararAgora());
+
   // Manda as respostas para a rodada seguinte da entrevista. Sem nada marcado
   // não há o que digerir — a rodada custaria ~20s para reescrever o mesmo cartão.
   const responder = $("#responder");
@@ -2727,6 +3444,14 @@ function ligarEventos(s) {
   if (ta) {
     ta.addEventListener("input", () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 120) + "px"; });
     ta.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); mandar(); } });
+    /* Voz e anexo no meio da conversa. O repintar é `pintar()`, que já carrega o
+       texto e o foco pelo `capturarInputs` — anexar não custa a frase que está
+       sendo escrita. O id da sessão vai junto: aqui o arquivo entra direto no
+       diretório da corrida, sem bandeja, porque a sessão já existe. */
+    // `.compzone`, não `.composer`: os chips com o `×` moram acima da caixa, e é
+    // dentro do elemento passado aqui que `ligarIO` procura por eles.
+    const cx = ta.closest(".compzone") || ta.closest(".composer");
+    if (cx && S.snap) ligarIO("cp", cx, ta, S.snap.id, () => pintar());
   }
   if (enviar) enviar.addEventListener("click", mandar);
 
@@ -2758,6 +3483,10 @@ function ligarEventos(s) {
 async function mandar() {
   const ta = $("#resposta");
   if (!ta || !ta.value.trim() || S.enviando) return;
+  /* Microfone aberto na hora de enviar: fecha. Sem isto o reconhecimento
+     continua rodando depois da mensagem ir, e a próxima frase falada cai num
+     campo que já foi limpo — parece que o ditado perdeu o que foi dito. */
+  if (S.ouvindo && S.rec) { try { S.rec.stop(); } catch { /* já parou */ } S.rec = null; S.ouvindo = false; S.parcial = ""; }
   S.enviando = true;
   const texto = ta.value.trim();
   ta.value = ""; ta.style.height = "auto";
@@ -2779,12 +3508,18 @@ function marcar(grupo, alvo) {
   });
 }
 
-/* Aviso na tela de abertura (a de corrida usa alertaInline). */
-function avisoAbertura(msg) {
+/* Aviso na tela de abertura (a de corrida usa alertaInline). Cai para a pilha
+   flutuante quando a abertura não está montada — sem isso, um erro disparado
+   fora dela desaparecia sem deixar rastro, que é a pior forma de avisar. */
+function avisoAbertura(msg, tipo) {
   const alvo = $(".open-in");
-  if (!alvo) return;
+  if (!alvo) { avisar(msg, tipo || "alerta"); return; }
   const d = document.createElement("div");
-  d.className = "avisobar"; d.textContent = msg;
+  const t = tipo || "alerta";
+  d.className = "aviso " + t + " bloco";
+  d.setAttribute("role", t === "erro" ? "alert" : "status");
+  d.innerHTML = '<span class="ai" aria-hidden="true">' + (AVISO_GLIFO[t] || "!") +
+    '</span><span class="ac">' + esc(msg) + "</span>";
   alvo.appendChild(d);
 }
 
@@ -2854,11 +3589,127 @@ function confirmar({ tag, titulo, corpo, botao, perigo }) {
   });
 }
 
+/* ========================================================== avisar / aviso
+   A única forma de o sistema dizer alguma coisa. Ver o bloco AVISOS no CSS.
+
+   `avisoHtml()` monta o cartão (usado ancorado, dentro de outro render) e
+   `avisar()` o coloca na pilha flutuante. Quem chama escolhe o TIPO, e o tipo é
+   que decide o resto — inclusive se a mensagem some sozinha.
+
+   Três coisas aqui são acessibilidade, não estilo, e não devem ser cortadas:
+   erro entra como `role="alert"` + `aria-live="assertive"` (o leitor de tela
+   interrompe, porque a ação falhou e quem está ouvindo precisa saber agora);
+   ok/info entram como `role="status"` + `polite` (não interrompem nada); e o
+   glifo é `aria-hidden`, porque a cor e o desenho não são a informação — o texto
+   é. Um aviso que só se distingue por cor não existe para quem não a vê. */
+const AVISO_GLIFO = { erro: "✕", alerta: "!", ok: "✓", info: "i" };
+const AVISO_VIDA = { ok: 4500, info: 6000 };   // erro e alerta não somem sozinhos
+// Quanto a pausa por hover pode esticar a vida, no máximo. Ver `avisar()`.
+const VIDA_MAX_PAUSA = 20000;
+
+function avisoHtml(msg, tipo, titulo) {
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  return '<div class="aviso ' + t + '" role="' + (t === "erro" ? "alert" : "status") + '">' +
+    '<span class="ai" aria-hidden="true">' + AVISO_GLIFO[t] + "</span>" +
+    '<span class="ac">' + (titulo ? '<span class="at">' + esc(titulo) + "</span>" : "") + esc(msg) + "</span>" +
+    "</div>";
+}
+
+function pilhaAvisos() {
+  let p = document.querySelector(".avisos");
+  if (p) return p;
+  p = document.createElement("div");
+  p.className = "avisos";
+  document.body.appendChild(p);
+  return p;
+}
+
+function avisar(msg, tipo, titulo) {
+  if (!msg) return null;
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  const vida = AVISO_VIDA[t] || 0;
+  const pilha = pilhaAvisos();
+
+  /* Montado por DOM, nunca por `innerHTML`. Duas razões: a mensagem vem de erro
+     de servidor e de nome de arquivo, ou seja de fora, e `textContent` fecha essa
+     porta sem depender de ninguém lembrar de escapar; e assim este bloco é
+     idêntico nas três páginas — o `flows.html` não tem `esc()`. */
+  const cartao = document.createElement("div");
+  cartao.className = "aviso " + t;
+  cartao.setAttribute("role", t === "erro" ? "alert" : "status");
+  cartao.setAttribute("aria-live", t === "erro" ? "assertive" : "polite");
+
+  const gl = document.createElement("span");
+  gl.className = "ai"; gl.setAttribute("aria-hidden", "true"); gl.textContent = AVISO_GLIFO[t];
+  const corpo = document.createElement("span");
+  corpo.className = "ac";
+  if (titulo) {
+    const tt = document.createElement("span");
+    tt.className = "at"; tt.textContent = titulo;
+    corpo.appendChild(tt);
+  }
+  corpo.appendChild(document.createTextNode(msg));
+  const fechar = document.createElement("button");
+  fechar.type = "button"; fechar.className = "ax";
+  fechar.setAttribute("aria-label", "fechar aviso"); fechar.textContent = "×";
+  cartao.append(gl, corpo, fechar);
+  if (vida) {
+    const barra = document.createElement("span");
+    barra.className = "abar"; barra.setAttribute("aria-hidden", "true");
+    barra.style.animationDuration = vida + "ms";
+    cartao.appendChild(barra);
+  }
+
+  const sair = () => {
+    if (!cartao.isConnected) return;
+    cartao.dispatchEvent(new Event("aviso:fim"));
+    cartao.classList.add("saindo");
+    // Espera a animação de saída, mas nunca depende dela: `setTimeout` remove de
+    // qualquer forma, senão um `prefers-reduced-motion` que zera a duração
+    // deixaria o cartão pendurado para sempre.
+    setTimeout(() => cartao.remove(), 200);
+  };
+  fechar.addEventListener("click", sair);
+  if (vida) {
+    let timer = setTimeout(sair, vida);
+    /* O mouse em cima pausa a contagem: ler uma frase de 12 palavras leva mais
+       que 4,5s, e ver o aviso fugir debaixo do cursor é o pior defeito de toast.
+       Mas a pausa tem TETO — medido no verificador: um aviso que nasce debaixo de
+       um cursor parado nunca recebe `mouseleave` e ficaria na tela para sempre,
+       o que transforma um aviso temporário em sujeira permanente. */
+    const tetoDuro = setTimeout(sair, vida + VIDA_MAX_PAUSA);
+    const barra = () => cartao.querySelector(".abar");
+    cartao.addEventListener("mouseenter", () => {
+      clearTimeout(timer);
+      const b = barra(); if (b) b.style.animationPlayState = "paused";
+    });
+    cartao.addEventListener("mouseleave", () => {
+      timer = setTimeout(sair, 1200);
+      const b = barra(); if (b) b.style.animationPlayState = "running";
+    });
+    // Fechar pela mão limpa os dois: sem isto o teto duro chamaria `sair()` num
+    // cartão já removido — inócuo hoje, e o tipo de coisa que deixa de ser.
+    cartao.addEventListener("aviso:fim", () => { clearTimeout(timer); clearTimeout(tetoDuro); });
+  }
+
+  pilha.appendChild(cartao);
+  // Teto de 4 na tela. Sem ele, uma pasta com oito arquivos recusados vira uma
+  // coluna de avisos que cobre a página inteira — e o oitavo esconde o primeiro.
+  const todos = [...pilha.querySelectorAll(".aviso")];
+  if (todos.length > 4) todos.slice(0, todos.length - 4).forEach(x => x.remove());
+  return cartao;
+}
+
+/* O aviso ancorado da corrida: fica no fluxo da conversa, onde o erro aconteceu.
+   Mantido separado do flutuante de propósito — um erro que pertence a um lugar
+   deve ficar nele; o flutuante é para o que é consequência de um clique. */
 function alertaInline(msg) {
   const st = $("#stream");
-  if (!st) return;
+  if (!st) { avisar(msg, "erro"); return; }
   const d = document.createElement("div");
-  d.className = "erro"; d.textContent = msg;
+  d.className = "aviso erro";
+  d.setAttribute("role", "alert");
+  d.innerHTML = '<span class="ai" aria-hidden="true">✕</span><span class="ac">' + esc(msg) + "</span>";
   st.appendChild(d); st.scrollTop = st.scrollHeight;
 }
 
@@ -2880,6 +3731,75 @@ function fecharMenus() {
 document.addEventListener("click", fecharMenus);
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") fecharMenus(); });
 
+/* ------------------------------------------------------------ parar no meio
+ *
+ * Esc para o processo, como num terminal. Registrado UMA vez no documento, e
+ * cedendo a tudo que já usa Esc nesta página — a tecla não é nova aqui, é a
+ * quarta coisa a querer usá-la:
+ *
+ *   1. `confirmar()` já escuta Esc na FASE DE CAPTURA para fechar o diálogo.
+ *      `preventDefault()` não impede a propagação, então este ouvinte ainda
+ *      seria chamado com o diálogo aberto — e um Esc para fechar a confirmação
+ *      abriria outra confirmação. O teste é a existência do `.scrim`.
+ *   2. Campo de texto: Esc no compositor deve tirar o foco, não matar a
+ *      construção. Vale para o `input` do título, o "Outro…" e o compositor —
+ *      um Esc reflexo depois de digitar errado não pode custar minutos.
+ *      O segundo Esc, já fora do campo, para de verdade.
+ *   3. Menus: `fecharMenus` acima roda antes e é barato; se havia menu aberto,
+ *      a intenção era fechá-lo.
+ *
+ * E só age com algo realmente correndo: sem isso, Esc na tela inicial tentaria
+ * cancelar uma sessão que não existe e a tela responderia com um erro de 409
+ * sobre algo que a pessoa nem começou. */
+let parando = false;
+
+function ehCampoDeTexto(el) {
+  if (!el) return false;
+  const t = (el.tagName || "").toLowerCase();
+  return t === "textarea" || t === "input" || el.isContentEditable === true;
+}
+
+document.addEventListener("keydown", async ev => {
+  if (ev.key !== "Escape") return;
+  if (document.querySelector(".scrim")) return;           // diálogo aberto: é dele
+  if (ehCampoDeTexto(document.activeElement)) { document.activeElement.blur(); return; }
+  if (!S.snap || S.snap.status !== "correndo") return;
+  ev.preventDefault();
+  await pararAgora();
+});
+
+/* A confirmação é obrigatória e é destrutiva por dentro (`perigo: true`, foco em
+   Cancelar): uma construção custa minutos e dólares, e Enter sem ler não pode
+   jogar isso fora. O `parando` é o que impede dois Esc seguidos de abrirem dois
+   diálogos empilhados — o segundo ficaria órfão sobre um `inert` já removido. */
+async function pararAgora() {
+  if (parando) return;
+  if (!S.snap || S.snap.status !== "correndo") return;
+  const e = (S.snap.etapas || []).find(x => x.n === S.snap.etapa) || {};
+  parando = true;
+  try {
+    const ok = await confirmar({
+      tag: "PARAR",
+      titulo: "Parar" + (e.nome ? " a etapa " + e.nome : " o processamento") + "?",
+      corpo: [
+        "O processo que está rodando agora é morto na hora. O que já ficou pronto continua na tela — desenho, etapas concluídas e achados não somem.",
+        "Nada é escrito no n8n por causa disto.",
+        "Não existe «retomar»: para seguir, escreve no compositor o que quer diferente e eu recomeço daquele ponto — com a sua correção junto.",
+        "O gasto desta etapa pode não ser medido: o custo só chega na última linha do processo, e um processo morto não chega lá."
+      ],
+      botao: "Parar agora",
+      perigo: true
+    });
+    if (!ok) return;
+    S.snap = await callApi(rota("cancelar"), corpo({}));
+    pintar();
+  } catch (err) {
+    alertaInline(String(err && err.message || err));
+  } finally {
+    parando = false;
+  }
+}
+
 $("#tema").addEventListener("click", () => {
   const atual = document.documentElement.getAttribute("data-theme");
   const escuro = atual ? atual === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -2889,8 +3809,180 @@ $("#tema").addEventListener("click", () => {
   try { localStorage.setItem("cockpit-theme", novo); } catch { /* modo privado */ }
 });
 
+/* Modo gravação — copiado do flows.html, como o resto do chrome. A chave é a
+   mesma (`cockpit-rec`), então ligar aqui liga lá; a onda é cerimônia, o
+   borrão nos `.sens` é a informação. */
+const REC_KEY = "cockpit-rec";
+function recPaint() {
+  const on = document.documentElement.getAttribute("data-rec") === "1";
+  const b = $("#rec");
+  b.querySelector(".lbl").textContent = on ? "REC" : "Gravar";
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.title = on
+    ? "modo gravação ligado — dados sensíveis borrados; clique para desligar"
+    : "modo gravação — borra dados sensíveis para filmar a tela";
+}
+function recWave(btn) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = btn.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const raio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  const w = document.createElement("div");
+  w.className = "rec-wave";
+  document.body.append(w);
+  w.animate(
+    [{ clipPath: `circle(0px at ${x}px ${y}px)`, opacity: .95 },
+     { clipPath: `circle(${raio}px at ${x}px ${y}px)`, opacity: 0 }],
+    { duration: 700, easing: "cubic-bezier(.22,.61,.36,1)" }
+  ).onfinish = () => w.remove();
+}
+$("#rec").addEventListener("click", () => {
+  const on = document.documentElement.getAttribute("data-rec") !== "1";
+  if (on) document.documentElement.setAttribute("data-rec", "1");
+  else document.documentElement.removeAttribute("data-rec");
+  try { on ? localStorage.setItem(REC_KEY, "1") : localStorage.removeItem(REC_KEY); } catch { /* modo privado */ }
+  recWave($("#rec"));
+  recPaint();
+});
+// Tester e fluxos abertos lado a lado: a outra aba acompanha, sem onda.
+addEventListener("storage", e => {
+  if (e.key !== REC_KEY) return;
+  if (e.newValue === "1") document.documentElement.setAttribute("data-rec", "1");
+  else document.documentElement.removeAttribute("data-rec");
+  recPaint();
+});
+recPaint();
+
 // A seta do appbar. Sair não mata nada: a sessão continua no servidor e o card
 // "em construção" da abertura é a volta.
+/* O carimbo da base no topbar.
+ *
+ * TRÊS estados, nunca dois — a lição que este projeto já pagou duas vezes: um
+ * campo ausente no status jamais pode cair no galho negativo. Ausente aqui não
+ * quer dizer "sem versão", quer dizer que o processo subiu antes de o carimbo
+ * existir, e isso é notícia sobre o Node que está rodando, não sobre a base.
+ *
+ * A frase inteira vive no `title`; no topbar fica só o número, porque um
+ * cabeçalho é o pior lugar para uma linha que ninguém vai ler duas vezes. */
+function carimbarVersao() {
+  const chip = $("#ver");
+  if (!chip || !S.capab) return;
+  chip.hidden = false;
+  if (!("versao" in S.capab)) {
+    chip.textContent = "base ?";
+    chip.classList.add("velho");
+    chip.title = "o cockpit que está rodando subiu antes do carimbo de versão existir — feche a janela e abra de novo";
+    return;
+  }
+  const v = S.capab.versao || {};
+  chip.classList.remove("velho");
+  chip.textContent = v.n || "base ?";
+  chip.title = "Tester " + (v.n || "?") + (v.em ? ", base de " + v.em : "")
+    + (v.nota ? " — " + v.nota : "") + ". Sobe quando muda o que ele sabe, não como ele desenha.";
+}
+
+/* ------------------------------------------------- o aviso de atualização
+ *
+ * O job do `novidades.js` roda uma vez por dia, com a aba fechada, e escreve na
+ * base sozinho. Este é o único lugar onde ele fala.
+ *
+ * FICA ATÉ ELE FECHAR — decisão dele, e é o que separa isto do resto da pilha de
+ * avisos: os outros são consequência de um clique que ele acabou de dar, e ele
+ * estava olhando. Este é um fato consumado que aconteceu enquanto ninguém
+ * estava, e um aviso que some sozinho aqui é o mesmo que não avisar.
+ *
+ * `ok` e não `alerta`: nada quebrou, a base ficou mais nova. `alerta` é o que
+ * pede ação, e aqui a ação já foi tomada — a exceção é quando entra novidade de
+ * ESQUEMA, que precisa de dois comandos que só ele pode rodar, e aí a linha do
+ * comando aparece em `--warn-txt` dentro do mesmo aviso.
+ *
+ * O estado mora no servidor, não em `localStorage`: guardado no navegador, o
+ * aviso só existiria para a aba que já estava aberta na hora — que é exatamente
+ * a que não precisa dele. */
+function pintarNovidades() {
+  const band = $("#novband");
+  if (!band) return;
+  const av = S.novidades && S.novidades.aviso;
+  if (!av) { band.hidden = true; band.textContent = ""; return; }
+
+  band.hidden = false;
+  band.textContent = "";
+  const cx = document.createElement("div");
+  cx.className = "aviso ok";
+  cx.setAttribute("role", "status");
+  cx.setAttribute("aria-live", "polite");
+
+  const gl = document.createElement("span");
+  gl.className = "ai"; gl.setAttribute("aria-hidden", "true"); gl.textContent = "✓";
+  cx.append(gl);
+
+  const corpo = document.createElement("span");
+  corpo.className = "ac";
+  const tit = document.createElement("span");
+  tit.className = "at";
+  tit.textContent = "O Tester se atualizou sozinho"
+    + (av.versao ? " — agora " + av.versao : "")
+    + ": " + av.quantas + (av.quantas > 1 ? " novidades do n8n entraram" : " novidade do n8n entrou") + " na base.";
+  corpo.append(tit);
+
+  const lst = document.createElement("ul");
+  lst.className = "nv-l";
+  for (const it of av.itens || []) {
+    const li = document.createElement("li");
+    const b = document.createElement("b");
+    b.textContent = it.titulo;
+    li.append(b);
+    if (it.versao) {
+      const v = document.createElement("span");
+      v.className = "nv-v"; v.textContent = it.versao;
+      li.append(v);
+    }
+    li.append(document.createTextNode(" — " + it.texto + " "));
+    if (it.link) {
+      const a = document.createElement("a");
+      // A fonte vai junto na tela pelo mesmo motivo que vai no doc: uma linha
+      // que ninguém revisou tem que poder ser conferida em um clique.
+      a.href = it.link; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.textContent = "ver o PR ↗";
+      li.append(a);
+    }
+    lst.append(li);
+  }
+  corpo.append(lst);
+
+  if (av.precisaEsquema) {
+    /* A única parte que pede ação. O job escreve prosa; propriedade de nó é
+       MEDIDA dos pacotes, e trocar medição por notícia seria a pior direção
+       possível — então quem roda isso é ele. */
+    const p = document.createElement("p");
+    p.className = "nv-esq";
+    p.append(document.createTextNode("Tem novidade de esquema de nó. Isso o job não escreve — rode "));
+    const c = document.createElement("code");
+    c.className = "nv-cod";
+    c.textContent = "node esquema.js --baixar && node esquema.js --construir";
+    p.append(c);
+    corpo.append(p);
+  }
+  cx.append(corpo);
+
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "ax"; x.textContent = "✕";
+  x.setAttribute("aria-label", "fechar este aviso de atualização");
+  x.addEventListener("click", async () => {
+    x.disabled = true;
+    try { S.novidades = await callApi("/api/novidades/fechar", { method: "POST" }); }
+    catch (e) { x.disabled = false; avisar(e.message, "erro", "não consegui fechar o aviso"); return; }
+    pintarNovidades();
+  });
+  cx.append(x);
+  band.append(cx);
+}
+
+async function carregarNovidades() {
+  try { S.novidades = await callApi("/api/novidades"); } catch { return; }
+  pintarNovidades();
+}
+
 $("#voltar").addEventListener("click", inicio);
 
 (async () => {
@@ -2898,6 +3990,12 @@ $("#voltar").addEventListener("click", inicio);
   try {
     S.capab = await callApi("/api/tester/status");
     S.andamento = S.capab.andamento || null;
+    carimbarVersao();
+    /* O job pode terminar com a aba já aberta, e aí o aviso só apareceria depois
+       de um F5. Cinco minutos: ele roda uma vez por dia e leva minutos, então
+       nada mais rápido que isso muda o que aparece na tela. */
+    carregarNovidades();
+    setInterval(carregarNovidades, 5 * 60 * 1000);
     if (!S.capab.cliEncontrado) aviso = "Não encontrei o CLI do Claude em " + S.capab.cli + " — sem ele o Tester não consegue construir nada. Defina CLAUDE_BIN no .env se ele estiver em outro lugar.";
     else if (!S.capab.n8nConfigurado) aviso = "O n8n não está configurado no .env, então não sei quais nós a sua instância aceita nem consigo criar a cópia de teste.";
     // Construção em andamento não é mais um aviso de texto: é o card pulsando
