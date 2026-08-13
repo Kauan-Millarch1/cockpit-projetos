@@ -1,0 +1,263 @@
+{
+  "v": 1,
+  "licoes": [
+    {
+      "id": "lmsqe1npf1",
+      "em": "2026-08-12T17:53:48.097Z",
+      "ultimaVez": "2026-08-12T17:53:48.097Z",
+      "fonte": "producao",
+      "tipo": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`@elevenlabs/n8n-nodes-elevenlabs.elevenLabs` já falhou em produção, no nó «Convert text to speech»: NodeApiError — o Kauan anotou: Ajustei as credenciais do ElevenLabs, teve uma atualização nova e mudou a API",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|Convert text to speech|NodeApiError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|Convert text to speech|NodeApiError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npf2",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "@n8n/n8n-nodes-langchain.agent",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`@n8n/n8n-nodes-langchain.agent` já falhou em produção, no nó «AI Agent1»: NodeOperationError",
+      "ondeMedido": "fixes.json:9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError",
+      "visto": [
+        "fixes.json:9dGEJcYa7LxTAwAs|AI Agent1|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npf3",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`@n8n/n8n-nodes-langchain.memoryRedisChat` já falhou em produção, no nó «memoria_redis_roberto»: NodeOperationError",
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|memoria_redis_roberto|NodeOperationError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|memoria_redis_roberto|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npf4",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.slack",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.slack` já falhou em produção, no nó «Send a message2»: NodeOperationError",
+      "ondeMedido": "fixes.json:BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "visto": [
+        "fixes.json:BpDac30P5uiuebdC|Send a message2|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npf5",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.supabase",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.supabase` já falhou em produção, no nó «criar_vacuo1»: ExpressionError",
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npf6",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.executeWorkflow",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.executeWorkflow` já falhou em produção, no nó «Call 'Roberto Comercial'»: Error — o Kauan anotou: Claude ajustou o fluxo do Iago que estava causando esse erro",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:QryGcVbv7DoVCeRV|Call 'Roberto Comercial'|Error",
+      "visto": [
+        "fixes.json:QryGcVbv7DoVCeRV|Call 'Roberto Comercial'|Error"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npg7",
+      "em": "2026-08-12T17:53:48.099Z",
+      "ultimaVez": "2026-08-12T17:53:48.099Z",
+      "fonte": "producao",
+      "tipo": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`@n8n/n8n-nodes-langchain.memoryBufferWindow` já falhou em produção, no nó «memoria_buffer_roberto»: NodeOperationError",
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|memoria_buffer_roberto|NodeOperationError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|memoria_buffer_roberto|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npg8",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.supabase",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.supabase` já falhou em produção, no nó «criar_vacuo1»: NodeApiError — o Kauan anotou: Claude (cockpit) [vacuo_existe1]: vacuoexiste1 testava $json['telefone'], campo inexistente na linha do Supab",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|criar_vacuo1|NodeApiError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|criar_vacuo1|NodeApiError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npg9",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.set",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.set` já falhou em produção, no nó «imagem»: NodeOperationError — o Kauan anotou: Claude (cockpit) [imagem]: o nó imagem referenciava o nó inexistente pegarmensagem; troquei a expressão",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|imagem|NodeOperationError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|imagem|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npga",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "@n8n/n8n-nodes-langchain.openAi",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`@n8n/n8n-nodes-langchain.openAi` já falhou em produção, no nó «Analyze image»: NodeOperationError — o Kauan anotou: Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item;",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:azwM3PgGtSbGTCsn|Analyze image|NodeOperationError",
+      "visto": [
+        "fixes.json:azwM3PgGtSbGTCsn|Analyze image|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npgb",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.slack",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.slack` já falhou em produção, no nó «slack_dm_aviso_email»: NodeOperationError",
+      "ondeMedido": "fixes.json:p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
+      "visto": [
+        "fixes.json:p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npgc",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.slack",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.slack` já falhou em produção, no nó «slack_avisar_estoque_baixo»: NodeOperationError",
+      "ondeMedido": "fixes.json:3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "visto": [
+        "fixes.json:3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npgd",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.googleSheets",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.googleSheets` já falhou em produção, no nó «buscar_linhas_do_estoque»: NodeApiError",
+      "ondeMedido": "fixes.json:3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "visto": [
+        "fixes.json:3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    },
+    {
+      "id": "lmsqe1npge",
+      "em": "2026-08-12T17:53:48.100Z",
+      "ultimaVez": "2026-08-12T17:53:48.100Z",
+      "fonte": "producao",
+      "tipo": "n8n-nodes-base.code",
+      "versao": null,
+      "chave": null,
+      "errado": null,
+      "certo": null,
+      "frase": "`n8n-nodes-base.code` já falhou em produção, no nó «filtrar_por_horario»: Error — o Kauan anotou: Claude (cockpit) [filtrar_por_horario]: Liguei retry (3x, 5s) em filtrar_por_horario porque a falha foi o task runne",
+      "comDiagnostico": true,
+      "ondeMedido": "fixes.json:gtpqDeEz9FSQa7pg|filtrar_por_horario|Error",
+      "visto": [
+        "fixes.json:gtpqDeEz9FSQa7pg|filtrar_por_horario|Error"
+      ],
+      "vezes": 1,
+      "estado": "novo"
+    }
+  ]
+}
