@@ -21,6 +21,21 @@ scan.json
 .cache-catalog.json.tmp
 .tester-runs/
 .cache-tester-docs/
+# Rascunho da rodada diária das novidades. O que sobrevive dela é o
+# `n8n-novidades.md` e o `novidades.json`, os dois versionados.
+.novidades-run/
+
+# The n8n node packages, unpacked from npm. 83MB of third-party code, fetched by
+# `node esquema.js --baixar`, read only at extraction time — nothing in the running
+# server requires anything from here, so the zero-runtime-dependency rule holds.
+# Regenerable in one command, and pinned by version inside .cache-esquema.json.
+.n8n-pkgs/
+
+# The distilled node schema. A cache: derived from the packages above, keyed by
+# their version, and rebuilt in one command. What makes it a cache and not
+# knowledge is that npm is the source of truth and it is still there.
+.cache-esquema.json
+.cache-esquema.json.tmp
 
 # Screenshots produced while iterating on the design. The preview .html files
 # are kept (they are the record of what was chosen); the PNGs are regenerable.
@@ -32,6 +47,17 @@ preview/*.png
 # Only the atomic-write temp files are disposable.
 fixes.json.tmp
 proposals.json.tmp
+# licoes.json segue a mesma regra e pelo mesmo motivo: a rodada reprovada que
+# gerou uma licao nao existe mais em lugar nenhum, e a curadoria do Kauan
+# (promovida / descartada) e decisao dele. Rastreado. So o temp sai.
+licoes.json.tmp
+
+# Skill instalada localmente por `npx skills add`: 19MB e 201 arquivos, com
+# node_modules de terceiro dentro, num repositorio cuja regra e ter zero
+# dependencia. `skills-lock.json` fica versionado — ele e o que permite
+# reinstalar exatamente a mesma versao.
+.agents/
+.claude/skills/
 
 # projetos/ NAO entra aqui de proposito: e o que o Tester produziu e o Kauan
 # decidiu guardar. O JSON do fluxo, o relatorio e a simulacao nao se regeneram

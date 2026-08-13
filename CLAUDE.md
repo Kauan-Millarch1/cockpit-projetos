@@ -85,7 +85,7 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | File | Role |
 |---|---|
 | `server.js` | Local HTTP server, disk scanner, SSE broadcaster. **Emits facts only.** |
-| `n8n.js` | n8n Cloud API client. **Security boundary + facts only.** Read-only above the marked `WRITE PATH` block; below it, the four functions the approve/revert path uses. |
+| `n8n.js` | n8n Cloud API client. **Security boundary + facts only.** Read-only above the marked `WRITE PATH` block; below it, the functions the approve/revert path uses — plus `retryExecution`, which is of a different nature and says so: the others change a document that a backup can restore, that one sends a real message and has no undo. |
 | `claude-fix.js` | Spawns the Claude Code CLI headless, applies its patch, runs the gates, builds the redacted diff, and owns the only two calls that write to n8n. **Facts only** — whether a proposal is good is decided on the review screen. |
 | `flows.html` | Front door: live n8n flow panel. **Holds all judgement.** |
 | `cockpit.html` | v1 disk portfolio, served at `/disco`. **Holds all judgement.** |
@@ -100,9 +100,24 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `simulate.js` | The ghost. Derives what a flow **would** send by resolving its own expressions. Fails closed outside a declared class. No `eval`, ever. |
 | `tester-agentes.md` | **The domain knowledge for conversational agents**, in prose, read at runtime. Four anchor-delimited blocks are injected into the Tester's prompts. Editing it changes what the Tester builds — no code change, no restart. Every fact in it was measured in the live flows. |
 | `agentes.js` | The machine around that doc: extract a block, decide whether an idea is an agent, and the gates that only apply to one. **No knowledge lives here** — it lives in the `.md`. |
+| `esquema.js` | **The authoritative node definition**, distilled from the npm packages, per `(type, typeVersion)`: every property, the full enum of every discriminator, defaults, required, and the `displayOptions` predicate saying under which `resource`/`operation` a key exists at all — plus the output schema the packages ship for 278 versions. 810 types. Facts only; fails soft. Owns the parameter gate's evidence, never its verdict. |
+| `esquema-test.js` | 26 cases split in three groups, and the third is the point: what the gate must **not** catch. Each of those would reject a working flow. `node esquema-test.js`. |
+| `n8n-gramatica.md` | **The grammar the schema cannot express**, in prose, read at runtime: the `=` prefix, the three layers of `connections`, the JSON form of every composite parameter, error/retry, the topologies, the measured traps. Five anchor-delimited blocks. Editing it changes what the Tester builds — no code change, no restart. |
+| `gramatica.js` | The machine around that doc — extract a block, report what is missing, compose `GRAMATICA.md` for the run directory. **No knowledge lives here.** |
+| `licoes.js` | **The base that learns.** Three collectors — a failed round against the round that passed, an edit Kauan accepted that changed a parameter's *shape*, and an error signature from the `flows.html` board. Facts only; a lesson is a claim with a source, never a rule. |
+| `licoes.json` | The lessons and their curation state. **Tracked in git — not a cache.** The failed round that produced a lesson exists nowhere else, and `promovido`/`descartado` is Kauan's decision. |
+| `licoes-test.js` | 23 cases. The load-bearing one: **no parameter value ever reaches the file**, asserted against real-looking phones, channel ids and tokens — this file goes to git. `node licoes-test.js`. |
+| `aba.js` | **The notice that arrives when nobody is looking**: animated favicon (a flow — one node, two branches), blinking title, OS notification, plus the page's own `.aviso`. Served to all three pages as **one file**, not a fourth copied block. Holds the judgement of what deserves to interrupt someone; loads in Node so those decisions are testable without a browser. |
+| `aba-test.js` | 24 cases on the decisions — including the boundary that traps a bug the screen never showed. `node aba-test.js`. |
+| `preview/gen-aba-preview.js` | The favicon at 6×, all states, interactive. `aba.js` is **inlined at generation time**, never re-written. |
+| `docs/n8n-kb/` | The portable copy, for other projects. `SKILL.md` is already in Claude Code skill format; `extrair-esquema.js` is a **generated** copy of `esquema.js` (`node docs/n8n-kb/sync.js`), never hand-edited. |
+| `anexos.js` | What she attaches to the conversation — print, PDF, `.md`, spreadsheet, and a whole folder. **Facts only, and no parser of ours**: the CLI reads image and PDF natively, so this writes the file where the session can reach it and describes what is there. Owns the path guards, the whitelist, the caps, the secret scrub, and the tray that holds files before a session exists. |
+| `anexos-test.js` | 37 cases, each rejecting one named defect: traversal in a filename, `..` inside a folder path, `.docx` refused *with instructions*, two pasted prints not overwriting each other, a token in a `.md` scrubbed before it touches disk, the folder tree surviving, and `remover` never reaching outside `anexos/`. Free. `node anexos-test.js`. |
 | `agentes-test.js` | Proves each agent gate rejects the specific defect it exists for, and that the doc parses. Free — no model, no cost. `node agentes-test.js`. |
 | `prompt-budget-test.js` | Builds the **worst case** of every prompt and proves it fits the command line. The prompt travels in `-p`; overflowing it fails as `spawn ENAMETOOLONG`, which names neither the prompt nor the size. `node prompt-budget-test.js`. |
 | `edicao-test.js` | The patch applier for a saved project: what a request can and cannot do to a flow that already exists. Every test rejects one named defect, and the list is the same one `promptEdicao` promises the model — that is what stops prompt and code from drifting apart. Free. `node edicao-test.js`. |
+| `cancelar-test.js` | Esc stops the run: the child dies, the generation moves, the stage reads `cancelada` and never `falhou`, and the unmeasured round enters the ledger as blind instead of zero. Calls the real `cancelar` over the real `sessions` map with a fake child — reimplementing the state machine outside would prove the copy. Saves and restores `blueprints.json` byte for byte. Free. `node cancelar-test.js`. |
+| `reexec-test.js` | 17 cases on the one path whose effect leaves the instance. The load-bearing ones: the target of a sub-workflow retry is the **parent**, the double click is refused (two clicks = two messages to the same lead), an in-flight attempt whose answer never came also refuses, the record is written **before** the call, and an unrecognised error classifies as ambiguous rather than clean. All three mutants were verified to fail it. Free — the n8n client is swapped in `require.cache`, nothing is called. Cleans only its own `rzztest*` rows out of `proposals.json`, never the whole file: the cockpit writes there all day. `node reexec-test.js`. |
 | `caractere-test.js` | No control character in any served or prompt-injected file, reported with line and column. This file is what the note below about U+0000 in a cache key always claimed existed. `node caractere-test.js`. |
 | `testar.cmd` | Double-click: runs every test that costs nothing. `tester-smoke.js` is deliberately left out — it bills the plan. |
 | `catalog.js` | What this instance actually accepts, distilled from the 62 live workflows. **Only sanitized parameter shapes reach disk — never values.** Since 2026-08-10 it also carries `credenciaisConhecidas`: credential **type, id and name** referenced by his flows. The secret is not there and never can be — the public API does not return credential values. Cache is versioned (`CACHE_V`); bump it on any shape change. |
@@ -110,6 +125,11 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `lixeira-test.js` | Delete moves, restore returns whole, permanent delete ends it. Runs against the real `projetos/` — that is the directory the functions know — with a `zz-teste-lixeira-*` fixture cleaned up in a `finally`. Free. `node lixeira-test.js`. |
 | `iso-check.js` | The build gate that had to pass before the Tester's research session was allowed network. Re-run it after any CLI upgrade. |
 | `tester-smoke.js` | Drives a whole build headless. What decides whether the Tester is worth anything is the flow that comes out, not the screen. |
+| `novidades.js` | The daily n8n-changelog job: fetch, dedupe by `guid`, one headless session, gates, write. **Facts only** — whether a release note matters is what the session answers, against the gates. |
+| `n8n-novidades.md` | What the job wrote. Every entry carries its source (PR link + n8n version). **Tracked in git.** Nobody curated it — delete a wrong line and it never comes back, because the `guid` stays in `novidades.json`. |
+| `novidades.json` | The ledger: `guid`s already judged, last check, queue, history, and the open notice. **Tracked in git — not a cache.** It does not regenerate: losing it reprocesses (and repays for) the whole feed. |
+| `versao.json` | The Tester's base stamp. Written by the job, read by `/api/tester/status`. |
+| `novidades-test.js` | 24 cases: the feed parser against a real-shaped RSS, every gate that stops an invented source, and the prompt fitting the command line at a full round. Free. `node novidades-test.js`. |
 | `blueprints.json` | One entry per Tester build: idea, stages, gate verdicts, sandbox id, cost per invocation. **Tracked in git.** |
 | `PLAN.md`, `PLAN-REVIEW-LOG.md` | The Tester's locked design and the full record of the adversarial review that hardened it. |
 | `.cache-scan.json`, `.cache-n8n-exec.json`, `.cache-catalog.json`, `.cache-tester-docs/`, `.tester-runs/` | Caches and scratch. Disposable, gitignored. The docs cache is **deliberately not tracked**: it is third-party web text with a TTL, and a poisoned or stale fetch must never become permanent. |
@@ -121,7 +141,9 @@ or a flow is unhealthy, stale, or risky; it reports counts, timestamps, git outp
 status, node timings and error strings. Every threshold, band, grouping rule and diagnosis sentence
 lives in the marked judgement block at the top of the page script — `flows.html` has `BANDS`,
 `SCRATCH`, `naPorta`, `motivoPorta`, `projectOf`, `classify`, `diagnose`, `errorKey`, `similarKey`, `isAnnotation`,
-`fixState`, `cardPref`/`toggleFav`/`hideCard` (favorite/removed — see below), `SUGGESTIONS`/`suggestFor`, `originOf`/`nodeOrigin`/`errNodeLabel`,
+`fixState`, `cardPref`/`toggleFav`/`hideCard` (favorite/removed — see below),
+`passaFiltro`/`filtroAtivo`/`contagensFeed`/`falhasEscondidas` (the live-feed filter),
+`SUGGESTIONS`/`suggestFor`, `originOf`/`nodeOrigin`/`errNodeLabel`,
 `HANDOFF`/`STAGE_MAP`/`HANDOFF_TRUTH`/`APPLY_TRUTH`/`APPLY_CAVEAT`; `cockpit.html` has
 `BANDS`, `WEIGHTS`, `computeHealth`, `diagnose`, `buildChecks`, `isGenerated`.
 
@@ -179,11 +201,17 @@ output. `claude-fix.js` is what keeps that honest, in three layers:
 | `POST /api/claude/run/:id/approve` | **The only write to a real workflow.** Re-fetches, refuses on `updatedAt` drift, re-runs the gates, saves the backup, then `PUT`s. |
 | `POST /api/claude/run/:id/reject` | Records the rejection. Writes nothing to n8n. |
 | `POST /api/claude/run/:id/revert` | `PUT`s the backup back. Only valid on an applied run. |
+| `POST /api/claude/run/:id/retry` | **The only effect that leaves the instance.** Re-runs the failed execution with the corrected flow (`loadWorkflow: true`). Only on an applied run; `execId` comes from the client and is re-checked server-side (which flow it belongs to, that it actually failed). No undo. |
 | `GET /api/claude/proposals` | The `proposals.json` ledger. |
 | `GET /tester` | The Tester page. `?s=<id>` reattaches to a live build (one takes minutes; a refresh used to lose it). `?static=1` freezes it to a single read — SSE holds the connection open forever, which blocks headless capture. |
 | `GET /api/tester/status` | CLI found, n8n configured, sandbox on/off, which models, **which auth mode** — so "plan quota, no card" is visible rather than assumed — and `docAgentes` (is `tester-agentes.md` there, which blocks parsed, which are missing, which are read by nobody). The page warns **before** a build, because afterwards the flow is already out and looks normal. |
-| `POST /api/tester/session` | Start `{ideia, nivel}` → `202 {id}`. One build at a time (409). |
+| `POST /api/tester/anexo` | One attachment per request, base64, before any session exists. Returns `{bandeja, anexos, resumo}` — the tray id is the receipt. Refusal is a normal `400` carrying the sentence the screen shows. |
+| `POST /api/tester/anexo/remover` | Takes one chip off the tray. Only reaches inside its `anexos/`. |
+| `POST /api/tester/session/:id/anexo` | Same, with the conversation already open — straight into the run directory, no tray. |
+| `POST /api/tester/session/:id/desanexar` | Removes one attachment from a live session. |
+| `POST /api/tester/session` | Start `{ideia, nivel, bandeja}` → `202 {id}`. One build at a time (409). The tray is **adopted** (directory moved, `rename`), and the inventory is then read from disk — never from what the page claimed it sent. |
 | `POST /api/tester/session/:id/reply` | A message, chip answers, or the gate decision. Free text bumps the generation and restarts from that stage. |
+| `POST /api/tester/session/:id/cancelar` | Stop the running stage. Kills the local CLI process and nothing else — **writes zero to n8n**. 409 when the session is not running, so Esc on an idle screen says so instead of pretending. |
 | `GET /api/tester/session/:id` | Snapshot. `GET …/stream` is SSE: full snapshot first, then deltas. |
 | `POST /api/tester/session/:id/simulate` | Re-run the ghost with a different seed. **Local code — no model, no cost, instant.** |
 | `POST /api/tester/projeto/:slug/editar` | Opens a saved project as a live session (`modo: "edicao"`) → `202 {id}`. Same id format and same SSE as a build, so a refresh mid-patch comes back to it. |
@@ -191,6 +219,9 @@ output. `claude-fix.js` is what keeps that honest, in three layers:
 | `POST /api/tester/projeto/:slug/desfazer` | Swaps the current version with `versoes[0]`. Neither is discarded, so undoing again redoes. |
 | `POST /api/tester/session/:id/credencial` | `{credId}` — breaks a credential tie. **Local, instant, no model, and no secret**: the body carries the id of a credential that already exists in the instance, validated against the catalogue. Returns the snapshot. |
 | `GET /api/tester/blueprints` | The `blueprints.json` ledger. |
+| `GET /api/novidades` | Last check, queue size, how many `guid`s are known, the last round, and the open notice. Facts only. |
+| `POST /api/novidades/fechar` | Clears the notice. The only thing that makes it go away. |
+| `POST /api/novidades/verificar` | Runs the daily round now — same gates, nothing skipped. |
 
 Guards in place and verified: `..`, `/`, `\` in a project name → 400; unknown project → 404;
 `revealFolder` refuses anything outside `ROOT`; workflow id must match `[A-Za-z0-9_-]{1,64}`,
@@ -223,6 +254,13 @@ Verified against the live instance on 2026-08-05. These cost real debugging time
   is the node that made the call. Never silently point at the wrong node.
 - **One child failure produces two error signatures** — parent and child each get an errored
   execution with the same node and message. That is accurate, not a bug in the grouping.
+- **`?includeData=true` also returns `workflowData`, with node parameters.** Verified on 60 of 60
+  executions. That is how the summary learns which field carries the outgoing text without guessing
+  at field names — see the boundary section. It is process-local; no route serves it.
+- **`runData[node][run].source` names the feeder edge**, as
+  `[{previousNode, previousNodeRun, previousNodeOutput}]`, and the array can carry holes
+  (`[{…}, null, null]` on a multi-input node — take the first non-null). Never infer the feeder from
+  execution order: with a `Wait` inside a loop the neighbour is a different node.
 - **Sticky notes are nodes** (`n8n-nodes-base.stickyNote`). They never appear in `runData` and they
   inflate the bounding box, so `isAnnotation()` filters them before layout.
 - **Volume, for sizing polls:** ~840 executions per 24h, one workflow (`WhatsApp API Oficial`)
@@ -458,6 +496,191 @@ names → same signature → no re-animation). On a correction round the next `W
 draft, so a gate-failed flow is seen being redrawn live. `Edit` calls are ignored — they carry no
 full content to reconstruct.
 
+### The Tester reads the n8n changelog by itself, once a day
+
+`novidades.js`. A timer in `server.js` fetches
+`https://raw.githubusercontent.com/n8n-io/n8n-docs/main/feeds/release-notes.xml`, keeps only the
+items it has never seen (by `guid`), and — only if there are any — spends one local headless session
+answering a single question: **does this change how we build a flow?** What does becomes a line in
+`n8n-novidades.md`, which `gramatica.documento()` appends to the `GRAMATICA.md` every build already
+reads. What doesn't is recorded as seen and never costs anything again.
+
+**It is not a Claude Code hook, and that was the whole point of the request.** A hook fires on a
+session event; this has to happen with Claude closed. The cockpit process is what stays open all
+day, so it is the scheduler. It ticks hourly and `novidades.js` decides whether 24h have passed —
+**a machine that was off for three days does one round on return, not zero.** A bare `setInterval`
+would silently become "daily, if the cockpit happened to be running at that instant".
+
+**Where it may write is a limit, not a detail.** `licoes.js` already locked the reasoning: *a
+knowledge base that writes itself gets poisoned the first time it learns from a wrong correction*.
+So the job **never touches `n8n-gramatica.md` or `tester-agentes.md`** — hand-curated prose stays
+hand-curated — and never touches `catalog.js` or the `esquema.js` cache, which are **measured**;
+swapping measurement for news would be the worst possible direction. When the news is schema-level
+it sets `precisaEsquema` and the notice prints the two commands instead of writing prose.
+
+What it may write is `n8n-novidades.md`, where **every entry carries its source** — the PR link and
+the n8n version. Same contract as a lesson ("a claim with a source"), with a stronger source: the
+n8n team wrote it, not a model inferring from a failed round. The section lands **at the end of
+`GRAMATICA.md` under its own heading**, saying that it wins over the grammar for the version it
+cites and that nobody reviewed it by hand — erasing that boundary would give an automatic line the
+weight of a curated one.
+
+**Gates, and no retry.** `validar()` refuses: a `guid` that did not come in this round's feed (an
+invented source), a repeated `guid`, text under 20 or over 400 chars, a code fence or markdown
+heading in the text (the document's shape is built by code, never by the model), an unknown
+`impacto`, a non-boolean `precisaEsquema`, a `nota` over 120 chars. Unlike `claude-fix.js` there is
+**no second round**: nobody is watching, and pressing a model that already broke the format spends
+money for the same answer. On failure **nothing is marked as seen** — an item judged by a rejected
+proposal was not judged, and marking it would lose the news silently, which is the exact defect this
+job exists to prevent.
+
+**Measured on the first real run, 2026-08-12:** 50 items in the feed, 12 judged (`ITENS_POR_RODADA`,
+so the first day does not send 40 descriptions into a prompt), **3 kept**, `v3.1` → `v3.2`,
+**US$0.385 and 79s**, `precisaEsquema: true`. The other 38 wait for the next day and the ledger
+reports `fila` — a silent queue is the same as losing the item.
+
+**The notice lives outside `#app` and stays until he closes it.** `#app` is rewritten on every SSE
+event, so a notice inside it would blink through an entire build. It is the shared `.aviso`
+vocabulary — type `ok`, because nothing broke and the base got newer; `alerta` is for what needs
+action, and here the action was already taken. Its state is on the server, not in `localStorage`:
+the job runs with the tab closed, and a notice kept in the browser would only exist for the tab that
+was already open — the one that does not need it. Each line carries a **"ver o PR ↗"** link for the
+same reason the doc does: a line nobody reviewed must be checkable in one click.
+
+**The version chip does not refresh mid-build, and that is correct** — the build that is running
+used the base as it was when it spawned.
+
+`rodarAvulso()` (a session with no conversation, no SSE, no cost ledger) lives in **`tester.js`**,
+not in `novidades.js`, because this session's fence is the flags around it: `--disallowedTools`,
+`--setting-sources ""`, `envLimpo()`. This repo measured that `--allowedTools` restricts nothing and
+that without `--setting-sources ""` the session loads the global `CLAUDE.md`, which on this machine
+holds the n8n key in plain text. A second copy of those flags in another file would diverge on the
+first fix made to only one side, and the side that diverged would be a session with no fence.
+
+`POST /api/novidades/verificar` runs the same round on demand — same gates, nothing skipped — so
+proving it works does not mean waiting 24 hours.
+
+### The version stamp is about the base, not the code
+
+`versao.json` (`{n, em, nota}`) rides on `/api/tester/status` and renders as a small `--brand` chip
+beside the wordmark, with the whole sentence in its `title`. The minor counts **knowledge rounds**
+starting 2026-08-12, when the stamp began — there is no honest number to assign to anything before
+that. It lives in **JSON, not in `tester.js`**, because the daily job bumps it: a robot writing a
+data file corrupts a field, the same robot writing `.js` takes the server down.
+
+**It moves when what the Tester KNOWS changes, not when how it draws changes.** `tester-agentes.md`,
+`n8n-gramatica.md`, the node schema and the curated lessons alter the flow that comes out of a build
+without a line of code changing, and without a stamp "it got better" is an impression: nothing joins
+a `blueprints.json` entry to the base that produced it, and two flows built a week apart are not
+comparable.
+
+**It comes from the server on purpose.** Node does not reload `tester.js`, so an old process serves
+an old base — and a constant embedded in the page would report the version of the *file served*,
+never of the *process answering*. Three states, the lesson this repo has now paid for three times:
+present (the chip), absent (`base ?`, dimmed, saying the process started before the stamp existed —
+never "no version"), and not-yet-loaded (hidden until the status lands).
+
+### Voice and attachments: the two inputs that are not the keyboard
+
+An idea typed in two lines loses exactly what decides the flow — the real format of the
+destination, the true column names, the message she wants to see arriving. She already has all of
+it somewhere: in a screenshot of the Slack channel, in a spreadsheet, in a `.md` spec. So the
+composer now takes **dictation, pasted prints, files, and whole folders**, on the opening screen and
+mid-conversation alike.
+
+**There is no parser of ours, and that is the load-bearing decision.** The Claude CLI reads image
+and PDF natively with `Read`. Writing OCR, a PDF extractor or a spreadsheet reader here would mean
+building — and then maintaining forever — a worse version of what the session already does. What
+`anexos.js` does is put the file where the session can reach it and describe what is there.
+
+**The file travels on disk, never in the prompt.** Same lesson `escreverContexto()` already paid
+for: the prompt rides in `-p` and the Windows command line ends at 32767 characters. A 40KB `.md`
+inline would kill the spawn with `ENAMETOOLONG`, which names neither prompt nor size. Only the index
+goes in the prompt, and `trechoPrompt()` has a budget of its own (`ORC_ANEXOS`) that says when it
+truncated — `prompt-budget-test.js` now carries 40 long-named attachments in its worst case, so the
+day someone drags a folder is not the day the worst case stops being the worst case. Measured:
+25964 characters for an agent interview with 40 attachments, 6103 of headroom.
+
+**A folder is for exploring, not for dumping.** 200 files fit in no context, and 90% of them do not
+matter. The session gets the tree in `anexos/INDICE.md` and `Glob`/`Grep` alongside `Read` — those
+two tools are what separate exploring from dumping, and they are granted **only when there is an
+attachment**, because the tool list is this session's fence. The fence that matters is still
+`--disallowedTools`: no Bash, no network. The index leads with an instruction that looks obvious and
+is not: **do not read everything**. Without it the model opens all 40 in order and reaches the first
+question with a context full of nothing.
+
+**What the session actually opened is observed, not promised.** `registrarLeituraAnexo()` reads the
+`tool_use` path off the stream, so a marked chip means *she opened this file* — never *the prompt
+asked her to*. Without that distinction attaching is an act of faith: the interview asks something
+the screenshot already answered and there is no way to tell whether it was read or ignored.
+
+**Dictation is the browser's, and that is a security decision.** Transcribing on the server would
+mean a third-party API key inside this process — exactly what this project has avoided all along
+(the n8n key never leaves the machine; the error-board suggestions are heuristics in code
+specifically so they don't become a server-side model call). The price is stated: it needs Chrome
+and the transcription passes through Google. Where `SpeechRecognition` is absent the button does not
+render, because a button that does nothing is worse than no button. Interim results land in a
+sibling node, never in the textarea — the API rewrites the whole phrase several times before closing
+it, and writing that inside would destroy what she had already typed. Sending stops the microphone:
+an open recognizer after the message went would drop the next sentence into a field that was just
+cleared, and that reads as the dictation losing what was said.
+
+**Refusals carry instructions.** `.docx` and `.xlsx` are zip files inside, so accepting them would
+hand the session binary garbage — but they are the formats she most likely has in hand, so the
+message names the way out ("export as PDF", "export the tab as CSV — and the CSV is better anyway,
+it shows the real column names"). Same for compressed archives: *drag the uncompressed folder,
+folders are accepted*.
+
+**A secret has its own refusal, and the REASON matters more than the refusal.** Measured by dragging
+a real project folder: `.env`, `.env.example` and `sftp_key_pem` were refused — correct — but the
+screen said *"não sei abrir «sem extensão»"*. That is false, and false in the worst direction: it
+reads as a format problem and invites her to convert the private key into a type I accept, i.e. to
+insist. The cause is mechanical — `nomeSeguro` strips the leading dot, so `path.extname(".env")` is
+empty and the file fell into the format sieve. `pareceSegredo()` now runs **before** the format
+check, against the *original* name (the one that still has the dot), and matches by NAME rather than
+extension because most of these have no useful extension: `.env*`, `id_rsa*`, `known_hosts`,
+`.npmrc`, `.netrc`, `credentials.json`, `service-account*.json`, `*.pem|key|ppk|p12|pfx|jks`,
+`*_pem|_key`, and anything containing `secret|senha|password`. `.env.example` is included on purpose:
+the name promises it is an example, which makes it the favourite place to paste the real key "just to
+test". The sentence says the refusal is **not** about format — the session makes no calls, so it never
+needs the secret — and offers the alternative: *send an example without the values, if what matters is
+the structure*. Twelve of these are pinned in `anexos-test.js`, along with four legitimate near-misses
+(`keywords.csv`, `monkey.png`, `chaves-de-busca.md`, `turkey.json`) that must keep passing.
+
+**A batch of refusals is ONE notice, grouped by reason.** The same folder produced three refusals and
+therefore three stacked cards for a single fact ("this folder has secrets, and they don't come in").
+A 50-file folder would cover the screen with the last card hiding the first. `gravar()` returns a
+`categoria` alongside the sentence (`segredo`, `converter`, `formato`, `teto`, `vazio`, `ilegivel`),
+it travels through the error body and `callApi` copies it onto the thrown Error, and `avisarRecusas()`
+groups by it: *"3 arquivos não entraram: 3 chaves e segredos"* plus the names. Grouping by category is
+what makes the sentence scale — the number of categories is fixed, the number of files is not. The
+anchored notice summarises the batch too; before, it held only the *last* refusal, so with three
+problems she read one third and concluded the rest went in. Labels carry explicit singular **and**
+plural: deriving it by appending "s" produced *"3 chave ou segredos"* on screen, because Portuguese
+does not inflect at the end of the phrase.
+
+**Text is scrubbed for secrets on write; image and PDF are not, and the screen says so.** A `.md`
+spec with a token inside is common, and that token is useless here — the session makes no calls. What
+it would do is end up in `report.md`, in the activity log and in the project file, three places that
+persist. So text goes through the scrub and the count becomes a sentence on screen. Pixels cannot be
+swept, and claiming otherwise would be the worse lie.
+
+**Three details that each cost something.** A `..` in a filename is payload, and the directory next
+door holds the credential-bearing backup — `nomeSeguro`/`relSeguro` clean it and `dentro()` proves it
+afterwards, two independent layers on purpose. Two prints pasted in a row both arrive as
+`image.png`, so the second is renamed rather than overwriting the first. And the attachment's **name
+is `sens`** — `clientes-2026.csv` identifies a client — so recording mode blurs it while type and
+size stay legible, which is what lets her confirm the right file went up.
+
+**Glyphs, not emoji.** Measured in the capture: `📎` and `🗀` render as an empty box in this font.
+The buttons are `⊕ anexar` and `⊞ pasta`, in the same monochrome vocabulary the canvas already
+enforces.
+
+**Verified in a real browser** (`playwright`, against a live server on a separate port so his own
+stayed untouched): single file, folder with subfolders arriving as
+`projeto-cliente/dados/estoque.csv`, `.docx` refused with its sentence on screen, typed text
+surviving the upload repaint, recording mode blurring the names, and removing a chip.
+
 ### Conversational agents are a different kind of build, and the Tester knows it
 
 Asked for "an agent that answers leads on WhatsApp", the Tester used to run the same six-dimension
@@ -537,6 +760,185 @@ hands the model invalid JSON, so it guesses the parameter shape and burns a roun
 slice is already 6158 characters with 8 types; an agent needs 23 types and 16390. `catalog.fatiaTexto()`
 now cuts **at whole-type boundaries**, in the order the caller asked for, and **returns what was left
 out** so the prompt can say it instead of silently losing half the catalogue.
+
+### The catalogue teaches vocabulary; the schema teaches grammar
+
+Added 2026-08-12, from `PLAN-CONHECIMENTO.md`. The Tester was producing flows that **passed every
+gate on the first round** and still landed in n8n with fields the editor shows as empty or wrong — 5
+of the last 6 builds in `blueprints.json` passed round one. Gates passing was not the same as the
+flow working, and nothing in the pipeline could tell the two apart.
+
+**Why the catalogue could not fix it, in its own numbers.** `catalog.js` reports a depth-2 sketch of
+what his flows use, and three of its limits only become visible from the build session's side:
+
+- **Every discriminator arrives as the word `"string"`.** `redis.operation` is `"string"` in a
+  repository whose own `CLAUDE.md` documents a silent production bug about `redis get` returning its
+  value under `propertyName`. The catalogue is structurally incapable of carrying that fact.
+- **The sketch is a UNION ACROSS VERSIONS.** `if` 2 / 2.2 / 2.3 merge into one object, and a union
+  can describe a shape **no single version accepts** — the model was being taught a node that does
+  not exist. Same for `httpRequest` 4/4.2/4.3 and `slack` 2.3/2.4.
+- **A key he has never used does not exist**, which is exactly where the Tester should help most.
+
+And the sandbox gate cannot catch any of it: **the n8n public API accepts any `parameters` object
+without validating it.** The flow is created, the gate goes green, and the defect surfaces on import.
+
+**`esquema.js` is the other half, and it comes from npm.** `npm pack` (not `install` — the tarball
+carries every `dist/nodes/**/*.node.js` and no dependency tree, 10MB against ~83MB), unpacked into
+gitignored `.n8n-pkgs/`, then each descriptor is loaded with its three imports stubbed. Result: 810
+types, 611 nodes read, **zero file failures**, 9.4MB of cache. Of his 52 catalogued types, **50** are
+covered, with **67 of 69** `(type, version)` pairs matching exactly.
+
+Read `docs/n8n-kb/FONTES.md` before touching the extraction — five details there each cost a whole
+node type, and two of them are counter-intuitive: `updateDisplayOptions` must be **real** (it is how
+most nodes *attach* the `displayOptions` this file exists for; stubbed, `slack` and `whatsApp`
+vanish), and the stub Proxy must answer **`__esModule: true`** (the tsc `__importStar` helper copies
+enumerable keys when it is false, which strips the Proxy and cost `convertToFile`).
+
+**The distillation runs in a CHILD process**, because it hangs a hook on `Module._load` and dirtying
+the module loader of the process that serves the cockpit would be reckless. The hook dies with the
+child. `get()` spawns it; nothing in the running server requires anything from `.n8n-pkgs/`, so the
+zero-runtime-dependency rule holds.
+
+**The gate is the point, and its calibration is the whole story.** Three findings, each naming the
+key: `desconhecida` (the key does not exist in that version), `inaplicavel` (it exists but only under
+another `resource`/`operation`), `enum` (value outside the closed set). The message goes straight back
+to Claude — the retry loop that already works.
+
+It is **fail-open in six places**, and each one was earned by a measurement rather than reasoned
+about in advance:
+
+1. no schema, 2. unknown type, 3. approximate version, 4. undecided predicate, 5. opaque parameter
+type, 6. **inapplicable key whose value is empty** (`"options": {}`).
+
+The calibration went **14.4% → 2.1% → 1.4% → 1.3% → 0%** of nodes flagged, measured against 2560
+nodes in 99 published flows plus his own saved projects. Each drop was a real defect in the gate:
+
+- **14.4% → 2.1%: the same property name is declared MANY TIMES.** n8n declares one entry per
+  resource/operation combination — `documentId` appears **twice** in `googleSheets` v4.7. A `Map` by
+  name keeps the last and evaluates the wrong predicate; the editor renders whichever declaration
+  matches. The semantics are OR: the key applies if **any** declaration applies.
+- **Same drop: a real flow OMITS what sits at the default.** No `googleSheets` node writes
+  `resource: "sheet"`. Without resolving defaults first, every predicate depending on a discriminator
+  went undecided, which blinded the schema precisely on the keys it exists for.
+- **2.1% → 1.4%: `pollTimes` and `requestOptions` are injected by n8n**, gated on `polling: true` and
+  `requestDefaults`, and the flags were being read correctly and **lost in the merge**. Same class as
+  `usableAsTool`, which generates a whole extra type (`<type>Tool`, 264 of them).
+- **1.4% → 1.3%: a discriminator written as an EXPRESSION** (`={{ $json.op }}`) resolves at runtime
+  and the cockpit does not execute. Treating it as a literal that fails to match flagged every
+  dependent key — a legitimate flow with a dynamic `operation` came out rejected whole.
+- **1.3% → 0% on his own flows: an inapplicable key with an EMPTY value is not a defect.** The editor
+  leaves `"options": {}` behind when someone changes a discriminator — measured in a flow the Tester
+  itself built, which works. An empty object instructs nothing, so it cannot cause the silent
+  wrongness the gate exists for, and spending a model round to delete a `{}` teaches you to ignore
+  the gate. **A finding that is correct and inconsequential is noise.**
+
+What remains flagged in the templates corpus is stale parameters — `range`/`keyRow`/`dataMode` on a
+`googleSheets@4`, `requestMethod` on an `httpRequest@4` (the name is `method` from v4 on). Those are
+true positives: n8n accepts and ignores them.
+
+**`n8n-gramatica.md` carries what no descriptor can.** The descriptor says `conditions` is
+`type: "filter"` and **does not say how a filter is written** — that form lives in the editor widget,
+and the same is true of `resourceLocator`, `assignmentCollection`, `resourceMapper` and
+`fixedCollection`, which between them cover `if`, `set`, `slack`, `googleSheets` and `httpRequest`.
+So the two sources are complementary and **neither alone is enough**: the schema gives the enums,
+applicability and unknown-key detection; the exemplar gives the inner shape. Any design that picks
+one keeps one of the two failure modes.
+
+The exemplars in it came from published flows with the `typeVersion` checked, which is also where the
+single highest-value line came from: **a parameter holding an expression must START with `=`**. Without
+it the `{{ }}` is literal text, imports without error, looks right in the editor, and the message goes
+out with the braces in the customer's face.
+
+**Every claim in that doc carries its source** — `[pacote]`, `[interface]`, `[doc]`,
+`[medido:instância]`, `[medido:templates]`. An invented number there becomes an invented number in
+every flow built from it. That rule is why `tester-agentes.md` is trustworthy and it carries over.
+
+**What this does NOT claim.** It does not make the flow correct. It makes it **structurally valid
+against the real node definitions in the declared version** — a floor, not a ceiling, and the screen
+has to keep saying so. There is still no execute endpoint on the public API.
+
+**The schema is per-checkout state and gitignored**, so a fresh clone or worktree has neither the
+packages nor the cache: `s.esquema` is null, the gate does not run, and the Tester behaves as it did
+before this feature. That is deliberate — a build must never stop because a schema was missing — and
+the price is that the absence is quiet on the hot path. `/api/tester/status` answers it in **three
+states** (not downloaded / not distilled / ready), because "I didn't download the packages" and "that
+node doesn't exist" lead to opposite decisions. Fix per checkout:
+
+```
+node esquema.js --baixar      # minutes: ~26k files to unpack
+node esquema.js --construir
+```
+
+`node esquema.js --ver <tipo> [--versao <v>]` prints a node's schema; `--conferir <fluxo.json>` runs
+the gate over a file without booting the server.
+
+### The base that learns, and the three feeds it learns from
+
+Added 2026-08-12 (L6 of `PLAN-CONHECIMENTO.md`). The cockpit was measuring its own mistakes three
+times a day and throwing every one of them away:
+
+1. **The gate.** Round N fails, round N+1 passes. The delta is an exact lesson with type, version and
+   key — and it died with the process.
+2. **The edit.** Kauan accepts a patch that changes a parameter's **shape**. That is him correcting
+   the model, in precisely the coordinates a lesson needs.
+3. **Production.** An error signature on the `flows.html` board names a node in a flow that really
+   ran. Strongest signal available here: the flow was built, approved, and broke in the world.
+
+Feed 3 is **the first path in this repository that makes the two front doors talk to each other.**
+Until now `blueprints.json`, `proposals.json` and `fixes.json` were three files joined by nothing.
+
+**A lesson is a claim with a source, never a rule.** `LICOES.md` says so in its own header, and says
+that where it contradicts `esquema.json` or `GRAMATICA.md`, those win. Promotion — moving the
+sentence into `n8n-gramatica.md` — is Kauan's, by hand. **A knowledge base that writes itself poisons
+itself the first time it learns from a wrong fix**, and wrong fixes exist: the model sometimes clears
+a gate by removing the right thing.
+
+Three states, and each does something different: `novo` is injected into prompts; `promovido` is
+**not** (the sentence became a paragraph in the grammar, and injecting both would say the same thing
+twice with two authorities); `descartado` never comes back, including when the same error recurs —
+without that, a lesson he already refused reappears forever.
+
+**Each collector's filter is the part that makes it worth anything:**
+
+- **Gate:** only what the *schema* gate flagged and the next round actually resolved. Round N+1
+  rewrites the whole document, so diffing the two would yield dozens of unrelated changes. And it
+  verifies the fix: if the offending key is still flagged in the passing round, or the node was
+  renamed, no lesson — a lesson born from a defect that is still there is worse than none.
+- **Edit:** **a value change teaches nothing; a shape change teaches.** Swapping the Slack channel,
+  the phone, the spreadsheet id is Kauan saying what he wants, not correcting an error. Without that
+  filter the base becomes a diary of preferences. `forma()` is the discriminator: `texto` →
+  `resourceLocator(mode:list)` teaches; `"=Chegou {{ x }}"` → `"=Vendeu {{ y }}"` does not.
+- **Production:** the note only rides along when it says something. Measured on the first harvest of
+  the real board: **14 lessons from 20 signatures**, and two came out as *"«slack» já falhou em
+  produção: NodeOperationError — o Kauan anotou: Ja ajustei"*. That is not a lesson, it is noise
+  injected into a prompt — and noise in a file presenting itself as measured knowledge teaches you to
+  ignore the file. The cut is by **length** (a list of useless phrases never ends), plus recognising
+  **our own sentinel**: `flows.html` writes *"Aplicado pelo cockpit sem explicação do Claude — N
+  nó(s) alterado(s)"* when the model wrote no summary. Dropping the note keeps the line true and
+  mildly useful; dropping the lesson would lose a real signal. After the filter, 6 of 14 carry a
+  diagnosis, and those are the ones worth reading: *"`vacuo_existe1` testava `$json['telefone']`,
+  campo inexistente na linha do Supabase"*.
+
+**`licoes.json` is tracked in git, which raises the bar on what may enter it.** `catalog.js` protects
+a *local, gitignored* cache from parameter values; this file is worse if it leaks, so `errado`/`certo`
+carry **shape only** — never a value. `licoes-test.js` asserts that against real-looking phones,
+e-mails, channel ids and API tokens, including values nested inside objects. The one text that does
+travel verbatim is Kauan's own fix note, and that is already tracked in `fixes.json` — copying it
+crosses no boundary that was not already crossed.
+
+**The composite key is `JSON.stringify` of an array**, never hand-concatenated. That mistake has
+failed silently twice in this repository; there is a test asserting the key is ASCII and that a
+separator appearing inside the content cannot make two different lessons collide.
+
+**Production is a command, not a hook.** `node licoes.js --colher-producao` is the only path here
+that touches the network — resolving a node *name* to a node *type* needs the flow graph — so it
+stays out of the poll. The panel's hot path keeps emitting facts only. A node absent from the failing
+flow's graph (the sub-workflow case) is **skipped**: a lesson about the wrong node type is worse than
+no lesson.
+
+Curation surface today is the CLI (`node licoes.js`, ordered by evidence — `vezes` first, then
+production over edit over gate) plus a count in `/api/tester/status`. **There is no promotion UI**,
+and that is a real gap: a base that learns while nobody looks is a base that did not learn.
 
 ### The prompt travels in `-p`, so a big prompt fails as `spawn ENAMETOOLONG`
 
@@ -677,6 +1079,50 @@ with states, activity); the percent is judgement and the page derives it.
 the ghost. Projects saved before this existed have no history — the screen says so instead of
 pretending the idea line was the conversation.
 
+### Esc stops the run, and the gate for it had been sitting there unused
+
+`vivo(s, gen)` has tested `s.status !== "cancelada"` since the first day and **nothing in the
+codebase ever set that status**. Every stage already checks it before emitting, writing or
+advancing, so cancelling is two lines — bump the generation, kill the child — and the pipeline stops
+by itself at the next `if (!vivo(...)) return`. What had to be built was the door, not the mechanism.
+
+**It is not a pause, and there is deliberately no resume.** The composer already does that job
+better: typing anything restarts from the affected stage *with the correction attached*. A "resume"
+button would redo exactly what was killed, at the same price, down the same path.
+
+**What survives survives on purpose.** The drawing, the completed stages, the findings and the spend
+stay on screen. Cancelling is stopping the spend, not erasing what was already paid for. The screen
+says so, and says the one thing that is not obvious: there is no resume, the way forward is the
+composer.
+
+**The cost of a killed round is the trap this feature would otherwise have opened.** `total_cost_usd`
+arrives in the `result` event, the CLI's last line, so a process killed mid-flight reports `usd: 0` —
+and recording zero would make cancelling a way to spend money the ledger never sees, plus authorise
+the next round as if nothing had been spent. `custoDaRodada()` is now a pure function precisely so it
+can be tested without spawning a CLI: `(morto || cancelada) && !usd` marks the entry blind. The `!usd`
+half matters — if `result` did arrive before the death, the number is real and beats the suspicion.
+
+**Two `catch` blocks were rewritten, and they were already wrong before this.** Killing the child
+makes the stage throw, and both `esteira()` and `entender()` caught that and relabelled the session
+`falhou` with "quebrou: …" on screen — claiming the Tester had a defect when the person had pressed
+stop. Free text has killed the child since forever, so that lie was already reachable; both catches
+now return early on `!vivo(s, gen)`.
+
+**Esc is the fourth thing on this page to want that key**, and it yields to the other three: an open
+`confirmar()` dialog owns it (its handler runs in the capture phase and `preventDefault()` does not
+stop propagation, so the check is whether a `.scrim` exists), a focused text field gets blurred
+instead — a reflex Esc after mistyping must not cost minutes, and the second Esc then stops for real
+— and `fecharMenus` runs first and is cheap. It only acts with something actually running, so Esc on
+the opening screen does not raise a 409 about a session that was never started.
+
+The confirmation is mandatory and internally destructive (`perigo: true`, focus on Cancelar): a build
+is minutes and dollars, and Enter without reading must not throw that away. There is also a visible
+**⨯ parar** button in the processing band carrying `esc` as a `kbd` — a shortcut alone is a door
+nobody finds, and the moment someone looks for stop is the moment they will not guess a key. Both
+call the same function. `ESTADO_TAG.cancelada` is `ordem: 2`, so the "04 de 07" counter does not walk
+backwards when you stop, and the stage is painted in `--cold`, never `--risk`: red is for what broke
+on its own.
+
 ### The trash, and the promise that was false
 
 Deleting a project used to `unlink` the file, and the dialog said the folder is versioned so git could
@@ -716,6 +1162,130 @@ dashed** so "out of service" reads at a distance; without it the trash looks lik
 someone restores thinking they are opening. And each card shows **what the build cost** — nodes,
 edit versions, dollars — because that is what decides the click, and hiding it behind the word
 "delete" is the class of damage this panel exists to avoid.
+
+## The tab strip cannot be animated, and what replaces it
+
+A build takes minutes, so leaving the page is the normal behaviour. The session always survived that;
+the way *back* did not exist. Kauan asked for a neon animation on the browser tab strip.
+
+**That is impossible and it is not promised.** The tab bar is browser chrome — no CSS, no API reaches
+it. Same rule this file already holds about the native dialog: do not promise what cannot be
+delivered. What *does* exist in that area, and together reads as "that tab is calling you":
+
+1. **An animated favicon** — canvas frames swapped into `<link rel=icon>`. The drawing is **a flow**:
+   one node left, two right, two edges, and the pulse traverses it **in the order a flow executes**.
+   Branching rather than queueing is not decoration — at 32px a row of three squares reads as three
+   squares, and a branch reads as a flow. None of the three pages had a favicon before this (hence
+   Chrome's generic globe), so this is also the missing identity.
+2. **A blinking title** — what the eye actually catches in a row of twelve tabs.
+3. **An OS notification** — for when she is outside the browser at all.
+4. **The page's own `.aviso`** — for when she is on another page of the cockpit.
+
+**Four rules that are decisions, not styling:**
+
+- **`aguardando` is its own state.** A finished build is good news; an interview parked on a question
+  is a bill. This file already says that state is the easiest to forget. Same copy for both would
+  teach you to ignore both. There are four states with four distinct sentences, and a test asserts
+  they are distinct.
+- **Permission is requested on a CLICK, never on load.** Asked on load, the browser ignores or
+  hard-blocks it — burning the only chance. And `denied` is said out loud (`⊘ Avisar`, with the
+  sentence naming where to unblock), because a notice that will never arrive and does not say so is
+  worse than none. No `Notification` in the browser → the button does not render, same rule as the
+  dictation button.
+- **One event, one announcement.** Three cockpit tabs open would mean three OS notifications for one
+  event — the product looking broken precisely when it should shine. A `localStorage` lease elects one
+  owner; the others animate their own favicon, which is correct, because each tab is a tab. The lease
+  **expires** rather than being permanent: fixed ownership means closing the owner tab silences
+  notifications forever.
+- **`prefers-reduced-motion` drops the movement and keeps the state.** The icon still changes colour,
+  the title still changes once, the OS notification still arrives. No information lives in the
+  animation.
+
+**The polling fix is a prerequisite, not a detail.** Every page now polls `/api/tester/status`, and
+that route cost **190ms** because `status()` called `esquema.lerCache()` — a `JSON.parse` of 9.4MB —
+on every call, already at the opening screen's 4s cadence. `esquema.resumo()` caches by **mtime**
+(not TTL: a TTL would make the screen say "not distilled" for N seconds after distilling). Measured
+**190ms → 5ms**. `POLL_MS` is 6s *because* of that number; if the cost ever returns, that constant is
+wrong and `aba-test.js` is where it gets caught.
+
+**One file, served — not a fourth copy.** The topbar and the `.aviso` block are already three copies
+with the debt recorded below. `aba.js` is served to all three pages instead of joining that queue.
+
+**Two things the browser found that the tests could not.** `pintar` tested `passo > 0` for the pulse,
+so a step of 0.5 gave `ARESTAS[-1]`, and destructuring `undefined` threw **inside the animation
+tick** — the next frame redrew, so the animation *looked* fine and the error only surfaced in
+Playwright's `pageerror`. It is now the pure `arestaDoPasso()` with a boundary test. And the theme
+toggle is `#tema` in `tester.html` but `#theme` in the other two, so the button landed in the wrong
+place on two of three pages: "one chrome" and the ids had already diverged.
+
+Verified in a real browser on a separate port (25 checks: favicon drawn on load, 10 distinct frames,
+the title blinking and restoring, reduced-motion, the button on all three topbars, the two-tab
+election, and the permission not being asked on load).
+
+## Every dialog and every notice is the product's — never the browser's
+
+**This is a standing rule, not a fix to one screen.** Kauan asked for it explicitly after a
+browser-chrome dialog appeared mid-demo. Two parts:
+
+**1. No native `alert()` / `confirm()` / `prompt()`, ever.** They arrive as *"localhost:4317 diz"*,
+with the OS font and the OS button order, and they cannot tell a destructive action from a reversible
+one. `confirmar()` in `tester.html` is the replacement — see the section below for its rules.
+
+**2. One notice vocabulary, `.aviso`, shared by all three pages.** There used to be four ways to say
+the same thing (`.avisobar` on the opening screen, `alertaInline()` during a run, `.anxerro` on
+attachments, plus the native dialog). Four vocabularies is what makes a panel look assembled by four
+people, precisely at the moment it most needs to be trusted.
+
+- **Two modes, one drawing.** `.aviso` anchored — stays where the problem is (the field, the section,
+  the box). `.avisos > .aviso` floating — the corner stack, for what is the consequence of a click.
+  An error that belongs to a place stays in it.
+- **Four types, and the type decides behaviour, not just colour.** `erro` and `alerta` **never
+  auto-dismiss** (whoever needs to read cannot lose the sentence, and they carry no time bar because
+  a bar that doesn't move would promise a disappearance that isn't coming). `ok` (4,5s) and `info`
+  (6s) leave on their own, with the bar showing how long is left.
+- **Hover pauses the countdown, and the pause has a ceiling.** Reading twelve words takes longer than
+  4,5s and a notice fleeing from under the cursor is the worst toast defect. But `VIDA_MAX_PAUSA`
+  (20s) exists because — measured in the verifier — a notice born under a *stationary* cursor never
+  gets `mouseleave` and would sit there forever, turning a temporary notice into permanent litter.
+- **The stack caps at four.** A folder with eight refused files would otherwise become a column
+  covering the page, with the eighth hiding the first.
+- **Built by DOM, never `innerHTML`.** The message comes from server errors and filenames, i.e. from
+  outside; `textContent` closes that door without anyone having to remember to escape. It is also
+  what lets the block be byte-identical across the three pages — `flows.html` has no `esc()`.
+- **Accessibility is not styling here.** `erro` is `role="alert"` + `aria-live="assertive"` (the
+  screen reader interrupts — the action failed); `ok`/`info` are `role="status"` + `polite`. The glyph
+  is `aria-hidden`: a notice distinguished only by colour does not exist for someone who can't see it.
+
+**Status colour as notice text fails AA, and this was measured, not guessed.** With the `-soft`
+background composited over the page, `--risk-txt` gave **4,41** in light, `--warn-txt` 4,30,
+`--ok-txt` 4,29, and `--accent-txt` **4,38** in dark — four AA failures at 12px. The fix is
+`color-mix(in srgb, var(--*-txt) 72%, var(--txt))`, which keeps the colour recognisable and lands at
+6,38–10,34 across both themes. The glyph keeps the full colour (it is form, not running text). Touch
+a status token and **re-measure in the live DOM** — and beware the measuring tool itself:
+`color-mix()` comes back from Chromium as `color(srgb 0.08 …)`, channels in 0..1, and reading that as
+0..255 produced 17,8 and 1,1 — absurd numbers that looked like a CSS failure and were a bug in the
+measurement.
+
+**A browser dialog is not ours and cannot be styled.** The folder-upload confirmation
+(*"Fazer upload de N arquivos para este site?"*, mandatory for `webkitdirectory`) and the microphone
+permission prompt have no API to customise or suppress. Do not promise to make them pretty. What we
+do instead is **warn before** — an `info` notice naming whose box it is and what to click — so a
+surprise becomes an expected step. A `confirmar()` of ours in front would stack two dialogs for one
+action, which is worse.
+
+`preview/gen-avisos-preview.js` renders all eight states (four types × both modes) on one page, in
+both themes, and it is **interactive on purpose**: the hover pause, the bar matching the life, the
+close button, the fact that error does *not* vanish, and the four-item cap cannot be checked in a
+screenshot. Like the other generators, CSS and `avisar()` are extracted from `tester.html`, so the
+preview cannot drift — and every constant `avisar()` reads must be extracted too (`VIDA_MAX_PAUSA`
+was added later and the preview died with `VIDA_MAX_PAUSA is not defined`, a ReferenceError pointing
+at the generator rather than at the page).
+
+**The three copies are still three copies.** Like the topbar and the recording mode, the `AVISOS` CSS
+block and the `avisar()` JS block were copied selector by selector into `flows.html` and
+`cockpit.html`. A change in `tester.html` must be repeated in both until this becomes a shared file.
+When re-syncing, **replace the existing block — never insert a second one**: that mistake left the
+tail of the old block dangling in `flows.html` and the page died with `Illegal return statement`.
 
 ### Confirming an action: the native `confirm()` is gone
 
@@ -997,6 +1567,59 @@ about to click approve. The serializer is now an **exclusion** list (`id`, `webh
 `credentials`) so a field the n8n team adds tomorrow shows up on its own instead of vanishing. If
 you ever narrow it back to an inclusion list, you are re-introducing this bug.
 
+## Reexecution: fixing the node does not answer the lead
+
+Applying a fix repairs the flow **from there on**. The execution that broke stays broken, and the
+lead in it stays without an answer — which is the entire reason the failure mattered. Reexecution is
+what closes that, and it is the only thing in this codebase whose effect leaves the instance.
+
+**`POST /api/v1/executions/{id}/retry` exists on this plan**, with `loadWorkflow`. Being in the
+spec does not prove it answers — `/projects` is in the same spec and returns 403 — but the shape is
+right, and it had **never been used here**: 1500 executions, zero with `retryOf`, none with
+`mode=retry`.
+
+**The retry RESUMES from the failed node.** Read in `packages/cli/src/executions/execution.service.ts`,
+not measured against the instance, because measuring would have sent a real message to a real lead:
+n8n preserves the `nodeExecutionStack` and the previous `runData` and only `pop()`s the runData of
+the last executed node — the one that broke. It does not pass `startNodes`, it passes
+`executionData: execution.data` whole. So what already ran does not run again, and what was missing
+runs for the first time. **Reading the source was cheaper and safer than measuring.**
+
+`loadWorkflow: true` is what makes it useful at all: without it n8n reexecutes the workflow saved
+**at the time of the execution**, i.e. with the defect still in it.
+
+**What remains, and it cannot be removed through the API:** the failed node itself reexecutes. If it
+failed *after* causing an effect (timeout on the response, but the message went out), that one send
+duplicates. It is at-least-once. The screen is what decides whether that is acceptable, in
+`REEXEC_LIMPO` / `REEXEC_AMBIGUO` in the judgement block — **fail-closed: an unrecognised error is
+ambiguous, never clean**, because the two mistakes are not symmetric. One sends a repeated message to
+a customer; the other costs one extra click.
+
+**The clean class rides on the approve click, and the button says so.** When the error is one where
+the node refused before sending anything, the button reads *"✓ Aprovar, aplicar e responder o lead"*
+and reexecutes right after applying. That is not a hidden auto-apply — the label states it before it
+is clicked, which is what makes the click an authorization. Ambiguous errors keep the plain button
+and a separate one carrying the reason.
+
+**Four things that are not details:**
+
+- **The target of a sub-workflow retry is the PARENT.** `claude-fix.js` follows the sub-flow and
+  applies the diff to the *child*, but the execution holding the lead belongs to the *parent* — and
+  the corrected child is loaded at runtime, so re-running the parent already picks it up. Checking
+  the execution against the corrected flow would refuse exactly the Iago/eContrate cases, which are
+  the majority of the ones that matter. That is `retryTargetWf()`.
+- **The record is written BEFORE the call.** A lost response does not prove the execution did not
+  start — the same reasoning that makes `request()` never retry a write. Recording only on success
+  would leave a sent message with no trace, and the next click would send it again.
+- **A double click is refused**, including when the previous attempt is still in flight. Two clicks
+  are two messages to the same lead, and that is the defect this feature exists not to cause.
+- **A rehydrated run comes back as `ready`**, so reexecuting through it is refused until it is
+  applied again. Correct: after restarting the cockpit nobody has the diff on screen that would
+  authorize messaging a lead.
+
+**Scope, stated on screen:** it reexecutes *that* execution. One error signature is usually several
+failed executions, i.e. several waiting leads, and the others stay put.
+
 ## Attribution: which workflow does the failing node actually belong to
 
 n8n reports a child's failure **on the parent**, so `error.node.name` routinely names a node that
@@ -1112,6 +1735,43 @@ data, not a refactor:
    through `text`, which is where the lead's number usually shows up.
 4. **Objects and arrays never pass.** String, number, boolean only.
 
+**A fifth rule arrived 2026-08-12, and it is a different kind of widening.** The panel said
+*"1 mensagem(ns) pelo nó `msg` — o conteúdo não veio nos campos conhecidos"* on a flow that had
+plainly sent two messages. Two defects, both measured on execution `#180936`:
+
+- The field was `mensagem_atual`. No honest name whitelist catches that without becoming a sieve —
+  `SAMPLE_MSG` requires an exact match, and widening it to prefixes/suffixes would let arbitrary
+  payload out through `content_type`, `message_id`, and everything else shaped like the words.
+- The fallback read `linhas[i - 1]` — the neighbour in **execution order**, not the feeder. With a
+  `Wait` inside a loop those are different nodes: run 1 of `msg` is fed by run 1 of `tipo_envio`,
+  which sits far away in the order.
+
+Both are answered by facts already in the payload, and neither needed a guess:
+
+- **`task.source[0]` names the real feeder**: `{previousNode, previousNodeRun, previousNodeOutput}`.
+  It is the edge, not the neighbourhood. It comes out as `src` per node run — names and integers
+  only. `alimentador()` in `flows.html` uses it and falls back to the old neighbour **only** for
+  details served from a cache older than this version.
+- **`e.workflowData` rides along with `?includeData=true`** — verified 60 of 60 executions — so the
+  send node's own parameter is readable in-process, and `textBody: "={{ $json.mensagem_atual }}"`
+  **names the field**. `textoEnviado()` resolves that expression against the item that actually
+  entered the node, using `resolverTexto` imported from `simulate.js`: same measured subset, no
+  `eval`, a declared marker (`⟨…⟩`) where it could not read, and `null` when only markers survived.
+
+So the fifth rule is: **the message field is not on the name whitelist — it is whatever the node's
+own text parameter points at**, which makes it the message by construction. The exposure class is
+unchanged: `sampleValue` masks and caps at 180 chars *after* resolution, so a parameter resolving to
+an object becomes 180 clipped characters exactly as an oversized whitelisted `body` already did. The
+parameter never leaves the process; the text does. `PARAM_TEXTO` deliberately **excludes `body`** —
+that is an `httpRequest` payload, and including it would turn every POST in the flow into a "message
+sent". Measured after the fix: 3 of 124 runs resolve on `#180936`, both `msg` runs with their own
+distinct text, and no `credentials` / `sessionKey` / `eyJhbGci` anywhere in the emitted detail.
+
+The screen states which of three origins it is showing, because they are not equally strong:
+`param` (derived from the node's parameter — this *is* the message, no caveat), `saida` (the node's
+own output carried text), `entrada` (neither existed, but the item that entered carried text — still
+labelled *"o item que entrou em X"*, which is the difference between reporting and supposing).
+
 The lead's *name* is not masked: it is what makes the summary usable ("Ana Palma Rodrigues
 Pimenta · k****@hotmail.com"), and it is Kauan's own CRM data on his own machine. Contact details
 are what stay covered, because a screen left open all day should not publish a way to reach someone.
@@ -1176,6 +1836,70 @@ starts extracting a new field, records written before it silently lack it, and t
 poor summary for old executions and a complete one for new ones. Measured: the effects list came up
 with no counts and no field names for exactly that reason. Bump the version on any detail-shape
 change; the old cache is discarded whole, never patched.
+
+### Filtering the live feed: three filters, and the flow picker is a screen of its own
+
+The feed lists up to 200 rows out of ~980 executions in the window, and **one flow is ~78% of them**
+(measured: `WhatsApp API Oficial`, 764 of 982). So the list answered "what ran" and could not answer
+"show me only what broke" or "get that flow out of the way".
+
+**Three filters and only three: `deu certo`, `deu erro`, and one flow.** No "rodando" — this
+instance sits at 0 (executions finish in 60–600ms) and a chip pinned at zero teaches you to ignore
+the whole band. No "lento" either: `BANDS.slowMs` is 30s, so it would also read 0 almost always, and
+inventing a second, smaller threshold would mean two definitions of *slow* on the same screen.
+
+**The counts on the chips are FACET counts, over the window — never over the result.** `DEU ERRO 11`
+is how many failures exist, not how many survive the flow filter. Counting the result would zero
+every unselected chip and destroy the one thing the number is for: saying there is a failure in
+there *before* the click.
+
+**The flow picker is a modal with the page blurred behind it, not a dropdown.** A popover would land
+on top of the execution list — exactly what you are reading in order to choose. It reuses the
+`.hoff-scrim` vocabulary (`--bg-deep` at 72%, `blur(9px)`); a second way to darken the page would be
+a second way to say "this is in front", and this codebase already has one. It is a real dialog:
+`role="dialog"`, `aria-modal`, `inert` on every other body child, Esc and scrim close it, ↑↓ walk and
+Enter picks, and focus returns to the button that opened it.
+
+Four details in it that each cost something:
+
+- **It redraws the bar BEFORE closing.** In the other order, `shut()` hands focus back to the button
+  that opened the modal and the following `renderFeed()` destroys that button — focus falls to the
+  body and Tab restarts from the top of the page. Measured, and the same class of bug the handoff
+  overlay already documents.
+- **Only flows that executed in the window are listed.** A flow with no execution has nothing to
+  filter, and picking it would return an empty list with no explanation.
+- **`SEM PREFIXO` is not printed.** That is what `projectOf()` returns when the name carries no
+  `[PROJETO]`, and four rows repeating it is noise where a name is being looked for. `.fitem .nm`
+  carries a `min-height` so the rows do not step when the second line is absent.
+- **The magnifier is drawn, never a glyph.** `⌕` (U+2315) renders as an empty circle in this font —
+  measured in the capture, the same trap as `📎` and `🗀` in the Tester.
+
+**A failure hidden by the filter is announced, and the chip is clickable.** Filtering by a flow is
+asking for focus, not asking to go blind: with `Agente Iago` selected, a failure on `WhatsApp API
+Oficial` would vanish without a trace, and the panel would be hiding exactly what it exists to show.
+The band carries `11 falhas fora deste filtro` in `--risk`, and clicking it goes to them. It is a
+fact about the present (how many failures in the window sit outside the filter), **not a novelty
+counter**: the SSE redraws the band constantly and a "+2 new" would need state that survives every
+repaint in order not to lie.
+
+**It does not persist.** `cardPref` lives in `localStorage` because "I removed this card" is a
+decision about a flow; "I am looking at failures right now" is what you are doing this minute. Saved,
+a `só deu erro` from yesterday would silently hide the rest of the panel today, and redoing it costs
+one click. **Switching project in the rail drops the chosen flow** (it belonged to the previous
+project, and keeping it would empty the list without saying why) and keeps the status chip, which is
+a question about any project.
+
+**An empty list by filter never reads as "nada executou na janela".** One is a sentence about the
+n8n instance and the other about this screen; saying the first when the second is true sends you
+hunting a defect in the instance. The empty state names the filter and how many executions it is
+hiding.
+
+Verified in a real browser against the live instance (24 checks over CDP: counts matching the window,
+the chip filtering, the band appearing and clearing, the blur, `inert`, focus into the search field,
+↑↓ and Enter, focus returning to the bar, the hidden-failure chip, and the two distinct empty
+states). The three designs were chosen from a throwaway preview that was **deleted afterwards** —
+unlike `avisos` or `confirmar`, every state of this one is one click away on the real screen, so a
+preview generator here would only be a copy free to drift.
 
 ## Judgement details worth knowing
 
@@ -1354,9 +2078,15 @@ The "Falhas 24h" KPI is unaffected — it counts execution rows, which are never
   5. with a backup written first and `↺ Desfazer` available.
 
   That is not a softening of the old rule, it is the old rule's own condition being met: the
-  standing requirement was always "per-action authorization with the diff shown first". What stays
-  out is anything that skips a step — no auto-apply, no "apply all", no scheduled fixing, no
-  retrying an execution, no deleting anything. `fixes.json` and `proposals.json` remain what they
+  standing requirement was always "per-action authorization with the diff shown first".
+
+  **Revised 2026-08-13:** there is now a second thing it can do, and it is of a different kind —
+  reexecute the failed execution, which sends real messages and has **no undo**. Same five
+  conditions apply, plus two of its own: only on an already-applied run, and only once per
+  execution. Where the error class is unambiguous it rides on the approve click, with the button
+  labelled to say so before it is clicked. What stays out is anything that skips a step — no
+  auto-apply, no "apply all", no scheduled fixing, no retry without an applied diff on screen, no
+  deleting anything. `fixes.json` and `proposals.json` remain what they
   were: bookkeeping about what was observed and decided.
 
 ## Where the opinion lives
@@ -1562,6 +2292,35 @@ horizontally — measured 32px and 13px. The capsule *reduced* it by 53px (111px
 screen you are on. What overflows is the rest of the bar: `flows.html` carries a mobile block that
 wraps it and the other two never got one.
 
+## Recording mode: the one button that assumes a camera is pointed at the screen
+
+The panel deliberately shows a narrow slice of customer data — the contact's name, the masked
+phone/e-mail, the text of the message — because that is what answers "what did this flow actually
+do". All of that is exactly what must not be in a recording or on a projector at an event.
+
+`⏺ Gravar` lives in the topbar of all three pages. Clicking it stamps `data-rec="1"` on the root, an
+`--accent` wave sweeps the screen from the button's own rect (WAAPI, the same trick as the handoff
+morph), and everything carrying the `sens` class goes to `blur(7px)`.
+
+- **What blurs**: in `flows.html` — the lead's name and contact, received/sent message text, the
+  per-node samples, and the raw error messages (they routinely embed a phone number) on the error
+  board, in the handoff terminal and in the stage strip. In `tester.html` — credential names (the
+  checklist and the tie-break chips) and attachment filenames. The ghost's simulation does **not**
+  blur: it is seeded, not real.
+- **State is the product's, not the page's.** One `localStorage` key (`cockpit-rec`), read in `<head>`
+  for the same reason the theme is — after first paint it would flash the very data the mode hides.
+  Turn it on in flows and `/tester` and `/disco` wake up with it on; two open tabs sync through the
+  `storage` event, without the wave.
+- **The blur never opens on hover.** The screen may be being filmed at that exact moment. That is
+  also why the error message was pulled out of the stage strip's `title` — a tooltip is a hover, and
+  a tooltip that reveals what the blur hides protects nothing. `setStep(txt, sensTail)` exists for
+  precisely that split.
+- `prefers-reduced-motion` drops the wave and the pulse and keeps the state and the blur — none of
+  the information lives in the animation.
+
+Verified in a real browser: 14 `sens` elements, 14 blurred, state surviving navigation across all
+three pages, and turning it off in `/disco` turning it off in flows.
+
 ## The motion layer (cult-ui, ported — not installed)
 
 Kauan picked [nolly-studio/cult-ui](https://github.com/nolly-studio/cult-ui) as the movement
@@ -1635,8 +2394,11 @@ plausible value — the whole point of this cockpit is that its numbers can be t
 3. ~~Does the cockpit stay observe-only, or gain actions?~~ **Answered: it acts, under approval.**
    It runs the Claude Code CLI locally and applies an approved workflow diff. Open follow-ups:
    (a) does `COCKPIT_SANDBOX_TEST` become the default once the sandbox copies prove harmless?
-   (b) should a *retry* of a failed execution be offered too — it is a different kind of write
-   (replays side effects: real WhatsApp messages, real Slack posts) and has **not** been decided;
+   (b) ~~should a *retry* of a failed execution be offered too~~ — **answered 2026-08-13: yes, and
+   the premise of the question was wrong.** It was blocked on the belief that retry "replays side
+   effects". It does not replay the flow, it replays **one node** — see the section below. What is
+   still open: retrying every failed execution of a signature at once (one signature is usually
+   several waiting leads, and today only the one on screen is re-run);
    (c) ~~the proposal ledger and `fixes.json` ignore each other~~ — **answered 2026-08-06: applying
    marks the signature**, with Claude's own sentence as the note, and Desfazer unmarks it. Open
    follow-up: `proposals.json` and `fixes.json` are still two files, joined only by the signature

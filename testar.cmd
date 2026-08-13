@@ -16,6 +16,27 @@ REM e cobra do plano — ele fica de fora daqui de proposito.
 set FALHOU=0
 
 echo ==============================================
+echo  esquema dos nos: o portao de parametro
+echo ==============================================
+node esquema-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  aviso de aba: favicon, titulo e notificacao
+echo ==============================================
+node aba-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  licoes: o que a base aprendeu sozinha
+echo ==============================================
+node licoes-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
 echo  portoes de agente conversacional
 echo ==============================================
 node agentes-test.js
@@ -58,9 +79,30 @@ if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
+echo  anexos: print, pdf, pasta e o que nao entra
+echo ==============================================
+node anexos-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
 echo  nota permanente do quadro de erros (fixNote)
 echo ==============================================
 node fixnote-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  parar no meio (Esc) e o gasto que ninguem mediu
+echo ==============================================
+node cancelar-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  novidades do n8n: o job diario que escreve sozinho
+echo ==============================================
+node novidades-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -69,6 +111,14 @@ echo  navegacao: um bloco so, nas tres paginas
 echo ==============================================
 node nav-sync-test.js
 if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  reexecutar: o unico efeito sem desfazer
+echo ==============================================
+node reexec-test.js
+if errorlevel 1 set FALHOU=1
+
 echo.
 echo ==============================================
 echo  caractere de controle nos arquivos servidos
