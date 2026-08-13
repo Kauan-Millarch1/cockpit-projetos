@@ -467,8 +467,25 @@ function snapshot(run) {
     appliedAt: run.appliedAt,
     revertedAt: run.revertedAt,
     capturedUpdatedAt: run.capturedUpdatedAt,
+    // Toda tentativa de reexecutar, inclusive a que não voltou. Uma resposta
+    // perdida não prova que a execução não começou, então o registro nasce
+    // antes da chamada e a tela precisa poder mostrar esse estado.
+    retries: run.retries || [],
+    // De qual fluxo é a execução que tem o lead esperando. Num caso de
+    // sub-fluxo a correção foi no filho e a execução é do PAI.
+    retryWfId: retryTargetWf(run),
     log: run.log
   };
+}
+
+/* A execução que tem o lead esperando é a do fluxo que RODOU, não a do fluxo que
+   foi corrigido. Quando `followSubWorkflow` redirecionou, o diff aplicado é do
+   filho e quem executou é o pai — e o filho corrigido é carregado em runtime,
+   então reexecutar o pai já entra com a correção. Conferir contra `run.wfId`
+   recusaria justamente os casos de sub-fluxo, que são a maioria dos que
+   importam aqui. */
+function retryTargetWf(run) {
+  return String((run.redirected && run.redirected.fromId) || run.wfId || "");
 }
 
 /* ------------------------------------------------------------ claude driver */
@@ -964,7 +981,8 @@ async function start({ key, wfId, briefing, wfName, node, lastNode }) {
     error: null, cost: 0, log: [],
     activity: null, tools: {}, eta: await estimate(),
     startedAt: new Date().toISOString(), finishedAt: null, appliedAt: null, revertedAt: null,
-    capturedUpdatedAt: null, sandboxId: null, sessionId: null, child: null
+    capturedUpdatedAt: null, sandboxId: null, sessionId: null, child: null,
+    retries: []
   };
   runs.set(id, run);
   active = id;
@@ -998,7 +1016,11 @@ async function persist(run) {
     report: run.report, fixNote: fixNote(run), sandbox: run.sandbox, error: run.error, cost: run.cost,
     startedAt: run.startedAt, finishedAt: run.finishedAt,
     appliedAt: run.appliedAt, revertedAt: run.revertedAt,
-    capturedUpdatedAt: run.capturedUpdatedAt
+    capturedUpdatedAt: run.capturedUpdatedAt,
+    /* Entra no ledger em git porque é o registro de que uma mensagem saiu para
+       um lead. `proposals.json` já é "o que o cockpit propôs e o que o Kauan
+       decidiu"; reexecutar é uma decisão, e a única sem desfazer. */
+    retries: run.retries || []
   });
 }
 
@@ -1241,6 +1263,11 @@ async function rehydrate() {
       startedAt: p.startedAt || null, finishedAt: p.finishedAt || null,
       appliedAt: null, revertedAt: null,
       capturedUpdatedAt: p.capturedUpdatedAt || null,
+      /* O histórico volta, mas o status não: um run reidratado renasce como
+         `ready`, então reexecutar por ele é recusado até ser aplicado de novo.
+         É o certo — depois de reiniciar o cockpit, ninguém tem na tela o diff
+         que autorizaria mandar mensagem para um lead. */
+      retries: Array.isArray(p.retries) ? p.retries : [],
       log: [], child: null, sessionId: null, sandboxId: null
     };
     try {
@@ -1344,6 +1371,113 @@ async function revert(runId) {
   return snapshot(run);
 }
 
+/* Reexecuta a execução que falhou, com o fluxo já corrigido.
+ *
+ * É a única coisa neste arquivo cujo efeito sai da instância: manda mensagem
+ * para pessoa de verdade. Não existe desfazer, e por isso as travas aqui são
+ * mais duras que as de `approve` — lá o pior caso é um documento errado que
+ * `↺ Desfazer` conserta.
+ *
+ * O que o retry faz e não faz está no comentário de `n8n.retryExecution`; o
+ * resumo é que ele RETOMA do nó que falhou, então o que já rodou não repete. */
+async function retry(runId, execId) {
+  const run = runs.get(runId);
+  if (!run) throw Object.assign(new Error("run desconhecido"), { status: 404 });
+
+  // Reexecutar antes de aplicar rodaria com o defeito ainda no fluxo, e depois
+  // de desfazer rodaria com o defeito de volta. As duas frases são diferentes
+  // porque as duas decisões são diferentes.
+  if (run.status === "reverted") {
+    throw Object.assign(new Error("a correção foi desfeita — reexecutar agora rodaria com o defeito de volta no fluxo"), { status: 409 });
+  }
+  if (run.status !== "applied") {
+    throw Object.assign(new Error("a correção ainda não foi aplicada (" + run.status + ") — reexecutar agora rodaria com o defeito ainda no fluxo"), { status: 409 });
+  }
+
+  const id = String(execId || "");
+  if (!/^\d{1,20}$/.test(id)) throw Object.assign(new Error("id de execução inválido"), { status: 400 });
+
+  run.retries = run.retries || [];
+
+  /* A trava que mais importa, e ela é contra o duplo clique — não contra um
+     atacante. Dois cliques em cima do mesmo botão são duas mensagens para o
+     mesmo lead, e é o defeito que esta feature está aqui para não causar.
+     `enviado` (resposta não voltou) também bloqueia: repetir uma escrita que
+     talvez tenha chegado é exatamente o que `request` se recusa a fazer. */
+  const antes = run.retries.find(r => r.execId === id && r.state !== "erro");
+  if (antes) {
+    throw Object.assign(new Error(
+      antes.state === "ok"
+        ? "esta execução já foi reexecutada (virou a execução " + antes.newExecId + ")"
+        : "já existe uma reexecução desta execução em voo e a resposta não voltou — confira no n8n antes de mandar outra"
+    ), { status: 409 });
+  }
+
+  /* Fail-closed contra o id que veio do cliente. A tela manda `newestSampleId`,
+     mas o servidor não escreve com base no que a página afirmou: confere de qual
+     fluxo a execução é e se ela de fato falhou. */
+  const alvo = retryTargetWf(run);
+  let row;
+  try {
+    row = await n8n.getExecRow(id);
+  } catch (err) {
+    throw Object.assign(new Error("não consegui ler a execução " + id + " no n8n: " + err.message), { status: 502 });
+  }
+  if (row.workflowId && alvo && row.workflowId !== alvo) {
+    throw Object.assign(new Error("a execução " + id + " é do fluxo " + row.workflowId + ", e esta correção é sobre " + alvo), { status: 409 });
+  }
+  if (row.status !== "error" && row.status !== "crashed") {
+    throw Object.assign(new Error("a execução " + id + " está como \"" + row.status + "\" — só uma que falhou pode ser reexecutada"), { status: 409 });
+  }
+
+  /* O registro nasce ANTES da chamada, e é persistido antes. Se a resposta se
+     perder, o que fica escrito é "tentei e não sei o que houve" — que é a
+     verdade. Gravar só no sucesso deixaria uma mensagem enviada sem nenhum
+     rastro, e o próximo clique a enviaria de novo. */
+  const entry = { execId: id, wfId: alvo, at: new Date().toISOString(), state: "enviado", newExecId: null, error: null };
+  run.retries.push(entry);
+  say(run, "reexecutando a execução " + id + " com o fluxo já corrigido", "warn");
+  emit(run, { t: "state", status: run.status });
+  await persist(run);
+
+  let nova;
+  try {
+    nova = await n8n.retryExecution(id, { loadWorkflow: true });
+  } catch (err) {
+    /* Nem toda falha é igual, e a diferença decide se tentar de novo é seguro.
+       `request` só carimba `err.status` quando o n8n RESPONDEU e recusou — aí a
+       requisição chegou, foi rejeitada e nada rodou, então tentar de novo é
+       limpo. Sem status, o fetch morreu antes da resposta: pode ter começado.
+       Tratar os dois como "erro" liberava a segunda tentativa justamente no caso
+       em que ela duplica a mensagem. */
+    const respondeu = Number.isFinite(err && err.status);
+    entry.state = respondeu ? "erro" : "incerto";
+    entry.error = String(err.message || err).slice(0, 300);
+    say(run, "a reexecução da execução " + id + " não foi confirmada: " + entry.error, "bad");
+    emit(run, { t: "state", status: run.status });
+    await persist(run);
+
+    if (respondeu) {
+      throw Object.assign(new Error(
+        "o n8n recusou a reexecução: " + entry.error + " — nada rodou, dá para tentar de novo"
+      ), { status: 502 });
+    }
+    // 409, não 502: o estado é indefinido, e a tela usa esse código para NÃO
+    // oferecer o botão de tentar de novo.
+    throw Object.assign(new Error(
+      "não consegui confirmar a reexecução: " + entry.error
+      + " — uma resposta perdida não prova que ela não começou, confira a execução " + id + " no n8n antes de tentar de novo"
+    ), { status: 409 });
+  }
+
+  entry.state = "ok";
+  entry.newExecId = nova && nova.id ? String(nova.id) : null;
+  say(run, "reexecução disparada" + (entry.newExecId ? " — virou a execução " + entry.newExecId : ""), "good");
+  emit(run, { t: "state", status: run.status });
+  await persist(run);
+  return snapshot(run);
+}
+
 function get(runId) {
   const run = runs.get(runId);
   return run ? snapshot(run) : null;
@@ -1358,6 +1492,12 @@ function subscribe(runId, fn) {
 module.exports = {
   configured, claudeFound, claudeBin: CLAUDE_BIN, sandboxEnabled: SANDBOX_TEST,
   start, get, subscribe, approve, reject, revert, readStore, rehydrate,
+  // o único efeito sem desfazer — leia o comentário de `retry` antes de chamar
+  retry,
   // exportados para teste
-  validate, applyPatch, diffWorkflow, redactWorkflow, sanitizedWorkflow, nodesIndex, targetNodes, scrub, fixNote, estimate
+  validate, applyPatch, diffWorkflow, redactWorkflow, sanitizedWorkflow, nodesIndex, targetNodes, scrub, fixNote, estimate,
+  /* `runs` sai daqui pelo mesmo motivo que `sessions` sai de `tester.js`: as
+     travas de `retry` SÃO a máquina de estados, e reimplementá-la no teste
+     provaria a cópia, não o original. */
+  retryTargetWf, runs
 };

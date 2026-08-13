@@ -13,6 +13,10 @@
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
+// Avaliador de expressão do Tester — puro, sem I/O, sem `eval`. Ver a nota em
+// `textoEnviado`: um segundo avaliador seria uma segunda definição de "expressão
+// suportada", e as duas divergiriam na primeira correção feita só de um lado.
+const { resolverTexto, NAO_SIMULADA } = require("./simulate.js");
 
 const CFG_FILES = [".env", ".env.local"];
 const WINDOW_HOURS = 24;
@@ -337,6 +341,104 @@ function sampleOf(json) {
   return Object.keys(out).length ? out : null;
 }
 
+/* ------------------------------------------------------- O TEXTO QUE SAIU
+ *
+ * A saída de um nó de envio é a RESPOSTA da API — medido no WhatsApp:
+ * `messaging_product`, `contacts`, `messages`. O texto nunca esteve ali. E
+ * procurá-lo por nome de campo no vizinho anterior erra duas vezes:
+ *
+ *   - o campo pode chamar-se `mensagem_atual` (medido nos fluxos dele), que
+ *     nenhuma whitelist honesta de nomes pega sem virar peneira;
+ *   - o vizinho na ORDEM DE EXECUÇÃO não é o alimentador quando há `Wait`
+ *     num laço. Medido: a run 1 do nó `msg` é alimentada pela run 1 do
+ *     `tipo_envio`, que está longe dali na ordem.
+ *
+ * Os dois fatos que resolvem isso já vêm no payload da execução:
+ *
+ *   - `task.source[0]` NOMEIA o alimentador real:
+ *     `{previousNode, previousNodeRun, previousNodeOutput}`. É a aresta, não
+ *     a vizinhança.
+ *   - `e.workflowData` traz os parâmetros do nó (verificado em 60 de 60
+ *     execuções com `includeData=true`). `textBody: "={{ $json.mensagem_atual }}"`
+ *     NOMEIA o campo que carrega o texto.
+ *
+ * Então o texto passa a ser DERIVADO: a expressão do próprio nó, resolvida
+ * contra o item que de fato entrou nele. O avaliador é o do `simulate.js` —
+ * mesmo subconjunto medido, sem `eval`, e marcador declarado no lugar do que
+ * não soube avaliar. Só que aqui não é simulação: os dados são reais.
+ *
+ * QUINTA REGRA DA FRONTEIRA — as quatro acima continuam valendo. O campo lido
+ * não vem da whitelist de nomes; vem do parâmetro do próprio nó, o que o torna
+ * a mensagem por construção. A exposição é a classe já aprovada na regra 2:
+ * no máximo `SAMPLE_TEXT_CAP` caracteres, mascarados por `sampleValue` DEPOIS
+ * da resolução — um parâmetro que resolva para um objeto vira 180 caracteres
+ * cortados, exatamente como um `body` gigante já virava. O parâmetro em si não
+ * sai daqui: sai o texto.
+ *
+ * `body` está deliberadamente FORA da lista: é o corpo de um `httpRequest`, e
+ * resolvê-lo faria todo POST do fluxo virar "mensagem enviada". */
+const PARAM_TEXTO = ["textBody", "text", "messageText", "message", "caption", "content", "subject"];
+const MARCA_NAO_LIDA = "⟨…⟩";
+
+function primeiroSource(t) {
+  // `source` vem como array e pode ter buracos: `[{...}, null, null]`.
+  const s = Array.isArray(t && t.source) ? t.source.find(Boolean) : null;
+  if (!s || !s.previousNode) return null;
+  return {
+    no: String(s.previousNode),
+    run: num(s.previousNodeRun) || 0,
+    saida: num(s.previousNodeOutput) || 0
+  };
+}
+
+function jsonDaRun(task, saida = 0) {
+  const br = task && task.data && task.data.main && task.data.main[saida];
+  const it = Array.isArray(br) ? br[0] : null;
+  return it && it.json && typeof it.json === "object" ? it.json : null;
+}
+
+/* Índice `nome do nó -> json` para `$('Nó')`. A run escolhida é a mais recente
+   ANTES desta: uma run posterior seria informação que o nó não tinha quando
+   executou, e o resumo estaria contando o futuro. */
+function porNoAte(runData, indice) {
+  const out = {};
+  for (const [nome, tasks] of Object.entries(runData)) {
+    let melhor = null, melhorI = -1;
+    for (const t of Array.isArray(tasks) ? tasks : []) {
+      const i = num(t.executionIndex);
+      if (i == null || (indice != null && i >= indice)) continue;
+      if (i > melhorI) { melhor = t; melhorI = i; }
+    }
+    const j = melhor && jsonDaRun(melhor);
+    if (j) out[nome] = j;
+  }
+  return out;
+}
+
+function textoEnviado(params, task, runData, agora) {
+  if (!params || typeof params !== "object") return null;
+  const bruta = PARAM_TEXTO.map(k => params[k]).find(v => typeof v === "string" && v.trim());
+  if (bruta === undefined) return null;
+
+  // Texto fixo, sem expressão: não há o que resolver, e ele É a mensagem.
+  if (!bruta.startsWith("=") && !bruta.includes("{{")) return sampleValue(bruta, SAMPLE_TEXT_CAP);
+
+  const src = primeiroSource(task);
+  const alim = src ? jsonDaRun((runData[src.no] || [])[src.run], src.saida) : null;
+  const r = resolverTexto(bruta, {
+    json: alim || {},
+    // O índice por nó só é montado quando a expressão realmente cita `$('Nó')`.
+    porNo: bruta.includes("$(") ? porNoAte(runData, num(task.executionIndex)) : {},
+    agora
+  });
+
+  // O que o avaliador não soube ler vira marcador. Se sobrou SÓ marcador, não
+  // houve leitura nenhuma — e um resumo feito de marcador é pior que o silêncio.
+  const limpo = r.texto.split(NAO_SIMULADA).join(MARCA_NAO_LIDA).trim();
+  if (!limpo || limpo === MARCA_NAO_LIDA) return null;
+  return sampleValue(limpo, SAMPLE_TEXT_CAP);
+}
+
 function shapeOf(task) {
   const main = task && task.data && task.data.main;
   if (!Array.isArray(main)) return null;
@@ -365,9 +467,19 @@ function shapeOf(task) {
 function extractExecDetail(e) {
   const rd = (e.data && e.data.resultData) || {};
   const err = rd.error || null;
+  const runData = rd.runData || {};
+
+  /* Os parâmetros ficam AQUI DENTRO e não saem — são eles que nomeiam o campo
+     do texto. `workflowData` chega junto no payload de `?includeData=true`
+     (verificado em 60 de 60 execuções). */
+  const paramDe = new Map();
+  for (const n of (e.workflowData && e.workflowData.nodes) || []) {
+    if (n && n.name) paramDe.set(String(n.name), n.parameters);
+  }
+  const agora = e.stoppedAt || e.startedAt || null;
 
   const nodes = [];
-  for (const [name, tasks] of Object.entries(rd.runData || {})) {
+  for (const [name, tasks] of Object.entries(runData)) {
     for (const t of Array.isArray(tasks) ? tasks : []) {
       const shape = shapeOf(t);
       nodes.push({
@@ -380,6 +492,14 @@ function extractExecDetail(e) {
         items: shape ? shape.items : null,
         keys: shape ? shape.keys : [],
         binary: shape ? shape.binary : false,
+        // de onde veio o item que ENTROU: nome do nó, run e porta. Só nomes e
+        // inteiros — nenhum payload. É a aresta de verdade, e é o que corrige o
+        // "vizinho na ordem" em fluxo com laço.
+        src: primeiroSource(t),
+        // o texto que este nó MANDOU, resolvido pelo parâmetro dele contra esse
+        // item. `null` quando o nó não tem parâmetro de texto ou quando nada
+        // resolveu — silêncio, nunca palpite.
+        enviado: textoEnviado(paramDe.get(String(name)), t, runData, agora),
         // recorte de conteúdo: texto (cortado), contato (mascarado), referência
         sample: shape ? shape.sample : null
       });
@@ -426,7 +546,7 @@ const state = {
 
    O carimbo abaixo sobe sempre que o formato do detalhe muda; o cache antigo é
    descartado inteiro em vez de ser remendado. */
-const EXEC_CACHE_V = 5;
+const EXEC_CACHE_V = 6;   // 6: `src` e `enviado` por run (o texto que saiu)
 
 function loadExecCache() {
   try {
@@ -489,6 +609,20 @@ async function getDetail(id) {
   const d = extractExecDetail(raw);
   if (d.status !== "running" && d.status !== "waiting") { state.details.set(d.id, d); saveExecCache(); }
   return d;
+}
+
+/* A linha de UMA execução, sem `includeData`. Existe para o caminho de retry:
+   antes de reexecutar é preciso saber de qual fluxo aquela execução é e se ela
+   de fato falhou, e nenhuma das duas coisas justifica arrastar o payload
+   inteiro (multi-MB) só para ler dois campos.
+
+   Não entra em cache de propósito. `getDetail` cacheia porque execução
+   terminada é imutável; aqui o que se está perguntando é "posso escrever em
+   cima disto agora", e responder isso com um registro velho é exatamente o
+   erro que `capturedUpdatedAt` já evita no caminho do PUT. */
+async function getExecRow(id) {
+  const raw = await api(`/api/v1/executions/${encodeURIComponent(id)}`);
+  return extractExecRow(raw);
 }
 
 /* ------------------------------------------------------ onde o nó vive ---
@@ -699,6 +833,13 @@ async function overview() {
  *   3. No auto-apply. Nothing in this module calls these; the HTTP route does,
  *      one approved proposal at a time.
  *
+ * `retryExecution` é a quarta função daqui e é de OUTRA NATUREZA — leia antes
+ * de mexer. `putWorkflow` e `createWorkflow` mudam um documento, e o documento
+ * anterior está guardado, então existe `↺ Desfazer`. Reexecutar não muda
+ * documento nenhum: manda mensagem de WhatsApp para pessoa de verdade, grava
+ * linha de verdade, chama API de terceiro de verdade. Não há desfazer e nunca
+ * haverá. É a única coisa neste módulo cujo efeito sai da instância.
+ *
  * `getRawWorkflow` is the deliberate hole in the whitelist: it returns the
  * unfiltered workflow, credentials and all. It is process-local — the server
  * never serves its output, and `claude-fix.js` writes it into a scratch dir on
@@ -775,6 +916,47 @@ async function createWorkflow(w, onDropped) {
   return request("POST", "/api/v1/workflows", { body });
 }
 
+/* Reexecuta uma execução que falhou. FATOS medidos, não suposição — lidos em
+   `packages/cli/src/executions/execution.service.ts` do n8n, porque medir isto
+   na instância significaria mandar mensagem para um lead de verdade:
+
+   - O retry NÃO recomeça o fluxo. O n8n preserva o `nodeExecutionStack` e o
+     `runData` da execução original e só faz `pop()` no runData do último nó
+     executado — o que quebrou. Ele não passa `startNodes`, passa
+     `executionData: execution.data` inteiro. Então o que já rodou não roda de
+     novo: as bolhas que já foram não repetem.
+   - `loadWorkflow: true` é o que torna isto útil. Sem ele o n8n reexecuta com o
+     workflow salvo NA ÉPOCA da execução, ou seja, com o defeito ainda dentro.
+     Com ele, roda com a versão atual — a corrigida.
+   - Dois estados recusam retry, e os dois vêm nomeados: status `new` dá
+     `QueuedExecutionRetryError`, e execução sem `executionData` dá
+     `AbortedExecutionRetryError`. Aqui há dados: `saveDataErrorExecution` está
+     ausente em 71 dos 73 fluxos, e ausente é o default do n8n (`all`).
+   - Com `loadWorkflow: true`, um nó do stack que tenha sido apagado ou
+     renomeado derruba o retry com `Could not find the node "<nome>" in
+     workflow`. Não acontece por este caminho: `applyPatch` ignora `name` em
+     `updateNodes` e não tem verbo de delete, então a correção do cockpit nunca
+     renomeia nem apaga nó. Se algum dia tiver, este comentário está velho.
+
+   O que SOBRA de risco e não dá para eliminar por API: o nó que falhou
+   reexecuta. Se ele falhou DEPOIS de causar efeito (timeout na resposta, mas a
+   mensagem saiu), aquele envio duplica. Quem decide se isso é aceitável é a
+   tela, com o erro na mão — não esta função.
+
+   Não é re-tentado em caso de erro de rede: `request` só re-tenta GET, e aqui
+   isso é vital. Uma resposta perdida não prova que a execução não começou. */
+async function retryExecution(execId, { loadWorkflow = true } = {}) {
+  if (!/^\d{1,20}$/.test(String(execId))) throw new Error("id de execução inválido");
+  const out = await request("POST", `/api/v1/executions/${encodeURIComponent(execId)}/retry`, {
+    body: { loadWorkflow: !!loadWorkflow }
+  });
+  /* Nada a invalidar: o poll lê a página 1 e faz merge por id, e os ids são
+     monotônicos, então a execução nova entra sozinha no ciclo seguinte. É também
+     por isso que `fixState()` reabre a assinatura de graça se o retry falhar de
+     novo — o mecanismo que já existe é a prova, e ela não é dada aqui. */
+  return extractExecRow(out || {});
+}
+
 /* Os campos obrigatórios de um tipo de credencial. É FATO vindo da instância —
  * `GET /credentials` responde 405, então não dá para listar o que existe, mas
  * `/credentials/schema/{tipo}` diz exatamente o que aquele tipo pede. Só forma
@@ -810,9 +992,11 @@ async function findWorkflowByName(name) {
 }
 
 module.exports = {
-  configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, locateNode, callers, WINDOW_HOURS,
+  configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, getExecRow, locateNode, callers, WINDOW_HOURS,
   // write path — ver o bloco acima antes de usar
   getRawWorkflow, putWorkflow, createWorkflow, findWorkflowByName, listWorkflows, credentialSchema,
+  // o único efeito que sai da instância — leia o comentário de `retryExecution`
+  retryExecution,
   // exportado para teste
   pickSettings, SETTINGS_ALLOWED
 };

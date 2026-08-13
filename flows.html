@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit — Fluxos n8n</title>
+<!-- O favicon é DESENHADO por `/aba.js` (um fluxo: um nó, dois ramos, duas
+     arestas) e animado quando o Tester termina. Nasce vazio de propósito: um
+     `.ico` no disco seria um segundo desenho para manter em sincronia com este,
+     e o desenho já existe em código. -->
+<link rel="icon" href="data:,">
+<script src="/aba.js" defer></script>
 <style>
 /* ==========================================================================
    TOKENS
@@ -310,6 +316,28 @@ button { font-family: inherit; }
   .nvd .lente.varre::after{animation:none}
 }
 .topbar .sep { width: 1px; height: 20px; background: var(--line); }
+
+/* ------------------------------------------------------- modo gravação (REC)
+   Borra o que não pode aparecer numa filmagem: a fatia de dado de cliente que o
+   painel mostra de propósito (nome, contato mascarado, texto de mensagem) e as
+   mensagens de erro, que podem embutir telefone. Tudo isso carrega a classe
+   `sens` no render. O estado mora em localStorage com chave única do produto
+   (`cockpit-rec`) — ligar aqui liga no /tester e no /disco. O borrão NUNCA abre
+   no hover: a tela pode estar sendo filmada neste exato momento. O pulso do ⏺
+   é informação (a página está em modo gravação), então reduced-motion tira a
+   animação e mantém o estado visível. */
+.rec .dot { display: inline-block; }
+[data-rec="1"] .rec { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+[data-rec="1"] .rec .dot { animation: recpulse 1.6s ease-in-out infinite; }
+@keyframes recpulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.sens { transition: filter .45s ease; }
+[data-rec="1"] .sens { filter: blur(7px); user-select: none; }
+.rec-wave { position: fixed; inset: 0; z-index: 400; pointer-events: none;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  [data-rec="1"] .rec .dot { animation: none; }
+  .sens { transition: none; }
+}
 .meta { font-family: var(--font-num); font-size: 11.5px; color: var(--txt-faint); letter-spacing: .02em; }
 .meta b { color: var(--txt-dim); font-weight: 500; }
 .spacer { flex: 1; }
@@ -555,6 +583,143 @@ main { padding: 22px 26px 90px; min-width: 0; }
 .feed-row.err { background: var(--risk-soft); }
 .dotst { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 1px; }
 
+/* ------------------------------------------------------- filtro do Ao vivo
+   Três filtros e só três — DEU CERTO, DEU ERRO e FLUXO. Não há "rodando"
+   porque esta instância vive com 0 (execuções terminam em 60–600ms) e não há
+   "lento" porque BANDS.slowMs é 30s: o chip mostraria 0 quase sempre, e um
+   filtro que nunca acende ensina a ignorar a faixa inteira.
+
+   A escolha do fluxo é uma TELINHA, não um menu que cai por cima da lista: são
+   68 fluxos, e um popover sobre as execuções esconde justamente o que se está
+   tentando ler para escolher. */
+.filtro {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  flex-wrap: wrap;
+}
+.fchip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--txt-faint);
+  padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent;
+  transition: color .14s, border-color .14s, background .14s;
+}
+.fchip:hover { color: var(--txt-dim); border-color: var(--accent-line); }
+.fchip b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--txt-dim); font-size: 10.5px; }
+/* Ligado é --accent porque é movimento (o que VOCÊ está fazendo agora), nunca
+   cor de status: o ponto dentro do chip já carrega --ok ou --risk, e gastar o
+   verde/vermelho no fundo diria que o filtro é um estado do n8n. */
+.fchip.on { color: var(--accent-txt); border-color: var(--accent-line); background: var(--accent-soft); }
+.fchip.on b { color: var(--accent-txt); }
+.fchip .dotst { margin-right: 0; vertical-align: 0; width: 6px; height: 6px; flex: 0 0 auto; }
+/* O botão do fluxo ocupa a sobra: é o único cujo rótulo é um nome de tamanho
+   imprevisível, e cortar no meio da palavra é pior que usar o espaço vazio. */
+.fchip.fluxo { flex: 1 1 130px; justify-content: space-between; min-width: 0; text-align: left; }
+.fchip.fluxo .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fchip.fluxo .cv { flex: 0 0 auto; opacity: .7; }
+
+/* O que o filtro está escondendo. Sem esta faixa, uma lista vazia por filtro é
+   indistinguível de "nada executou na janela" — uma é frase sobre o n8n, a
+   outra sobre a tela. */
+.fsit {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 12px; font-size: 11.5px; color: var(--txt-dim);
+  background: var(--accent-soft); border-bottom: 1px solid var(--line-soft);
+}
+.fsit b { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--accent-txt); }
+.fsit .lmp {
+  margin-left: auto; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent-txt); padding: 2px 4px;
+}
+.fsit .lmp:hover { text-decoration: underline; }
+/* Falha que o filtro está escondendo. É --risk porque é uma falha, e é o único
+   lugar da faixa onde cor de status é o assunto e não o filtro. */
+.fsit .oculto {
+  display: inline-flex; align-items: center; gap: 5px; border: 0; cursor: pointer;
+  font-family: var(--font-num); font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--risk-txt); background: var(--risk-soft);
+  border: 1px solid color-mix(in srgb, var(--risk) 35%, transparent);
+  border-radius: 20px; padding: 3px 8px;
+}
+.fsit .oculto:hover { border-color: var(--risk); }
+
+/* --------------------------------------------- a telinha de escolher fluxo
+   Mesmo vocabulário do .hoff-scrim: --bg-deep a 72% com blur de 9px. Um segundo
+   jeito de escurecer a página seria um segundo jeito de dizer "isto está na
+   frente", e esta casa já tem um. */
+.fmod-scrim {
+  position: fixed; inset: 0; z-index: 92; display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--bg-deep) 72%, transparent);
+  backdrop-filter: blur(9px) saturate(1.1);
+  -webkit-backdrop-filter: blur(9px) saturate(1.1);
+  animation: fmodin .22s ease-out both;
+}
+@keyframes fmodin { from { opacity: 0; } }
+.fmod {
+  position: relative; width: min(520px, 100%); max-height: min(76vh, 640px);
+  display: grid; grid-template-rows: auto auto minmax(0,1fr) auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow), 0 50px 110px -50px rgba(0,0,0,.85);
+  overflow: hidden;
+  animation: fmodup .26s cubic-bezier(.16,.84,.34,1) both;
+}
+@keyframes fmodup { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+.fmod-hd { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+.fmod-hd .idx { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em; color: var(--brand-txt); }
+.fmod-hd h3 { margin: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+.fmod-hd .x {
+  margin-left: auto; border: 1px solid var(--line); background: transparent; cursor: pointer;
+  width: 26px; height: 26px; border-radius: 8px; color: var(--txt-faint); font-size: 13px; line-height: 1;
+}
+.fmod-hd .x:hover { color: var(--txt); border-color: var(--accent-line); background: var(--accent-soft); }
+.fmod-busca { padding: 0 16px 12px; }
+.fbusca {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 10px; padding: 7px 11px; background: var(--surface-2);
+}
+.fbusca:focus-within { border-color: var(--accent-line); background: var(--accent-soft); }
+.fbusca input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  font-family: var(--font); font-size: 13px; color: var(--txt); padding: 1px 0;
+}
+.fbusca input::placeholder { color: var(--txt-faint); }
+.fbusca .kbd, .fmod-ft .kbd {
+  font-family: var(--font-num); font-size: 9.5px; letter-spacing: .1em; color: var(--txt-faint);
+  border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; flex: 0 0 auto;
+}
+.fmod-lista { overflow-y: auto; padding: 0 10px 10px; }
+.fmod-ft {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-top: 1px solid var(--line-soft); background: var(--surface-2);
+  font-size: 11.5px; color: var(--txt-faint);
+}
+.fmod-ft .tot { margin-left: auto; }
+.fmod-vazio { padding: 26px 16px; text-align: center; color: var(--txt-dim); font-size: 13px; }
+.fitem {
+  display: grid; grid-template-columns: 8px minmax(0,1fr) auto; align-items: center; gap: 10px;
+  width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer;
+  padding: 9px 10px; border-radius: 10px; color: var(--txt-dim); font-family: var(--font);
+}
+.fitem:hover, .fitem.cur { background: var(--accent-soft); color: var(--txt); }
+.fitem.on { background: var(--accent-soft); }
+.fitem .dotst { width: 8px; height: 8px; margin: 0; vertical-align: 0; }
+/* Altura fixa mesmo sem a segunda linha: sem isso a lista fica com degraus,
+   porque só parte dos fluxos segue a convenção `[PROJETO] Nome`. */
+.fitem .nm { min-width: 0; min-height: 32px; display: flex; flex-direction: column; justify-content: center; }
+.fitem .n1 { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fitem .n2 {
+  display: block; font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--txt-faint); margin-top: 2px;
+}
+.fitem .num { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fitem .num .ex { display: block; font-size: 12px; color: var(--txt-dim); }
+.fitem .num .er { display: block; font-size: 10px; color: var(--risk-txt); margin-top: 2px; }
+.fitem .num .er.zero { color: var(--txt-faint); }
+.fitem.todos { border-bottom: 1px solid var(--line-soft); border-radius: 10px 10px 0 0; margin-bottom: 4px; }
+
 /* --------------------------------------------------------------- flow cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px; }
 .card {
@@ -725,6 +890,85 @@ details.dormant summary { cursor: pointer; font-family: var(--font-num); font-si
 details.dormant .dlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 6px; margin-top: 8px; }
 details.dormant .dlist div { font-size: 12px; color: var(--txt-faint); padding: 6px 9px; border: 1px solid var(--line-soft); border-radius: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ================================================================== AVISOS
+   UM vocabulário para toda mensagem do sistema, nas três páginas.
+
+   Antes havia quatro: `.avisobar` na abertura, `alertaInline()` na corrida,
+   `.anxerro` nos anexos e o `confirm()` nativo (já removido). Quatro jeitos de
+   dizer a mesma coisa é o que faz um painel parecer montado por quatro pessoas —
+   e o aviso é justamente o momento em que ele precisa ser mais confiável.
+
+   Dois MODOS, um só desenho:
+     `.aviso`         — ancorado, fica onde o problema está (campo, seção, caixa).
+     `.avisos > .aviso` — evento: o CONTAINER e que faz flutuar, sai sozinho.
+   E quatro TIPOS, que só trocam a cor e o glifo: erro, alerta, ok, info.
+
+   O tipo decide o comportamento, não só a cor: erro e alerta NÃO somem sozinhos
+   (quem precisa ler não pode perder a frase), ok e info somem em 4,5s com a
+   barra mostrando o tempo — uma coisa que vai desaparecer tem que dizer isso.
+
+   Cor de status aqui é uso canônico: `--*-txt` no texto e `-soft` no fundo, que
+   é a mesma divisão fill-vs-text que o resto do produto já segue. */
+.aviso{display:flex;gap:9px;align-items:flex-start;text-align:left;
+  font-size:12px;line-height:1.6;border-radius:10px;padding:10px 12px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--txt-dim)}
+.aviso .ai{flex:0 0 auto;font-size:11px;line-height:1.55;opacity:.95}
+.aviso .ac{flex:1 1 auto;min-width:0}
+.aviso .at{display:block;font-weight:650;color:var(--txt);margin-bottom:2px}
+.aviso .ax{flex:0 0 auto;border:none;background:none;cursor:pointer;padding:1px 4px;
+  border-radius:5px;color:inherit;opacity:.55;font-size:13px;line-height:1}
+.aviso .ax:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}
+/* A borda sai da PRÓPRIA cor do tipo (`currentColor`), não de um token por
+   variante: `--risk-line` e `--ok-line` não existem neste produto, e inventar
+   quatro tokens novos para uma borda seria quatro lugares para dessincronizar.
+   Assim os quatro tipos têm exatamente o mesmo peso de contorno. */
+.aviso.erro,.aviso.alerta,.aviso.ok,.aviso.info{border-color:color-mix(in srgb,currentColor 30%,transparent)}
+/* A cor é PUXADA para o texto base. Medido no DOM vivo, com o `-soft` composto
+   sobre o fundo da página: `--risk-txt` puro dava 4,41 no claro, `--warn-txt`
+   4,30, `--ok-txt` 4,29 e `--accent-txt` 4,38 no escuro — quatro reprovações de
+   AA (4,5) em texto de 12px. É a armadilha que este projeto já documentou: token
+   calibrado como preenchimento não é token de texto, e `-txt` sozinho foi
+   calibrado contra `--surface`, não contra o próprio `-soft`.
+   A mistura mantém a cor reconhecível (o vermelho continua vermelho) e sobe o
+   contraste com folga. Mexeu em token de status? Re-meça — não confie na captura. */
+.aviso.erro{background:var(--risk-soft);color:color-mix(in srgb,var(--risk-txt) 72%,var(--txt))}
+.aviso.alerta{background:var(--warn-soft);color:color-mix(in srgb,var(--warn-txt) 72%,var(--txt))}
+.aviso.ok{background:var(--ok-soft);color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt))}
+.aviso.info{background:var(--accent-soft);color:color-mix(in srgb,var(--accent-txt) 72%,var(--txt))}
+/* O glifo fica na cor CHEIA: ele é forma, não texto corrido, e é o que mantém a
+   identidade do tipo legível de longe. */
+.aviso.erro .ai{color:var(--risk-txt)}
+.aviso.alerta .ai{color:var(--warn-txt)}
+.aviso.ok .ai{color:var(--ok-txt)}
+.aviso.info .ai{color:var(--accent-txt)}
+.aviso.bloco{max-width:700px;margin:16px auto 0}
+
+/* A pilha. `fixed` no alto à direita, abaixo do topbar: não cobre o compositor
+   (embaixo), não cobre o cabeçalho (em cima), e é para onde o olho vai depois de
+   clicar num botão do cabeçalho. Empilha para baixo; o mais novo entra por cima.
+   `pointer-events` só nos cartões — a pilha inteira não pode roubar clique da
+   página atrás dela. */
+.avisos{position:fixed;top:70px;right:18px;z-index:60;display:flex;flex-direction:column;gap:8px;
+  width:min(380px,calc(100vw - 36px));pointer-events:none}
+.avisos .aviso{pointer-events:auto;box-shadow:var(--shadow);backdrop-filter:blur(8px);
+  animation:avin .26s cubic-bezier(.2,.9,.3,1) both}
+.aviso.saindo{animation:avout .18s ease-in both}
+@keyframes avin{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes avout{from{opacity:1}to{opacity:0;transform:translateX(10px)}}
+/* A barra do tempo restante. Só existe onde há auto-dismiss — desenhar uma barra
+   parada num aviso que não sai seria prometer que ele vai sumir. */
+.aviso .abar{position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:currentColor;opacity:.35;transform-origin:left;animation:avbar linear both}
+@keyframes avbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.avisos .aviso{position:relative;overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .avisos .aviso,.aviso.saindo{animation-duration:1ms;animation-delay:0s}
+  /* A barra continua encurtando: ela é INFORMAÇÃO (quanto falta), não enfeite.
+     O que sai é o deslize de entrada, que é decoração. */
+  .aviso .abar{animation-duration:inherit}
+}
+@media (max-width:520px){ .avisos{top:auto;bottom:14px;right:12px;left:12px;width:auto} }
+
 /* ==========================================================================
    CAMADA DE MOVIMENTO — receitas portadas do cult-ui (nolly-studio/cult-ui)
    O repositório é React + Tailwind + framer-motion e se instala por copy-paste
@@ -785,6 +1029,26 @@ details.dormant .dlist div { font-size: 12px; color: var(--txt-faint); padding: 
 .btn:active { transform: translateY(1px); box-shadow: inset 0 2px 5px rgba(0,0,0,.22); }
 .btn.ghost { background: transparent padding-box, linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow: none; }
 .btn.ghost:hover { background: var(--accent-soft) padding-box, linear-gradient(180deg, var(--accent-line), var(--line)) border-box; }
+
+/* O botão de aviso do sistema, criado por `aba.js`. Ele já se veste com a classe
+   do botão de tema desta página — que aqui é `.btn.ghost`, e NÃO `iconbtn` como
+   nas outras duas; era exatamente por isso que ele saía com o estilo padrão do
+   navegador nesta página.
+
+   As duas primeiras regras são idênticas às do tester e do disco. A terceira NÃO
+   é, e não pode ser: aqui a borda é uma segunda camada de `background`
+   (`padding-box` + `border-box`), então `border-color` não alcança nada. O
+   ligado repete a forma do `:hover` do ghost e acrescenta a cor do rótulo. */
+.avisarbtn { display: inline-flex; align-items: center; gap: 5px; }
+.avisarbtn .dot { width: 1em; text-align: center; flex: 0 0 auto; }
+/* `--accent-txt` puro sobre `--accent-soft` mede 4,38 no escuro nas outras duas
+   páginas: falha AA a 11px, o mesmo número que os avisos já pagaram. O remédio é
+   o mesmo, e vale aqui por coerência mesmo com o fundo desta barra sendo mais
+   escuro. O glifo fica com o acento inteiro — é forma, não texto corrido. */
+.avisarbtn.on { color: color-mix(in srgb, var(--accent-txt) 72%, var(--txt));
+  background: var(--accent-soft) padding-box, linear-gradient(180deg, var(--accent-line), var(--line)) border-box; }
+.avisarbtn.on .dot { color: var(--accent-txt); }
+.avisarbtn.bloq { opacity: .55; }
 .btn.ok {
   color: var(--ok-txt);   /* o preenchimento usa --ok; só o rótulo precisa do 4.5 */
   background: linear-gradient(180deg, color-mix(in srgb, var(--ok) 16%, var(--raised)), var(--ok-soft)) padding-box,
@@ -965,6 +1229,9 @@ summary:focus-visible, .filterchip button:focus-visible {
   .hoff-act .dot { animation: none; }
   .pbar.unknown .pfill { animation: none; }
   .pfill { transition: none; }
+  /* A telinha do filtro chega sem subir e sem escala; o blur fica, porque um
+     desfoque parado não é movimento. Nenhuma informação mora na entrada. */
+  .fmod-scrim, .fmod { animation: none; }
 }
 .hoff-mini {
   position: relative; border-bottom: 1px solid var(--line-soft);
@@ -1246,6 +1513,10 @@ textarea, input { caret-color: var(--accent); }
   const q = new URLSearchParams(location.search).get("theme");
   const t = (q === "light" || q === "dark") ? q : localStorage.getItem("cockpit-theme");
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  // Modo gravação: mesma razão de rodar no <head> — o borrão tem que existir
+  // ANTES do primeiro paint, senão cada navegação pisca o dado de cliente que
+  // o modo existe para esconder da filmagem.
+  if (localStorage.getItem("cockpit-rec") === "1") document.documentElement.setAttribute("data-rec", "1");
 })();
 </script>
 </head>
@@ -1272,6 +1543,8 @@ textarea, input { caret-color: var(--accent); }
   <div class="meta" id="stamp">carregando…</div>
   <div class="livedot" id="live"><i></i><span>—</span></div>
   <button class="btn ghost" id="theme" title="Alternar tema">◐</button>
+  <button class="btn ghost rec" id="rec" type="button" aria-pressed="false"
+    title="modo gravação — borra dados de clientes para filmar a tela"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button>
   <button class="btn beam" id="reload">Recarregar</button>
 </header>
 
@@ -1315,6 +1588,11 @@ textarea, input { caret-color: var(--accent); }
           <h2>Ao vivo</h2>
           <span class="hint" id="feed-hint">—</span>
         </div>
+        <!-- Deu certo / deu erro / um fluxo. A faixa de situação abaixo dela só
+             existe quando há filtro, e é ela que impede uma lista vazia por
+             filtro de ler como "nada executou". -->
+        <div class="filtro" id="feed-filtro"></div>
+        <div id="feed-sit"></div>
         <!-- Qual execução está no palco. A lista corta em 200 linhas e a
              execução aberta pode ser mais antiga que isso — aí não existe linha
              para marcar, e sem esta faixa a tela não teria como dizer qual é. -->
@@ -1487,20 +1765,31 @@ function resumoExecucao(detail, byName) {
   /* SAÍDA: nós de mensagem que rodaram.
    *
    * A saída de um nó de envio é a RESPOSTA da API (ts, channel, id), não o
-   * texto — o texto estava na entrada. Quando o próprio nó não traz texto, o
-   * item que ENTROU nele traz, e é o nó imediatamente anterior na ordem de
-   * execução. Isso é fato verificável ("o item que entrou trazia isto"), não
-   * palpite sobre o que foi montado dentro do nó, e a tela diz qual dos dois
-   * está mostrando. */
-  linhas.forEach((l, i) => {
+   * texto. Há três origens possíveis, em ordem decrescente de confiança, e a
+   * tela DIZ qual delas está mostrando:
+   *
+   *   `param`   — o servidor resolveu a expressão do parâmetro de texto do
+   *               próprio nó contra o item que entrou nele. Isso é a mensagem,
+   *               por construção; não precisa de ressalva.
+   *   `saida`   — o texto veio na saída do nó (alguns serviços devolvem).
+   *   `entrada` — nada disso existia, mas o item que ENTROU trazia texto. É
+   *               fato verificável, não é a mensagem, e a linha diz isso.
+   *
+   * O alimentador vem de `src` (a aresta gravada pelo n8n), nunca do vizinho na
+   * ordem de execução — num laço com `Wait` os dois são nós diferentes. */
+  linhas.forEach(l => {
     if (!l.node || !envio.test(l.node.type)) return;
     const s = l.r.sample || {};
-    const anterior = i > 0 ? (linhas[i - 1].r.sample || {}) : {};
+    const ali = alimentador(l.r, linhas);
+    const aliS = (ali && ali.r.sample) || {};
+    const direto = l.r.enviado || s.texto || null;
     blocos.push({
       tipo: "out", nó: l.r.name,
-      texto: s.texto || null,
-      entrada: s.texto ? null : (anterior.texto || null),
-      quem: s.quem || anterior.quem || null,
+      texto: direto,
+      origem: l.r.enviado ? "param" : (s.texto ? "saida" : null),
+      entrada: direto ? null : (aliS.texto || null),
+      entradaNó: ali ? ali.r.name : null,
+      quem: s.quem || aliS.quem || null,
       itens: l.r.items
     });
   });
@@ -1533,6 +1822,25 @@ function resumoExecucao(detail, byName) {
   const nome = fortes[0] || linhas.map(l => l.r.sample && l.r.sample.nomeFraco).find(Boolean) || null;
 
   return { blocos, quem, nome, cortado: linhas.length };
+}
+
+/* Quem alimentou esta run. `src` vem do n8n (`task.source`) e nomeia nó, run e
+ * porta — é a aresta. A versão anterior usava `linhas[i - 1]`, o vizinho na
+ * ORDEM DE EXECUÇÃO, que num laço com `Wait` é outro nó: medido, a run 1 do nó
+ * `msg` é alimentada pela run 1 do `tipo_envio`, que na ordem está longe dali.
+ *
+ * Sem `src` — detalhe vindo de um cache anterior a esta versão — volta ao
+ * vizinho. Continua sendo o palpite antigo, mas só nesse caso e só até o cache
+ * virar; inventar silêncio no lugar seria perder informação que já funcionava
+ * nos fluxos lineares. */
+function alimentador(run, linhas) {
+  const s = run.src;
+  if (!s) {
+    const i = linhas.findIndex(l => l.r === run);
+    return i > 0 ? linhas[i - 1] : null;
+  }
+  const runsDoNo = linhas.filter(l => l.r.name === s.no);
+  return runsDoNo[s.run] || runsDoNo[0] || null;
 }
 
 function effectOf(node, run) {
@@ -1663,6 +1971,52 @@ function unhideCard(id) {
   delete S.prefs[id];
   savePrefs(S.prefs);
   renderAll();
+}
+
+/* FILTRO DO AO VIVO — julgamento, não fato.
+ *
+ * Três filtros e só três: deu certo, deu erro, e um fluxo. Deliberadamente sem
+ * "rodando" (esta instância vive com 0 — execuções terminam em 60–600ms) e sem
+ * "lento" (`BANDS.slowMs` é 30s, então o chip mostraria 0 quase sempre, e um
+ * filtro que nunca acende ensina a ignorar a faixa inteira).
+ *
+ * NÃO persiste. `cardPref` mora em localStorage porque "removi este cartão" é
+ * uma decisão sobre um fluxo; "estou olhando só as falhas" é o que se está
+ * fazendo agora. Guardado, um `só deu erro` de ontem esconderia calado o resto
+ * do painel amanhã — e o custo de refazer é um clique. */
+function passaFiltro(e) {
+  const f = S.feedFilter;
+  if (f.status === "error" && e.status !== "error") return false;
+  if (f.status === "ok" && e.status !== "success") return false;
+  if (f.wf && e.workflowId !== f.wf) return false;
+  return true;
+}
+const filtroAtivo = () => (S.feedFilter.status ? 1 : 0) + (S.feedFilter.wf ? 1 : 0);
+
+/* As contagens dos chips são de FACETA, sobre a janela inteira — nunca sobre o
+ * resultado já filtrado. Contando o resultado, todo chip não selecionado
+ * mostraria 0 e o número perderia a única função que tem, que é avisar antes do
+ * clique que existe falha ali. `base` são as execuções da janela depois do
+ * filtro de PROJETO (o trilho), porque esse é o universo que a lista promete. */
+function contagensFeed(base) {
+  const c = { total: base.length, ok: 0, erro: 0 };
+  for (const e of base) {
+    if (e.status === "error") c.erro++;
+    else if (e.status === "success") c.ok++;
+  }
+  return c;
+}
+
+/* Falha que o filtro está escondendo AGORA. Filtrar por um fluxo é pedir foco,
+ * não é pedir para ficar cego: com `Agente Iago` selecionado, uma falha do
+ * `WhatsApp API Oficial` sumiria sem deixar rastro, e o painel estaria
+ * escondendo exatamente o que ele existe para mostrar. É um fato do presente
+ * (quantas falhas da janela estão fora do filtro), não um contador de novidade:
+ * o SSE redesenha a faixa toda hora e um "+2 novas" precisaria de estado que
+ * sobrevivesse ao repaint para não mentir. */
+function falhasEscondidas(base) {
+  if (!filtroAtivo()) return 0;
+  return base.filter(e => e.status === "error" && !passaFiltro(e)).length;
 }
 
 /* Por que este fluxo está no quadro, quando não é por atividade própria. */
@@ -1890,6 +2244,73 @@ const APPLY_MARK_OK = "Assinatura marcada como \"correção feita\", com a expli
   + "Se a mesma falha acontecer outra vez, ela reabre sozinha no quadro.";
 const APPLY_MARK_FAIL = "A alteração foi aplicada no n8n, mas não consegui marcar a assinatura como corrigida: ";
 
+/* REEXECUÇÃO — corrigir o nó não responde o lead que ficou esperando.
+ *
+ * Aplicar muda o fluxo dali para a frente; a execução que travou continua
+ * travada, e o lead dela continua sem resposta. Reexecutar é o que fecha isso.
+ *
+ * FATO, lido no `execution.service.ts` do n8n e não medido na instância (medir
+ * custaria uma mensagem real): o retry RETOMA do nó que falhou. O n8n preserva
+ * o `nodeExecutionStack` e o `runData` anterior e só descarta o do nó que
+ * quebrou. Então o que já rodou não roda de novo — as bolhas que já foram não
+ * repetem — e o que faltava roda pela primeira vez.
+ *
+ * O QUE SOBRA, e é o que esta seção decide: o nó que falhou reexecuta. Se ele
+ * falhou DEPOIS de já ter causado efeito, aquele efeito duplica. Um `text.body`
+ * vazio é recusado antes de sair, então nada saiu; um timeout é a resposta que
+ * não voltou, e a mensagem pode ter saído.
+ *
+ * A diferença entre os dois não é estilo de tela — ela decide se reexecutar
+ * entra junto no clique de aprovar ou fica num botão separado com aviso. */
+const REEXEC_AMBIGUO = [
+  { re: /ECONNREFUSED|ETIMEDOUT|socket hang up|timeout|network/i,
+    por: "a conexão caiu esperando a resposta — o pedido pode ter chegado do outro lado" },
+  { re: /quota|rate.?limit|too many requests|status code 429/i,
+    por: "o provedor limitou, e parte do lote pode ter passado antes do corte" },
+  { re: /status code 5\d\d|internal server error|bad gateway|service unavailable/i,
+    por: "erro do lado do servidor depois do pedido sair — ele pode ter sido processado" }
+];
+
+/* ┌─ CALIBRAÇÃO DO KAUAN ────────────────────────────────────────────────────┐
+   │ Esta lista é o que eu consigo afirmar com segurança: erro de DADO, onde o │
+   │ nó recusa antes de qualquer coisa sair. Quem sabe quais outros erros      │
+   │ desta instância são "saiu-mas-não-respondeu" é você, não eu.              │
+   │                                                                          │
+   │ Acrescente aqui os padrões que você já viu e sabe que não chegaram a      │
+   │ mandar nada. Cada entrada que você adicionar move um caso de "botão       │
+   │ separado com aviso" para "roda junto com o aprovar", ou seja, move o lead │
+   │ de esperar você chegar no computador para ser respondido na hora.         │
+   │                                                                          │
+   │ O custo de errar para cada lado NÃO é simétrico, e é por isso que o       │
+   │ default é ambíguo: um erro aqui manda mensagem repetida para um cliente,  │
+   │ um erro para o outro lado só faz você clicar mais uma vez.                │
+   └──────────────────────────────────────────────────────────────────────────┘ */
+const REEXEC_LIMPO = [
+  /required.+JSON field 'text'|missing\s*:\s*'body'/i,   // Cloud API recusa corpo vazio antes de enviar
+  /Cannot read propert|is not defined|ExpressionError/i, // expressão quebrou montando o payload
+  /you must specify an input key/i                       // Redis recusou o item, nada gravado
+  // TODO Kauan: os seus. Ex.: /voice id/i, /invalid character/i …
+];
+
+/* Fail-closed de propósito: só é "limpo" o que casa explicitamente em
+   REEXEC_LIMPO. Sem padrão casado a resposta é `ambiguo`, nunca `limpo` — a
+   mesma regra que `suggestFor` já segue ao não chutar sugestão. */
+function reexecClasse(d) {
+  const hay = [d?.error?.message, d?.error?.description, d?.error?.type, d?.error?.nodeName, d?.lastNode]
+    .filter(Boolean).join(" \n ");
+  const sujo = REEXEC_AMBIGUO.find(s => s.re.test(hay));
+  if (sujo) return { classe: "ambiguo", por: sujo.por };
+  if (REEXEC_LIMPO.some(re => re.test(hay))) return { classe: "limpo", por: null };
+  return { classe: "ambiguo", por: "não reconheci este erro, e não sei dizer se algo chegou a sair" };
+}
+
+const REEXEC_LIMPO_TXT = "O nó recusou antes de mandar qualquer coisa, então reexecutar não repete "
+  + "nada — retoma do nó que falhou e segue daí. É o que responde o lead que ficou esperando.";
+const REEXEC_AMBIGUO_TXT = "Reexecutar pode repetir o envio deste nó: ";
+const REEXEC_ESCOPO = "Reexecuta só esta execução. Se a mesma falha pegou vários leads, cada "
+  + "execução é um lead e as outras continuam paradas.";
+const REEXEC_SEM_DESFAZER = "Não tem desfazer: o que sair, saiu.";
+
 /* ================================================= fim do bloco de juízo === */
 
 const WINDOW_H = 24;
@@ -1897,6 +2318,27 @@ const STATIC_MODE = new URLSearchParams(location.search).has("static");
 const $ = s => document.querySelector(s);
 const el = (t, c, txt) => { const n = document.createElement(t); if (c) n.className = c; if (txt != null) n.textContent = txt; return n; };
 const pct = r => (r * 100).toFixed(r < 0.1 && r > 0 ? 1 : 0).replace(".", ",") + "%";
+
+/* A lupa é DESENHADA, nunca um glifo. Medido na captura: `⌕` (U+2315) sai como
+ * uma bolinha vazia nesta fonte, do mesmo jeito que `📎` e `🗀` saíram como
+ * caixa no Tester. Mesmo dialeto dos ícones da nav e do palco: viewBox 24,
+ * stroke 1.9, ponta arredondada, `currentColor`. */
+function lupaSvg(tam) {
+  const ns = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(ns, "svg");
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("width", tam || 14); s.setAttribute("height", tam || 14);
+  s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+  s.setAttribute("stroke-width", "1.9"); s.setAttribute("stroke-linecap", "round");
+  s.setAttribute("aria-hidden", "true");
+  s.style.flex = "0 0 auto"; s.style.color = "var(--txt-faint)";
+  const c = document.createElementNS(ns, "circle");
+  c.setAttribute("cx", "10.5"); c.setAttribute("cy", "10.5"); c.setAttribute("r", "6.5");
+  const l = document.createElementNS(ns, "line");
+  l.setAttribute("x1", "15.4"); l.setAttribute("y1", "15.4"); l.setAttribute("x2", "20"); l.setAttribute("y2", "20");
+  s.append(c, l);
+  return s;
+}
 const dur = ms => ms == null ? "—" : ms < 1000 ? ms + "ms" : ms < 60000 ? (ms / 1000).toFixed(1).replace(".", ",") + "s" : Math.round(ms / 60000) + "min";
 function agoShort(ms) {
   if (ms == null) return "—";
@@ -1916,7 +2358,17 @@ const locKey = (wfId, node) => JSON.stringify([String(wfId), String(node)]);
 
 const hhmm = iso => { const d = new Date(iso); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
 // A linha de status trunca com ellipsis; o title preserva o texto inteiro.
-const setStep = txt => { const n = $("#stage-step"); n.textContent = txt; n.title = txt; };
+/* A cauda sensível é separada de propósito: a mensagem de erro crua do n8n
+   pode embutir telefone ou e-mail do lead, então no modo gravação ela é
+   borrada — e ela fica FORA do `title`, porque tooltip abre no hover e um
+   borrão que abre no hover não protege filmagem nenhuma. */
+const setStep = (txt, sensTail) => {
+  const n = $("#stage-step");
+  if (sensTail == null) { n.textContent = txt; n.title = txt; return; }
+  n.textContent = "";
+  n.append(txt, el("span", "sens", sensTail));
+  n.title = txt + "…";
+};
 
 /* Cartões, itens do trilho e linhas do feed são `div` com `onclick` — medido:
  * 0 de 14 cartões, 0 de 5 itens do trilho e 0 de 200 linhas alcançáveis por
@@ -1946,6 +2398,8 @@ const S = {
   callersErro: null,      // por que não deu para ler — nunca silencioso
   fixesError: null,      // por que a leitura das marcas falhou — nunca silenciosa
   errFilterWf: null,      // filtro do quadro de erros — separado do fluxo no palco
+  // Filtro do Ao vivo. Fora de localStorage de propósito — ver passaFiltro().
+  feedFilter: { status: null, wf: null },
   fetchedAt: null, lastPoll: null, instance: "", lastError: null,
   selectedProject: null, selectedWf: null, loadedExec: null,
   selectedExec: null,     // id da execução que está no palco — marca a linha no Ao vivo
@@ -2156,7 +2610,10 @@ function renderRail(flows) {
   const box = $("#rail"); box.innerHTML = "";
   const all = el("div", "rail-item only" + (S.selectedProject == null ? " sel" : ""));
   all.append(el("i", "bar"), el("span", "nm", "Todos"), el("span", "ct", String(list.reduce((s, g) => s + g.flows, 0))));
-  clickable(all, "Ver todos os projetos", () => { S.selectedProject = null; S.errFilterWf = null; renderAll(); });
+  // O fluxo escolhido no Ao vivo cai junto: ele pertence ao projeto que estava
+  // selecionado, e mantê-lo deixaria a lista vazia sem dizer por quê. O "deu
+  // certo / deu erro" fica — é uma pergunta sobre qualquer projeto.
+  clickable(all, "Ver todos os projetos", () => { S.selectedProject = null; S.errFilterWf = null; S.feedFilter.wf = null; renderAll(); });
   box.append(all);
 
   for (const g of list) {
@@ -2175,7 +2632,7 @@ function renderRail(flows) {
     // Trocar de projeto zera o filtro por fluxo: senão o quadro fica vazio
     // mostrando um filtro de fluxo que nem pertence ao projeto escolhido.
     clickable(it, "Projeto " + g.name + ", " + g.flows + " fluxos, " + g.errors + " falhas",
-      () => { S.selectedProject = S.selectedProject === g.name ? null : g.name; S.errFilterWf = null; renderAll(); });
+      () => { S.selectedProject = S.selectedProject === g.name ? null : g.name; S.errFilterWf = null; S.feedFilter.wf = null; renderAll(); });
     box.append(it);
   }
 }
@@ -2397,10 +2854,12 @@ function errorCard(g) {
       + " — pode estar mais fundo na cadeia."));
   }
 
-  for (const m of g.msgs.size ? [...g.msgs] : ["(sem mensagem)"]) e.append(el("div", "msg", m));
+  // `sens`: mensagem de erro vem crua do n8n e pode embutir telefone ou e-mail
+  // do lead — no modo gravação ela é borrada junto com o conteúdo de mensagem.
+  for (const m of g.msgs.size ? [...g.msgs] : ["(sem mensagem)"]) e.append(el("div", "msg sens", m));
   if (g.msgs.size > 1) e.append(el("div", "when", "⚠ " + g.msgs.size + " mensagens distintas no mesmo nó e tipo — pode ser mais de uma causa."));
   if (g.d.error?.description && !g.msgs.has(g.d.error.description)) {
-    e.append(el("div", "msg", "↳ " + g.d.error.description));
+    e.append(el("div", "msg sens", "↳ " + g.d.error.description));
   }
 
   // Tempo relativo, não hora do relógio: a janela de 24h cruza a meia-noite e
@@ -3247,7 +3706,9 @@ async function openHandoff(g, btn) {
     await say("a contagem é um PISO — o detalhe só foi buscado das " + S.errorsDetailed
       + " falhas mais recentes de " + S.errorsTotal + " nesta janela", "warn", "!");
   }
-  for (const m of g.msgs.size ? [...g.msgs] : ["(sem mensagem)"]) await say(m, "bad", "✕");
+  // `sens`: a mesma mensagem crua do cartão de erro, agora no terminal do
+  // handoff — o modo gravação tem que alcançá-la aqui também.
+  for (const m of g.msgs.size ? [...g.msgs] : ["(sem mensagem)"]) await say(m, "bad sens", "✕");
   if (g.msgs.size > 1) await say(g.msgs.size + " mensagens distintas no mesmo nó e tipo — pode ser mais de uma causa", "warn", "!");
 
   /* ------------------------------------------------------------- 02 · grafo */
@@ -3673,6 +4134,26 @@ function renderDiff(diff) {
   return frag;
 }
 
+/* A chamada que reexecuta. Sai daqui e não do `onclick` porque os dois caminhos
+   — o clique único do caso limpo e o botão do caso ambíguo — precisam falhar
+   exatamente igual. O servidor já devolve a frase certa quando a resposta se
+   perde ("confira no n8n antes de tentar de novo"), então ela é repassada como
+   veio em vez de ser reescrita aqui. */
+async function reexecutar(runId, execId) {
+  const r = await callApi("/api/claude/run/" + runId + "/retry", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ execId: String(execId) })
+  });
+  /* `podeTentar` sai do CÓDIGO, não do texto: 502 é o n8n tendo respondido e
+     recusado (nada rodou, tentar de novo é limpo); 409 é estado indefinido —
+     resposta perdida ou tentativa em voo —, e aí a tela não pode oferecer um
+     botão que talvez mande a mensagem uma segunda vez. */
+  if (!r.ok) return { ok: false, error: r.error, newExecId: null, podeTentar: r.status === 502 };
+  const last = ((r.body && r.body.retries) || []).filter(x => String(x.execId) === String(execId)).pop();
+  return { ok: true, error: null, newExecId: last ? last.newExecId : null, podeTentar: false };
+}
+
 function buildReview(snap, ctx) {
   const band = el("div", "hoff-pr");
   band.setAttribute("role", "region");
@@ -3726,8 +4207,20 @@ function buildReview(snap, ctx) {
   const truth = el("div", "truth", HANDOFF_TRUTH);
   ft.append(truth);
 
-  const approve = el("button", "btn ok beam", "✓ Aprovar e aplicar");
-  approve.title = "Escreve os nós alterados no fluxo real. O estado anterior fica guardado para desfazer.";
+  /* Aplicar conserta o fluxo dali para a frente; o lead desta execução continua
+     esperando. Quando o erro é da classe limpa (o nó recusou antes de mandar
+     nada), reexecutar entra no MESMO clique — e o rótulo do botão diz isso
+     antes de ser clicado, que é o que o torna uma autorização e não um
+     auto-apply escondido. Quando é ambíguo, o botão não muda e reexecutar fica
+     separado, com o motivo escrito ao lado. */
+  const rx = reexecClasse(ctx.g && ctx.g.d);
+  const juntos = rx.classe === "limpo";
+
+  const approve = el("button", "btn ok beam", juntos ? "✓ Aprovar, aplicar e responder o lead" : "✓ Aprovar e aplicar");
+  approve.title = juntos
+    ? "Escreve os nós alterados no fluxo real e, em seguida, reexecuta a execução "
+      + ctx.sampleId + " com o fluxo já corrigido. " + REEXEC_LIMPO_TXT
+    : "Escreve os nós alterados no fluxo real. O estado anterior fica guardado para desfazer.";
   const reject = el("button", "btn ghost", "✕ Rejeitar");
   const copyBrief = el("button", "btn ghost", "⧉ Briefing");
   copyBrief.title = "Copia o briefing original, caso você prefira conduzir a correção à mão";
@@ -3747,7 +4240,7 @@ function buildReview(snap, ctx) {
      recibo. O diff continua ali embaixo, fechado — auditoria não pode sumir só
      porque a decisão foi tomada —, mas o que ocupa o topo é o que aconteceu, o
      que o Claude diz que mudou e o que o cockpit registrou no quadro. */
-  function renderDone(j, mark) {
+  function renderDone(j, mark, rx, rxres, sampleId, runId) {
     band.innerHTML = "";
     band.setAttribute("aria-label", "Alteração aplicada no n8n");
 
@@ -3777,6 +4270,8 @@ function buildReview(snap, ctx) {
       mark.ok ? APPLY_MARK_OK : APPLY_MARK_FAIL + mark.error));
     band.append(el("div", "applied warn", APPLY_CAVEAT));
 
+    band.append(reexecBloco(rx, rxres, sampleId, runId));
+
     if (snap.diff && (snap.diff.nodes || []).length) {
       const det = el("details", "donediff");
       det.append(el("summary", null, "ver o diff que foi aplicado"));
@@ -3784,6 +4279,75 @@ function buildReview(snap, ctx) {
       band.append(det);
     }
     return band;
+  }
+
+  /* O bloco que fecha o buraco entre "consertei o fluxo" e "o lead foi
+     respondido". Três estados, e eles não podem ler igual: já reexecutou,
+     falhou ao reexecutar, ou está esperando um clique. */
+  function reexecBloco(rx, rxres, sampleId, runId) {
+    const box = el("div", "applied");
+    if (!rx || !sampleId) return box;
+
+    if (rxres && rxres.ok) {
+      box.className = "applied";
+      box.append(el("div", null, "A execução " + sampleId + " foi reexecutada com o fluxo já corrigido"
+        + (rxres.newExecId ? ", e virou a execução " + rxres.newExecId : "") + "."));
+      // O que prova que deu certo é a execução nova terminar sem erro, e quem
+      // sabe isso é o quadro — não esta tela, que só sabe que disparou.
+      box.append(el("div", null, "Ela retoma do nó que falhou, então o que já tinha rodado não repetiu. "
+        + "Se falhar de novo, a assinatura reabre sozinha no quadro."));
+      box.append(el("div", null, REEXEC_ESCOPO));
+      return box;
+    }
+
+    /* Falhou. Sem saída daqui, o lead fica sem resposta e a tela não diz o que
+       fazer — foi o que o preview mostrou e os testes não pegaram. Mas o botão
+       de tentar de novo só aparece quando o n8n RESPONDEU e recusou (`podeTentar`,
+       vindo do código HTTP e não do texto): se a resposta se perdeu, a execução
+       pode ter começado, e um segundo clique manda a mensagem duas vezes. */
+    if (rxres && !rxres.ok) {
+      box.className = "applied bad";
+      box.append(el("div", null, "A correção foi aplicada, mas não confirmei a reexecução: " + rxres.error));
+      if (rxres.podeTentar) {
+        const bt = el("button", "btn", "▷ Tentar reexecutar de novo");
+        bt.title = "O n8n recusou o pedido, então nada rodou. Tentar de novo não repete envio nenhum.";
+        bt.onclick = async () => {
+          bt.disabled = true;
+          bt.textContent = "reexecutando…";
+          const rr = await reexecutar(runId, sampleId);
+          const novo = reexecBloco(rx, rr, sampleId, runId);
+          box.className = novo.className;
+          box.innerHTML = "";
+          box.append(...novo.childNodes);
+        };
+        box.append(bt);
+      } else {
+        box.append(el("div", null, "Confira a execução " + sampleId + " no n8n antes de mandar outra: "
+          + "resposta perdida não prova que ela não começou."));
+      }
+      return box;
+    }
+
+    // Ambíguo: o motivo aparece ANTES do clique, porque é ele que decide.
+    box.className = "applied warn";
+    box.append(el("div", null, REEXEC_AMBIGUO_TXT + (rx.por || "não sei dizer se algo chegou a sair") + "."));
+    box.append(el("div", null, REEXEC_SEM_DESFAZER + " " + REEXEC_ESCOPO));
+
+    const b = el("button", "btn", "▷ Reexecutar a execução " + sampleId);
+    b.title = "Reexecuta com o fluxo já corrigido, retomando do nó que falhou. Não tem desfazer.";
+    b.onclick = async () => {
+      b.disabled = true;
+      b.textContent = "reexecutando…";
+      const rr = await reexecutar(runId, sampleId);
+      // A classe vem do bloco novo, não derivada aqui: o ramo de erro tem duas
+      // formas (com e sem botão de tentar de novo) e derivar perderia isso.
+      const novo = reexecBloco(rx, rr, sampleId, runId);
+      box.className = novo.className;
+      box.innerHTML = "";
+      box.append(...novo.childNodes);
+    };
+    box.append(b);
+    return box;
   }
 
   approve.onclick = async () => {
@@ -3794,7 +4358,7 @@ function buildReview(snap, ctx) {
       const r = await callApi("/api/claude/run/" + snap.runId + "/approve", { method: "POST" });
       if (!r.ok) {
         approve.disabled = reject.disabled = false;
-        approve.textContent = "✓ Aprovar e aplicar";
+        approve.textContent = juntos ? "✓ Aprovar, aplicar e responder o lead" : "✓ Aprovar e aplicar";
         status.className = "applied bad";
         status.textContent = "Não apliquei: " + r.error;
         ctx.sayNow("✕ não apliquei: " + r.error, "bad", "✕");
@@ -3819,8 +4383,22 @@ function buildReview(snap, ctx) {
         ? "✓ assinatura marcada como corrigida, com a explicação do Claude"
         : "⚠ aplicado, mas não marquei a assinatura: " + mark.error, mark.ok ? "good" : "warn", mark.ok ? "✓" : "!");
 
+      /* A reexecução é a TERCEIRA escrita deste clique, e a única sem desfazer.
+         Vem depois de marcar de propósito: se ela falhar, o que já deu certo
+         (aplicar, marcar) continua registrado e dito na tela. */
+      let rxres = null;
+      if (juntos) {
+        approve.textContent = "reexecutando…";
+        ctx.sayNow("reexecutando a execução " + ctx.sampleId + " com o fluxo já corrigido…", "hd", "▸");
+        const rr = await reexecutar(snap.runId, ctx.sampleId);
+        rxres = rr;
+        ctx.sayNow(rr.ok
+          ? "✓ reexecução disparada" + (rr.newExecId ? " — virou a execução " + rr.newExecId : "")
+          : "✕ não confirmei a reexecução: " + rr.error, rr.ok ? "good" : "bad", rr.ok ? "✓" : "✕");
+      }
+
       truth.textContent = APPLY_TRUTH;
-      renderDone(j, mark);
+      renderDone(j, mark, rx, rxres, ctx.sampleId, snap.runId);
 
       approve.remove(); reject.remove();
       const undo = el("button", "btn", "↺ Desfazer");
@@ -3871,6 +4449,212 @@ function buildReview(snap, ctx) {
   return band;
 }
 
+/* A faixa de filtro e a de situação. Redesenhadas a cada poll junto com a
+ * lista, como todo o resto do painel — nenhum estado mora no DOM. */
+function renderFeedFiltro(base) {
+  const c = contagensFeed(base);
+  const faixa = $("#feed-filtro");
+  faixa.innerHTML = "";
+
+  const chipStatus = (rot, val, cor, qtd) => {
+    const lig = S.feedFilter.status === val;
+    const b = el("button", "fchip" + (lig ? " on" : ""));
+    b.type = "button";
+    b.setAttribute("aria-pressed", lig ? "true" : "false");
+    const d = el("span", "dotst"); d.style.background = cor;
+    b.append(d, document.createTextNode(rot), el("b", null, String(qtd)));
+    b.onclick = () => { S.feedFilter.status = lig ? null : val; renderFeed(); };
+    return b;
+  };
+  faixa.append(chipStatus("deu certo", "ok", "var(--ok)", c.ok));
+  faixa.append(chipStatus("deu erro", "error", "var(--risk)", c.erro));
+
+  const wf = S.feedFilter.wf ? S.workflows.get(S.feedFilter.wf) : null;
+  const bf = el("button", "fchip fluxo" + (S.feedFilter.wf ? " on" : ""));
+  bf.type = "button";
+  bf.setAttribute("aria-haspopup", "dialog");
+  bf.append(
+    el("span", "nm", S.feedFilter.wf ? (wf ? shortName(wf.name) : "fluxo " + S.feedFilter.wf) : "todos os fluxos"),
+    el("span", "cv", "▾"));
+  bf.onclick = () => abrirFiltroFluxo(bf, base);
+  faixa.append(bf);
+
+  const cxSit = $("#feed-sit");
+  cxSit.innerHTML = "";
+  if (!filtroAtivo()) return;
+
+  const s = el("div", "fsit");
+  const partes = [];
+  if (S.feedFilter.status === "error") partes.push("deu erro");
+  if (S.feedFilter.status === "ok") partes.push("deu certo");
+  if (S.feedFilter.wf) partes.push(wf ? shortName(wf.name) : S.feedFilter.wf);
+  s.append(document.createTextNode("filtrando por "), el("b", null, partes.join(" · ")));
+
+  // Falha escondida pelo filtro tem que aparecer, e é clicável: quem vê "2
+  // falhas fora deste filtro" quer ir até elas, não anotar o número.
+  const ocultas = falhasEscondidas(base);
+  if (ocultas) {
+    const o = el("button", "oculto");
+    o.type = "button";
+    o.textContent = ocultas + " falha" + (ocultas > 1 ? "s" : "") + " fora deste filtro";
+    o.title = "Mostrar essas falhas — limpa o filtro de fluxo e deixa só as que deram erro.";
+    o.onclick = () => { S.feedFilter = { status: "error", wf: null }; renderFeed(); };
+    s.append(o);
+  }
+
+  const lmp = el("button", "lmp", "limpar");
+  lmp.type = "button";
+  lmp.onclick = () => { S.feedFilter = { status: null, wf: null }; renderFeed(); };
+  s.append(lmp);
+  cxSit.append(s);
+}
+
+/* A telinha de escolher o fluxo.
+ *
+ * Só lista fluxo que executou na janela: um fluxo sem execução não tem o que
+ * filtrar, e escolhê-lo devolveria uma lista vazia sem explicação. As contagens
+ * são um retrato do momento em que abriu — o SSE continua entrando por trás, e
+ * repintar a lista sob o cursor moveria o item que está prestes a ser clicado. */
+function abrirFiltroFluxo(btn, base) {
+  const porFluxo = new Map();
+  for (const e of base) {
+    const p = porFluxo.get(e.workflowId) || { total: 0, erros: 0 };
+    p.total++;
+    if (e.status === "error") p.erros++;
+    porFluxo.set(e.workflowId, p);
+  }
+  const fluxos = [...porFluxo.entries()]
+    .map(([id, p]) => {
+      const w = S.workflows.get(id);
+      return { id, nome: w ? w.name : "fluxo " + id, total: p.total, erros: p.erros };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const scrim = el("div", "fmod-scrim");
+  const cx = el("div", "fmod");
+  cx.setAttribute("role", "dialog");
+  cx.setAttribute("aria-modal", "true");
+  cx.setAttribute("aria-labelledby", "fmod-tit");
+
+  const hd = el("div", "fmod-hd");
+  const h3 = el("h3", null, "Filtrar por fluxo"); h3.id = "fmod-tit";
+  const x = el("button", "x", "✕");
+  x.type = "button"; x.setAttribute("aria-label", "Fechar");
+  hd.append(el("span", "idx", "[ FLUXO ]"), h3, x);
+
+  const cxBusca = el("div", "fmod-busca");
+  const bs = el("span", "fbusca");
+  const inp = el("input");
+  inp.type = "text";
+  inp.placeholder = "nome do fluxo ou projeto…";
+  inp.setAttribute("aria-label", "Buscar fluxo");
+  bs.append(lupaSvg(), inp, el("span", "kbd", "ESC"));
+  cxBusca.append(bs);
+
+  const lista = el("div", "fmod-lista");
+  lista.setAttribute("role", "listbox");
+  const ft = el("div", "fmod-ft");
+
+  let cur = 0, itens = [];
+
+  // Redesenha ANTES de fechar. Na ordem inversa, `shut()` devolve o foco ao
+  // botão que abriu e o `renderFeed()` seguinte destrói esse botão — o foco cai
+  // no body e o Tab recomeça do topo da página. Medido.
+  const escolher = id => { S.feedFilter.wf = id; renderFeed(); shut(); };
+
+  function pinta() {
+    const q = inp.value.trim().toLowerCase();
+    const vis = fluxos.filter(f => !q || f.nome.toLowerCase().includes(q));
+    lista.innerHTML = "";
+    itens = [];
+
+    // "Todos os fluxos" é sempre o primeiro: tirar o filtro tem que custar o
+    // mesmo que pô-lo, senão o fluxo escolhido vira uma prisão.
+    const todos = el("button", "fitem todos" + (S.feedFilter.wf ? "" : " on"));
+    todos.type = "button";
+    const dt = el("span", "dotst"); dt.style.background = "var(--cold)";
+    const nt = el("span", "nm");
+    nt.append(el("span", "n1", "Todos os fluxos"), el("span", "n2", "sem filtro"));
+    const qt = el("span", "num");
+    qt.append(el("span", "ex", String(base.length)));
+    todos.append(dt, nt, qt);
+    todos.onclick = () => escolher(null);
+    lista.append(todos);
+    itens.push(todos);
+
+    for (const f of vis) {
+      const b = el("button", "fitem" + (S.feedFilter.wf === f.id ? " on" : ""));
+      b.type = "button";
+      const d = el("span", "dotst");
+      // Ponto = saúde do fluxo na janela, o mesmo vocabulário do feed. Se aqui
+      // significasse "estado da última execução", dois pontos vermelhos na
+      // mesma tela quereriam dizer coisas diferentes.
+      d.style.background = f.erros ? "var(--risk)" : "var(--ok)";
+      const n = el("span", "nm");
+      n.append(el("span", "n1", shortName(f.nome)));
+      // "SEM PREFIXO" é o que `projectOf` devolve quando não há convenção de
+      // nome, e escrever isso em quatro linhas seguidas é ruído no lugar onde
+      // se procura um nome. Sem prefixo, o nome já é a identidade inteira.
+      const proj = projectOf(f.nome);
+      if (proj !== "SEM PREFIXO") n.append(el("span", "n2", proj));
+      const num = el("span", "num");
+      num.append(el("span", "ex", String(f.total)));
+      num.append(el("span", "er" + (f.erros ? "" : " zero"),
+        f.erros ? f.erros + " falha" + (f.erros > 1 ? "s" : "") : "sem falha"));
+      b.append(d, n, num);
+      b.onclick = () => escolher(f.id);
+      lista.append(b);
+      itens.push(b);
+    }
+    if (!vis.length) lista.append(el("div", "fmod-vazio", "Nenhum fluxo com esse nome executou na janela."));
+
+    ft.innerHTML = "";
+    ft.append(el("span", "kbd", "↑↓"), document.createTextNode("andar"),
+      el("span", "kbd", "ENTER"), document.createTextNode("escolher"),
+      el("span", "kbd", "ESC"), document.createTextNode("fechar"),
+      el("span", "tot", vis.length + " de " + fluxos.length + " fluxos"));
+
+    cur = Math.min(cur, itens.length - 1);
+    marca();
+  }
+  function marca() {
+    itens.forEach((v, i) => v.classList.toggle("cur", i === cur));
+    if (itens[cur]) itens[cur].scrollIntoView({ block: "nearest" });
+  }
+
+  const behind = [...document.body.children];
+  const shut = () => {
+    document.removeEventListener("keydown", onKey);
+    for (const n of behind) n.inert = false;
+    scrim.remove();
+    // O botão que abriu costuma NÃO existir mais: o SSE redesenha a faixa
+    // enquanto a telinha está aberta. Mesma lição do handoff — reencontra pela
+    // posição, senão o foco cai no body e o Tab recomeça do topo da página.
+    const back = (btn && document.contains(btn) && btn) || $("#feed-filtro .fchip.fluxo") || $("#feed");
+    if (back) { if (!back.tabIndex || back.tabIndex < 0) back.tabIndex = -1; back.focus(); }
+  };
+  const onKey = ev => {
+    if (ev.key === "Escape") { ev.preventDefault(); shut(); }
+    else if (ev.key === "ArrowDown") { ev.preventDefault(); cur = Math.min(cur + 1, itens.length - 1); marca(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); cur = Math.max(cur - 1, 0); marca(); }
+    else if (ev.key === "Enter" && itens[cur]) { ev.preventDefault(); itens[cur].click(); }
+  };
+  x.onclick = shut;
+  scrim.onclick = ev => { if (ev.target === scrim) shut(); };
+  inp.oninput = () => { cur = 0; pinta(); };
+  // No documento, não no `cx`: com o foco na busca as setas ainda têm que andar
+  // na lista, e um handler preso ao container perde a tecla assim que o foco
+  // está num input que é filho dele em outro ramo.
+  document.addEventListener("keydown", onKey);
+
+  cx.append(hd, cxBusca, lista, ft);
+  scrim.append(cx);
+  for (const n of behind) n.inert = true;
+  document.body.append(scrim);
+  pinta();
+  inp.focus();
+}
+
 function renderFeed() {
   const floor = windowFloor();
   let rows = [...S.execs.values()]
@@ -3880,12 +4664,35 @@ function renderFeed() {
   if (S.selectedProject) {
     rows = rows.filter(e => { const w = S.workflows.get(e.workflowId); return w && projectOf(w.name) === S.selectedProject; });
   }
-  $("#feed-hint").textContent = rows.length + " execuções";
+  // `base` é o universo que a lista promete: a janela, já recortada pelo
+  // projeto do trilho. É dele que saem as contagens dos chips — e não do
+  // resultado, que zeraria todo chip não selecionado.
+  const base = rows;
+  renderFeedFiltro(base);
+  rows = base.filter(passaFiltro);
+  $("#feed-hint").textContent = filtroAtivo()
+    ? rows.length + " de " + base.length + " execuções"
+    : rows.length + " execuções";
 
   const box = $("#feed");
   const known = new Set([...box.children].map(c => c.dataset.id));
   box.innerHTML = "";
-  if (!rows.length) { box.append(el("div", "empty", "Nada executou na janela.")); return; }
+  if (!rows.length) {
+    // "Nada executou" é uma frase sobre o n8n; "o filtro escondeu tudo" é uma
+    // frase sobre esta tela. Dizer a primeira quando a verdade é a segunda faz
+    // procurar defeito na instância.
+    const vazio = el("div", "empty");
+    if (filtroAtivo()) {
+      vazio.append(el("div", null, "Nenhuma execução passa por este filtro."));
+      const p = el("div", null, base.length + " execuções da janela estão escondidas.");
+      p.style.cssText = "font-size:11.5px;color:var(--txt-faint);margin-top:6px";
+      vazio.append(p);
+    } else {
+      vazio.append(el("div", null, "Nada executou na janela."));
+    }
+    box.append(vazio);
+    return;
+  }
 
   for (const e of rows.slice(0, 200)) {
     const wf = S.workflows.get(e.workflowId);
@@ -4359,7 +5166,7 @@ function replay(detail) {
     const own = failedNode ? svg.querySelector('.nd[data-name="' + cssEsc(failedNode) + '"]') : null;
     if (own) {
       own.classList.remove("pending", "ran", "hot"); own.classList.add("failed");
-      setStep("✕ Falhou em " + failedNode + " — " + msg);
+      setStep("✕ Falhou em " + failedNode + " — ", msg);
       follow(failedNode, MIN_BOX_W);
       return;
     }
@@ -4370,7 +5177,7 @@ function replay(detail) {
     const caller = detail.lastNode && svg.querySelector('.nd[data-name="' + cssEsc(detail.lastNode) + '"]');
     if (caller) { caller.classList.remove("pending", "ran", "hot"); caller.classList.add("failed"); }
     setStep("✕ Falhou em " + (failedNode || "?") + " — nó de sub-workflow, chamado por "
-      + (detail.lastNode || "?") + " — " + msg);
+      + (detail.lastNode || "?") + " — ", msg);
     if (detail.lastNode) follow(detail.lastNode, MIN_BOX_W);
   }, t + 400));
 }
@@ -4525,7 +5332,8 @@ function renderHappened(detail) {
     // este campo traz "Google Meet · i****@ecommercepuro.com.br", que é
     // verdadeiro como contato da execução e seria mentira como lead.
     quem.append(el("span", "rot", "contato"));
-    quem.append(el("span", "val", [res.nome, res.quem].filter(Boolean).join(" · ")));
+    // `sens`: nome e contato do lead são exatamente o que o modo gravação borra.
+    quem.append(el("span", "val sens", [res.nome, res.quem].filter(Boolean).join(" · ")));
     prosa.append(quem);
   }
 
@@ -4535,21 +5343,21 @@ function renderHappened(detail) {
       linha.append(el("span", "rot", "recebeu"));
       if (b.arquivo) linha.append(el("span", "val", "um arquivo (áudio, imagem ou documento) em " + b.nó
         + " — sem texto no corpo da mensagem"));
-      else linha.append(el("q", "fala", b.texto));
+      else linha.append(el("q", "fala sens", b.texto));
     } else if (b.tipo === "out") {
       linha.append(el("span", "rot out", "enviou"));
-      if (b.texto) linha.append(el("q", "fala", b.texto));
+      if (b.texto) linha.append(el("q", "fala sens", b.texto));
       else if (b.entrada) {
         // Distinção explícita: isto é o que ENTROU no nó de envio, não o que a
         // API devolveu. Sem esse rótulo, um texto vizinho passaria por texto
         // enviado — e essa é a diferença entre relatar e supor.
-        linha.append(el("q", "fala", b.entrada));
-        linha.append(el("span", "para", "(o item que entrou em " + b.nó + ")"));
+        linha.append(el("q", "fala sens", b.entrada));
+        linha.append(el("span", "para", "(o item que entrou em " + (b.entradaNó || b.nó) + ")"));
       } else {
         linha.append(el("span", "val", (b.itens != null ? b.itens + " mensagem(ns)" : "mensagem")
           + " pelo nó " + b.nó + " — o conteúdo não veio nos campos conhecidos"));
       }
-      if (b.quem) linha.append(el("span", "para", "para " + b.quem));
+      if (b.quem) linha.append(el("span", "para sens", "para " + b.quem));
     } else if (b.tipo === "mudou") {
       linha.append(el("span", "rot", "mudou"));
       linha.append(el("span", "val", b.partes.join(" · ")));
@@ -4592,7 +5400,7 @@ function renderHappened(detail) {
     const verbo = l.ef ? l.ef.verbo : (l.node ? nodeKindLabel(l.node.type) : "—");
     meio.append(el("span", "nm", l.r.name), el("span", "vb", " · " + verbo + quanto
       + (l.r.binary ? " (com binário)" : "")));
-    if (l.r.sample && l.r.sample.texto) meio.append(el("span", "fields", "“" + l.r.sample.texto.slice(0, 90) + "”"));
+    if (l.r.sample && l.r.sample.texto) meio.append(el("span", "fields sens", "“" + l.r.sample.texto.slice(0, 90) + "”"));
     else if (l.r.keys && l.r.keys.length) meio.append(el("span", "fields", "campos: " + l.r.keys.join(", ")));
     row.append(meio, el("span", "ms", dur(l.r.ms)));
     lista.append(row);
@@ -4788,6 +5596,149 @@ $("#theme").onclick = () => {
 // ?theme=light|dark força o tema (kiosk, captura, embed) e vence o localStorage.
 const wantTheme = new URLSearchParams(location.search).get("theme") || localStorage.getItem("cockpit-theme");
 if (wantTheme === "light" || wantTheme === "dark") document.documentElement.dataset.theme = wantTheme;
+
+/* ========================================================== avisar / aviso
+   COPIADO do tester.html, bloco a bloco, como o resto do chrome compartilhado.
+   Uma mudanca la tem que ser repetida aqui ate o dia em que isto virar arquivo
+   proprio. `preview/gen-avisos-preview.js` desenha os quatro tipos nos dois
+   modos, e e ele que prova que as tres paginas dizem a mesma coisa do mesmo
+   jeito. Ver o bloco AVISOS no CSS para o porque de cada decisao. */
+const AVISO_GLIFO = { erro: "✕", alerta: "!", ok: "✓", info: "i" };
+const AVISO_VIDA = { ok: 4500, info: 6000 };   // erro e alerta não somem sozinhos
+// Quanto a pausa por hover pode esticar a vida, no máximo. Ver `avisar()`.
+const VIDA_MAX_PAUSA = 20000;
+
+function avisoHtml(msg, tipo, titulo) {
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  return '<div class="aviso ' + t + '" role="' + (t === "erro" ? "alert" : "status") + '">' +
+    '<span class="ai" aria-hidden="true">' + AVISO_GLIFO[t] + "</span>" +
+    '<span class="ac">' + (titulo ? '<span class="at">' + esc(titulo) + "</span>" : "") + esc(msg) + "</span>" +
+    "</div>";
+}
+
+function pilhaAvisos() {
+  let p = document.querySelector(".avisos");
+  if (p) return p;
+  p = document.createElement("div");
+  p.className = "avisos";
+  document.body.appendChild(p);
+  return p;
+}
+
+function avisar(msg, tipo, titulo) {
+  if (!msg) return null;
+  const t = AVISO_GLIFO[tipo] ? tipo : "info";
+  const vida = AVISO_VIDA[t] || 0;
+  const pilha = pilhaAvisos();
+
+  /* Montado por DOM, nunca por `innerHTML`. Duas razões: a mensagem vem de erro
+     de servidor e de nome de arquivo, ou seja de fora, e `textContent` fecha essa
+     porta sem depender de ninguém lembrar de escapar; e assim este bloco é
+     idêntico nas três páginas — o `flows.html` não tem `esc()`. */
+  const cartao = document.createElement("div");
+  cartao.className = "aviso " + t;
+  cartao.setAttribute("role", t === "erro" ? "alert" : "status");
+  cartao.setAttribute("aria-live", t === "erro" ? "assertive" : "polite");
+
+  const gl = document.createElement("span");
+  gl.className = "ai"; gl.setAttribute("aria-hidden", "true"); gl.textContent = AVISO_GLIFO[t];
+  const corpo = document.createElement("span");
+  corpo.className = "ac";
+  if (titulo) {
+    const tt = document.createElement("span");
+    tt.className = "at"; tt.textContent = titulo;
+    corpo.appendChild(tt);
+  }
+  corpo.appendChild(document.createTextNode(msg));
+  const fechar = document.createElement("button");
+  fechar.type = "button"; fechar.className = "ax";
+  fechar.setAttribute("aria-label", "fechar aviso"); fechar.textContent = "×";
+  cartao.append(gl, corpo, fechar);
+  if (vida) {
+    const barra = document.createElement("span");
+    barra.className = "abar"; barra.setAttribute("aria-hidden", "true");
+    barra.style.animationDuration = vida + "ms";
+    cartao.appendChild(barra);
+  }
+
+  const sair = () => {
+    if (!cartao.isConnected) return;
+    cartao.classList.add("saindo");
+    // Espera a animação de saída, mas nunca depende dela: `setTimeout` remove de
+    // qualquer forma, senão um `prefers-reduced-motion` que zera a duração
+    // deixaria o cartão pendurado para sempre.
+    setTimeout(() => cartao.remove(), 200);
+  };
+  fechar.addEventListener("click", sair);
+  if (vida) {
+    let timer = setTimeout(sair, vida);
+    // O mouse em cima pausa a contagem: ler uma frase de 12 palavras leva mais
+    // que 4,5s, e ver o aviso fugir debaixo do cursor é o pior defeito de toast.
+    cartao.addEventListener("mouseenter", () => {
+      clearTimeout(timer);
+      const b = cartao.querySelector(".abar");
+      if (b) b.style.animationPlayState = "paused";
+    });
+    cartao.addEventListener("mouseleave", () => {
+      timer = setTimeout(sair, 1200);
+      const b = cartao.querySelector(".abar");
+      if (b) b.style.animationPlayState = "running";
+    });
+  }
+
+  pilha.appendChild(cartao);
+  // Teto de 4 na tela. Sem ele, uma pasta com oito arquivos recusados vira uma
+  // coluna de avisos que cobre a página inteira — e o oitavo esconde o primeiro.
+  const todos = [...pilha.querySelectorAll(".aviso")];
+  if (todos.length > 4) todos.slice(0, todos.length - 4).forEach(x => x.remove());
+  return cartao;
+}
+
+/* Modo gravação. O clique troca o estado, persiste na chave do produto e
+   dispara a onda — WAAPI a partir do retângulo do botão, o mesmo truque do
+   morph do handoff. A onda é só a cerimônia; a informação é o borrão nos
+   elementos `.sens`, que entra por transição de CSS. Com movimento reduzido a
+   onda não roda e o estado troca do mesmo jeito. */
+const REC_KEY = "cockpit-rec";
+function recPaint() {
+  const on = document.documentElement.dataset.rec === "1";
+  const b = $("#rec");
+  b.querySelector(".lbl").textContent = on ? "REC" : "Gravar";
+  b.setAttribute("aria-pressed", on ? "true" : "false");
+  b.title = on
+    ? "modo gravação ligado — dados de clientes borrados; clique para desligar"
+    : "modo gravação — borra dados de clientes para filmar a tela";
+}
+function recWave(btn) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = btn.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const raio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  const w = document.createElement("div");
+  w.className = "rec-wave";
+  document.body.append(w);
+  w.animate(
+    [{ clipPath: `circle(0px at ${x}px ${y}px)`, opacity: .95 },
+     { clipPath: `circle(${raio}px at ${x}px ${y}px)`, opacity: 0 }],
+    { duration: 700, easing: "cubic-bezier(.22,.61,.36,1)" }
+  ).onfinish = () => w.remove();
+}
+$("#rec").onclick = () => {
+  const on = document.documentElement.dataset.rec !== "1";
+  if (on) document.documentElement.dataset.rec = "1";
+  else delete document.documentElement.dataset.rec;
+  try { on ? localStorage.setItem(REC_KEY, "1") : localStorage.removeItem(REC_KEY); } catch { /* modo privado */ }
+  recWave($("#rec"));
+  recPaint();
+};
+// Fluxos e tester abertos lado a lado: a outra aba acompanha, sem onda.
+addEventListener("storage", e => {
+  if (e.key !== REC_KEY) return;
+  if (e.newValue === "1") document.documentElement.dataset.rec = "1";
+  else delete document.documentElement.dataset.rec;
+  recPaint();
+});
+recPaint();
 
 // Sparkles nos cruzamentos da grade — identidade Firecrawl, custo zero.
 for (const [x, y] of [[14, 20], [72, 20], [32, 64], [88, 52]]) {

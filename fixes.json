@@ -37,12 +37,6 @@
       "note": "Claude ajustou o node memoria_redis_roberto"
     },
     {
-      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
-      "markedAt": "2026-08-07T11:31:51.231Z",
-      "maxExecIdAtFix": "172571",
-      "note": "Exclui o fluxo"
-    },
-    {
       "key": "azwM3PgGtSbGTCsn|criar_vacuo1|ExpressionError",
       "markedAt": "2026-08-07T18:03:25.572Z",
       "maxExecIdAtFix": "173265",
@@ -97,12 +91,6 @@
       "note": "Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (data), consumindo o arquivo que downloadimage já baixa."
     },
     {
-      "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
-      "markedAt": "2026-08-10T17:13:04.241Z",
-      "maxExecIdAtFix": "177133",
-      "note": "Fluxo teste, já ajustei"
-    },
-    {
       "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
       "markedAt": "2026-08-10T19:17:03.533Z",
       "maxExecIdAtFix": "177581",
@@ -113,6 +101,48 @@
       "markedAt": "2026-08-11T11:36:17.501Z",
       "maxExecIdAtFix": "177857",
       "note": "Claude (cockpit) [filtrar_por_horario]: Liguei retry (3x, 5s) em filtrar_por_horario porque a falha foi o task runner de Code do n8n Cloud não aceitar a task em 60s, não o código."
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-11T13:54:07.141Z",
+      "maxExecIdAtFix": "177589",
+      "note": "Ja ajustado"
+    },
+    {
+      "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
+      "markedAt": "2026-08-11T15:18:38.797Z",
+      "maxExecIdAtFix": "177133",
+      "note": "Ja ajustei"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "markedAt": "2026-08-13T11:42:06.228Z",
+      "maxExecIdAtFix": "181791",
+      "note": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|msg|NodeOperationError",
+      "markedAt": "2026-08-13T11:42:19.205Z",
+      "maxExecIdAtFix": "181790",
+      "note": "Claude ajustou o erro"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|upload_audio_storage|NodeApiError",
+      "markedAt": "2026-08-13T11:47:08.106Z",
+      "maxExecIdAtFix": "181229",
+      "note": "Claude (cockpit) [upload_audio_storage]: upload_audio_storage recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus onError: continueRegularOutput para ele não matar mais a resposta ao lead."
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-13T11:47:39.771Z",
+      "maxExecIdAtFix": "181230",
+      "note": "Já exclui esse node"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|upload_audio_storage|NodeOperationError",
+      "markedAt": "2026-08-13T11:47:52.970Z",
+      "maxExecIdAtFix": "181228",
+      "note": "Claude ajustou o fluxo da Gabi"
     }
   ],
   "history": [
@@ -222,7 +252,8 @@
       "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
       "markedAt": "2026-08-10T17:13:04.241Z",
       "maxExecIdAtFix": "177133",
-      "note": "Fluxo teste, já ajustei"
+      "note": "Fluxo teste, já ajustei",
+      "undoneAt": "2026-08-11T15:17:55.618Z"
     },
     {
       "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
@@ -249,6 +280,48 @@
       "maxExecIdAtFix": "177589",
       "note": "Claude arrumou",
       "undoneAt": "2026-08-11T13:17:26.510Z"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-11T13:54:07.141Z",
+      "maxExecIdAtFix": "177589",
+      "note": "Ja ajustado"
+    },
+    {
+      "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
+      "markedAt": "2026-08-11T15:18:38.797Z",
+      "maxExecIdAtFix": "177133",
+      "note": "Ja ajustei"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "markedAt": "2026-08-13T11:42:06.228Z",
+      "maxExecIdAtFix": "181791",
+      "note": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|msg|NodeOperationError",
+      "markedAt": "2026-08-13T11:42:19.205Z",
+      "maxExecIdAtFix": "181790",
+      "note": "Claude ajustou o erro"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|upload_audio_storage|NodeApiError",
+      "markedAt": "2026-08-13T11:47:08.106Z",
+      "maxExecIdAtFix": "181229",
+      "note": "Claude (cockpit) [upload_audio_storage]: upload_audio_storage recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus onError: continueRegularOutput para ele não matar mais a resposta ao lead."
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-13T11:47:39.771Z",
+      "maxExecIdAtFix": "181230",
+      "note": "Já exclui esse node"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|upload_audio_storage|NodeOperationError",
+      "markedAt": "2026-08-13T11:47:52.970Z",
+      "maxExecIdAtFix": "181228",
+      "note": "Claude ajustou o fluxo da Gabi"
     }
   ]
 }

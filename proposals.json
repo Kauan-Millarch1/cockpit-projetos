@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-11T11:51:17.735Z",
+  "savedAt": "2026-08-13T12:29:06.674Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -1824,6 +1824,186 @@
       "appliedAt": null,
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-10T18:53:35.641Z"
+    },
+    {
+      "runId": "rmsrg3cap1",
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá.\n\n## Causa raiz\n\nO `msg` (`n8n-nodes-base.whatsApp`, operação `send`) estourou com `NodeApiError: The connection timed out` depois de 2 min — o próprio n8n sugere Retry on Fail na mensagem. Isso é falha de transporte contra `graph.facebook.com`: a requisição não recebeu resposta. **Não é erro de dado.** Conferi os dois campos que o nó monta:\n\n- `recipientPhoneNumber` = `{{ $('parametros').first().json.body.phone }}` — `parametros` (set) define `body.phone` a partir de `phone_normalizado`, e o mesmo caminho já rodou nos 62 nós anteriores sem quebrar.\n- `textBody` = `{{ $json.mensagem_atual }}` — vem de `selecionar_mensagem` e passa por `preparar_mensagem`, que só decide `tipo_envio` e repassa o campo.\n\nDado vazio ou telefone inválido devolveria 400 em milissegundos, não um silêncio de 2 minutos. **Por que a conexão caiu eu não sei dizer com o que tenho aqui** — pode ser instabilidade da Meta, egress do n8n Cloud ou rede no meio. As 4 ocorrências concentradas na mesma hora (todas há 10h, nenhuma depois) têm cara de janela ruim do lado de lá, não de defeito no fluxo.\n\nO que o fluxo contribui é a fragilidade: `msg` não tinha nenhuma tentativa extra, e ele fica **dentro de um laço de bolhas** (`selecionar_mensagem` → `preparar_mensagem` → `tipo_envio` → `msg` → `Code in JavaScript2` → `salvar_msg_outbound_texto` → `Merge1` → `Tempo de mensagem1` → `incrementar_indice` → `If1` → `Wait3` → volta). Um piscar de rede na bolha 2 de 5 mata a execução inteira e o lead fica com a resposta pela metade.\n\n## O que mudei\n\nSó o nó `msg`, e só nas configurações — nenhum `parameters` teve o valor alterado (mandei o bloco inteiro como está por exigência do formato):\n\n- `retryOnFail: true`\n- `maxTries: 3`\n- `waitBetweenTries: 5000`\n- `notes` explicando o porquê e por que o `onError` ficou como está\n\nNenhum nó novo, nenhuma reconexão, nenhum `credentials` tocado.\n\n## Por que isso resolve\n\nTimeout de conexão é falha transitória: a segunda tentativa, 5 s depois, quase sempre pega a API de pé. Com 3 tentativas o nó tolera ~10 s de janela ruim antes de desistir, e o laço de bolhas continua de onde estava em vez de abandonar o lead no meio da resposta.\n\nDeixei o `onError` no padrão (parar o fluxo) de propósito. `continueRegularOutput` faria o item seguir para `Code in JavaScript2` → `salvar_msg_outbound_texto`, gravando no banco uma mensagem que nunca foi entregue e seguindo o laço como se estivesse tudo bem — falha silenciosa é pior que falha visível aqui.\n\n## Risco residual\n\n- **Bolha duplicada.** Timeout não diz se a Meta aceitou a mensagem antes de a conexão morrer. Se aceitou, a retentativa manda de novo e o lead vê a mesma bolha duas vezes. O nó não usa chave de idempotência e a WhatsApp Cloud API não oferece uma para `messages`. Achei esse risco menor que o de conversa cortada no meio, mas é uma troca, não um ganho limpo.\n- **Não corrigi a causa.** Se o timeout for a Meta caindo por vários minutos, 3×5 s não salva e a falha volta igual — só com 3 tentativas no log em vez de 1. Se voltar com esse padrão, o problema é de infraestrutura/rede, não deste fluxo.\n- **Nós irmãos ficaram como estavam.** `Send message and wait for response1`, `Send message and wait for response2` e `enviar_botao_cta` batem na mesma API e têm a mesma exposição, mas não apareceram na falha — não mexi neles para manter o patch mínimo. Vale ligar o mesmo retry se aparecerem.\n",
+      "fixNote": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.2710694999999999,
+      "startedAt": "2026-08-13T11:38:52.038Z",
+      "finishedAt": "2026-08-13T11:41:53.658Z",
+      "appliedAt": "2026-08-13T11:42:06.150Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-10T14:20:00.317Z"
+    },
+    {
+      "runId": "rmsrg8hdt2",
+      "key": "9dGEJcYa7LxTAwAs|upload_audio_storage|NodeApiError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** `upload_audio_storage` recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus `onError: continueRegularOutput` para ele não matar mais a resposta ao lead.\n\n## Causa raiz\n\nDuas coisas, e só a segunda eu consigo corrigir aqui.\n\n**1. A recusa em si é do Supabase Storage, não do n8n.** O nó é um `httpRequest` que faz\n`POST https://zlwgtfdwnibaavlcqttu.supabase.co/storage/v1/object/gabi-audio/<from>/inbound/<wamid>.ogg`\ncom `authentication: predefinedCredentialType` / `nodeCredentialType: supabaseApi`. A mensagem\n\"Bad request - please check your parameters\" é só como o n8n traduz um HTTP 400; o que interessa é a\ndescrição, `Unauthorized`, que é o campo `error` do corpo devolvido pelo Storage. Ou seja: a requisição\nchegou, foi entendida e foi **recusada por autorização**. Os parâmetros do nó estão corretos — URL,\nmétodo, `contentType: binaryData`, `inputDataFieldName: audio` (o `download_audio` logo acima grava a\nbinária justamente em `audio`), header `Content-Type: audio/ogg`. Os três nós de upload do fluxo\n(`upload_audio_storage`, `upload_audio_storage1`, `upload_audio_storage2`) são idênticos nesse ponto,\nentão não é um nó mal configurado no meio de outros certos.\n\nNão consigo decidir, com o que tenho aqui, qual das duas hipóteses é a verdadeira — o corpo do erro\nveio truncado em \"Unauthorized\", sem o `message` que diferenciaria as duas:\n\n- **Chave.** A credencial `supabaseApi` manda `apikey` **e** `Authorization: Bearer <serviceRole>`. O\n  PostgREST aceita só o `apikey`, mas o Storage exige um JWT válido no `Authorization`. Se a credencial\n  foi trocada pelas chaves novas (`sb_secret_...`), que não são JWT, o Storage passa a recusar\n  enquanto `buscar_lead` e `buscar_lead1` continuam funcionando — que é exatamente o que a execução\n  181229 mostra: os nós Supabase de tabela passaram, só o de Storage caiu.\n- **Policy.** O nó manda `x-upsert: true`. Upsert exige `UPDATE` no bucket além de `INSERT`. Como o\n  caminho do arquivo é derivado do `wamid`, uma reentrega do mesmo evento do WhatsApp cai no mesmo\n  objeto, vira UPDATE e é negada — o que combinaria com \"1× em 24h\" em vez de falha constante.\n\nQualquer uma das duas se resolve no Supabase (reautorizar a credencial ou ajustar a policy do bucket\n`gabi-audio`), por humano, no console. Não toquei em nenhum bloco `credentials`.\n\n**2. O que é defeito do fluxo: esse upload não deveria poder derrubar a conversa.** Em\n`download_audio` as saídas estão nesta ordem: `upload_audio_storage` primeiro, `openAI_audio` depois.\nComo o upload não tinha `onError`, ele abortou a execução antes de a transcrição rodar — e com ela\nmorreram `salvar_msg_inbound_audio`, o `AI Agent1` e o envio da resposta. O lead mandou um áudio e não\nrecebeu nada de volta por causa de uma gravação de arquivo de arquivo morto. O próprio autor já tratou\na persistência como não-crítica em `salvar_msg_inbound_audio`, que tem `onError: continueRegularOutput`;\naqui faltou.\n\n## O que mudei\n\nSó o nó `upload_audio_storage`, e nenhum parâmetro:\n\n- `onError: \"continueRegularOutput\"`.\n- `notes` com a data, a execução, o significado do 400/Unauthorized e as duas verificações a fazer no\n  Supabase, na ordem.\n\nNada de `rewire`: com `onError` posto, inverter a ordem das saídas de `download_audio` seria redundante.\nNada de `retryOnFail`: um 400 de autorização não melhora com nova tentativa, só somaria latência.\n\n## Por que isso resolve\n\nResolve **metade**, e a metade que dava o prejuízo maior: o áudio de entrada volta a ser transcrito e\nrespondido mesmo quando o Storage recusa, porque `openAI_audio` deixa de ser cancelado pelo nó\nanterior. A execução continua marcada com o erro do upload, então a falha permanece visível no quadro\nde erros em vez de virar silêncio — e a nota diz para onde olhar.\n\n**Não resolve o 400/Unauthorized.** O arquivo continuará não sendo gravado no bucket até alguém mexer\nno Supabase. Consequência conhecida: `salvar_msg_inbound_audio` grava em `media_url` a URL pública\n`.../object/public/gabi-audio/<from>/inbound/<wamid>.ogg` de um arquivo que não existe, então essas\nlinhas ficam com link quebrado.\n\n## Risco residual\n\n- Se a causa real for a policy de UPDATE e não a chave, o teste de uma linha é tirar `x-upsert: true`\n  e ver o erro virar 409 (conflito) em vez de 400 — **eu não fiz isso**, porque mudaria o\n  comportamento de reenvio com base num palpite.\n- Os outros dois uploads (`upload_audio_storage1`, `upload_audio_storage2`) continuam sem `onError` e\n  vão quebrar do mesmo jeito nos caminhos deles. Não mexi: estão fora da falha reportada.\n- Achado que não é desta falha, mas dá para conferir enquanto o assunto está aberto:\n  `upload_audio_storage2`, alimentado pelo `Convert text to speech` (áudio **de saída**), grava no\n  mesmo caminho `/inbound/<wamid>.ogg` dos áudios de entrada, com `inputDataFieldName: \"data\"`. Parece\n  cópia-e-cola e pode sobrescrever áudio de entrada. Não corrigi — outro nó, outro diff.\n",
+      "fixNote": "Claude (cockpit) [upload_audio_storage]: upload_audio_storage recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus onError: continueRegularOutput para ele não matar mais a resposta ao lead.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.8541030000000001,
+      "startedAt": "2026-08-13T11:42:51.908Z",
+      "finishedAt": "2026-08-13T11:46:24.557Z",
+      "appliedAt": "2026-08-13T11:47:08.069Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T17:16:51.664Z"
     }
   ]
 }
