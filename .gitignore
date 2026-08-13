@@ -41,6 +41,10 @@ scan.json
 # are kept (they are the record of what was chosen); the PNGs are regenerable.
 preview/*.png
 *.png
+# Excecao: as capturas do README. Sao geradas SEMPRE em modo gravacao, com o
+# dado de cliente borrado, e sao a unica coisa do repositorio que alguem ve
+# antes de ler qualquer linha.
+!docs/img/*.png
 
 # fixes.json and proposals.json are NOT caches — they are knowledge that exists
 # nowhere else and cannot be regenerated from the API, so they stay tracked.
