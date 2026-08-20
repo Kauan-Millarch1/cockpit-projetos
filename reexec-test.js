@@ -104,15 +104,55 @@ const fs = require("fs");
 const STORE = path.join(__dirname, "proposals.json");
 const PREFIXO = "rzztest";
 
+/* O LEDGER É DISPUTADO, e no Windows isso vira um erro que não parece o que é.
+ *
+ * `proposals.json` é escrito pelo cockpit o dia todo — e este teste roda com ele
+ * ligado. Medido: 1 falha a cada ~5 execuções, sempre
+ * `errno -4094 / code UNKNOWN` no `open`, que é como o Windows relata um arquivo
+ * momentaneamente travado (o escritor no meio do temp+rename, ou o antivírus
+ * abrindo o que acabou de mudar). Não é defeito de lógica, e a pista enganava:
+ * o erro subia pelo `catch` de fora com a mensagem "quebrou fora dos casos",
+ * que manda procurar assinatura trocada.
+ *
+ * Re-tentar é o conserto certo para uma trava transitória. O que NÃO se faz é
+ * engolir: depois das tentativas o erro sobe, porque um teste que some com a
+ * falha do ledger deixaria lixo `rzztest` num arquivo que vai para o git.
+ *
+ * A espera é ocupada de propósito — `limparLedger` é chamada do `catch` síncrono
+ * da saída, e transformá-la em `async` mudaria os dois pontos de saída do
+ * arquivo por causa de uma espera de milissegundos. */
+const TENTATIVAS_LEDGER = 5;
+
+function comRetentativa(fn, oQue) {
+  let ultimo;
+  for (let i = 0; i < TENTATIVAS_LEDGER; i++) {
+    try { return fn(); } catch (e) {
+      ultimo = e;
+      /* Só trava transitória merece nova tentativa. JSON corrompido ou
+         permissão negada não melhoram esperando, e insistir esconderia o que
+         de fato aconteceu. */
+      if (e && e.code !== "UNKNOWN" && e.code !== "EBUSY" && e.code !== "EPERM") throw e;
+      const ate = Date.now() + 40 * (i + 1);
+      while (Date.now() < ate) { /* espera curta, ocupada */ }
+    }
+  }
+  throw Object.assign(ultimo || new Error("falhou " + oQue),
+    { message: oQue + " falhou em " + TENTATIVAS_LEDGER + " tentativas (o ledger está travado — o cockpit está rodando?): "
+      + String(ultimo && ultimo.message || ultimo) });
+}
+
 function limparLedger() {
   if (!fs.existsSync(STORE)) return 0;
   let doc;
-  try { doc = JSON.parse(fs.readFileSync(STORE, "utf8")); } catch { return -1; }
+  try { doc = comRetentativa(() => JSON.parse(fs.readFileSync(STORE, "utf8")), "ler o ledger"); }
+  catch { return -1; }
   if (!doc || !Array.isArray(doc.proposals)) return -1;
   const antes = doc.proposals.length;
   doc.proposals = doc.proposals.filter(p => !String(p && p.runId || "").startsWith(PREFIXO));
   const tirados = antes - doc.proposals.length;
-  if (tirados > 0) fs.writeFileSync(STORE, JSON.stringify(doc, null, 2), "utf8");
+  /* A ESCRITA estava desprotegida, e era ela que derrubava: a leitura já tinha
+     `catch`, então a falha aparecia depois, no ponto que ninguém olhava. */
+  if (tirados > 0) comRetentativa(() => fs.writeFileSync(STORE, JSON.stringify(doc, null, 2), "utf8"), "limpar o ledger");
   return tirados;
 }
 

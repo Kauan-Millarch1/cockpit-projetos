@@ -167,6 +167,33 @@ function nodeSubtitle(n) {
   return op || (md && md !== "list" ? md : null);
 }
 
+/* O TIPO DE MÍDIA QUE O NÓ MANDOU.
+ *
+ * Medido no Iago, execução #183879: `Send message and wait for response1` é um
+ * `whatsApp` com `messageType: "audio"` e `mediaPropertyName: "data"` — ele não
+ * tem parâmetro de texto NENHUM. Então `textoEnviado` devolve `null` com razão, e
+ * a tela dizia "o conteúdo não veio nos campos conhecidos": mecanicamente certo,
+ * semanticamente errado, porque manda quem lê procurar um campo que não existe.
+ *
+ * Com este fato a página consegue dizer "enviou um áudio" em vez de descrever uma
+ * ausência. Sem ele só daria para INFERIR pela presença de um nó de TTS por perto,
+ * e inferir é justamente o que este painel não faz.
+ *
+ * O que atravessa é uma palavra de um conjunto fechado, nunca o parâmetro — ele
+ * carrega `phoneNumberId` e caminho de mídia. `text` e `template` deliberadamente
+ * NÃO passam: só mídia entra, porque é a ausência de texto que precisa de
+ * explicação. O Telegram nomeia a mídia na própria operação (`sendAudio`), então
+ * ela vale como segunda fonte quando `messageType` não existe. */
+const MIDIA = /^(audio|voice|image|photo|video|document|sticker)$/i;
+const MIDIA_OP = /^send(Audio|Voice|Photo|Video|Document|Sticker)$/;
+
+function midiaEnviada(p) {
+  if (!p || typeof p !== "object") return null;
+  if (typeof p.messageType === "string" && MIDIA.test(p.messageType)) return p.messageType.toLowerCase();
+  const m = typeof p.operation === "string" ? p.operation.match(MIDIA_OP) : null;
+  return m ? m[1].toLowerCase() : null;
+}
+
 /* Sticky note é conteúdo do fluxo: é onde está escrito o nome da etapa
    ("LOCK + CANCELAR VÁCUO"). Continua fora do bounding box da câmera — quem
    decide isso é `isAnnotation()` no cliente, e essa regra não muda — mas o
@@ -500,6 +527,10 @@ function extractExecDetail(e) {
         // item. `null` quando o nó não tem parâmetro de texto ou quando nada
         // resolveu — silêncio, nunca palpite.
         enviado: textoEnviado(paramDe.get(String(name)), t, runData, agora),
+        // a mídia que este nó mandou, quando mandou mídia em vez de texto. Uma
+        // palavra de conjunto fechado — é o que separa "não achei o texto" de
+        // "não havia texto nenhum a achar".
+        midia: midiaEnviada(paramDe.get(String(name))),
         // recorte de conteúdo: texto (cortado), contato (mascarado), referência
         sample: shape ? shape.sample : null
       });
@@ -528,6 +559,7 @@ function extractExecDetail(e) {
 const state = {
   workflows: { at: 0, rows: [] },
   graphs: new Map(),                 // id -> { at, graph }
+  docs: new Map(),                   // wfId -> { at, p } — a PROJEÇÃO do documento, ver `docDoFluxo`
   locate: new Map(),                 // JSON.stringify([wfId, node]) -> { at, value }
   callers: { at: 0, value: null },   // { porFilho: {childId: [{id,name,viaNode}]}, lidos, falhas }
   execs: new Map(),                  // id -> extracted row
@@ -546,7 +578,7 @@ const state = {
 
    O carimbo abaixo sobe sempre que o formato do detalhe muda; o cache antigo é
    descartado inteiro em vez de ser remendado. */
-const EXEC_CACHE_V = 6;   // 6: `src` e `enviado` por run (o texto que saiu)
+const EXEC_CACHE_V = 7;   // 7: `midia` por run (o nó mandou áudio, não texto)
 
 function loadExecCache() {
   try {
@@ -650,34 +682,130 @@ function subWorkflowId(node) {
   return null;
 }
 
+/* ═══════════════ O DOCUMENTO DO FLUXO, PROJETADO E EM CACHE ════════════════
+ *
+ * O caro aqui nunca foi o veredito: é BUSCAR o documento. `state.locate` guarda
+ * o veredito por `[wfId, nó]`, então a busca do pai e a dos filhos eram refeitas
+ * inteiras a cada NOME de nó diferente. Um alvo de 5 nós do mesmo fluxo lia o
+ * mesmo pai 5 vezes e os mesmos filhos até 30 — na rota quente da conversa,
+ * atrás de `MAX_INFLIGHT = 4`, e o maior fluxo desta instância tem 189 nós e
+ * 285KB. O que faltava era cache pelo `wfId`.
+ *
+ * O QUE ENTRA NO CACHE É A PROJEÇÃO, NUNCA O DOCUMENTO CRU — e isso é decisão de
+ * segurança antes de ser de memória. O documento cru carrega `credentials` e
+ * `parameters`: é o buraco deliberado do `getRawWorkflow`, cujo contrato é ser
+ * lido e redigido na hora, process-local. Guardá-lo por 10 minutos seria uma
+ * SEGUNDA cópia desse buraco, viva muito depois de o uso ter acabado e uma por
+ * fluxo lido. A projeção tem exatamente o que `locateNode` usa — nome do fluxo,
+ * NOMES dos nós, e o par (nó chamador, id do filho) dos nós de sub-fluxo — e
+ * nenhum desses campos é novo: os três já atravessam hoje na resposta de
+ * `locateNode`. Nenhuma rota passa a servir nada por causa disto.
+ *
+ * MESMO RELÓGIO DO VEREDITO (`LOCATE_TTL_MS`), de propósito. As duas coisas
+ * envelhecem pelo mesmo motivo — alguém editou o fluxo no n8n durante a conversa
+ * — e um segundo relógio só criaria a janela em que o veredito é velho e o
+ * documento é novo (ou o contrário) sem que ninguém consiga dizer qual dos dois
+ * está certo.
+ *
+ * O QUE FICA GUARDADO É A PROMESSA, NÃO O RESULTADO. Guardar só o resultado não
+ * ajudaria justamente no caso que motivou isto: a rajada de nós do mesmo alvo
+ * chega antes de a primeira resposta voltar, o cache ainda está vazio, e as N
+ * chamadas buscam as N vezes. Com a promessa em voo, a segunda espera a primeira.
+ *
+ * FALHA NÃO FICA GUARDADA: a entrada é removida quando a promessa rejeita. Senão
+ * um 503 passageiro fixaria "não consegui ler este fluxo" por 10 minutos, e quem
+ * lê essa resposta decide se um patch anda ou para. O preço é que uma rajada em
+ * cima de um fluxo ilegível re-tenta — que é exatamente o que ela já fazia antes
+ * desta mudança, então não há regressão nesse caminho. */
+
+function projecaoDoFluxo(w) {
+  const nomes = new Set();
+  const chamadas = [];
+  const vistos = new Set();
+  for (const n of (w && w.nodes) || []) {
+    nomes.add(String(n.name));
+    if (!SUBFLOW_RE.test(String(n.type))) continue;
+    const id = subWorkflowId(n);
+    // Dedup por id AQUI: o documento é o mesmo para qualquer nome de nó
+    // procurado, então a lista de filhos distintos não depende da pergunta.
+    if (!id || vistos.has(id)) continue;
+    vistos.add(id);
+    chamadas.push({ viaNode: String(n.name), childId: String(id) });
+  }
+  return { nome: String((w && w.name) ?? ""), nomes, chamadas };
+}
+
+function docDoFluxo(id) {
+  /* Chave de UM campo, num Map próprio, e isso é a decisão: sem prefixo
+     discriminador não há separador a concatenar à mão. Concatenar separador à
+     mão é o que já produziu U+0000 no `nodeOrigin`, U+001F neste arquivo e
+     U+0000 no `catalog.js` — três vezes, todas silenciosas. Onde a chave É
+     composta ela é `JSON.stringify([...])`, como em `state.locate` abaixo. */
+  const key = String(id);
+  const agora = Date.now();
+  const hit = state.docs.get(key);
+  if (hit && agora - hit.at < LOCATE_TTL_MS) return hit.p;
+
+  // Varredura do que já venceu: entrada vencida nunca é lida de novo, então sem
+  // isto o Map só cresce. Barata — a instância tem 68 fluxos.
+  for (const [k, v] of state.docs) if (agora - v.at >= LOCATE_TTL_MS) state.docs.delete(k);
+
+  const entrada = {
+    at: agora,
+    p: request("GET", `/api/v1/workflows/${encodeURIComponent(id)}`).then(projecaoDoFluxo)
+  };
+  state.docs.set(key, entrada);
+  // A identidade é conferida antes de apagar: uma entrada mais nova, criada
+  // depois desta rejeitar, não pode ser derrubada pela falha da anterior.
+  entrada.p.catch(() => { if (state.docs.get(key) === entrada) state.docs.delete(key); });
+  return entrada.p;
+}
+
 async function locateNode(wfId, nodeName) {
   const key = JSON.stringify([String(wfId), String(nodeName)]);
   const hit = state.locate.get(key);
   if (hit && Date.now() - hit.at < LOCATE_TTL_MS) return hit.value;
 
-  const parent = await request("GET", `/api/v1/workflows/${encodeURIComponent(wfId)}`);
-  const inWorkflow = (parent.nodes || []).some(n => String(n.name) === nodeName);
+  const parent = await docDoFluxo(wfId);
+  const inWorkflow = parent.nomes.has(nodeName);
 
   const subflows = [];
+  /* Quantos sub-fluxos DISTINTOS este fluxo chama, contados mesmo depois de o scan
+     parar. Sem esse numero, "nao achei o no em filho nenhum" e "parei antes de
+     olhar todos" chegam iguais em quem le — e as duas frases levam a decisoes
+     opostas: uma libera o patch, a outra tem de bloquear. Mesma razao de `callers`
+     reportar `falhas`.
+     A deduplicacao e por Set, e agora vive em `projecaoDoFluxo`: conferir
+     repeticao contra `subflows` voltaria a contar o mesmo filho varias vezes
+     depois do teto, porque depois dele os candidatos nao entram mais na lista.
+     Contar o tamanho de `chamadas` da o mesmo numero que o `candidatos++` dava —
+     o total de filhos distintos, teto ou nao. */
+  const candidatos = inWorkflow ? 0 : parent.chamadas.length;
   if (!inWorkflow) {
-    for (const n of parent.nodes || []) {
-      if (!SUBFLOW_RE.test(String(n.type))) continue;
-      const id = subWorkflowId(n);
-      if (!id || subflows.some(s => s.childId === id)) continue;
+    for (const c of parent.chamadas) {
       if (subflows.length >= SUBFLOW_SCAN_CAP) break;
+      // Sequencial de propósito, como antes: `docDoFluxo` já colapsa o filho
+      // repetido, e disparar os seis de uma vez só desloca a pressão para o
+      // `MAX_INFLIGHT` que a rota da conversa divide com o poll.
       let child = null;
-      try { child = await request("GET", `/api/v1/workflows/${encodeURIComponent(id)}`); }
+      try { child = await docDoFluxo(c.childId); }
       catch { /* filho apagado ou sem permissão: entra como desconhecido */ }
       subflows.push({
-        viaNode: String(n.name),
-        childId: String(id),
-        childName: child ? String(child.name ?? "") : null,
-        hasNode: child ? (child.nodes || []).some(x => String(x.name) === nodeName) : null
+        viaNode: c.viaNode,
+        childId: c.childId,
+        childName: child ? child.nome : null,
+        hasNode: child ? child.nomes.has(nodeName) : null
       });
     }
   }
 
-  const value = { wfId: String(wfId), workflowName: String(parent.name ?? ""), node: nodeName, inWorkflow, subflows };
+  const value = {
+    wfId: String(wfId), workflowName: parent.nome, node: nodeName, inWorkflow, subflows,
+    /* FATO, nao juizo: quantos candidatos existem e se a leitura ficou incompleta.
+       Quem decide o que fazer com isso e quem chama — o painel pinta, o upgrade
+       bloqueia. */
+    candidatos, truncado: candidatos > subflows.length
+  };
   state.locate.set(key, { at: Date.now(), value });
   return value;
 }
@@ -822,8 +950,10 @@ async function overview() {
 /* ============================================================== WRITE PATH ==
  *
  * Everything above this line is read-only. Everything below mutates the n8n
- * instance and exists for exactly one caller: `claude-fix.js`, on the approve
- * and revert paths, after Kauan clicked on a diff that was already rendered.
+ * instance. Two callers today, and the count is load-bearing (see `writeOwner`):
+ * `claude-fix.js`, on the sandbox/approve/revert paths after Kauan clicked on a
+ * diff that was already rendered, and `tester.js`, which only ever writes an
+ * inactive `[SANDBOX tester]` copy.
  *
  * Three rules that are not negotiable:
  *   1. No delete. There is no delete function here and there must not be one —
@@ -848,6 +978,45 @@ async function overview() {
 
 async function getRawWorkflow(id) {
   return request("GET", `/api/v1/workflows/${encodeURIComponent(id)}`);
+}
+
+/* O SEGUNDO buraco deliberado, e ele é maior que o primeiro — leia antes de usar.
+ *
+ * Devolve a execução CRUA, com `runData` inteiro: a conversa do lead, o payload
+ * de cada nó, tudo. É process-local e **nenhuma rota HTTP serve a saída dela**,
+ * exatamente como `getRawWorkflow`.
+ *
+ * POR QUE EXISTE: `getDetail` passa pela whitelist, que por desenho só deixa
+ * atravessar campo nomeado e corta texto em 180 — e é isso que torna o painel
+ * seguro para ficar aberto o dia inteiro. Mas uma pergunta como "por que o preço
+ * saiu R$0,00" não é respondível por forma: precisa do VALOR do campo e de onde
+ * ele veio. Medido: o preço vem da API como `"3000"` (string), e o cache do Redis
+ * devolve tudo sob `propertyName` — nada disso é visível pela whitelist.
+ *
+ * QUEM PODE CHAMAR: `evidencia.js`, e só. Ele é o único que sabe recortar isto
+ * para o que uma sessão pode ler, e a máscara de telefone/e-mail é aplicada lá
+ * SEM exceção. Se aparecer um segundo chamador, a pergunta certa é por que ele
+ * não passa pelo `evidencia.js`.
+ *
+ * O que NUNCA muda: a chave da API não sai deste arquivo. */
+async function getRawExecution(id) {
+  return request("GET", `/api/v1/executions/${encodeURIComponent(id)}?includeData=true`);
+}
+
+/* A lista crua de execuções, com filtro. Sem `includeData` — é só a linha, e é o
+   que permite escolher QUAIS execuções abrir antes de pagar o payload de cada
+   uma. `status` é validado contra o conjunto que esta instância aceita: medido,
+   `crashed` devolve 400. */
+const STATUS_VALIDOS = new Set(["success", "error", "waiting", "running", "canceled"]);
+
+async function listExecutions({ wfId, status, limite = 50, cursor } = {}) {
+  const q = new URLSearchParams();
+  if (wfId) q.set("workflowId", String(wfId));
+  if (status && STATUS_VALIDOS.has(status)) q.set("status", status);
+  q.set("limit", String(Math.max(1, Math.min(250, Number(limite) || 50))));
+  if (cursor) q.set("cursor", String(cursor));
+  const r = await request("GET", "/api/v1/executions?" + q.toString());
+  return { linhas: (r && r.data) || [], cursor: (r && r.nextCursor) || null };
 }
 
 /* `settings` é validado com `additionalProperties: false` no schema
@@ -885,6 +1054,164 @@ function pickSettings(s) {
   return { settings, dropped };
 }
 
+/* ══════════════════════════════════ QUEM ESTÁ ESCREVENDO ═══════════════════
+ *
+ * ETAPA 0 de quatro (PLAN-UPGRADE.md §6.5.1). Hoje isto não trava nada: é
+ * encanamento, e de propósito.
+ *
+ * O QUE VEM DEPOIS, e por que o dono tem de existir ANTES. Não há trava
+ * compartilhada nesta instância: `claude-fix.js` serializa só as runs dele
+ * (`let active`), `tester.js` só as sessões dele, e nada envolve todos os
+ * `PUT`/`POST` — então hoje um build do Tester pode escrever a cópia sandbox no
+ * mesmo instante que um approve escreve um fluxo vivo. A etapa 3 desce uma fila
+ * process-wide para cá, e ela é **reentrante por dono**, porque o próprio
+ * caminho de approve da aba Upgrade escreve duas vezes (a cópia sandbox da
+ * checagem 7, depois o fluxo vivo). Uma fila que não sabe distinguir
+ * reentrância de disputa trava contra si mesma, e o sintoma é um deadlock que só
+ * aparece com a checagem 7 ligada.
+ *
+ * Ligar a fila antes de existir dono seria introduzir esse deadlock pela etapa
+ * que devia ser a segura. Então primeiro todo call site passa a dizer quem é —
+ * sem trava — e só depois a fila liga.
+ *
+ * DUAS COISAS VIAJAM JUNTAS, e as duas são necessárias:
+ *   - `id` é a identidade que a fila compara para decidir reentrância. É por
+ *     RUN, não por módulo: as duas escritas de um mesmo approve compartilham o
+ *     id, e dois approves diferentes disputam.
+ *   - `doing` é a frase que a espera mostra ("esperando: aplicando correção em
+ *     X"). Ela mora aqui porque só quem chama sabe o nome do fluxo e o que está
+ *     fazendo; derivá-la neste módulo seria `n8n.js` julgando, e ele emite fato.
+ *
+ * `retryExecution` fica FORA disto e continuará fora: não escreve documento, e
+ * serializar um efeito que já é recusado em duplicidade só esconderia a fila.
+ *
+ * A ausência é ERRO, nunca um dono genérico. Um call site que esquecesse o dono
+ * cairia num default silencioso, e na etapa 3 esse default viraria um dono que
+ * reentra com todo mundo — a pior linha possível de escrever aqui. Este
+ * repositório já registra a regra: campo ausente nunca cai no ramo negativo. */
+
+const WRITE_KINDS = new Set(["fix", "tester", "upgrade"]);
+const DOING_CAP = 120;
+
+/* O formato é validado na CONSTRUÇÃO, num lugar só, e não no caminho quente:
+   assim a etapa 0 não acrescenta nenhuma regex nova entre o clique e o `PUT`. */
+function writeOwner(kind, ref, doing) {
+  if (!WRITE_KINDS.has(kind)) {
+    throw new Error("writeOwner: `kind` tem que ser um de " + [...WRITE_KINDS].join(", ") + ' — veio "' + String(kind) + '"');
+  }
+  const r = String(ref == null ? "" : ref);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(r)) {
+    throw new Error('writeOwner: `ref` é o id da run/sessão, 1-64 em [A-Za-z0-9_-] — veio "' + r + '"');
+  }
+  const d = String(doing == null ? "" : doing).trim();
+  if (!d) throw new Error("writeOwner: `doing` é a frase que a espera mostra, e não pode ser vazia");
+  return Object.freeze({ id: kind + ":" + r, kind, ref: r, doing: d.slice(0, DOING_CAP) });
+}
+
+/* Barato de propósito: confere que veio do construtor acima, não o formato de
+   novo. O que precisa ser alto é a ausência. */
+function requireOwner(owner, fn) {
+  if (!owner || typeof owner !== "object" || typeof owner.id !== "string" || !owner.id
+      || typeof owner.doing !== "string" || !owner.doing) {
+    throw new Error(fn + ": escrita sem dono. Passe `n8n.writeOwner(kind, ref, doing)` como primeiro argumento — "
+      + "ver PLAN-UPGRADE.md §6.5.1");
+  }
+  return owner;
+}
+
+/* ═════════════════════════ A FILA DE ESCRITA, REENTRANTE ═══════════════════
+ *
+ * ETAPA 3 de quatro, a última antes da aba Upgrade (PLAN-UPGRADE.md §6.5). É a
+ * única mudança deste plano que mexe em caminho de escrita já em produção — por
+ * isso vem depois de `writeOwner` (etapa 0), do `kind` no ledger (1) e de
+ * `escreverAprovado` (2), e por isso cada uma delas é reversível sozinha.
+ *
+ * O QUE ELA CONSERTA: não havia trava alguma envolvendo os `PUT`/`POST` desta
+ * instância. `claude-fix.js` serializa as runs dele, `tester.js` as sessões
+ * dele, e nada os serializa entre si — um build do Tester podia escrever a cópia
+ * sandbox no mesmo instante que um approve escrevia um fluxo vivo.
+ *
+ * REENTRANTE POR DONO, e essa palavra é a razão de a etapa 0 existir antes. O
+ * approve da aba Upgrade escreve DUAS vezes e a de dentro fica dentro da de
+ * fora: `escreverAprovado` segura a região inteira (re-busca → portões → backup
+ * → `PUT`) e a checagem 7 dos portões escreve na cópia `[SANDBOX upgrade]`
+ * ENQUANTO ela está segura. Numa fila não reentrante essa escrita de dentro
+ * espera pela de fora, que espera por ela: deadlock, e um que só aparece com a
+ * checagem 7 ligada — que é o padrão novo daquela aba. Com dono, "sou eu mesmo"
+ * e "é outro" deixam de ser a mesma pergunta.
+ *
+ * Segurar a região inteira não é zelo: sem isso outro dono escreveria ENTRE a
+ * revalidação dos portões e o `PUT`, e o documento gravado deixaria de ser o que
+ * os portões aprovaram — a única garantia que o approve dá.
+ *
+ * ESPERA, NÃO RECUSA. Uma escrita de outro dono entra na fila em ordem de
+ * chegada; recusar de cara transformaria um approve legítimo em erro só porque o
+ * Tester estava gravando uma cópia inativa. Mas a espera tem TETO: sem ele um
+ * dono travado (uma requisição que nunca volta) travaria o cockpit para sempre,
+ * o que é pior que recusar. Estourado o teto, o erro NOMEIA o dono corrente —
+ * "o cockpit está esperando" e "o cockpit quebrou" são histórias diferentes e a
+ * tela tem de poder contar a verdadeira.
+ *
+ * `retryExecution` fica FORA, como sempre: não escreve documento, e serializar
+ * um efeito que já é recusado em duplicidade só esconderia a fila. */
+
+const ESCRITA_TIMEOUT_MS = Number(process.env.COCKPIT_ESCRITA_TIMEOUT_MS || 45000);
+
+let donoAtual = null;      // o dono que está com a vez
+let profundidade = 0;      // quantas vezes ele reentrou
+const filaEscrita = [];    // quem espera, em ordem de chegada
+
+/* Facts only: quem está escrevendo agora e quantos esperam. É o que permite a
+   uma tela dizer "esperando: aplicando correção em X" sem adivinhar. */
+function donoDaEscrita() {
+  return donoAtual
+    ? { id: donoAtual.id, doing: donoAtual.doing, profundidade, esperando: filaEscrita.length }
+    : { id: null, doing: null, profundidade: 0, esperando: filaEscrita.length };
+}
+
+function tomarVez(owner) {
+  if (donoAtual && donoAtual.id === owner.id) { profundidade++; return null; }
+  if (!donoAtual) { donoAtual = owner; profundidade = 1; return null; }
+  return new Promise((resolve, reject) => {
+    const item = { owner, resolve, reject, timer: null };
+    item.timer = setTimeout(() => {
+      const i = filaEscrita.indexOf(item);
+      if (i >= 0) filaEscrita.splice(i, 1);
+      const atual = donoAtual ? donoAtual.doing : "outra escrita";
+      reject(Object.assign(
+        new Error("desisti de esperar a vez de escrever depois de " + Math.round(ESCRITA_TIMEOUT_MS / 1000)
+          + "s — o cockpit está ocupado com: " + atual),
+        { status: 409 }));
+    }, ESCRITA_TIMEOUT_MS);
+    filaEscrita.push(item);
+  });
+}
+
+function soltarVez() {
+  if (profundidade > 1) { profundidade--; return; }
+  donoAtual = null;
+  profundidade = 0;
+  const prox = filaEscrita.shift();
+  if (prox) {
+    clearTimeout(prox.timer);
+    donoAtual = prox.owner;
+    profundidade = 1;
+    prox.resolve();
+  }
+}
+
+/* Segura a vez de escrever durante `fn`. Reentrante para o MESMO dono, em
+   qualquer profundidade. O `finally` é o que garante que uma escrita que jogou
+   não deixa a fila parada — sem ele o primeiro 503 do n8n travaria o cockpit
+   até reiniciar. */
+async function comEscrita(owner, fn) {
+  requireOwner(owner, "comEscrita");
+  const esperar = tomarVez(owner);
+  if (esperar) await esperar;
+  try { return await fn(); }
+  finally { soltarVez(); }
+}
+
 // n8n recusa o PUT se vier campo read-only (id, active, tags, createdAt…), então
 // o corpo é montado a partir dos quatro campos que a API aceita, nunca por spread.
 function writeBody(w) {
@@ -900,20 +1227,35 @@ function writeBody(w) {
   };
 }
 
-async function putWorkflow(id, w, onDropped) {
-  const { body, dropped } = writeBody(w);
-  if (dropped.length && typeof onDropped === "function") onDropped(dropped);
-  const out = await request("PUT", `/api/v1/workflows/${encodeURIComponent(id)}`, { body });
-  // O desenho em cache passou a mentir no instante da escrita.
-  state.graphs.delete(String(id));
-  state.workflows.at = 0;
-  return out;
+/* O dono vem PRIMEIRO, e é o único parâmetro obrigatório novo. Na cauda, depois
+   de um callback opcional, seria possível escrever uma chamada que parece
+   completa sem ele — que é exatamente o que a etapa 3 não pode tolerar. */
+async function putWorkflow(owner, id, w, onDropped) {
+  requireOwner(owner, "putWorkflow");
+  return comEscrita(owner, async () => {
+    const { body, dropped } = writeBody(w);
+    if (dropped.length && typeof onDropped === "function") onDropped(dropped);
+    const out = await request("PUT", `/api/v1/workflows/${encodeURIComponent(id)}`, { body });
+    // O desenho em cache passou a mentir no instante da escrita.
+    state.graphs.delete(String(id));
+    /* A projeção também: ela lista os nós e os filhos chamados, e um patch mexe
+       nas duas coisas. É cache que este arquivo criou, então deixá-lo velho
+       depois da NOSSA própria escrita seria defeito nosso. O veredito de
+       `locateNode` segue com o TTL dele, como sempre — mudar isso seria mudança
+       de comportamento, e aqui só há otimização. */
+    state.docs.delete(String(id));
+    state.workflows.at = 0;
+    return out;
+  });
 }
 
-async function createWorkflow(w, onDropped) {
-  const { body, dropped } = writeBody(w);
-  if (dropped.length && typeof onDropped === "function") onDropped(dropped);
-  return request("POST", "/api/v1/workflows", { body });
+async function createWorkflow(owner, w, onDropped) {
+  requireOwner(owner, "createWorkflow");
+  return comEscrita(owner, async () => {
+    const { body, dropped } = writeBody(w);
+    if (dropped.length && typeof onDropped === "function") onDropped(dropped);
+    return request("POST", "/api/v1/workflows", { body });
+  });
 }
 
 /* Reexecuta uma execução que falhou. FATOS medidos, não suposição — lidos em
@@ -994,9 +1336,19 @@ async function findWorkflowByName(name) {
 module.exports = {
   configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, getExecRow, locateNode, callers, WINDOW_HOURS,
   // write path — ver o bloco acima antes de usar
-  getRawWorkflow, putWorkflow, createWorkflow, findWorkflowByName, listWorkflows, credentialSchema,
+  getRawWorkflow, putWorkflow, createWorkflow, writeOwner, WRITE_KINDS, DOING_CAP,
+  /* Os dois buracos deliberados, e o segundo é maior — leia o comentário deles.
+     Process-local: nenhuma rota serve a saída. `getRawExecution` tem UM chamador
+     legítimo, o `evidencia.js`, que é quem sabe recortar e mascarar. */
+  getRawExecution, listExecutions, maskPII, STATUS_VALIDOS,
+  /* A fila de escrita (etapa 3). `comEscrita` sai para quem precisa segurar a
+     vez durante uma REGIÃO — é o que `escreverAprovado` faz, e é o que torna a
+     checagem 7 da aba Upgrade uma reentrância em vez de um deadlock.
+     `donoDaEscrita` é fato: quem está escrevendo agora e quantos esperam. */
+  comEscrita, donoDaEscrita, ESCRITA_TIMEOUT_MS,
+  findWorkflowByName, listWorkflows, credentialSchema,
   // o único efeito que sai da instância — leia o comentário de `retryExecution`
   retryExecution,
   // exportado para teste
-  pickSettings, SETTINGS_ALLOWED
+  pickSettings, SETTINGS_ALLOWED, midiaEnviada
 };

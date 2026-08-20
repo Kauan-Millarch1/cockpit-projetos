@@ -392,23 +392,104 @@ function diffWorkflow(origRaw, propRaw) {
 // resumo do diff, se foi aplicado e quando. NÃO guarda o workflow inteiro: isso
 // vive em .claude-runs/<id>/ (descartável, gitignored), porque o backup bruto
 // carrega credenciais e não tem por que entrar no git.
-async function readStore() {
+
+/* ══════════════════════════════ DE QUE TIPO É ESTA LINHA ═══════════════════
+ *
+ * ETAPA 1 de quatro (PLAN-UPGRADE.md §7.1). A aba Upgrade grava NESTE arquivo,
+ * de propósito: separar teria fragmentado o histórico sem motivo, e o que este
+ * repositório já registra é o desejo oposto — "um único log de eventos faria «o
+ * que fizemos sobre essa falha» ser uma consulta em vez de duas".
+ *
+ * O preço é que todo consumidor passa a precisar dizer de que tipo ele fala, e
+ * o mais caro deles é o CAP. `STORE_CAP` era global: um dia de upgrades
+ * expulsaria o histórico inteiro de correção, e `writeStore` corta sem avisar
+ * ninguém. O defeito só aparece no dia em que alguém procura o registro que já
+ * não existe.
+ *
+ * `kindOf` (o `kindDe` do plano) é o que torna o legado legível: nenhuma das
+ * linhas escritas até aqui tem o campo — medido, 31 de 31 sem `kind` — e todas
+ * elas são correção. Ausente é `"fix"`, nunca o ramo novo. Mesma regra que este
+ * arquivo já aplica em três outros lugares: campo ausente não cai no ramo
+ * negativo.
+ *
+ * O `tester` NÃO entra aqui. Ele tem ledger próprio (`blueprints.json`) e nunca
+ * escreveu neste arquivo; incluí-lo na lista seria abrir um tipo que ninguém
+ * grava. Isto é sobre o ledger, não sobre `n8n.writeOwner`, cujos kinds são
+ * três porque lá o assunto é escrita na instância. */
+const LEDGER_KINDS = new Set(["fix", "upgrade"]);
+const kindOf = p => (p && p.kind) || "fix";
+
+/* Cru e privado: devolve o arquivo inteiro, os dois tipos misturados. Só quem
+   vai REESCREVER pode usar — ler filtrado e escrever de volta apagaria as
+   linhas do outro tipo, que é dano pior do que o cap global que esta etapa
+   veio consertar. */
+async function readStoreRaw() {
   try {
     const raw = JSON.parse(await fsp.readFile(STORE_FILE, "utf8"));
     return Array.isArray(raw.proposals) ? raw.proposals : [];
   } catch { return []; }
 }
+
+/* O `kind` é OBRIGATÓRIO, e é por isso que ele não tem default. Um parâmetro
+   opcional aqui devolveria a lista misturada para quem esquecesse de passar —
+   exatamente o default silencioso que a etapa 0 acabou de fechar do outro lado. */
+async function readStore(kind) {
+  if (!LEDGER_KINDS.has(kind)) {
+    throw new Error("readStore: diga de que tipo você fala — " + [...LEDGER_KINDS].join(" ou ")
+      + ' — veio "' + String(kind) + '" (PLAN-UPGRADE.md §7.1)');
+  }
+  return (await readStoreRaw()).filter(p => kindOf(p) === kind);
+}
+
+/* O cap é POR TIPO. A ordem do arquivo é cronológica e continua sendo: quem
+   sobrevive é escolhido por tipo, e o resultado é filtrado na ordem original —
+   `rehydrate` lê `slice(-N)` contando com isso.
+   Consequência a registrar: o teto do arquivo dobra, 60 linhas para 120. Medido
+   a ~6,8KB por linha (o `report` inteiro viaja nela), então o arquivo em git vai
+   de ~410KB para ~820KB no pior caso. Se isso incomodar, o número a mexer é
+   `STORE_CAP` — e ele agora é por tipo, não do arquivo. */
+function trimPorTipo(list) {
+  const porTipo = new Map();
+  list.forEach((p, i) => {
+    const k = kindOf(p);
+    if (!porTipo.has(k)) porTipo.set(k, []);
+    porTipo.get(k).push(i);
+  });
+  const sobrevivem = new Set();
+  for (const indices of porTipo.values()) for (const i of indices.slice(-STORE_CAP)) sobrevivem.add(i);
+  return list.filter((_, i) => sobrevivem.has(i));
+}
+
 async function writeStore(list) {
-  const trimmed = list.slice(-STORE_CAP);
+  const trimmed = trimPorTipo(list);
   const tmp = STORE_FILE + ".tmp";
   await fsp.writeFile(tmp, JSON.stringify({ savedAt: new Date().toISOString(), proposals: trimmed }, null, 2), "utf8");
   await fsp.rename(tmp, STORE_FILE);
 }
+
+/* Escrever sem `kind` é erro. Com isso o fallback de `kindOf` só serve ao
+   legado que já está no disco — nenhuma linha nova nasce sem tipo, e o dia em
+   que a aba Upgrade gravar aqui ela não vai poder gravar como correção por
+   omissão. */
+/* Puro, e é assim que `ledger-kind-test.js` prova o que importa sem escrever no
+   ledger de verdade — o cockpit grava nele o dia inteiro, e um teste que
+   restaurasse o arquivo inteiro passaria por cima de uma escrita de verdade.
+   Mesmo motivo pelo qual `custoDaRodada` no Tester é função pura. */
+function upsertEm(list, entry) {
+  const fora = list.slice();
+  const i = fora.findIndex(p => p.runId === entry.runId);
+  if (i >= 0) fora[i] = entry; else fora.push(entry);
+  return fora;
+}
+
 async function upsertStore(entry) {
-  const list = await readStore();
-  const i = list.findIndex(p => p.runId === entry.runId);
-  if (i >= 0) list[i] = entry; else list.push(entry);
-  await writeStore(list);
+  if (!LEDGER_KINDS.has(entry && entry.kind)) {
+    throw new Error("upsertStore: a linha precisa de `kind` (" + [...LEDGER_KINDS].join(" ou ")
+      + ') — veio "' + String(entry && entry.kind) + '"');
+  }
+  /* CRU de propósito: ler filtrado aqui e escrever de volta apagaria as linhas
+     do outro tipo — dano pior que o cap global que esta etapa veio consertar. */
+  await writeStore(upsertEm(await readStoreRaw(), entry));
 }
 
 /* -------------------------------------------------------------------- runs */
@@ -814,13 +895,20 @@ function sayDropped(run, dropped) {
 // Lê o patch e o aplica sobre o workflow atual. O que sai daqui é a proposta
 // completa, que ainda passa por `validate` — o formato já impede o pior, as
 // portas cobrem o resto.
-async function buildProposal(run, raw) {
-  let patch;
+/* Só a leitura, separada porque `escreverAprovado()` recebe o patch já lido —
+   ele não conhece run nenhuma, e portanto não conhece diretório de run. */
+async function lerPatch(dir) {
   try {
-    patch = JSON.parse(await fsp.readFile(path.join(run.dir, "patch.json"), "utf8"));
+    return { ok: true, patch: JSON.parse(await fsp.readFile(path.join(dir, "patch.json"), "utf8")) };
   } catch (err) {
     return { ok: false, error: err.code === "ENOENT" ? "patch.json não foi criado" : "patch.json não é JSON válido: " + err.message };
   }
+}
+
+async function buildProposal(run, raw) {
+  const lido = await lerPatch(run.dir);
+  if (!lido.ok) return { ok: false, error: lido.error };
+  const patch = lido.patch;
   const { workflow, errors } = applyPatch(raw, patch);
   if (errors.length) return { ok: false, error: errors.join(" · "), patch };
   return { ok: true, value: workflow, patch };
@@ -925,10 +1013,13 @@ async function sandboxTest(run, proposal) {
     const found = await n8n.findWorkflowByName(name);
     id = found ? found.id : null;
   }
+  /* O dono é o MESMO nos dois ramos: é a mesma escrita lógica, e na primeira vez
+     ela é um POST só porque a cópia ainda não existe. Ver n8n.js `writeOwner`. */
+  const owner = n8n.writeOwner("fix", run.id, "testando a correção numa cópia de " + (run.wfName || run.wfId));
   if (id) {
-    await n8n.putWorkflow(id, body, dropped => sayDropped(run, dropped));
+    await n8n.putWorkflow(owner, id, body, dropped => sayDropped(run, dropped));
   } else {
-    const created = await n8n.createWorkflow(body, dropped => sayDropped(run, dropped));
+    const created = await n8n.createWorkflow(owner, body, dropped => sayDropped(run, dropped));
     id = created && created.id ? String(created.id) : null;
   }
   run.sandboxId = id;
@@ -950,8 +1041,12 @@ async function sandboxTest(run, proposal) {
  * quanto falta. Um ETA inventado na primeira execução seria pior que nenhum. */
 const ETA_MIN_SAMPLES = 3;
 
-async function estimate() {
-  const list = await readStore();
+/* O `kind` entra aqui porque a mediana é o denominador de uma barra na tela, e
+   as duas coisas não duram o mesmo tanto: uma correção típica são ~183s medidos,
+   um upgrade é conversa mais patch. Misturar faria a barra mentir para os dois
+   lados — e para baixo justamente no caso mais lento, que é quando alguém olha. */
+async function estimate(kind) {
+  const list = await readStore(kind);
   const durs = list
     .filter(p => p.startedAt && p.finishedAt)
     .map(p => new Date(p.finishedAt) - new Date(p.startedAt))
@@ -979,7 +1074,7 @@ async function start({ key, wfId, briefing, wfName, node, lastNode }) {
     status: "running", stage: "fetch", round: 0,
     gates: null, diff: null, report: null, sandbox: null,
     error: null, cost: 0, log: [],
-    activity: null, tools: {}, eta: await estimate(),
+    activity: null, tools: {}, eta: await estimate("fix"),
     startedAt: new Date().toISOString(), finishedAt: null, appliedAt: null, revertedAt: null,
     capturedUpdatedAt: null, sandboxId: null, sessionId: null, child: null,
     retries: []
@@ -1011,6 +1106,9 @@ async function start({ key, wfId, briefing, wfName, node, lastNode }) {
 
 async function persist(run) {
   await upsertStore({
+    /* Toda linha nova nasce tipada. Ver `kindOf` acima: só o legado no disco
+       depende do fallback. */
+    kind: "fix",
     runId: run.id, key: run.key, wfId: run.wfId, wfName: run.wfName, redirected: run.redirected,
     status: run.status, gates: run.gates, summary: run.diff ? run.diff.summary : null,
     report: run.report, fixNote: fixNote(run), sandbox: run.sandbox, error: run.error, cost: run.cost,
@@ -1249,7 +1347,7 @@ const REHYDRATE_CAP = 8;
 
 async function rehydrate() {
   if (!n8n.configured) return { restored: 0, skipped: 0 };
-  const list = (await readStore()).filter(p => p.status === "ready").slice(-REHYDRATE_CAP);
+  const list = (await readStore("fix")).filter(p => p.status === "ready").slice(-REHYDRATE_CAP);
   let restored = 0, skipped = 0;
   for (const p of list) {
     if (runs.has(p.runId)) continue;
@@ -1290,6 +1388,100 @@ async function rehydrate() {
   return { restored, skipped };
 }
 
+/* ══════════════════════════ O ÚNICO CAMINHO DE ESCRITA APROVADA ════════════
+ *
+ * ETAPA 2 de quatro (PLAN-UPGRADE.md §6.1). A aba Upgrade vai escrever em fluxo
+ * vivo, e a rodada 1 da revisão derrubou a ideia de "reusar `approve()` inteiro":
+ * `approve` é acoplado ao ciclo de vida daqui — `runs.get`, `status === "ready"`,
+ * `buildProposal(run, …)`, `backupPath(run)`, o store, o `emit`. Uma SEGUNDA cópia
+ * da sequência que escreve em produção é inaceitável: as duas divergem no primeiro
+ * conserto feito num lado só, e o lado que divergir escreve em fluxo trafegado.
+ *
+ * Então o que se compartilha é a SEQUÊNCIA, e ela não conhece run nenhuma:
+ *
+ *   1. re-busca o workflow;
+ *   2. RECUSA se `updatedAt` mudou — o diff que estava na tela deixou de
+ *      descrever o que vai acontecer;
+ *   3. reaplica o patch ao documento ATUAL, nunca à cópia de quando a proposta
+ *      nasceu;
+ *   4. roda os portões de novo — eles valem no momento de aplicar, não só no de
+ *      propor;
+ *   5. grava o backup;
+ *   6. `PUT` com o corpo montado campo por campo.
+ *
+ * A ORDEM É A GARANTIA, não uma preferência de leitura. Portões antes do backup
+ * (não se guarda cópia de algo que não vai ser escrito), backup antes do `PUT`
+ * (é a origem do `↺ Desfazer`), e o `PUT` por último e SEM RETRY — escrita que
+ * falhou prova ausência de confirmação, não ausência de efeito.
+ *
+ * `revalidar` é injetado e NÃO tem default. Aqui ele é `validate` (os 10
+ * portões); a aba Upgrade roda a bateria de sete, cuja checagem 1 são esses
+ * mesmos 10. Um default cairia nos 10 quando a aba esquecesse de passar a
+ * bateria — e um upgrade aprovado por portão de correção é exatamente a
+ * divergência que esta extração existe para impedir. O primitivo é dono da
+ * mecânica; quem julga é quem chama.
+ *
+ * Mora neste arquivo, e não num `escrever.js`, porque depende de `applyPatch` e
+ * porque `tester.js` já importa daqui — mover código de escrita de produção para
+ * um módulo novo é risco próprio, e a ordem desta etapa existe justamente para
+ * não somar riscos. Se um dia a aba Upgrade não precisar mais de nada daqui, é aí
+ * que a mudança de casa fica barata.
+ *
+ * `revert()` NÃO passa por aqui, e isso não é esquecimento: ele restaura um
+ * backup literal — não re-busca, não aplica patch, não tem portão para rodar.
+ * Forçá-lo nesta sequência exigiria inventar um patch que ele não tem. */
+async function escreverAprovado({ owner, wfId, capturedUpdatedAt, patch, revalidar, backupPath, onSettingsDropped }) {
+  if (!wfId) throw new Error("escreverAprovado: falta `wfId`");
+  if (!patch || typeof patch !== "object") throw new Error("escreverAprovado: falta `patch` (o objeto já lido, não o caminho)");
+  if (typeof revalidar !== "function") throw new Error("escreverAprovado: falta `revalidar` — quem escreve declara com que portões, não há default");
+  if (!backupPath) throw new Error("escreverAprovado: falta `backupPath` — sem backup não existe ↺ Desfazer");
+
+  /* A REGIÃO INTEIRA segura a vez de escrever (etapa 3), não só o `PUT`. Sem
+     isso outro dono escreveria ENTRE a revalidação dos portões e o `PUT`, e o
+     documento gravado deixaria de ser o que os portões aprovaram — a única
+     garantia que este caminho dá. A fila é reentrante por dono, então o `PUT` lá
+     embaixo reentra em vez de esperar por si mesmo; é também o que permite a um
+     portão que escreve (a checagem 7 da aba Upgrade grava a cópia sandbox)
+     rodar aqui dentro sem travar. */
+  return n8n.comEscrita(owner, () => sequenciaAprovada({
+    owner, wfId, capturedUpdatedAt, patch, revalidar, backupPath, onSettingsDropped
+  }));
+}
+
+async function sequenciaAprovada({ owner, wfId, capturedUpdatedAt, patch, revalidar, backupPath, onSettingsDropped }) {
+  const current = await n8n.getRawWorkflow(wfId);
+
+  // Fail-closed: o fluxo mudou depois que a proposta foi montada.
+  if (capturedUpdatedAt && current.updatedAt && current.updatedAt !== capturedUpdatedAt) {
+    throw Object.assign(new Error("o fluxo mudou no n8n depois desta proposta (" + current.updatedAt + ") — rode de novo para revisar em cima do estado atual"), { status: 409 });
+  }
+
+  const { workflow: proposto, errors } = applyPatch(current, patch);
+  if (errors.length) throw new Error(errors.join(" · "));
+
+  /* AWAIT: `validate` é síncrona e passa por aqui inalterada (await sobre não-promessa
+     é identidade), mas a bateria de sete da aba Upgrade é assíncrona — a checagem 7
+     grava a cópia `[SANDBOX upgrade]`, que é uma escrita reentrante dentro desta
+     mesma região. Sem o await, `v` seria a Promise, `v.ok` viria `undefined` e o
+     approve do Upgrade falharia SEMPRE, com a frase de portão reprovado — culpando a
+     proposta por um defeito da chamada. Falha fechada, e por isso silenciosa. */
+  const v = await revalidar(current, proposto);
+  if (!v.ok) {
+    // Os vereditos sobem no erro: quem chama é que tem onde guardá-los.
+    throw Object.assign(new Error("a proposta não passa mais nas portas de validação"), { status: 409, gates: v.gates });
+  }
+
+  await fsp.writeFile(backupPath, JSON.stringify(current, null, 2), "utf8");
+  await n8n.putWorkflow(owner, wfId, {
+    name: current.name,
+    nodes: proposto.nodes,
+    connections: proposto.connections,
+    settings: proposto.settings || current.settings || { executionOrder: "v1" }
+  }, onSettingsDropped);
+
+  return { current, proposto, gates: v.gates };
+}
+
 /* ------------------------------------------------------- approve / revert */
 
 // A ÚNICA porta de escrita no fluxo real. Chega aqui só com o Kauan tendo
@@ -1299,34 +1491,28 @@ async function approve(runId) {
   if (!run) throw Object.assign(new Error("run desconhecido"), { status: 404 });
   if (run.status !== "ready") throw Object.assign(new Error("esta proposta não está pronta (" + run.status + ")"), { status: 409 });
 
-  // Fail-closed: se o fluxo mudou no n8n depois que a proposta foi montada, o
-  // diff que ele aprovou não descreve mais o que vai acontecer.
-  const current = await n8n.getRawWorkflow(run.wfId);
-  if (run.capturedUpdatedAt && current.updatedAt && current.updatedAt !== run.capturedUpdatedAt) {
-    throw Object.assign(new Error("o fluxo mudou no n8n depois desta proposta (" + current.updatedAt + ") — rode de novo para revisar em cima do estado atual"), { status: 409 });
+  const lido = await lerPatch(run.dir);
+  if (!lido.ok) throw new Error(lido.error);
+
+  /* A sequência inteira — re-busca, recusa por `updatedAt`, reaplica sobre o
+     estado ATUAL, portões de novo, backup, `PUT` — vive em `escreverAprovado`,
+     que a aba Upgrade vai chamar também. Duas cópias dela é o que a etapa 2
+     existe para não deixar acontecer. */
+  try {
+    await escreverAprovado({
+      owner: n8n.writeOwner("fix", run.id, "aplicando correção em " + (run.wfName || run.wfId)),
+      wfId: run.wfId,
+      capturedUpdatedAt: run.capturedUpdatedAt,
+      patch: lido.patch,
+      revalidar: validate,
+      backupPath: backupPath(run),
+      onSettingsDropped: dropped => sayDropped(run, dropped)
+    });
+  } catch (err) {
+    // Os vereditos voltam no erro porque só a run tem onde guardá-los.
+    if (err && err.gates) run.gates = err.gates;
+    throw err;
   }
-
-  // O patch é reaplicado sobre o estado ATUAL, não sobre a cópia de quando a
-  // proposta nasceu. Com o carimbo acima os dois são o mesmo documento; se um
-  // dia deixarem de ser, o que vale é o que está na instância.
-  const p = await buildProposal(run, current);
-  if (!p.ok) throw new Error(p.error);
-
-  // Revalida contra o estado atual antes de escrever: as portas valem no
-  // momento de aplicar, não só no momento de propor.
-  const v = validate(current, p.value);
-  if (!v.ok) {
-    run.gates = v.gates;
-    throw Object.assign(new Error("a proposta não passa mais nas portas de validação"), { status: 409 });
-  }
-
-  await fsp.writeFile(backupPath(run), JSON.stringify(current, null, 2), "utf8");
-  await n8n.putWorkflow(run.wfId, {
-    name: current.name,
-    nodes: p.value.nodes,
-    connections: p.value.connections,
-    settings: p.value.settings || current.settings || { executionOrder: "v1" }
-  }, dropped => sayDropped(run, dropped));
 
   run.status = "applied";
   run.appliedAt = new Date().toISOString();
@@ -1357,7 +1543,8 @@ async function revert(runId) {
   if (run.status !== "applied") throw Object.assign(new Error("não há aplicação para desfazer"), { status: 409 });
 
   const backup = JSON.parse(await fsp.readFile(backupPath(run), "utf8"));
-  await n8n.putWorkflow(run.wfId, {
+  const owner = n8n.writeOwner("fix", run.id, "desfazendo a correção em " + (run.wfName || run.wfId));
+  await n8n.putWorkflow(owner, run.wfId, {
     name: backup.name,
     nodes: backup.nodes,
     connections: backup.connections,
@@ -1496,6 +1683,14 @@ module.exports = {
   retry,
   // exportados para teste
   validate, applyPatch, diffWorkflow, redactWorkflow, sanitizedWorkflow, nodesIndex, targetNodes, scrub, fixNote, estimate,
+  /* O ledger de dois tipos (etapa 1). `readStoreRaw` NÃO sai: ler cru é
+     privilégio de quem reescreve, e exportá-lo seria oferecer a mistura para
+     quem só quer um tipo. As três puras saem para o teste poder provar o cap sem
+     escrever no arquivo que o cockpit usa. */
+  kindOf, trimPorTipo, upsertEm, upsertStore, LEDGER_KINDS, STORE_CAP,
+  /* O único caminho de escrita aprovada (etapa 2). Sai daqui porque a aba
+     Upgrade tem de chamar ESTE, não uma segunda cópia da sequência. */
+  escreverAprovado, lerPatch,
   /* `runs` sai daqui pelo mesmo motivo que `sessions` sai de `tester.js`: as
      travas de `retry` SÃO a máquina de estados, e reimplementá-la no teste
      provaria a cópia, não o original. */
