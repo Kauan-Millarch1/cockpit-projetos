@@ -1,0 +1,42 @@
+{
+  "savedAt": "2026-08-18T16:44:33.297Z",
+  "dossies": [
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "nome": "Agente eContrate",
+      "em": "2026-08-18T15:05:28.067Z",
+      "nos": 103,
+      "nosRegenerados": 0,
+      "rodadas": 2,
+      "ms": 520149,
+      "usd": 0,
+      "usdDesconhecido": true,
+      "ok": false,
+      "porque": [
+        "a sessão terminou com erro: tempo esgotado (4 min)"
+      ]
+    },
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "nome": "Agente eContrate",
+      "em": "2026-08-18T16:30:57.536Z",
+      "nos": 103,
+      "nosRegenerados": 103,
+      "rodadas": 1,
+      "ms": 514076,
+      "bytes": 23841,
+      "usd": 2.0595
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "nome": "Agente Iago Comercial",
+      "em": "2026-08-18T16:44:33.291Z",
+      "nos": 179,
+      "nosRegenerados": 179,
+      "rodadas": 1,
+      "ms": 682346,
+      "bytes": 56404,
+      "usd": 4.1384
+    }
+  ]
+}
