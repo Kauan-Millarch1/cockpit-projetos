@@ -73,6 +73,8 @@ N8N_API_KEY=<chave da API pública>
 CLAUDE_BIN=C:\Users\...\.local\bin\claude.exe   # só se não estiver no lugar padrão
 COCKPIT_CLAUDE_MODEL=sonnet                     # padrão: o modelo padrão do CLI
 COCKPIT_SANDBOX_TEST=1                          # teste numa cópia inativa (padrão: off)
+COCKPIT_DOSSIE_AUTO=incremental                 # dossiê em dia sozinho depois de aplicar:
+                                                #   off | incremental (padrão) | sempre
 ```
 
 Sem ele o servidor sobe do mesmo jeito, `/disco` funciona e o painel de fluxos mostra um
