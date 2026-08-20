@@ -1,0 +1,125 @@
+{
+  "savedAt": "2026-08-20T18:41:34.353Z",
+  "conversas": [
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "uzz3",
+      "em": "2026-08-19T17:14:03.675Z",
+      "rodadas": 2,
+      "pedidos": 0,
+      "usd": 0.22,
+      "usdDesconhecido": true,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0aoq9pp88n",
+      "em": "2026-08-19T16:38:40.846Z",
+      "rodadas": 5,
+      "pedidos": 3,
+      "usd": 0.9919,
+      "usdDesconhecido": false,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "uzz2",
+      "em": "2026-08-19T17:13:47.677Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.11,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "uzz6",
+      "em": "2026-08-19T17:14:14.505Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.11,
+      "usdDesconhecido": false,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "uzz1",
+      "em": "2026-08-19T17:14:27.704Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.11,
+      "usdDesconhecido": false,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0df0svpw7o",
+      "em": "2026-08-19T18:33:32.893Z",
+      "rodadas": 11,
+      "pedidos": 7,
+      "usd": 2.1712,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0fkairbebx",
+      "em": "2026-08-19T19:16:56.724Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.5701,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0h3ryogqo0",
+      "em": "2026-08-19T19:28:08.562Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.4821,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0hibbe4p3j",
+      "em": "2026-08-19T19:48:14.719Z",
+      "rodadas": 2,
+      "pedidos": 0,
+      "usd": 0.9535,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0i8b13xm3c",
+      "em": "2026-08-19T20:00:37.202Z",
+      "rodadas": 2,
+      "pedidos": 0,
+      "usd": 0.8187,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt0io37wy751",
+      "em": "2026-08-20T11:45:01.371Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.4829,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt1gehnn3q3v",
+      "em": "2026-08-20T11:50:31.931Z",
+      "rodadas": 2,
+      "pedidos": 0,
+      "usd": 1.0128,
+      "usdDesconhecido": false,
+      "teveAlvo": true
+    }
+  ]
+}

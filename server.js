@@ -12,6 +12,9 @@ const { promisify } = require("node:util");
 const n8n = require("./n8n");
 const claudeFix = require("./claude-fix");
 const tester = require("./tester");
+const upgrade = require("./upgrade");
+const conversas = require("./conversas");
+const dossie = require("./dossie");
 const novidades = require("./novidades");
 const anexos = require("./anexos");
 
@@ -430,6 +433,396 @@ async function pollTick() {
   } finally { polling = false; }
 }
 
+/* Cache do peso da vitrine. TTL e não mtime: o dono do dado é o n8n, não um
+ * arquivo no disco, e um fluxo editado lá muda de tamanho sem avisar ninguém
+ * aqui. 15 min é o mesmo passo do call graph, pelo mesmo motivo — é caro e
+ * envelhece devagar. */
+const pesoCache = new Map();
+const PESO_TTL = 15 * 60 * 1000;
+
+/* O documento como a sessão o leria: sem `credentials`, em nenhum nó e em
+ * nenhuma profundidade. O `claude-fix.js` já tem `sanitizedWorkflow`, mas ele
+ * carrega o resto do ciclo de vida de uma run; aqui só o tamanho importa, e uma
+ * função de três linhas é mais honesta que importar aquele módulo por causa de
+ * um `JSON.stringify`. */
+function semCredenciais(w) {
+  const nodes = (w.nodes || []).map(n => {
+    const o = {};
+    for (const k of Object.keys(n)) if (k !== "credentials") o[k] = n[k];
+    return o;
+  });
+  return { name: w.name, nodes, connections: w.connections || {}, settings: w.settings || {} };
+}
+
+/* ══════════════════════════ A ESCRITA DO DOSSIÊ ═══════════════════════════
+ *
+ * Uma escrita leva minutos (medido: 514s no eContrate de 103 nós, 682s no Iago de
+ * 179), então a rota NÃO espera por ela: o POST devolve 202 e a tela pergunta o
+ * estado, que ela já pergunta de qualquer forma. Segurar a resposta por 11
+ * minutos seria um fetch que qualquer proxy ou sleep da máquina derruba no meio,
+ * e aí o dossiê ficaria escrito com a tela dizendo que falhou.
+ *
+ * Um job por vez. FATOS apenas: o que está rodando, a última atividade, e o que
+ * saiu no fim. */
+let dossieJob = null;
+
+function dossieResumo() {
+  if (!dossieJob) return null;
+  const { wfId, nome, escrevendo, comecouEm, modoPedido, atividade, resultado, erro, automatico } = dossieJob;
+  /* `modoPedido`, NUNCA `modo`: o que viaja aqui é o que a página PEDIU, e
+     `construir` reconsulta a admissão na hora de escrever e pode cair para rewrite
+     inteiro de graça. Chamar isto de `modo` seria a tela afirmando que a escrita em
+     curso é parcial sem ter como saber — e a linha de atividade é quem diz o que
+     realmente aconteceu, porque ela vem do `diz` de dentro da escrita. */
+  /* `automatico` viaja porque a tela tem de poder dizer QUEM mandou: "o dossie
+     esta sendo escrito" ao lado de um recibo de apply, sem dizer que a escrita
+     comecou sozinha, deixa a pessoa procurando o clique que ela nao deu. */
+  return { wfId, nome, escrevendo, comecouEm, modoPedido, atividade, resultado, erro, automatico: !!automatico };
+}
+
+/* ─────────────────── O SEMÁFORO DE UM FLUXO, EM CACHE COMPARTILHADO ────────
+ *
+ * UMA definição, dois consumidores: a faixa da tela do fluxo (`dossieEstado`) e o
+ * selo do cartão da vitrine (a varredura, abaixo). Duas caches teriam duas idades
+ * e as duas telas discordariam sobre a MESMA pergunta — o cartão dizendo verde
+ * enquanto a faixa diz vermelho é a pior forma de errar aqui, porque a segunda é
+ * quem trava a conversa. Então quem lê o estado de um fluxo escreve nesta cache, e
+ * quem varre a vitrine lê dela.
+ *
+ * A COR sai do `dossie.estado()` sempre — este arquivo não decide o que é "em
+ * dia". Erro de leitura NÃO é cacheado: guardar 15 minutos de "não deu para ler"
+ * faria o painel continuar acusando um n8n que já voltou.
+ *
+ * SEM `.md` NÃO HÁ LEITURA DO N8N. `estado(null, wf)` responde cinza sem olhar o
+ * fluxo, então a varredura de 75 cartões custa uma leitura por fluxo que TEM
+ * dossiê — hoje 2 — e zero pelos outros. A medição do plano (18,3s para 75 de 75)
+ * é o teto de uma máquina onde todos tivessem dossiê, não o custo de hoje. */
+const DOSSIE_COR_TTL = 15 * 60 * 1000;
+const dossieCorCache = new Map();   // wfId -> { at, valor }
+
+function guardarCor(wfId, valor) {
+  dossieCorCache.set(String(wfId), { at: Date.now(), valor });
+  return valor;
+}
+
+/* Só o que o cartão precisa, e nada além: cor, motivo, contagens e a data da
+   leitura que gerou a prosa. Nenhum parâmetro, nenhuma credencial, nenhum nome de
+   nó — `mudados` fica de fora de propósito, porque o cartão não mostra a lista e
+   `getRawWorkflow` é o buraco deliberado da whitelist. */
+function fatiaCor(st, doc) {
+  return {
+    cor: st.cor, motivo: st.motivo,
+    quantosMudados: st.mudados.length,
+    quantosEntraram: st.entraram.length,
+    quantosSairam: st.sairam.length,
+    em: doc ? doc.em : null
+  };
+}
+
+async function corDoDossie(wfId, { force = false } = {}) {
+  const k = String(wfId);
+  const c = dossieCorCache.get(k);
+  if (!force && c && Date.now() - c.at < DOSSIE_COR_TTL) return c.valor;
+
+  const doc = await dossie.ler(k);
+  if (!doc) return guardarCor(k, fatiaCor(dossie.estado(null, null), null));
+
+  // Um throw aqui sobe para quem varre, que conta a falha. Não cacheado.
+  const raw = await n8n.getRawWorkflow(k);
+  return guardarCor(k, fatiaCor(dossie.estado(doc, raw), doc));
+}
+
+/* A VARREDURA. Os ids vêm do cliente — quem chega na vitrine é juízo da página
+ * (`naPorta`), e decidir isso aqui seria o servidor julgando. Mesma forma do
+ * `/api/upgrade/peso`, que já pede `?ids=` pelo mesmo motivo.
+ *
+ * `falhas` não é decoração: com leitura incompleta, "nenhum dossiê apodreceu"
+ * deixa de ser uma afirmação que o painel pode fazer. Mesma razão pela qual
+ * `callers` reporta `falhas`. Um fluxo que falhou vira `{id, erro}` — nunca cinza,
+ * que significa "nunca foi escrito" e levaria à decisão oposta. */
+async function varrerDossies(ids) {
+  const dossies = [];
+  let lidos = 0, falhas = 0;
+  for (const id of ids) {
+    /* Uma escrita em curso é FATO e muda o que o cartão pode dizer: a cor no disco
+       é a antiga, e "sem dossiê" ao lado de uma sessão escrevendo o dossiê é a tela
+       contando a metade errada. Vai no MESMO campo `job` da rota de um fluxo só —
+       um segundo nome para o mesmo fato faria o veredito da página (`podeConversar`)
+       ver a escrita numa tela e não ver na outra. */
+    const job = dossieJob && dossieJob.escrevendo && String(dossieJob.wfId) === String(id)
+      ? { escrevendo: true, atividade: dossieJob.atividade } : null;
+    try { dossies.push({ id, job, ...(await corDoDossie(id)) }); lidos++; }
+    catch (e) { dossies.push({ id, job, erro: String(e && e.message || e).slice(0, 160) }); falhas++; }
+  }
+  return { dossies, lidos, falhas, geradoEm: new Date().toISOString() };
+}
+
+/* `incremental` É PEDIDO, e o pedido vem da PÁGINA — o servidor não decide que uma
+   escrita parcial basta, do mesmo jeito que não decide quem chega na vitrine. Sem a
+   flag isto continua sendo o rewrite inteiro que sempre foi, byte por byte. */
+function iniciarDossie(wfId, { incremental = false, automatico = false } = {}) {
+  dossieJob = { wfId, nome: wfId, escrevendo: true, comecouEm: new Date().toISOString(),
+    modoPedido: incremental ? "incremental" : "inteiro", automatico: !!automatico,
+    atividade: "lendo o fluxo", resultado: null, erro: null };
+  if (automatico) {
+    anotarAuto(wfId, { estado: "correndo", razao: incremental ? "incremental" : "inteiro",
+      incremental: !!incremental,
+      porque: "a atualizacao automatica comecou depois de aplicar o patch" });
+  }
+  dossie.construir(wfId, { incremental, automatico, aoDizer: t => { if (dossieJob) dossieJob.atividade = String(t).slice(0, 160); } })
+    .then(r => {
+      /* A cache do semáforo morre aqui, dê no que der: escreveu, o `.md` é outro;
+         falhou, o `.md` pode ter sido reescrito no meio de qualquer forma. Manter
+         15 minutos de cor velha depois de uma escrita seria a vitrine dizendo "sem
+         dossiê" sobre o dossiê que acabou de nascer. */
+      dossieCorCache.delete(String(wfId));
+      if (!dossieJob) return;
+      dossieJob.escrevendo = false;
+      if (r.ok) { dossieJob.resultado = { nos: r.nosRegenerados, bytes: r.bytes, ms: r.ms, usd: r.usd, rodadas: r.rodadas }; }
+      /* Falhou: o motivo vem para a tela. Uma escrita reprovada gastou cota e não
+         produziu nada, e o ledger já registra isso — a tela tem de poder dizer o
+         mesmo em vez de voltar para "sem dossiê" como se nada tivesse acontecido. */
+      else { dossieJob.erro = r.erro; dossieJob.recusas = (r.recusas || []).slice(0, 4); }
+      /* O DESFECHO DO AUTOMATICO NAO PODE MORAR SO NO `dossieJob`: ele e um
+         singleton e a proxima escrita — de qualquer fluxo — o sobrescreve. Uma
+         escrita automatica que reprovou nos portoes ou estourou o teto ficaria
+         invisivel na tela do fluxo que ela deixou velho, que e exatamente o
+         "dossie que ele acredita fresco e esta velho" que este desenho existe para
+         impedir. Por isso ela e ANOTADA por fluxo, aqui e no `catch`. */
+      if (automatico) {
+        anotarAuto(wfId, r.ok
+          ? { estado: "escreveu", razao: r.modo === "incremental" ? "incremental" : "inteiro",
+              incremental: r.modo === "incremental",
+              regenerados: r.nosRegenerados, herdados: r.nosHerdados || 0,
+              usd: r.usd, usdDesconhecido: !!r.usdDesconhecido, ms: r.ms, rodadas: r.rodadas,
+              porque: "a atualizacao automatica escreveu o dossie" }
+          : { estado: "falhou", razao: "reprovou", incremental: r.modo === "incremental",
+              porque: String(r.erro || "a escrita automatica nao terminou"),
+              recusas: (r.recusas || []).map(x => String(x).slice(0, 160)).slice(0, 3) });
+      }
+    })
+    .catch(e => {
+      if (dossieJob) { dossieJob.escrevendo = false; dossieJob.erro = String(e && e.message || e).slice(0, 300); }
+      /* A trava por fluxo do `dossie.js` recusa com 409 e a recusa chega COMO
+         EXCECAO. Ela e um final legitimo — "pulado, ja tem uma escrita rodando" —
+         e sem esta linha ela sairia da tela como silencio. */
+      if (automatico) {
+        anotarAuto(wfId, { estado: "falhou", razao: "quebrou", incremental: !!incremental,
+          porque: String(e && e.message || e).slice(0, 300) });
+      }
+    });
+}
+
+/* ─────────── O DESFECHO DA ATUALIZACAO AUTOMATICA, POR FLUXO ───────────────
+ *
+ * DECISAO EXPLICITA DO KAUAN, e ela flexibiliza o §2.8 do PLAN-UPGRADE ("nada
+ * regenera sozinho"). Ele pediu que aplicar um upgrade atualize o dossie sozinho,
+ * ouviu a ressalva do gasto invisivel que o §2.3.1 nomeia como o risco desta aba, e
+ * reafirmou. O desenho que separa isso de uma armadilha mora no `dossie.js`
+ * (`decidirAuto`): automatico e INCREMENTAL, e por padrao heranca recusada NAO
+ * gasta.
+ *
+ * O QUE ESTE MAPA EXISTE PARA IMPEDIR: um final silencioso. Um dossie que ele
+ * ACREDITA fresco e esta velho e pior que um que ele sabe velho — a conversa
+ * seguinte remenda a partir de descricao errada com o semaforo dizendo verde. Cada
+ * final tem de aparecer na tela, e o `dossieJob` nao serve para isso: e um
+ * singleton que a proxima escrita sobrescreve.
+ *
+ * FATO, nunca veredito: o que entra aqui e `estado`, `razao`, `porque` e numeros.
+ * Nenhuma COR e escrita, nem aqui nem em lugar nenhum deste caminho — a rede final
+ * e o `estado()`, que continua medindo a divergencia real contra o fluxo vivo. Um
+ * automatico que marcasse "em dia" por ter TENTADO seria o dossie falso-fresco de
+ * novo, agora escrito por nos.
+ *
+ * CAP porque e memoria de processo: 75 fluxos cabem, mas um mapa sem teto num
+ * processo que fica aberto o dia todo e um vazamento pequeno que ninguem ve. */
+const AUTO_ULTIMO_CAP = 200;
+const autoUltimo = new Map();   // wfId -> { em, estado, razao, porque, ... }
+
+function anotarAuto(wfId, linha) {
+  const k = String(wfId);
+  autoUltimo.delete(k);
+  autoUltimo.set(k, Object.assign({ em: new Date().toISOString() }, linha));
+  while (autoUltimo.size > AUTO_ULTIMO_CAP) autoUltimo.delete(autoUltimo.keys().next().value);
+}
+
+/* TRES ESTADOS, e o ausente NAO cai no ramo negativo — sexta vez que este
+   repositorio escreve isso, e aqui o ramo negativo perigoso e "o automatico nao
+   rodou": `suportado` diz que ESTE processo conhece o campo, `modo` diz em que modo
+   ele subiu, e `ultimo` e `null` quando nenhuma tentativa foi registrada para este
+   fluxo. Sem o `suportado`, um cockpit que subiu antes desta versao (Node nao
+   recarrega `server.js`) responderia sem o campo e a tela leria isso como "o
+   automatico nao fez nada" — a mesma classe de defeito do `docAgentes` ausente
+   lido como arquivo inexistente. */
+function fatiaAuto(wfId) {
+  return {
+    suportado: true,
+    modo: dossie.AUTO.modo,
+    reconhecido: dossie.AUTO.reconhecido,
+    bruto: dossie.AUTO.bruto,
+    ultimo: autoUltimo.get(String(wfId)) || null
+  };
+}
+
+/* O GATILHO. Ele roda DEPOIS de a rota ter respondido o apply (ver `acao ===
+ * "aplicar"`), e por isso nao devolve nada que alguem espere: quem quiser o desfecho
+ * pergunta o estado do dossie, que a tela ja pergunta de qualquer forma.
+ *
+ * ELE NAO PODE JOGAR. Um `throw` aqui viraria `unhandledRejection` num caminho que
+ * ninguem esta esperando, e o processo que serve o cockpit cairia por causa de uma
+ * leitura de dossie. Todo final sai como linha anotada.
+ *
+ * A COR EM CACHE E APAGADA, NUNCA ESCRITA. O fluxo acabou de mudar, entao qualquer
+ * cor guardada e de ANTES do patch e a vitrine a mostraria por ate 15 minutos.
+ * Apagar remove uma afirmacao velha; escrever afirmaria uma nova, e a unica coisa
+ * autorizada a afirmar cor aqui e o `estado()` medindo. */
+async function dossieDepoisDeAplicar(wfId) {
+  const k = String(wfId || "");
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(k)) return;
+  dossieCorCache.delete(k);
+  try {
+    if (dossie.AUTO.modo === dossie.AUTO_OFF) {
+      /* O desligado e anotado IGUAL aos outros, nunca omitido: a tela tem de poder
+         dizer que o automatico existe e esta off, senao a linha do recibo fica
+         indistinguivel de um automatico que quebrou em silencio. */
+      const v = dossie.decidirAuto({ dossie: null, st: null });
+      anotarAuto(k, { estado: "pulado", razao: v.razao, porque: v.porque, incremental: false });
+      return;
+    }
+    const doc = await dossie.ler(k);
+    let st = null;
+    if (doc) {
+      const raw = await n8n.getRawWorkflow(k);
+      st = dossie.estado(doc, raw);
+    }
+    /* AS DUAS TRAVAS QUE JA EXISTEM, CONSULTADAS E NAO DUPLICADAS: `dossieJob` e
+       uma escrita por PROCESSO (mais estrita que a por fluxo), e `donoDoDossie` e a
+       trava por FLUXO de dentro do `dossie.js`, que RECUSA em vez de enfileirar.
+       Duas camadas independentes, a disciplina desta casa — e dois applies seguidos
+       no mesmo fluxo caem numa delas e saem como "pulado", nunca como sucesso.
+       O `donoDoDossie` continua sendo a rede depois desta consulta: entre ela e o
+       `construir` cabe outra escrita, e quem perder recebe o 409 que o `catch` do
+       `iniciarDossie` anota. */
+    const ocupadoPor = dossieJob && dossieJob.escrevendo
+      ? (String(dossieJob.wfId) === k ? "deste mesmo fluxo" : "do fluxo " + dossieJob.nome) : null;
+    const dono = dossie.donoDoDossie(k);
+    const v = dossie.decidirAuto({ dossie: doc, st, ocupadoPor, travadoPor: dono ? dono.desde : null });
+    if (!v.rodar) {
+      anotarAuto(k, { estado: "pulado", razao: v.razao, porque: v.porque, incremental: false });
+      return;
+    }
+    iniciarDossie(k, { incremental: v.incremental, automatico: true });
+  } catch (e) {
+    anotarAuto(k, { estado: "falhou", razao: "quebrou", incremental: false,
+      porque: "nao deu para conferir o estado do dossie depois de aplicar: "
+        + String(e && e.message || e).slice(0, 200) });
+  }
+}
+
+/* A ESCRITA PARCIAL, COMO FATO — nunca como veredito de tela.
+ *
+ * O DEFEITO QUE ESTA FATIA EXISTE PARA IMPEDIR: a oferta do recibo é a linha que
+ * promete "conserta só o que envelheceu", e ela estava cotando a reescrita inteira
+ * — US$4,14 medidos no Iago — porque `preco(nos)` caía no default `"inteiro"`. Um
+ * botão que diz um preço e faz outro gasto é o gasto invisível que o §2.3.1 nomeia
+ * como o risco desta aba, com a agravante de estar escrito na tela. QUANTO MENOR é
+ * o parcial ninguém mediu — zero escritas incrementais existem —, e é por isso que
+ * ele não pode ser cotado pela régua do outro modo.
+ *
+ * `admitirIncremental` e `planoIncremental` são PURAS e é por isso que a rota pode
+ * montar o plano de graça: nenhum modelo, nenhuma rede além da leitura do fluxo que
+ * esta função já tinha em mão. O veredito é O MESMO que `construir` vai reconsultar
+ * na hora de escrever, da mesma função — duas réguas para "pode herdar?" divergiriam
+ * no primeiro conserto feito de um lado só, e o lado que divergisse decidiria se um
+ * parágrafo aprovado por um portão desconhecido entra num arquivo pago.
+ *
+ * O QUE ATRAVESSA É CONTAGEM E MOTIVO, nunca a lista de nós: `regenerar`, `herdar`
+ * e `umHop` viajam como número pelo mesmo motivo que `fatiaCor` deixa `mudados` de
+ * fora — `getRawWorkflow` é o buraco deliberado da whitelist e nome de nó é o que
+ * ele tem de sobra.
+ *
+ * O PISO DE UM PARÁGRAFO NO PREÇO, e ele é a lição do `usd: 0` da rodada morta:
+ * `visaoSuspeita` sozinho com `mudados` vazio é uma escrita legítima de UMA seção,
+ * e aí `regenerar.length` é 0. A régua do modo incremental divide por
+ * `nosRegenerados`, que conta parágrafo de NÓ e não a `## visão geral` — então
+ * `mediana × 0` sairia `US$0,00` num botão que spawna uma sessão de minutos. Zero
+ * lê como grátis e não é. O piso é aproximação declarada, nunca zero.
+ *
+ * E O `+1` QUE NÃO ESTÁ AQUI é de propósito: a `visão` é sempre reescrita, mas ela
+ * não entra em `nosRegenerados` (`montarParagrafos` conta parágrafo de nó), e a
+ * régua do incremental é usd por parágrafo regenerado. Somar a visão à cotação e
+ * não ao denominador seria medir uma coisa e cobrar outra — exatamente o defeito
+ * que a filtragem por `modo` veio consertar. O custo da visão já está dentro da
+ * mediana, porque toda escrita incremental medida a pagou. */
+async function fatiaIncremental(doc, st, raw) {
+  const plano = dossie.planoIncremental(doc, st, raw);
+  if (!plano.ok) {
+    return { admitido: false, porque: String(plano.porque || "").slice(0, 300),
+      regenerar: 0, herdar: 0, umHop: 0, visao: true, preco: null };
+  }
+  return {
+    admitido: true, porque: null,
+    regenerar: plano.regenerar.length,
+    herdar: plano.herdar.length,
+    umHop: plano.umHop.length,
+    /* A visão vai SEMPRE, e ela é o piso do custo do reparo mais barato possível.
+       Sai como fato para a tela poder dizer que uma escrita "de zero parágrafos"
+       ainda reescreve uma seção. */
+    visao: true,
+    preco: await dossie.preco(Math.max(1, plano.regenerar.length), "incremental")
+  };
+}
+
+async function dossieEstado(wfId) {
+  let raw = null;
+  try { raw = await n8n.getRawWorkflow(wfId); }
+  catch (e) { return { erro: "não consegui ler o fluxo no n8n: " + String(e && e.message || e).slice(0, 160) }; }
+
+  const doc = await dossie.ler(wfId);
+  const st = dossie.estado(doc, raw);
+  /* ESTA LEITURA É FRESCA, então ela vale para o cartão também. Sem isto, aplicar
+     um patch e voltar para a vitrine mostraria o cartão verde por até 15 minutos
+     enquanto a faixa desta mesma tela já dizia vermelho — duas telas discordando
+     sobre quem trava a conversa. */
+  guardarCor(wfId, fatiaCor(st, doc));
+  const nos = dossie.executaveis(raw).length;
+  const linhas = (await dossie.lerLedger()).filter(d => d.wfId === String(wfId));
+  const ultima = linhas.filter(d => d.ok !== false).slice(-1)[0] || null;
+  return {
+    wfId: String(wfId), nome: raw.name || String(wfId), nos,
+    cor: st.cor, motivo: st.motivo,
+    mudados: st.mudados.slice(0, 12), entraram: st.entraram.slice(0, 12), sairam: st.sairam.slice(0, 12),
+    quantosMudados: st.mudados.length, quantosEntraram: st.entraram.length, quantosSairam: st.sairam.length,
+    /* `em` é a data da LEITURA do fluxo que gerou a prosa, e `versao` a do
+       documento descrito. As duas viajam porque a tela promete as duas etiquetas:
+       escrito por um modelo, e a partir de tal versão. */
+    em: doc ? doc.em : null,
+    bytes: doc ? JSON.stringify(doc.paragrafos).length : 0,
+    paragrafos: doc ? doc.paragrafos.length : 0,
+    /* O tamanho do fluxo REDIGIDO — é contra ele que a economia se mede, porque é
+       ele que a sessão leria sem o dossiê. O bruto tem credencial e não vai para
+       lugar nenhum, então comparar com ele daria um número que ninguém pagaria. */
+    bytesFluxo: JSON.stringify(claudeFix.redactWorkflow(claudeFix.sanitizedWorkflow(raw))).length,
+    ultima,
+    /* O preço é o histórico desta máquina, e é `null` com menos de duas escritas
+       medidas — a tela diz que não sabe em vez de inventar.
+       ESTE É O PREÇO DO REWRITE INTEIRO, e o `modo` explícito é o que impede o
+       defeito que estava aqui: a chamada era `preco(nos)`, sem modo, então a oferta
+       do recibo — que existe para dizer "conserta só o que envelheceu" — cobrava a
+       reescrita inteira. O default da assinatura é `"inteiro"`, e default silencioso
+       num número que vai para um botão é como se cobra a conta errada em silêncio. */
+    preco: await dossie.preco(nos, "inteiro"),
+    incremental: await fatiaIncremental(doc, st, raw),
+    /* A ATUALIZACAO AUTOMATICA DEPOIS DE APLICAR — FATO, e ela viaja no MESMO
+       payload que a cor: a linha do recibo tem de poder dizer o desfecho ao lado do
+       semaforo, e dois payloads teriam duas idades. Ver `fatiaAuto`: tres estados, e
+       o ausente nunca cai em "o automatico nao fez nada". */
+    auto: fatiaAuto(wfId),
+    job: dossieJob && dossieJob.wfId === String(wfId) ? dossieResumo() : null,
+    ocupado: !!(dossieJob && dossieJob.escrevendo) ? dossieJob.nome : null
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname;
@@ -443,6 +836,433 @@ const server = http.createServer(async (req, res) => {
      * `no-store` como o resto: editar o arquivo e recarregar tem que valer, e um
      * favicon em cache é justo o tipo de coisa que ninguém pensa em invalidar. */
     if (p === "/aba.js") return serveFile(res, path.join(__dirname, "aba.js"), "text/javascript; charset=utf-8");
+    /* As duas entradas que não são o teclado — falar e anexar — servidas às duas
+     * páginas que têm compositor (`/tester` e `/upgrade`). O bloco nasceu dentro
+     * do `tester.html` já parametrizado por `idPrefixo`; virou arquivo pelo mesmo
+     * motivo do `aba.js`, e `entradas-test.js` falha no dia em que uma das duas
+     * páginas voltar a declarar o bloco por conta própria. Ele injeta o próprio
+     * CSS, então não há uma segunda folha para divergir. */
+    if (p === "/entradas.js") return serveFile(res, path.join(__dirname, "entradas.js"), "text/javascript; charset=utf-8");
+
+    /* ─────────────────────────────────────────────────────────── UPGRADE ──
+     * A quarta porta. `flows.html` conserta o que quebrou, o Tester cria do
+     * zero, e esta evolui um fluxo que já existe e funciona.
+     *
+     * Nesta fatia TUDO aqui é leitura: não há caminho de escrita, nem para o
+     * n8n nem para disco. O botão de aplicar (e a bateria que o destrava) só
+     * entra depois dos quatro passos de infraestrutura do PLAN-UPGRADE.md, que
+     * mexem em código já em produção e vão sozinhos.
+     *
+     * FATOS, como o resto do servidor. Quem chega na vitrine, em que ordem, se é
+     * caro de conversar e qual nó pintar de vermelho é decidido no bloco de
+     * juízo do `upgrade.html`. */
+    if (p === "/upgrade") return serveFile(res, path.join(__dirname, "upgrade.html"), "text/html; charset=utf-8");
+
+    if (p === "/api/upgrade/vitrine") {
+      const ov = await n8n.overview();
+      const porFluxo = new Map();
+      for (const e of ov.executions || []) {
+        const k = String(e.workflowId ?? "");
+        if (!k) continue;
+        const r = porFluxo.get(k) || { exec24: 0, erro24: 0, falhas: new Set() };
+        r.exec24++;
+        if (String(e.status) === "error") r.erro24++;
+        porFluxo.set(k, r);
+      }
+      /* O nó nomeado por cada falha. Só o NOME cruza; se ele pertence a este
+       * fluxo ou a um filho é o `upgrade.html` que decide, contra o grafo.
+       *
+       * A lista é `ov.errors`. `ov.errorsDetailed` é uma CONTAGEM — iterar aquilo
+       * devolve `number 11 is not iterable` numa rota que respondia 200, e o nome
+       * do campo é bom o suficiente para enganar.
+       *
+       * O campo é `error.nodeName`, ACHATADO: a whitelist do `extractExecDetail`
+       * (`n8n.js`) emite `{type, message, description, level, functionality,
+       * nodeName, nodeType}` — `error.node` não existe do lado de cá. Ler o
+       * objeto aninhado dava `undefined` sempre, e o `else` respondia por todas
+       * as falhas: a vitrine mostrava só o `lastNodeExecuted`, em silêncio.
+       *
+       * Os dois ramos não são redundantes justamente no caso sub-fluxo, que é
+       * onde eles DIVERGEM: o n8n reporta a falha do filho no pai, então o nó
+       * nomeado pelo erro rotineiramente não existe no grafo do fluxo que
+       * falhou, e o `lastNodeExecuted` é o nó do pai que fez a chamada. */
+      for (const d of ov.errors || []) {
+        const r = porFluxo.get(String(d.workflowId ?? ""));
+        if (!r) continue;
+        const n = d.error && d.error.nodeName;
+        if (n) r.falhas.add(String(n));
+        else if (d.lastNode) r.falhas.add(String(d.lastNode));
+      }
+      const fluxos = (ov.workflows || []).map(w => {
+        const st = porFluxo.get(String(w.id)) || { exec24: 0, erro24: 0, falhas: new Set() };
+        return {
+          id: String(w.id), nome: String(w.name ?? ""), active: !!w.active,
+          nos: w.nodeCount, updatedAt: w.updatedAt || null,
+          exec24: st.exec24, erro24: st.erro24, falhas: [...st.falhas],
+          chamadores: []   // preenchido por /api/n8n/callers, depois da primeira pintura
+        };
+      });
+      return json(res, 200, {
+        fluxos, instancia: n8n.instance, janelaHoras: n8n.WINDOW_HOURS,
+        lidoEm: ov.fetchedAt || null,
+        errosTruncados: !!ov.errorsTruncated
+      });
+    }
+
+    /* Peso e desenho: uma leitura do workflow por fluxo, então NÃO entra na
+     * vitrine — ela tem de aparecer antes. Mesma disciplina do call graph, que o
+     * cliente busca depois do primeiro paint.
+     *
+     * `bytes` é o documento SEM credencial, que é o que a sessão leria; `tokens`
+     * é derivado dele. Nenhum parâmetro cruza: só o tamanho, e o grafo pela
+     * whitelist que já existe. */
+    if (p === "/api/upgrade/peso") {
+      const crus = String(url.searchParams.get("ids") || "").split(",").map(s => s.trim()).filter(Boolean);
+      if (!crus.length) return json(res, 400, { error: "informe ?ids=" });
+      if (crus.length > 40) return json(res, 400, { error: "no máximo 40 ids por chamada" });
+      const maus = crus.filter(id => !/^[A-Za-z0-9_-]{1,64}$/.test(id));
+      if (maus.length) return json(res, 400, { error: "id inválido: " + maus[0] });
+
+      const pesos = [];
+      for (const id of crus) {
+        const cache = pesoCache.get(id);
+        if (cache && Date.now() - cache.at < PESO_TTL) { pesos.push(cache.valor); continue; }
+        try {
+          const raw = await n8n.getRawWorkflow(id);
+          const limpo = semCredenciais(raw);
+          const bytes = JSON.stringify(limpo).length;
+          const g = await n8n.getGraph(id);
+          const vivos = (g.nodes || []).filter(n => n.type !== "n8n-nodes-base.stickyNote");
+          const valor = {
+            id, bytes,
+            // ~3,6 caracteres por token em JSON. É ESTIMATIVA e o nome do campo
+            // não pode sugerir contagem exata — quem mostra na tela diz "~".
+            tokens: Math.round(bytes / 3.6),
+            graph: {
+              nos: vivos.map(n => ({ nome: n.name, tipo: n.type, sub: n.sub, x: n.x, y: n.y })),
+              arestas: (g.edges || []).map(e => ({ de: e.from, para: e.to }))
+            }
+          };
+          pesoCache.set(id, { at: Date.now(), valor });
+          pesos.push(valor);
+        } catch (e) {
+          // Um fluxo que não pôde ser lido não vira zero: vira uma ausência dita.
+          pesos.push({ id, erro: String(e && e.message || e) });
+        }
+      }
+      return json(res, 200, { pesos });
+    }
+
+    /* A conversa. Nenhuma destas rotas escreve no n8n — `upgrade.js` não importa
+     * `putWorkflow` nem `createWorkflow`. O que elas fazem é spawnar um CLI local,
+     * numa sessão sem rede e sem Bash, e emitir o que ela responde. */
+    if (p === "/api/upgrade/capacidades") return json(res, 200, upgrade.capacidades());
+
+    /* A BANDEJA DA ABA UPGRADE: onde o anexo espera antes de a conversa existir.
+     *
+     * Aqui a sessão só nasce na PRIMEIRA mensagem (`enviar()` no `upgrade.html`
+     * cria a conversa e só então manda o texto), então anexar antes dela não tem
+     * id para pendurar nada. Sem bandeja a página teria de segurar os arquivos em
+     * memória e mandar tudo no clique de enviar, que é justo o corpo gigante que a
+     * gravação um-a-um evita.
+     *
+     * Nada aqui interpreta o arquivo: `anexos.js` valida extensão, nome, tamanho e
+     * caminho, e recusa devolvendo a frase que a tela mostra. `categoria` atravessa
+     * porque é ela que deixa a tela AGRUPAR as recusas de um lote — uma pasta de
+     * projeto recusa vários de uma vez, e um aviso por arquivo vira uma coluna em
+     * que o último esconde o primeiro. */
+    if (p === "/api/upgrade/anexo" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, ANEXO_BODY_CAP) || "{}");
+      try {
+        const bandeja = body.bandeja ? String(body.bandeja) : anexos.novaBandeja();
+        const dir = anexos.dirBandeja(upgrade.RUNS_DIR, bandeja);
+        await fsp.mkdir(dir, { recursive: true });
+        const atuais = await anexos.inventario(dir);
+        const r = await anexos.gravar(dir, { nome: body.nome, rel: body.rel, b64: body.b64 }, atuais);
+        if (!r.ok) return json(res, 400, { error: r.motivo, categoria: r.categoria || null, bandeja });
+        const lista = await anexos.inventario(dir);
+        await anexos.escreverIndice(dir, lista);
+        return json(res, 200, { bandeja, anexos: lista, resumo: anexos.resumo(lista) });
+      } catch (err) {
+        return json(res, err.status || 400, { error: String(err && err.message || err) });
+      }
+    }
+
+    // Tirar um chip antes da primeira mensagem. Só apaga dentro de `anexos/` da
+    // bandeja — o guarda de caminho está em `anexos.js` e é ele que recusa o resto.
+    if (p === "/api/upgrade/anexo/remover" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+      try {
+        const dir = anexos.dirBandeja(upgrade.RUNS_DIR, String(body.bandeja || ""));
+        await anexos.remover(dir, String(body.arquivo || ""));
+        const lista = await anexos.inventario(dir);
+        await anexos.escreverIndice(dir, lista);
+        return json(res, 200, { bandeja: String(body.bandeja), anexos: lista, resumo: anexos.resumo(lista) });
+      } catch (err) {
+        return json(res, err.status || 400, { error: String(err && err.message || err) });
+      }
+    }
+
+    if (p === "/api/upgrade/sessao" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req, 4096) || "{}");
+      const wfId = String(body.wfId || "");
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId)) return json(res, 400, { error: "wfId inválido" });
+      /* A bandeja é validada por formato AQUI e outra vez pelo `dirBandeja` lá
+         dentro: um id que veio de fora do processo nunca vira caminho sem passar
+         por regex. Formato errado é tratado como ausência de bandeja em vez de
+         400 — o pedido de upgrade é válido sem o print. */
+      const bandeja = /^b[a-f0-9]{6,20}$/.test(String(body.bandeja || "")) ? String(body.bandeja) : null;
+      const id = await upgrade.iniciar({ wfId, bandeja });
+      return json(res, 202, { id });
+    }
+
+    if (p.startsWith("/api/upgrade/sessao/")) {
+      const resto = p.slice("/api/upgrade/sessao/".length);
+      const [id, acao] = resto.split("/");
+      if (!/^u[a-z0-9]{1,32}$/.test(id || "")) return json(res, 400, { error: "id de conversa inválido" });
+
+      if (!acao && req.method === "GET") {
+        const snap = upgrade.snapshot(id);
+        return snap ? json(res, 200, snap) : json(res, 404, { error: "conversa desconhecida" });
+      }
+      if (acao === "stream") {
+        res.writeHead(200, {
+          "content-type": "text/event-stream; charset=utf-8",
+          "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no"
+        });
+        res.write(": conectado\n\n");
+        if (!upgrade.assinar(id, res)) { res.end(); return; }
+        const ka = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* fechou */ } }, 25000);
+        req.on("close", () => { clearInterval(ka); upgrade.desassinar(id, res); });
+        return;
+      }
+      if (acao === "mensagem" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, 8192) || "{}");
+        return json(res, 200, await upgrade.mensagem(id, body.texto));
+      }
+      if (acao === "cancelar" && req.method === "POST") {
+        return json(res, 200, upgrade.cancelar(id));
+      }
+      /* Confirmar o alvo dispara a rodada que ESCREVE O PATCH — e não escreve nada
+         no n8n: o patch é aplicado a uma cópia em memória só para o diff existir.
+         O 409 sobe com a frase que o `upgrade.js` montou, porque "o alvo está
+         bloqueado" e "o cockpit quebrou" são histórias diferentes. */
+      if (acao === "confirmar" && req.method === "POST") {
+        const r = await upgrade.confirmarAlvo(id);
+        return r && r.erro ? json(res, r.status || 409, { error: r.erro }) : json(res, 200, r);
+      }
+      /* AS DUAS ÚNICAS ROTAS DESTA ABA QUE ESCREVEM NUM FLUXO REAL.
+         `qual` vem do BOTÃO que ele clicou — "normal" ou "desligado" — e nunca é
+         inferido no servidor: os dois botões mostram diffs diferentes, e escrever
+         o que não estava na tela é o defeito que o §5.7.2 existe para impedir. */
+      if (acao === "aplicar" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, 2048) || "{}");
+        const qual = body.qual === "desligado" ? "desligado" : "normal";
+        const r = await upgrade.aplicar(id, qual);
+        if (r && r.erro) return json(res, r.status || 409, { error: r.erro, gates: r.gates || null });
+        /* O DOSSIE DO FLUXO ESCRITO ACABOU DE ENVELHECER, E AGORA ELE SE ATUALIZA
+           SOZINHO — decisao explicita do Kauan, que flexibiliza o §2.8 (ver
+           `dossieDepoisDeAplicar`).
+         *
+         * POR QUE AQUI E NAO DENTRO DO `upgrade.aplicar`: `iniciarDossie` e o job
+         * dele sao um singleton DESTE arquivo, e `upgrade.js` nao pode conhecer
+         * esse job — ele nao importa `dossie.js`, nao tem caminho de escrita local
+         * e `upgrade-test.js` afirma essa ausencia em vez de confiar nela. Injetar
+         * um callback la dentro daria o mesmo efeito com uma dependencia nova; o
+         * handler da rota e o unico chamador de `aplicar` (verificado), entao ele e
+         * o ponto mais barato que mantem os dois modulos como estao.
+         *
+         * SEM `await`, DE PROPOSITO: a resposta do apply nao pode esperar por uma
+         * leitura de dossie, e muito menos pelos ~11 minutos de uma escrita. Ela
+         * responde na hora e a tela acompanha pelo estado do dossie, igual ao botao
+         * manual ja faz. `dossieDepoisDeAplicar` nunca joga, entao nao ha rejeicao
+         * sem dono aqui.
+         *
+         * O ALVO E O FLUXO ESCRITO, NAO O ABERTO: por causa do §4.5 o patch pode
+         * ter ido para um sub-fluxo, e o dossie que envelheceu e o de lá. Ler
+         * `S.sel` seria escrever o dossie do fluxo errado, pago e em silencio — o
+         * mesmo defeito que o `data-wf` do botao existe para impedir. */
+        const escrito = r.aplicado && r.aplicado.wfId;
+        if (escrito) dossieDepoisDeAplicar(escrito);
+        return json(res, 200, r);
+      }
+      if (acao === "desfazer" && req.method === "POST") {
+        const r = await upgrade.desfazer(id);
+        return r && r.erro ? json(res, r.status || 409, { error: r.erro }) : json(res, 200, r);
+      }
+      /* Anexar com a conversa já aberta: direto no diretório dela, sem bandeja.
+       * Não dispara rodada — quem manda a sessão olhar é a mensagem seguinte, pelo
+       * caminho de texto que já existe. É o que permite arrastar três arquivos e
+       * falar uma vez em vez de pagar uma rodada por arquivo. */
+      if (acao === "anexo" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, ANEXO_BODY_CAP) || "{}");
+        try {
+          return json(res, 200, await upgrade.anexar(id, { nome: body.nome, rel: body.rel, b64: body.b64 }));
+        } catch (err) {
+          return json(res, err.status || 400, {
+            error: String(err && err.message || err), categoria: err && err.categoria || null
+          });
+        }
+      }
+      if (acao === "desanexar" && req.method === "POST") {
+        const body = JSON.parse(await readBody(req, FIX_BODY_CAP) || "{}");
+        try {
+          return json(res, 200, await upgrade.desanexar(id, String(body.arquivo || "")));
+        } catch (err) { return json(res, err.status || 400, { error: String(err && err.message || err) }); }
+      }
+      return json(res, 404, { error: "ação desconhecida" });
+    }
+
+    /* ───────────────────────────────── o histórico de conversas do fluxo ─────
+     *
+     * FATOS: a lista, quantas não deram para ler, qual está rodando e em que
+     * fluxo, e o que está na lixeira. Qual estado "pede ação", em que ordem a
+     * lista aparece, e se o fluxo mudou desde a conversa é o `upgrade.html` que
+     * decide — a comparação de `wfUpdatedAt` mora no bloco de juízo dele.
+     *
+     * `erro` e `conversas: []` são coisas DIFERENTES e a rota não as mistura:
+     * uma lista vazia diz que nunca houve conversa neste fluxo, um `erro` diz que
+     * eu não sei o que existe. Deixar a segunda cair na primeira seria afirmar
+     * ausência a partir de uma falha de leitura. */
+    if (p.startsWith("/api/upgrade/conversas/")) {
+      const wfId = decodeURIComponent(p.slice("/api/upgrade/conversas/".length));
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId)) return json(res, 400, { error: "wfId inválido" });
+      const r = await conversas.listar(wfId, upgrade.rodandoAgora());
+      return json(res, 200, {
+        conversas: r.conversas, ilegiveis: r.ilegiveis, erro: r.erro,
+        // Uma conversa roda por vez em TODA a aba, então isto é sobre o cockpit e
+        // não sobre este fluxo: é o que deixa `+ nova conversa` aparecer
+        // desabilitado dizendo quem está ocupando, em vez de dar 409 no clique.
+        ativa: upgrade.ativaAgora(),
+        lixeira: await conversas.naLixeira(wfId, null)
+      });
+    }
+
+    /* Uma conversa em particular: reabrir, ou apagar.
+     *
+     * Reabrir é POST e não GET porque ele tem efeito: devolve a conversa para a
+     * memória do processo, relê o fluxo no n8n e — quando ela tinha ficado em
+     * `correndo` — registra a rodada que o cockpit fechou por cima. Nada disso é
+     * leitura pura, e nenhum deles gasta cota: o CLI só é spawnado pela mensagem
+     * seguinte. */
+    if (p.startsWith("/api/upgrade/conversa/")) {
+      const partes = p.slice("/api/upgrade/conversa/".length).split("/").map(decodeURIComponent);
+      const [wfId, convId, acao] = partes;
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId || "")) return json(res, 400, { error: "wfId inválido" });
+      if (!/^u[a-z0-9]{1,32}$/.test(convId || "")) return json(res, 400, { error: "id de conversa inválido" });
+
+      if (acao === "abrir" && req.method === "POST") {
+        return json(res, 200, await upgrade.retomar({ wfId, convId }));
+      }
+      if (acao === "apagar" && req.method === "POST") {
+        /* Esquecer ANTES de mover: com a sessão ainda no Map, a transição de
+           estado seguinte reescreveria o arquivo e a linha voltaria para a gaveta
+           sozinha. E `esquecer` recusa por nome se ela estiver rodando, então
+           apagar nunca mata uma rodada de lado. */
+        upgrade.esquecer(convId);
+        return json(res, 200, await conversas.apagar(wfId, convId));
+      }
+      return json(res, 404, { error: "ação desconhecida" });
+    }
+
+    /* Voltar da lixeira. A porta existe porque apagar aqui não tem `git checkout`
+     * como saída: `conversas/` é gitignored, então NENHUMA conversa está em git. */
+    if (p.startsWith("/api/upgrade/lixeira/") && req.method === "POST") {
+      const wfId = decodeURIComponent(p.slice("/api/upgrade/lixeira/".length).split("/")[0]);
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId)) return json(res, 400, { error: "wfId inválido" });
+      const body = JSON.parse(await readBody(req, 2048) || "{}");
+      return json(res, 200, await conversas.restaurar(wfId, String(body.lixo || "")));
+    }
+
+    /* Uma conversa aberta para este fluxo, se houver. A tela pergunta ao abrir:
+     * uma conversa que custou minutos não pode morrer num F5. */
+    if (p.startsWith("/api/upgrade/aberta/")) {
+      const wfId = decodeURIComponent(p.slice("/api/upgrade/aberta/".length));
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId)) return json(res, 400, { error: "wfId inválido" });
+      return json(res, 200, { id: upgrade.daquiFluxo(wfId) });
+    }
+
+    /* ──────────────────── o semáforo do dossiê de VÁRIOS fluxos, de uma vez ──
+     *
+     * O buraco que esta rota fecha: o semáforo só disparava quando a tela DAQUELE
+     * fluxo era aberta. São 75 fluxos e ele abre três, então "quais dossiês
+     * apodreceram" não tinha resposta sem 75 cliques.
+     *
+     * FATOS: cor, motivo, contagens, e quantos fluxos não deu para ler. O que a cor
+     * significa no cartão — e que vermelho e cinza querem dizer "não dá para
+     * conversar com este fluxo" — é juízo, e mora no `upgrade.html`.
+     *
+     * Perguntada DEPOIS da primeira pintura, como o peso e o call graph. */
+    if (p === "/api/upgrade/dossies") {
+      const crus = String(url.searchParams.get("ids") || "").split(",").map(s => s.trim()).filter(Boolean);
+      if (!crus.length) return json(res, 400, { error: "informe ?ids=" });
+      if (crus.length > 40) return json(res, 400, { error: "no máximo 40 ids por chamada" });
+      const maus = crus.filter(id => !/^[A-Za-z0-9_-]{1,64}$/.test(id));
+      if (maus.length) return json(res, 400, { error: "id inválido: " + maus[0] });
+      return json(res, 200, await varrerDossies(crus));
+    }
+
+    /* ───────────────────────────────────────────────────── o dossiê do fluxo ──
+     *
+     * FATOS: a cor da divergência, o motivo, quem mudou, o tamanho e o preço
+     * estimado. Quem desenha a faixa e decide o texto do botão é o
+     * `upgrade.html`. A COR vem do `dossie.js` de propósito e isso está declarado
+     * lá: a tela, o prompt e esta rota precisam da MESMA resposta, e duas
+     * definições de "está em dia" seriam a deriva que `SCRATCH` já tem entre duas
+     * páginas.
+     *
+     * Escrever é POST, nunca efeito de um GET: uma escrita custa minutos e cota
+     * do plano, e gastar sem clique é o que este codebase recusa em todo lugar. */
+    if (p.startsWith("/api/upgrade/dossie/")) {
+      const wfId = decodeURIComponent(p.slice("/api/upgrade/dossie/".length));
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(wfId)) return json(res, 400, { error: "wfId inválido" });
+
+      if (req.method === "GET") return json(res, 200, await dossieEstado(wfId));
+
+      if (req.method === "POST") {
+        if (!n8n.configured) return json(res, 503, { error: "n8n não configurado" });
+        if (!claudeFix.claudeFound) return json(res, 503, { error: "Claude Code CLI não encontrado" });
+        /* Um por vez: cada escrita spawna um CLI e gasta cota. Mesma regra do
+           `/api/claude/fix` e do build do Tester. */
+        if (dossieJob && dossieJob.escrevendo) {
+          return json(res, 409, { error: "já estou escrevendo o dossiê de " + dossieJob.nome, job: dossieResumo() });
+        }
+        /* `?incremental=1` — UM booleano, e ele vai na query e não no corpo porque a
+           URL desta rota já é lida e validada duas linhas acima; um leitor de corpo
+           aqui seria um segundo caminho de parse para uma flag.
+           QUEM PEDE É A PÁGINA, contra o fato `incremental.admitido` que o GET
+           emite. O servidor não decide que uma escrita parcial basta. */
+        const parcial = url.searchParams.get("incremental") === "1";
+        /* A RECUSA NO LUGAR DA QUEDA, e é aqui que ela tem de estar.
+           `construir` reconsulta a admissão e, se ela caiu, cai para rewrite
+           inteiro de graça e DIZ por quê — contrato certo para o CLI, onde quem
+           pediu está lendo a linha e pode parar. Pelo botão não: o consentimento
+           foi dado sobre a cotação parcial que estava na tela, e cair para o
+           inteiro gastaria a reescrita de US$4,14 medidos sem um segundo clique.
+           Isso é o gasto invisível do §2.3.1 com a tela tendo prometido outra
+           coisa. A conferência é local e de graça (`planoIncremental` é pura), e
+           recusar nomeando o motivo é o que este repositório faz em vez de
+           publicar algo que ninguém autorizou. */
+        if (parcial) {
+          let adm = null;
+          try {
+            const raw = await n8n.getRawWorkflow(wfId);
+            const doc = await dossie.ler(wfId);
+            adm = dossie.planoIncremental(doc, dossie.estado(doc, raw), raw);
+          } catch (e) {
+            return json(res, 503, { error: "não deu para conferir se a escrita parcial ainda vale: " + String(e && e.message || e).slice(0, 160) });
+          }
+          if (!adm.ok) {
+            return json(res, 409, { error: "a escrita parcial já não vale: " + adm.porque
+              + " — o preço na tela era o da parcial, então não começo um rewrite inteiro sem você pedir de novo",
+              incremental: { admitido: false, porque: adm.porque } });
+          }
+        }
+        iniciarDossie(wfId, { incremental: parcial });
+        return json(res, 202, { job: dossieResumo() });
+      }
+      return json(res, 404, { error: "ação desconhecida" });
+    }
 
     if (p === "/api/n8n/overview") return json(res, 200, await n8n.overview());
 
@@ -827,8 +1647,16 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    /* O ledger da CORREÇÃO. `proposals.json` passou a guardar dois tipos de
+       linha (etapa 1, PLAN-UPGRADE.md §7.1) e esta rota vive no namespace
+       `/api/claude/`, então ela devolve `fix` — sem o filtro, no dia em que a aba
+       Upgrade gravar, ela começaria a servir upgrade como se fosse correção.
+       FATO a registrar: hoje NINGUÉM consome esta rota — nem `flows.html`, nem
+       nenhum outro arquivo (conferido por grep). Ela existe para inspeção. Por
+       isso o filtro entra agora, enquanto não há consumidor para quebrar; quando
+       existir um que queira os dois tipos, ele pede o tipo, não a mistura. */
     if (p === "/api/claude/proposals" && req.method === "GET") {
-      return json(res, 200, { proposals: await claudeFix.readStore() });
+      return json(res, 200, { proposals: await claudeFix.readStore("fix") });
     }
 
     if (p === "/api/claude/fix" && req.method === "POST") {
@@ -952,7 +1780,13 @@ server.listen(PORT, "127.0.0.1", () => {
    * abrir a tela, arrastar uma pasta e fechar o navegador deixa uma para trás.
    * Some por idade, no boot — e o número aparece, porque um diretório que cresce
    * em silêncio é o tipo de coisa que só é descoberta quando o disco enche. */
-  anexos.limparBandejas(TESTER_RUNS, 24 * 60 * 60 * 1000)
-    .then(n => { if (n) console.log(`bandejas de anexo abandonadas removidas: ${n}`); })
-    .catch(err => console.log("não consegui limpar bandejas de anexo:", err.message));
+  // As DUAS raízes, porque são duas bandejas em dois diretórios diferentes: o
+  // Tester guarda em `.tester-runs/_bandejas` e o Upgrade em
+  // `.upgrade-runs/_bandejas`. Limpar só a primeira deixaria a segunda crescendo
+  // calada, que é exatamente o defeito que esta linha existe para não ter.
+  for (const [rotulo, raiz] of [["tester", TESTER_RUNS], ["upgrade", upgrade.RUNS_DIR]]) {
+    anexos.limparBandejas(raiz, 24 * 60 * 60 * 1000)
+      .then(n => { if (n) console.log(`bandejas de anexo abandonadas removidas (${rotulo}): ${n}`); })
+      .catch(err => console.log(`não consegui limpar bandejas de anexo (${rotulo}):`, err.message));
+  }
 });
