@@ -1,5 +1,5 @@
-/* nav-sync-test.js — a navegação é UM bloco em três arquivos, e este teste é o
- * que impede que ela vire três.
+/* nav-sync-test.js — a navegação é UM bloco em quatro arquivos, e este teste é o
+ * que impede que ela vire quatro.
  *
  * O CLAUDE.md documenta a dívida desde que o topbar foi unificado: flows.html,
  * tester.html e cockpit.html carregam cópias do mesmo chrome, e "mudança lá tem
@@ -8,13 +8,13 @@
  * substituir o existente, e a página morreu com "Illegal return statement".
  *
  * Aqui a lembrança virou portão. Cada caso rejeita um defeito com nome:
- *   1. o bloco existe nas três páginas;
- *   2. o CSS é BYTE A BYTE igual nas três;
- *   3. o JS é byte a byte igual nas três;
+ *   1. o bloco existe nas quatro páginas;
+ *   2. o CSS é BYTE A BYTE igual nas quatro;
+ *   3. o JS é byte a byte igual nas quatro;
  *   4. nenhuma sobra do .pages antigo ficou pendurada;
  *   5. o bloco aparece UMA vez por arquivo (o defeito do segundo bloco);
  *   6. cada página marca a própria porta como atual — e só ela;
- *   7. as três portas apontam para as três rotas que o server.js serve;
+ *   7. as quatro portas apontam para as rotas que o server.js serve;
  *   8. o atalho que o chip promete existe no JS.
  *
  * Grátis: sem modelo, sem rede, sem servidor. `node nav-sync-test.js`
@@ -28,7 +28,7 @@ const path = require("path");
 /* Os delimitadores são deste teste, de propósito. Se alguém reescrever o bloco e
  * apagar um deles, o teste falha dizendo que não achou o bloco — que é
  * exatamente o aviso que se quer nesse caso, não um silêncio. */
-const CSS_INICIO = "NAV — as três portas";
+const CSS_INICIO = "NAV — as quatro portas";
 const CSS_FIM = ".nvd .lente.varre::after{animation:none}";
 const JS_INICIO = "NAV — a lente de vidro";
 const JS_FIM = "}());";
@@ -36,9 +36,10 @@ const JS_FIM = "}());";
 const PAGINAS = [
   { arq: "flows.html", porta: "fluxos" },
   { arq: "tester.html", porta: "tester" },
-  { arq: "cockpit.html", porta: "disco" }
+  { arq: "cockpit.html", porta: "disco" },
+  { arq: "upgrade.html", porta: "upgrade" }
 ];
-const ROTAS = { fluxos: "/", disco: "/disco", tester: "/tester" };
+const ROTAS = { fluxos: "/", disco: "/disco", tester: "/tester", upgrade: "/upgrade" };
 
 let falhas = 0;
 const ok = m => console.log("  ok    " + m);
@@ -59,7 +60,7 @@ for (const p of PAGINAS) {
   textos.set(p.arq, fs.readFileSync(alvo, "utf8"));
 }
 
-console.log("\n1. o bloco existe nas três páginas");
+console.log("\n1. o bloco existe nas quatro páginas");
 const blocos = { css: new Map(), js: new Map() };
 for (const p of PAGINAS) {
   const txt = textos.get(p.arq);
@@ -90,10 +91,10 @@ function comparar(rotulo, mapa) {
   }
 }
 
-console.log("\n2. o CSS é byte a byte igual nas três");
+console.log("\n2. o CSS é byte a byte igual nas quatro");
 comparar("CSS", blocos.css);
 
-console.log("\n3. o JS é byte a byte igual nas três");
+console.log("\n3. o JS é byte a byte igual nas quatro");
 comparar("JS", blocos.js);
 
 console.log("\n4. nenhuma sobra do .pages antigo");
@@ -126,7 +127,7 @@ for (const p of PAGINAS) {
   else erro(p.arq + ": esperava só «" + p.porta + "» marcada, veio [" + marcadas.join(", ") + "]");
 }
 
-console.log("\n7. as três portas apontam para as rotas que o server.js serve");
+console.log("\n7. as quatro portas apontam para as rotas que o server.js serve");
 const server = fs.readFileSync(path.join(__dirname, "server.js"), "utf8");
 for (const p of PAGINAS) {
   const txt = textos.get(p.arq);
@@ -137,11 +138,11 @@ for (const p of PAGINAS) {
     const re = new RegExp('href="' + rota.replace("/", "\\/") + '" data-porta="' + porta + '"');
     if (!re.test(nav)) { erro(p.arq + ": a porta «" + porta + "» não aponta para " + rota); bom = false; }
   }
-  if (bom) ok(p.arq + ": /, /disco, /tester");
+  if (bom) ok(p.arq + ": todas as rotas servidas");
 }
 // A rota tem que existir do outro lado. Um href para uma rota que o servidor não
 // serve é um 404 que só aparece no clique.
-for (const rota of ["/disco", "/tester"]) {
+for (const rota of ["/disco", "/tester", "/upgrade"]) {
   if (server.includes('"' + rota + '"')) ok("server.js serve " + rota);
   else erro("server.js NÃO serve " + rota + " — o href levaria a 404");
 }
@@ -159,4 +160,4 @@ for (const p of PAGINAS) {
 
 console.log("");
 if (falhas) { console.log("FALHOU: " + falhas + " problema(s)"); process.exit(1); }
-console.log("passou: a navegação é um bloco só, nas três páginas");
+console.log("passou: a navegação é um bloco só, nas quatro páginas");

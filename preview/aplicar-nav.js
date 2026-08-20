@@ -27,9 +27,9 @@ const { ico, PORTAS } = require("./nav-comum.js");
 const RAIZ = path.join(__dirname, "..");
 
 /* ═══════════════════════════════════════════════════════════════════ o CSS */
-const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as três portas
-   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html e
-   cockpit.html — gerado por preview/aplicar-nav.js e travado por
+const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
+   cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
    e nunca insira um segundo bloco (foi assim que o rabo de um bloco antigo
    ficou pendurado no flows.html e a página morreu com "Illegal return
@@ -177,10 +177,10 @@ const marcacao = atual => '<nav class="nvd" aria-label="telas do cockpit">\n'
 /* ════════════════════════════════════════════════════════════════════ o JS */
 const JS = `<script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html e cockpit.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As três portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -309,7 +309,8 @@ const JS = `<script>
 const ALVOS = [
   { arq: "flows.html", porta: "fluxos" },
   { arq: "tester.html", porta: "tester" },
-  { arq: "cockpit.html", porta: "disco" }
+  { arq: "cockpit.html", porta: "disco" },
+  { arq: "upgrade.html", porta: "upgrade" }
 ];
 
 // O CSS antigo do .pages ocupa um pedaço contíguo em cada arquivo, e cada um o

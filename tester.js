@@ -990,15 +990,18 @@ async function mandarParaSandbox(s) {
   const nome = SANDBOX_PREFIX + String(s.wf.name).slice(0, 80);
   const corpo = { name: nome, nodes: s.wf.nodes, connections: s.wf.connections, settings: s.wf.settings || { executionOrder: "v1" } };
   const achado = await n8n.findWorkflowByName(nome);
+  /* Mesmo dono nos dois ramos — é a mesma escrita lógica, e o POST só existe
+     porque a cópia ainda não nasceu. Ver `writeOwner` em n8n.js. */
+  const owner = n8n.writeOwner("tester", s.id, "testando o fluxo numa cópia de " + String(s.wf.name).slice(0, 60));
   if (achado) {
     // A cerca fica na rota, não só em quem chama: o nome ATUAL do alvo é
     // reconferido antes do PUT. Sem isto, um id herdado de outra sessão poderia
     // apontar para um fluxo de produção.
     if (!String(achado.name || "").startsWith(SANDBOX_PREFIX)) throw new Error("alvo não é uma cópia de teste — escrita recusada");
-    await n8n.putWorkflow(achado.id, corpo, d => diz(s, "o n8n descartou estas chaves de settings: " + d.join(", "), "warn"));
+    await n8n.putWorkflow(owner, achado.id, corpo, d => diz(s, "o n8n descartou estas chaves de settings: " + d.join(", "), "warn"));
     return { id: String(achado.id), nome, criado: false };
   }
-  const novo = await n8n.createWorkflow(corpo, d => diz(s, "o n8n descartou estas chaves de settings: " + d.join(", "), "warn"));
+  const novo = await n8n.createWorkflow(owner, corpo, d => diz(s, "o n8n descartou estas chaves de settings: " + d.join(", "), "warn"));
   return { id: novo && novo.id ? String(novo.id) : null, nome, criado: true };
 }
 

@@ -180,9 +180,9 @@ button { font-family: inherit; }
    a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
    existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
    comum espremeria a navegação até quebrar. */
-/* ═══════════════════════════════════════════════════════ NAV — as três portas
-   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html e
-   cockpit.html — gerado por preview/aplicar-nav.js e travado por
+/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
+   cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
    e nunca insira um segundo bloco (foi assim que o rabo de um bloco antigo
    ficou pendurado no flows.html e a página morreu com "Illegal return
@@ -519,6 +519,15 @@ main { padding: 22px 26px 90px; min-width: 0; }
 .happened .linha.quem .val { color: var(--txt); font-weight: 600; }
 .happened .linha .val { color: var(--txt-dim); min-width: 0; }
 .happened .linha .para { font-family: var(--font-num); font-size: 10.5px; color: var(--txt-faint); }
+/* O selo de mídia. `align-self: center` porque a linha alinha por baseline e um
+   SVG não tem baseline — sem isso o glifo fica pendurado acima do texto. */
+.happened .linha .midia {
+  display: inline-flex; align-items: center; gap: 5px; align-self: center; flex: 0 0 auto;
+  padding: 2px 8px 2px 6px; border: 1px solid var(--line-soft); border-radius: 999px;
+  background: var(--surface-2); color: var(--txt-dim);
+}
+.happened .linha .midia svg { display: block; }
+.happened .linha .midia .mw { font-family: var(--font-num); font-size: 10.5px; color: inherit; }
 /* O que foi dito aparece como citação, não como dado: é conteúdo de alguém, e a
    tipografia tem que lembrar disso. Contato já vem mascarado do servidor. */
 .happened .fala {
@@ -1536,6 +1545,7 @@ textarea, input { caret-color: var(--accent); }
     <a href="/" data-porta="fluxos" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Fluxos</span><kbd>alt 1</kbd></span></a>
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
+    <a href="/upgrade" data-porta="upgrade"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
   </nav>
   <div class="sep"></div>
   <!-- `sens`: numa filmagem ou num projetor, o endereço da instância diz a
@@ -1701,7 +1711,12 @@ const EFFECTS = [
   { re: /httpRequest/i,                               external: true,  verbo: "chamou uma API" },
   { re: /executeWorkflow|toolWorkflow/i,              external: false, verbo: "chamou um sub-fluxo" },
   { re: /lc\.agent|langchain\.agent/i,                external: false, verbo: "o agente pensou e respondeu" },
-  { re: /openAi|lmChat/i,                             external: false, verbo: "chamou o modelo" },
+  /* Sem `verbo` fixo de propósito: com ele, `OP_VERB.transcribe` nunca era
+     alcançado (`verbo` da regra ganha da operação em `effectOf`), e um nó que
+     transcreveu áudio aparecia na lista como "chamou o modelo" — o que é verdade e
+     esconde a única coisa interessante que ele fez. Com `fb`, quem tem operação
+     reconhecida fala por ela e o resto continua caindo aqui. */
+  { re: /openAi|lmChat/i,                             external: false, verbo: null, fb: "chamou o modelo" },
   { re: /memoryBufferWindow|memoryRedisChat/i,        external: false, verbo: "leu a memória da conversa" },
   { re: /splitInBatches/i,                            external: false, verbo: "dividiu em lotes" },
   /* `stopAndError` é o único nó cujo sucesso É uma parada: sem regra própria ele
@@ -1721,6 +1736,87 @@ const OP_VERB = {
   // caía em "executou", que não distingue empilhar de ler.
   push: "empilhou", pop: "desempilhou", incr: "incrementou", publish: "publicou"
 };
+
+/* ÁUDIO: O QUE FOI DITO, QUANDO O QUE TRAFEGOU NÃO FOI TEXTO.
+ *
+ * Medido no Iago, execução #183879, e o defeito era um em cada sentido:
+ *
+ *   - O LEAD manda áudio e o fluxo escreve `contato-msg: "[lead enviou um audio]"`
+ *     — um recado do próprio fluxo, 19 nós antes de existir transcrição. O resumo
+ *     mostra o PRIMEIRO texto que aparece, então mostrava o recado no lugar da fala.
+ *   - O AGENTE manda áudio por um `whatsApp` com `messageType: "audio"` e nenhum
+ *     parâmetro de texto, e a linha saía "o conteúdo não veio nos campos
+ *     conhecidos" — verdadeiro sobre os campos e falso sobre o mundo, porque manda
+ *     quem lê procurar um campo que não existe.
+ *
+ * Nos dois casos o texto JÁ atravessava o servidor, só que em outro nó:
+ * `openAI_audio.sample.texto` (o que entrou) e `Convert text to speech.enviado`
+ * (o que virou áudio). O que faltava era ATRIBUIÇÃO: dizer que aquele texto é
+ * desta mensagem.
+ *
+ * A atribuição é pela cadeia de `src`, nunca por vizinhança — `src` é a aresta
+ * gravada pelo n8n, e num laço com `Wait` o vizinho na ordem de execução é outro
+ * nó (a lição que `alimentador` já pagou). Medido: o envio pendura em
+ * `Code in JavaScript`, que pendura em `Convert text to speech`; a transcrição da
+ * saída pendura no mesmo `Convert text to speech`. Dois nós de distância, provados
+ * pela aresta. Sem cadeia que prove, a linha diz que mandou áudio e não inventa
+ * texto — o silêncio continua sendo preferível ao palpite. */
+const MIDIA_PALAVRA = {
+  audio: "um áudio", voice: "um áudio", image: "uma imagem", photo: "uma imagem",
+  video: "um vídeo", document: "um documento", sticker: "um sticker"
+};
+// Glifo por mídia. O que não tem desenho fica só com a palavra: ícone errado é
+// pior que ícone nenhum, a mesma regra do `iconFor`.
+const MIDIA_ICONE = {
+  audio: "audio", voice: "audio", image: "imagem", photo: "imagem",
+  video: "video", document: "arquivo", sticker: "arquivo"
+};
+const CADEIA_MAX = 4;
+
+/* `sub` chega do servidor como "operação: recurso". Medido: o nó de transcrição do
+   OpenAI vem como "transcribe: audio" e o ElevenLabs como "textToSpeech: speech".
+   O tipo entra como rede no segundo caso porque o nó é de terceiro (`@elevenlabs/…`)
+   e um pacote novo de TTS não vai usar a mesma palavra de operação. */
+const ehTranscricao = node => /^transcribe\b/.test(String((node && node.sub) || ""));
+const ehFala = node => /^textToSpeech\b/.test(String((node && node.sub) || ""))
+  || /elevenlabs|textToSpeech/i.test(String((node && node.type) || ""));
+
+/* Os ancestrais desta run pela aresta de verdade, do mais próximo ao mais longe.
+   `alimentador` cai no vizinho da ordem quando não há `src` — aqui esse retorno é
+   recusado de propósito: proximidade não prova nada, e é exatamente o erro que
+   esta função existe para não cometer. */
+function cadeiaAtras(l, linhas, max = CADEIA_MAX) {
+  const out = [];
+  let atual = l;
+  for (let i = 0; i < max; i++) {
+    if (!atual || !atual.r.src) break;
+    const pai = alimentador(atual.r, linhas);
+    if (!pai || pai === l || out.includes(pai)) break;
+    out.push(pai);
+    atual = pai;
+  }
+  return out;
+}
+
+/* O texto de uma mensagem que saiu como áudio. Duas fontes, na mesma hierarquia de
+ * confiança que a linha `enviou` já usa:
+ *
+ *   `fala`        — o parâmetro de texto do nó que GEROU o áudio. Classe `param`:
+ *                   é a mensagem por construção, existe antes do envio e existe em
+ *                   qualquer fluxo com TTS.
+ *   `transcricao` — uma transcrição que pendura no mesmo nó de TTS, isto é, do
+ *                   áudio que de fato saiu. É o que o lead ouviu, mas é uma volta
+ *                   pelo STT: medido, devolveu "da e-commerce Puro" onde o texto
+ *                   era "da Ecommerce Puro". Por isso é a segunda, e a tela diz
+ *                   qual das duas está mostrando. */
+function textoDaMidia(l, linhas) {
+  const tts = cadeiaAtras(l, linhas).find(a => ehFala(a.node));
+  if (!tts) return null;
+  if (tts.r.enviado) return { texto: tts.r.enviado, origem: "fala", nó: tts.r.name };
+  const tr = linhas.find(x => ehTranscricao(x.node) && x.r.sample && x.r.sample.texto
+    && cadeiaAtras(x, linhas).includes(tts));
+  return tr ? { texto: tr.r.sample.texto, origem: "transcricao", nó: tr.r.name } : null;
+}
 
 /* O RESUMO EM PROSA — "o fluxo recebeu X, respondeu Y, gravou Z".
  *
@@ -1755,8 +1851,19 @@ function resumoExecucao(detail, byName) {
   const envio = /whatsApp|twilio|telegram|slack|gmail|sendEmail|messageBird/i;
   const idxEnvio = linhas.findIndex(l => l.node && envio.test(l.node.type));
   const antes = idxEnvio >= 0 ? linhas.slice(0, idxEnvio) : linhas;
+  /* A transcrição vem ANTES do primeiro-texto-que-aparece na ordem de preferência,
+     e isso é o conserto: quando o lead manda áudio, o texto que chega primeiro é o
+     recado que o fluxo escreveu no lugar da fala ("[lead enviou um audio]") e a
+     transcrição só existe 19 nós adiante. Trocar a ordem mostra o que foi dito; o
+     recado fica de fora porque o símbolo de áudio já diz o que ele dizia. */
+  const transIn = antes.find(l => ehTranscricao(l.node) && l.r.sample && l.r.sample.texto);
   const chegou = antes.find(l => l.r.sample && l.r.sample.texto);
-  if (chegou) {
+  if (transIn) {
+    blocos.push({
+      tipo: "in", texto: transIn.r.sample.texto,
+      midia: "audio", origem: "transcricao", origemNó: transIn.r.name
+    });
+  } else if (chegou) {
     blocos.push({ tipo: "in", texto: chegou.r.sample.texto, quem: chegou.r.sample.quem || null });
   } else {
     // Sem texto, mas com binário: é áudio, imagem ou documento. Dizer isso é
@@ -1787,11 +1894,19 @@ function resumoExecucao(detail, byName) {
     const ali = alimentador(l.r, linhas);
     const aliS = (ali && ali.r.sample) || {};
     const direto = l.r.enviado || s.texto || null;
+    /* Mídia: o nó não tem campo de texto NENHUM (medido — `messageType: "audio"`,
+       `mediaPropertyName: "data"`), então o texto vem do nó que gerou o áudio, e só
+       quando a aresta prova que é o mesmo áudio. A busca é restrita a áudio porque
+       é a única mídia com texto equivalente: uma imagem não tem transcrição. */
+    const mid = l.r.midia && MIDIA_PALAVRA[l.r.midia] ? l.r.midia : null;
+    const daMidia = !direto && (mid === "audio" || mid === "voice") ? textoDaMidia(l, linhas) : null;
     blocos.push({
       tipo: "out", nó: l.r.name,
-      texto: direto,
-      origem: l.r.enviado ? "param" : (s.texto ? "saida" : null),
-      entrada: direto ? null : (aliS.texto || null),
+      midia: mid,
+      texto: direto || (daMidia && daMidia.texto) || null,
+      origem: l.r.enviado ? "param" : (s.texto ? "saida" : (daMidia ? daMidia.origem : null)),
+      origemNó: daMidia ? daMidia.nó : null,
+      entrada: (direto || daMidia) ? null : (aliS.texto || null),
       entradaNó: ali ? ali.r.name : null,
       quem: s.quem || aliS.quem || null,
       itens: l.r.items
@@ -4780,6 +4895,12 @@ const ICONS = {
   slack:    { c: "#E8557E", d: ["M9 4v8", "M15 12v8", "M4 15h8", "M12 9h8"] },
   sheets:   { c: "#5FBF7B", d: ["M6 4h8l4 4v12H6z", "M14 4v4h4", "M9 12h6", "M9 15.5h6", "M12 12v6"] },
   audio:    { c: "#D6D9E6", d: ["M4 11v2", "M8 8v8", "M12 5v14", "M16 8v8", "M20 11v2"] },
+  /* Mídia é neutra de propósito: a cor do ícone diz o serviço (regra do palco), e
+     aqui não há serviço nenhum a dizer — o que se está marcando é o formato do que
+     trafegou. Mesmo cinza do `audio`, que já existia. */
+  imagem:   { c: "#D6D9E6", d: ["M4 6h16v12H4z", "M4 16l5-4.5 3.5 3 3-2.5L20 15", "M9 10.2a1.1 1.1 0 1 1-2.2 0 1.1 1.1 0 0 1 2.2 0"] },
+  video:    { c: "#D6D9E6", d: ["M4 7h11v10H4z", "M15 11l5-3v8l-5-3"] },
+  arquivo:  { c: "#D6D9E6", d: ["M7 4h7l4 4v12H7z", "M14 4v4h4", "M10 13h5", "M10 16h5"] },
   subflow:  { c: "#FF9F43", d: ["M4 6h6v4H4z", "M14 14h6v4h-6z", "M7 10v4a2 2 0 0 0 2 2h5", "M12 5.5h8", "M17 3l3 2.5-3 2.5"] }
 };
 
@@ -5345,18 +5466,34 @@ function renderHappened(detail) {
     const linha = el("div", "linha");
     if (b.tipo === "in") {
       linha.append(el("span", "rot", "recebeu"));
+      if (b.midia) linha.append(midiaChip(b.midia));
       if (b.arquivo) linha.append(el("span", "val", "um arquivo (áudio, imagem ou documento) em " + b.nó
         + " — sem texto no corpo da mensagem"));
-      else linha.append(el("q", "fala sens", b.texto));
+      else {
+        linha.append(el("q", "fala sens", b.texto));
+        // A citação é uma transcrição, não o texto da mensagem — e a diferença é
+        // toda a diferença: o que está entre aspas foi transcrito por um modelo,
+        // não digitado por ninguém.
+        if (b.origem === "transcricao") linha.append(el("span", "para", "(transcrição, em " + b.origemNó + ")"));
+      }
     } else if (b.tipo === "out") {
       linha.append(el("span", "rot out", "enviou"));
-      if (b.texto) linha.append(el("q", "fala sens", b.texto));
+      if (b.midia) linha.append(midiaChip(b.midia));
+      if (b.texto) {
+        linha.append(el("q", "fala sens", b.texto));
+        if (b.origem === "fala") linha.append(el("span", "para", "(o texto que virou áudio, em " + b.origemNó + ")"));
+        else if (b.origem === "transcricao") linha.append(el("span", "para", "(transcrição do áudio enviado, em " + b.origemNó + ")"));
+      }
       else if (b.entrada) {
         // Distinção explícita: isto é o que ENTROU no nó de envio, não o que a
         // API devolveu. Sem esse rótulo, um texto vizinho passaria por texto
         // enviado — e essa é a diferença entre relatar e supor.
         linha.append(el("q", "fala sens", b.entrada));
         linha.append(el("span", "para", "(o item que entrou em " + (b.entradaNó || b.nó) + ")"));
+      } else if (b.midia) {
+        // "o conteúdo não veio nos campos conhecidos" seria falso aqui: não existe
+        // campo de texto neste nó, e a frase mandaria procurar um.
+        linha.append(el("span", "val", "pelo nó " + b.nó + " — sem texto equivalente nesta execução"));
       } else {
         linha.append(el("span", "val", (b.itens != null ? b.itens + " mensagem(ns)" : "mensagem")
           + " pelo nó " + b.nó + " — o conteúdo não veio nos campos conhecidos"));
@@ -5415,12 +5552,30 @@ function renderHappened(detail) {
 
 // O mesmo glifo do palco, em HTML, para a lista poder usá-lo sem duplicar o
 // desenho. 24 é o viewBox de todos os ícones.
-function glyphHtml(type, size) {
-  const ic = iconFor(type);
-  const paths = ic.d.map(d => '<path d="' + d + '" fill="none" stroke="' + ic.c
+/* O símbolo da mídia, colado na palavra. É a única coisa na linha que se lê antes
+   do texto — e é o que responde "foi áudio ou foi digitado?" sem obrigar a ler a
+   ressalva no fim. O glifo é `aria-hidden` (está dentro de `iconeHtml`), então a
+   palavra ao lado é o que existe para quem usa leitor de tela: um formato dito só
+   por ícone não existe para essa pessoa. */
+function midiaChip(tipo) {
+  const sp = el("span", "midia");
+  const k = MIDIA_ICONE[tipo];
+  if (k && ICONS[k]) sp.innerHTML = iconeHtml(ICONS[k], 13, "currentColor");
+  sp.append(el("span", "mw", MIDIA_PALAVRA[tipo] || tipo));
+  return sp;
+}
+
+/* `cor` existe porque a cor do ícone de nó é a cor do SERVIÇO, calibrada sobre a
+   face escura do palco. Num selo de mídia não há serviço a dizer, e o cinza claro
+   do `audio` medido sobre `--surface-2` no tema light ficou quase invisível — a
+   mesma lição do "um token de texto tem que passar em toda superfície onde cai".
+   Quem é chrome pede `currentColor` e herda a cor do texto, como os ícones da nav. */
+function iconeHtml(ic, size, cor) {
+  const paths = ic.d.map(d => '<path d="' + d + '" fill="none" stroke="' + (cor || ic.c)
     + '" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>').join("");
   return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';
 }
+function glyphHtml(type, size) { return iconeHtml(iconFor(type), size); }
 
 /* ------------------------------------------------------------------- pan/zoom */
 (function pan() {
@@ -5761,10 +5916,10 @@ boot();
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html e cockpit.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As três portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só

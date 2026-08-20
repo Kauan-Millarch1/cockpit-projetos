@@ -23,7 +23,18 @@ const ICONES = {
            "M17.3 7.2l-3.6 3.4"],
   tester: ["M9.3 3.8h5.4",
            "M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8",
-           "M7.6 14.6h8.8"]
+           "M7.6 14.6h8.8"],
+  /* Upgrade: um fluxo que ganha um degrau. Dois nós ligados na base e a seta
+     subindo do segundo — é "o que existe, e mais um passo", que é literalmente o
+     que a aba faz. Não é um "+" nem um foguete: a porta é sobre evoluir o que já
+     está lá, não sobre criar (isso é o Tester) nem sobre consertar (isso é
+     Fluxos). Mesma gramática das outras três: viewBox 24, traço 1.9,
+     currentColor. */
+  upgrade: ["M3.6 17.4h4v3.2h-4z",
+            "M10.2 17.4h4v3.2h-4z",
+            "M7.6 19h2.6",
+            "M17.6 14.2V4.2",
+            "M14 7.8l3.6-3.6 3.6 3.6"]
 };
 
 const ico = (k, s = 15) =>
@@ -44,7 +55,10 @@ const PORTAS = [
     fato: "21 projetos", sinal: "cold", tecla: "2" },
   { id: "tester", href: "#tester", rot: "Tester", sufixo: "tester",
     desc: "descreve a ideia, sai o fluxo desenhado",
-    fato: "1 construindo", sinal: "accent", tecla: "3" }
+    fato: "1 construindo", sinal: "accent", tecla: "3" },
+  { id: "upgrade", href: "#upgrade", rot: "Upgrade", sufixo: "upgrade",
+    desc: "o fluxo já existe e você quer que ele faça mais",
+    fato: "13 na porta", sinal: "cold", tecla: "4" }
 ];
 
 /* A chama sai do arquivo real. Redesenhá-la no preview era o jeito mais fácil de
