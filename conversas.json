@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-20T18:41:34.353Z",
+  "savedAt": "2026-08-20T18:48:20.033Z",
   "conversas": [
     {
       "wfId": "azwM3PgGtSbGTCsn",
@@ -120,6 +120,16 @@
       "usd": 1.0128,
       "usdDesconhecido": false,
       "teveAlvo": true
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt1vili6rv8s",
+      "em": "2026-08-20T18:48:19.932Z",
+      "rodadas": 0,
+      "pedidos": 0,
+      "usd": 0,
+      "usdDesconhecido": false,
+      "teveAlvo": false
     }
   ]
 }

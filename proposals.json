@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-13T12:29:06.674Z",
+  "savedAt": "2026-08-20T18:41:55.560Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -2004,6 +2004,800 @@
       "appliedAt": "2026-08-13T11:47:08.069Z",
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-06T17:16:51.664Z"
+    },
+    {
+      "runId": "rmsruv5nf1",
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 2,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** o timeout é externo (Graph API) e o retry no `msg` já é o teto do n8n; blindei o gêmeo `enviar_botao_cta`, que manda o link de checkout sem retry nem timeout.\n\n## Causa raiz\n\nO erro é `ETIMEDOUT` na camada de conexão com `graph.facebook.com` — a mensagem \"The connection\ntimed out, consider setting the 'Retry on Fail' option\" é o texto que o n8n gera exatamente para\nesse código. **Nenhum parâmetro deste workflow produz esse erro.** É indisponibilidade de rede /\nGraph API vista do worker do n8n Cloud.\n\nTrês coisas sustentam isso:\n\n1. **É um surto, não um padrão.** As 4 ocorrências estão todas na mesma janela: primeira há 17h,\n   última há 17h. Nada nas 17h seguintes. Isso é incidente com começo e fim, não configuração errada.\n2. **Não é credencial.** Token revogado/expirado na Meta devolve 401/190, não `ETIMEDOUT`. Não toquei\n   em `credentials` e não há nada a reautorizar aqui.\n3. **O `msg` já foi corrigido antes.** O nó já está com `retryOnFail: true`, `maxTries: 3`,\n   `waitBetweenTries: 5000`, e a nota dele descreve *estas mesmas* 4 ocorrências. Ou seja: o registro\n   de \"4× em 24h\" é anterior ao retry, não é o retry falhando. **Não existe uma falha nova depois do\n   patch anterior.** Isso muda a leitura do quadro de erros: o card está velho, não reincidente.\n\nO que eu **descartei** olhando o fluxo:\n\n- `Verificação_numero` devolve `phone_normalizado: null` quando o número não fecha 9 dígitos, e\n  `parametros` copia esse null para `body.phone` (usado pelo `msg`) sem nenhum portão em\n  `phone_valido`. É uma fragilidade real, mas não é esta falha: destinatário vazio na Meta é 400,\n  não timeout de conexão.\n- Lock preso: `Redis_SET_lock` tem `expire: true`/`ttl: 30`. Quando o `msg` mata a execução, o\n  `Redis_DEL_lock` pode não rodar, mas o lock morre sozinho em 30s. Não há lead travado.\n- Sub-workflow: o nó culpado está neste fluxo, não em fluxo filho.\n\n## O que mudei\n\nNão há mais nada a apertar no `msg`: o nó do WhatsApp é declarativo e **não expõe timeout de\nrequest**; o único recurso é retry, que já está lá. E o n8n limita retry a 5 tentativas × 5000ms.\nEntão o patch vai onde ainda existe buraco:\n\n- **`enviar_botao_cta`** — o gêmeo do `msg`. Mesmo endpoint (`/v21.0/.../messages`), mesma\n  credencial `whatsAppApi`, mesmo loop, disparado pelo outro ramo do `tipo_envio` — e é justamente a\n  mensagem que carrega o link de checkout. Estava com **zero** proteção. Ganhou `retryOnFail` 3×/5s e\n  `options.timeout: 20000`.\n- **`msg`** — só a `notes`, registrando o diagnóstico, que as 4 ocorrências antecedem o retry, e por\n  que `maxTries` **não** subiu.\n\nO `timeout` de 20s é o ponto que o `msg` não pode ter: sem ele, uma conexão pendurada queima ~2min\nnuma tentativa só (foi a duração do `msg` na falha) e o retry quase não chega a rodar. Com 20s, três\ntentativas cabem em ~70s.\n\n`maxTries` do `msg` ficou em 3 de propósito. Subir para 5 compra ~10s de cobertura e, como o send do\nWhatsApp não é idempotente, cada tentativa extra é uma chance de bolha duplicada para o lead.\nNum incidente de uma hora, 10s não pagam isso.\n\n## Por que isso resolve\n\nResolve **parcialmente, e só o que é resolvível deste lado.** Nenhuma mudança de fluxo impede a Meta\nde ficar inalcançável. O que muda:\n\n- o caminho do link de checkout deixa de morrer no primeiro blip — hoje um `ETIMEDOUT` ali derruba a\n  execução na mensagem de maior valor do funil, sem nenhuma retentativa;\n- o `timeout` transforma uma tentativa pendurada de 2min em falha rápida, o que é o que faz retry\n  valer alguma coisa;\n- a nota do `msg` deixa registrado que o retry ainda não foi testado por falha real, para a próxima\n  vez que esse card aparecer não gerar um segundo patch em cima do mesmo lugar.\n\n## Risco residual\n\n- **Não sei se o retry do `msg` funciona.** Ele nunca pegou uma falha nova. Se voltar a estourar\n  *depois* de 13/08, aí sim é sinal novo — e a resposta não é mais retry, é tratar o corte do loop\n  de bolhas (hoje o lead fica com a resposta pela metade e o `salvar_resumo` já gravou como se\n  tivesse ido inteira).\n- **Duplicata.** `ETIMEDOUT` pode acontecer depois da Meta aceitar a mensagem. Retry em `msg` e agora\n  em `enviar_botao_cta` pode entregar bolha ou botão repetido. Não há chave de idempotência no\n  endpoint da Meta; é troca consciente de \"pela metade\" por \"às vezes repetido\".\n- **`onError` segue no padrão** em ambos: a execução ainda para. Considerei `continueErrorOutput` no\n  `msg` religado no `Merge1` (o loop seguiria e a bolha não seria gravada como enviada), e descartei:\n  a execução terminaria como sucesso e a falha ficaria invisível — perde-se o único sinal que hoje\n  existe, já que `settings.errorWorkflow` está vazio e não há alerta.\n- **`phone_valido` sem portão** continua lá, e `parametros` grava `null` em `body.phone`/`contato-wpp`\n  quando o número não normaliza. Não mexi porque não é esta falha, mas vai aparecer como erro no\n  `msg` com outra assinatura (400 da Meta ou erro de tipo no Set).\n- Não estendi o `timeout` aos outros `httpRequest` que batem na Graph API (`download_audio`,\n  `get_image_url`, `upload_audio_storage*`). Mesma exposição, mas fora do escopo desta falha.\n",
+      "fixNote": "Claude (cockpit) [enviar_botao_cta, msg]: o timeout é externo (Graph API) e o retry no msg já é o teto do n8n; blindei o gêmeo enviar_botao_cta, que manda o link de checkout sem retry nem timeout.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.8932760000000002,
+      "startedAt": "2026-08-13T18:32:24.416Z",
+      "finishedAt": "2026-08-13T18:38:23.942Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-13T11:42:06.264Z",
+      "retries": []
+    },
+    {
+      "runId": "rmswb97mj1",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 2,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Redis_SET_lock passou a montar chave e valor como string explícita, na mesma origem do GET/DEL, e If_lock só segue quando há telefone — sem telefone, cai no lock_drop.\n\n## Causa raiz\n\nO telefone chega vazio no bloco do lock, e o nó do Redis não força string em nenhum dos argumentos.\n\nA cadeia está toda no fluxo:\n\n1. `Verificação_numero` tem três `return null` dentro de `normalizarTelefone` (número curto demais, local que não fecha 9 dígitos, local que não começa com 9). Nesses casos ele devolve `phone_normalizado: null` e marca `phone_valido: false`.\n2. `parametros` copia `{{ $json.phone_normalizado }}` para `contato-wpp` (tipo *string*) e **descarta `phone_valido`** — é um Set 3.4 sem *include other fields*, então só os 11 campos atribuídos seguem adiante.\n3. `phone_valido` não é lido em lugar nenhum do workflow. Procurei: a única ocorrência da string no `workflow.json` é a linha que o cria. A validação existe e ninguém consulta.\n4. `Code_verificar_lock` espalha `...$(\"parametros\").first().json`, então o `contato-wpp` nulo chega intacto em `If_lock` e em `Redis_SET_lock`.\n5. `Redis_SET_lock` monta `key` a partir desse valor, manda `value` como `{{ $executionId }}` cru e não fixa `keyType` (fica no `automatic`). `Invalid argument type` é o erro que o cliente Redis levanta quando um argumento do comando não é string/Buffer.\n\nPor que é justamente esse nó que aparece no quadro: **ele é o único do bloco de lock sem `onError`**. `Redis_GET_lock` e `Redis_DEL_lock` têm `onError: continueRegularOutput` e engolem a mesma condição em silêncio — o `Redis_GET_lock` \"levou 591ms e passou\" no caminho executado, mas isso não prova que ele deu certo.\n\n**O que eu não consegui determinar:** qual dos argumentos exatamente chegou não-string nessa execução — a `key`, o `value` vindo de `$executionId`, ou o tipo inferido pelo `keyType: automatic`. Isso só sai olhando o item de entrada real da execução 187444 no editor. O que dá para afirmar pelo JSON é que nenhum dos dois argumentos é garantido string hoje, e que o dado que os alimenta pode ser nulo por desenho. 1× em 24h combina com uma entrada malformada rara, não com quebra sistêmica.\n\n## O que mudei\n\nDois nós, nenhum criado, nenhum removido.\n\n- **`If_lock`** — segunda condição, combinador `and`: `String($json['contato-wpp'] ?? '')` precisa ser não-vazio. Sem telefone, o item sai pela saída falsa, que já vai para `No Operation, lock_drop`.\n- **`Redis_SET_lock`** — `key` agora é `'processing:' + String($('parametros').first().json['contato-wpp'] ?? '')`, `value` agora é `String($executionId ?? '')`, e `keyType` fixado em `string`. Troquei a origem `$json` por `$('parametros')` para ficar idêntica à do `Redis_GET_lock` e à do `Redis_DEL_lock`.\n\n## Por que isso resolve\n\nO buraco é tratado antes do nó que estourou: o caso sem telefone nem chega ao Redis, sai pelo `lock_drop` como se o lock estivesse ocupado. E se algum outro caminho ainda levar valor estranho até lá, `String(...)` nos dois argumentos mais `keyType: string` tiram a inferência automática de tipo do caminho e garantem que o comando receba texto — que é a condição que o cliente Redis recusa.\n\nO ganho lateral é GET, SET e DEL passarem a derivar a chave da mesma expressão. Antes o SET lia `$json` e os outros dois liam `$('parametros')`; hoje isso dá no mesmo por causa do espalhamento no `Code_verificar_lock`, mas qualquer nó inserido no meio quebrava o pareamento e deixava lock órfão até o TTL.\n\nNão pus `onError` no `Redis_SET_lock` de propósito: se a gravação do lock falhar, tem que falhar alto, senão duas execuções entram juntas — que é exatamente o que o lock existe para impedir.\n\n## Risco residual\n\n1. **Mensagem com telefone irrecuperável agora é descartada em silêncio.** O `No Operation, lock_drop` não tem saída e não avisa ninguém. Antes ela estourava e virava erro visível; agora ela some igual a uma mensagem que perdeu o lock. Se você quiser registro disso, é um nó a mais depois do `lock_drop` — não fiz, está fora da correção mínima.\n2. **A causa exata não está confirmada.** Se a assinatura voltar igual depois de aplicar, o próximo passo é abrir a execução 187444 e olhar o item de entrada do `Redis_SET_lock`, não mexer no nó de novo às cegas.\n3. **Bug adjacente que eu não toquei:** `Code_verificar_lock` lê `$input.item.json` esperando a resposta do `Redis_GET_lock`, mas o nó imediatamente anterior a ele é o `resolver_event_id` (o caminho é GET → `marcar_contacted_event_leads` → `resolver_event_id` → `Code_verificar_lock`). Esse item não tem campo `value`, então `lock_ativo` é sempre `false` e **o lock nunca bloqueia nada** — o `Redis_GET_lock` hoje é lido por ninguém. Isso não causa o erro reportado, por isso ficou de fora. A correção seria trocar por `$('Redis_GET_lock').first().json`, e é decisão sua.\n4. **Segredo em claro no fluxo:** o `jsCode` do `resolver_event_id` tem um Bearer token da API admin escrito literalmente. Não é um parâmetro que eu alterei e não mexi nele, mas fica o registro — o lugar dele é uma credencial.\n5. Não toquei em nenhum bloco `credentials` nem em `active`.\n",
+      "fixNote": "Claude (cockpit) [If_lock, Redis_SET_lock]: Redis_SET_lock passou a montar chave e valor como string explícita, na mesma origem do GET/DEL, e If_lock só segue quando há telefone — sem telefone, cai no lock_drop.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.8271375,
+      "startedAt": "2026-08-16T21:22:18.727Z",
+      "finishedAt": "2026-08-16T21:29:28.071Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-13T11:42:06.264Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxbh4cs2",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Em Redis_SET_lock o `value` era a expressão pura `{{ $executionId }}`, que entrega tipo nativo ao nó; virou string concatenada com `keyType: string`.\n\n## Causa raiz\n\nO nó `Redis_SET_lock` monta o valor assim:\n\n```\n\"value\": \"={{ $executionId }}\"\n```\n\nQuando o campo é uma expressão **pura** (só `{{ ... }}`, sem texto literal em volta), o n8n não\nconverte o resultado para texto — ele entrega ao nó o **valor nativo**. O nó Redis então repassa\nesse valor para o cliente Redis, que só aceita string ou Buffer como argumento de comando e\nlevanta `Invalid argument type` para qualquer outra coisa (`undefined`, número, booleano, objeto).\nO n8n embrulha esse erro do cliente como `NodeOperationError` no nó — que é exatamente a\nassinatura da falha.\n\nDuas evidências sustentam que o problema está no `value` e não na `key`:\n\n1. A `key` é `\"processing:\" + $json[\"contato-wpp\"]`. Concatenação em JavaScript **sempre** produz\n   string, mesmo que `contato-wpp` esteja ausente (viraria `\"processing:undefined\"`). Ou seja, a\n   chave não consegue ser de tipo inválido. E o campo existe: `Code_verificar_lock` faz\n   `{ ...$(\"parametros\").first().json, lock_ativo }`, então `contato-wpp` chega no nó.\n2. `Redis_SET_lock` é o **único** nó Redis de escrita do fluxo com valor não-garantido-string.\n   Todos os outros usam `JSON.stringify(...)` (`redis_set_evento_detalhe`,\n   `redis_set_eventos_lista`, `salvar_mapa_pos_resposta`, `salvar_mapa_redis`) e nenhum deles\n   aparece no quadro de falhas.\n\nIsso também explica a intermitência (2× em 24h): na maioria das execuções `$executionId` chega\ncomo string e passa; quando não chega como string, o comando morre no cliente Redis.\n\nPor que a correção anterior não pegou: ela mexeu nas **chaves** de `Redis_GET_lock` e\n`Redis_DEL_lock`, trocando `$json` por `$('parametros')`. São nós que não falham, e a troca era\nsemanticamente neutra. O `value` de `Redis_SET_lock`, que é a origem do erro, ficou intocado.\n\n## O que mudei\n\nSó o nó `Redis_SET_lock`, dois parâmetros:\n\n- `value`: `={{ $executionId }}` → `={{ 'exec:' + $executionId }}`. A concatenação com literal\n  força o n8n a resolver o campo como string, exatamente o padrão dos outros nós de escrita.\n- `keyType`: ausente (= `automatic`) → `\"string\"`. Assim o nó para de inferir o tipo do valor e\n  usa o caminho de string direto.\n\nMais uma `notes` curta no nó registrando o motivo. `key`, `expire` e `ttl` ficaram como estavam.\n\nNada mais foi tocado: nenhum nó novo, nenhuma reconexão, nenhum `credentials`.\n\n## Por que isso resolve\n\nO erro é de tipo de argumento. Depois da mudança o valor é string em 100% dos casos — inclusive\nse `$executionId` vier `undefined`, o campo resolve para `\"exec:undefined\"`, que é string válida\ne não-vazia. O nó deixa de ter como levantar `Invalid argument type`, e o lock continua cumprindo\no papel de mutex (o que importa para o `Redis_GET_lock` é a chave existir, não o conteúdo dela).\n\nA troca de formato do valor é segura: ninguém compara esse valor com `$executionId`.\n`Redis_DEL_lock` apaga a chave sem checar dono, e `Code_verificar_lock` só testa presença.\n\n## Risco residual\n\n**Confiança na causa raiz: alta, mas por evidência circunstancial.** Não tenho as execuções\n187444/189388 em mãos, só o fluxo estático — não pude ver o valor concreto que `$executionId`\nassumiu no momento da falha. O que sustenta o diagnóstico é o padrão: é o único argumento do único\nnó Redis que pode não ser string, e é o nó que quebra com erro de tipo. Se reincidir com a mesma\nmensagem depois deste patch, o próximo passo é abrir a execução falha e ler o valor resolvido do\ncampo, porque aí a hipótese cai.\n\n**Dois defeitos separados que eu encontrei e NÃO corrigi**, porque não causam esta falha e\nmudariam comportamento — decisão sua:\n\n1. `Code_verificar_lock` faz `const redisData = $input.item.json` e testa `redisData.value`. Mas\n   a entrada dele é `resolver_event_id`, não `Redis_GET_lock` (o caminho real é\n   `Redis_GET_lock → marcar_contacted_event_leads → resolver_event_id → Code_verificar_lock`), e\n   `resolver_event_id` devolve `{ event_id, event_name, has_event_tag, product_original }` — sem\n   `value`.\n2. Mesmo se estivesse ligado direto, `Redis_GET_lock` não define `propertyName`, e o padrão desse\n   campo no nó Redis não é `value`.\n\nSomados, os dois fazem `lock_ativo` ser sempre `false`: **o lock nunca bloqueia nada**, o `If_lock`\nsempre segue pelo caminho verdadeiro e duas execuções simultâneas do mesmo contato passam juntas.\nIsso é um bug real de concorrência, e provavelmente o motivo de essa área do fluxo dar trabalho —\nmas consertar exige decidir para onde o `Redis_GET_lock` deve apontar, o que muda o fluxo de\nverdade. Não fiz por conta própria.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Em Redis_SET_lock o value era a expressão pura {{ $executionId }}, que entrega tipo nativo ao nó; virou string concatenada com keyType: string.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.6769180000000001,
+      "startedAt": "2026-08-17T14:16:13.916Z",
+      "finishedAt": "2026-08-17T14:22:14.776Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-13T11:42:06.264Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxcgkzl3",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Redis_SET_lock passava argumento não-string ao Redis (`value` de `$executionId`) e lia a chave de `$json`; forcei string no value, `keyType: string` e chave igual à do GET/DEL.\n\n## Causa raiz\n\nO nó `Redis_SET_lock` (`n8n-nodes-base.redis`, operação `set`) entregava ao cliente Redis dois argumentos que ele não garantia serem string:\n\n- `value: {{ $executionId }}` — expressão de template inteiro, então o resultado chega **no tipo nativo**, não convertido para texto. O cliente Redis usado pelo n8n só aceita `string` ou `Buffer` no encoder do protocolo; qualquer outra coisa (`undefined`, número, booleano, objeto) resulta em `Invalid argument type`, embrulhado pelo n8n como `NodeOperationError`. Este é o único argumento do nó que pode chegar não-string, porque o outro (`key`) é uma concatenação e sempre produz texto.\n- `keyType` ausente, portanto `automatic`: o nó **infere** o tipo pelo `typeof value` e escolhe entre os caminhos `string` / `number` / `list` / `hash`. Com um value fora do esperado, a inferência manda o dado para o caminho errado em vez de falhar num lugar legível.\n\nReforça o diagnóstico o padrão de ocorrência: 2× em 24h, primeira há 17h, e `Redis_SET_lock` é o último nó de todas as execuções de exemplo. Isso parece **100% de falha desde que o nó passou a rodar**, não uma falha dependente de dado — e `$executionId` não depende de dado nenhum.\n\nHá um **segundo defeito, latente**, no mesmo nó, que encontrei ao comparar com os vizinhos:\n\n| nó | chave |\n|---|---|\n| `Redis_GET_lock` | `\"processing:\" + $('parametros').first().json['contato-wpp']` |\n| `Redis_DEL_lock` | `\"processing:\" + $('parametros').first().json['contato-wpp']` |\n| `Redis_SET_lock` | `\"processing:\" + $json[\"contato-wpp\"]` ← único diferente |\n\nHoje isso dá no mesmo, porque `Code_verificar_lock` faz `...$(\"parametros\").first().json` e repassa o campo. Mas o SET fica dependendo de quem por acaso está na entrada dele: qualquer mudança em `Code_verificar_lock` ou `If_lock` faz o SET gravar uma chave e o GET/DEL procurarem outra — o lock deixa de existir **em silêncio**, sem erro nenhum.\n\nVale registrar de onde vem o `contato-wpp` vazio, porque é a origem do valor estranho no lock: `Verificação_numero` devolve `phone_normalizado: null` e `phone_valido: false` quando não consegue normalizar o número, e **ninguém no fluxo testa `phone_valido`**. `parametros` então grava `contato-wpp: null` (Set 3.4 aceita null em campo `string`) e o fluxo inteiro segue com telefone nulo. A chave vira `processing:null`, um lock **global** compartilhado por todo lead com número inválido — um trava o outro.\n\n## O que mudei\n\nSó o bloco `parameters` de `Redis_SET_lock`, mais uma `notes`. Nenhum nó novo, nenhuma conexão alterada, nenhuma credencial tocada.\n\n- `value`: `{{ $executionId }}` → `{{ String($executionId ?? '') || 'lock' }}`. Garante string sempre; mantém o id da execução quando ele existe e cai em `'lock'` quando não. Seguro porque `Code_verificar_lock` só checa **presença** do valor (`value !== undefined/null/''`), nunca o conteúdo — ninguém usa o lock para verificar dono.\n- `keyType`: ausente → `\"string\"`. Desliga a inferência automática de tipo; o SET só pode seguir o caminho de string.\n- `key`: `$json[\"contato-wpp\"]` → `$('parametros').first().json['contato-wpp']`, **idêntica** à do GET e à do DEL. Deixei a concatenação exatamente como está nos outros dois, sem fallback, de propósito: se eu trocasse o `null` por `'sem-telefone'` só aqui, o SET gravaria `processing:sem-telefone` e o GET continuaria lendo `processing:null` — eu quebraria o lock em vez de consertá-lo.\n- `notes`: uma linha dizendo por que a chave é lida de `parametros` e por que o value é forçado a string.\n\n`expire: true` e `ttl: 30` ficaram como estavam.\n\n## Por que isso resolve\n\nO erro é do cliente Redis recusando um argumento que não é string. Depois do patch, os dois argumentos que o nó envia são string por construção: a chave por concatenação (como já era) e o value por `String(...)` com fallback não-vazio. Com `keyType: \"string\"` não sobra caminho alternativo dentro do nó. Se ainda houver falha nesse nó, ela não pode mais ser `Invalid argument type` vindo desses dois campos — sobra conexão/credencial de Redis, que aparece com outra mensagem, e aí o diagnóstico fica direto.\n\nA troca da chave não conserta o crash. Ela conserta o outro bug, o que não dá erro: SET e GET/DEL agora não podem divergir.\n\n## Risco residual\n\n- **Não tenho certeza de qual dos dois argumentos era o que estourava.** Não consegui rodar nada nem ler a execução 189388 — trabalhei só com o JSON do fluxo. Meu raciocínio elimina a chave (concatenação sempre gera texto) e sobra o `value`, mas é dedução, não observação. O patch endurece os dois, então cobre o caso mesmo se eu errei na atribuição.\n- **A causa de fundo continua no fluxo.** Nada testa `phone_valido`. Lead com número inválido segue com `contato-wpp: null` até o fim: `processing:null` no lock, `phone = null` no Supabase, `recipientPhoneNumber` nulo no WhatsApp. Depois deste patch o lock para de estourar, o que pode **esconder** esse caso em vez de expô-lo. A correção de verdade é um portão em `phone_valido` logo depois de `Verificação_numero` — não fiz porque exige nó novo e religação, e porque passa a descartar lead, que é decisão sua, não minha.\n- Se o problema real for a **conexão/credencial do Redis**, este patch não muda nada. Reautorização e credencial são feitas por humano no n8n; não toquei em `credentials`.\n- Se, na sua versão do n8n, `$executionId` já não existir como variável, a expressão dá `ReferenceError` — mas nesse caso a falha atual também seria \"não definida\", e não `Invalid argument type`, então considero improvável.\n- `value` pode virar a constante `'lock'` se `$executionId` não resolver. Isso não afeta o lock hoje, mas se algum dia você quiser lock com dono (só quem gravou pode apagar), esse fallback precisa sair.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock passava argumento não-string ao Redis (value de $executionId) e lia a chave de $json; forcei string no value, keyType: string e chave igual à do GET/DEL.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.3878249999999999,
+      "startedAt": "2026-08-17T14:43:48.440Z",
+      "finishedAt": "2026-08-17T14:49:32.850Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-13T11:42:06.264Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxi09ul1",
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "wfId": "3pk6711IFuBuqjz6",
+      "wfName": "[SANDBOX tester] Aviso de estoque baixo no Slack",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Causa é credencial Google OAuth2 sem token (reautorização manual no n8n); o patch só anota no nó o bloqueio e os campos [PREENCHER] — não corrige a falha.\n\n## Causa raiz\n\nA mensagem `Unable to sign without access token` não é do n8n: é da `google-auth-library`, lançada\nquando o cliente OAuth2 é chamado para assinar a requisição e o objeto de credencial está sem\n`access_token`. Na prática significa uma credencial Google **anexada ao nó, porém sem token válido** —\no Connect nunca foi concluído, ou o refresh token foi revogado/expirou. Se não houvesse credencial\nnenhuma anexada, o n8n barraria antes com \"Credentials ... are not set\", que é outro erro.\n\nRessalva honesta: o `workflow.json` que recebi vem **sem o bloco `credentials`** (o cockpit remove),\nentão não consigo ler qual credencial está no nó. O diagnóstico vem da mensagem de erro, não do dump.\n\nDois fatos do dump reforçam que ninguém mexeu nesse fluxo depois de criá-lo:\n\n- `createdAt` e `updatedAt` são o mesmo instante (`2026-08-10T18:53:35.641Z`), com\n  `versionCounter: 1` e um único `versionId`. O workflow **nunca foi editado desde a criação**.\n- `documentId` e `sheetName` continuam com o literal `[PREENCHER]`.\n\nOu seja: a marcação de \"corrigida\" em `2026-08-10T19:17:03Z` não corresponde a nenhuma alteração\nneste workflow. Como o nome é `[SANDBOX tester]`, a hipótese mais provável é que a correção anterior\ntenha sido aplicada em outra cópia (ou apenas marcada no quadro) — mas isso é hipótese, não tenho\ncomo confirmar com o que está nesta pasta.\n\nVale notar que o caminho executado começa em \"When clicking 'Execute workflow'\" e o workflow está\n`active: false` com `triggerCount: 0`: a única ocorrência veio de uma execução manual, não do\nagendamento das 8h — que nunca rodou.\n\n## O que mudei\n\nSó o nó `buscar_linhas_do_estoque`, e só metadado:\n\n- `notes` — registra as duas ações humanas pendentes (reautorizar a credencial; preencher\n  `documentId`/`sheetName`) e o motivo de não tratar o erro como \"continuar\".\n- `notesInFlow: true` — para o aviso aparecer no canvas, e não escondido no painel do nó.\n\nNenhum parâmetro, conexão, tipo ou credencial foi tocado.\n\n## Por que isso resolve\n\n**Não resolve, e o patch não pretende resolver.** A falha é de credencial, e reautorização OAuth é\nfeita por humano dentro do n8n — está fora do que um patch de workflow alcança (e fora do que as\nregras permitem tocar). O que o patch faz é evitar a terceira rodada deste mesmo ciclo: hoje quem\nabre o fluxo vê um nó vermelho sem contexto, marca como corrigido e a falha volta. Com a nota no\ncanvas, as duas pendências ficam escritas onde a falha acontece.\n\nTambém considerei — e descartei — a correção que \"sobrevive à falha\", isto é, `onError` continuando\no fluxo. Aqui ela seria pior que o erro: `filtrar_estoque_baixo` está com `alwaysOutputData: true`,\nentão uma saída vazia vira um item `{}`; o IF `tem_produto_com_estoque_baixo` testa\n`$json.Produto` notEmpty, cai na saída falsa e dispara `slack_avisar_estoque_ok` com\n\":white_check_mark: Estoque conferido\". Um alarme de estoque que grita \"tudo certo\" justamente\nquando não conseguiu ler a planilha é um falso negativo silencioso. O comportamento padrão\n(parar o workflow) é o correto e foi mantido de propósito.\n\n## Risco residual\n\n- **A falha continua acontecendo até alguém reautorizar a credencial.** O patch não a remove.\n- Depois da reautorização, o nó **volta a falhar** por causa do `[PREENCHER]` em `documentId` e\n  `sheetName`. Não preenchi porque não tenho o ID da planilha nem o nome da aba, e chutar isso\n  apontaria o fluxo para o lugar errado. São dados que só o Kauan tem.\n- Se alguém trocar o `onError` deste nó para continuar, o Slack passa a mandar \"estoque conferido\"\n  falso. Deixei isso escrito na nota, mas é uma convenção, não uma trava.\n- Não consegui confirmar o que a \"correção anterior\" de 2026-08-10 fez. Se ela foi aplicada num\n  fluxo gêmeo de produção, vale conferir lá antes de fechar este erro de novo.\n",
+      "fixNote": "Claude (cockpit) [buscar_linhas_do_estoque]: Causa é credencial Google OAuth2 sem token (reautorização manual no n8n); o patch só anota no nó o bloqueio e os campos [PREENCHER] — não corrige a falha.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.8027645,
+      "startedAt": "2026-08-17T17:19:05.190Z",
+      "finishedAt": "2026-08-17T17:21:33.556Z",
+      "appliedAt": "2026-08-17T17:21:48.838Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-10T18:53:35.641Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxiif1b1",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": null,
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: sem resumo no report — 1 nó(s) alterado(s)",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0,
+      "startedAt": "2026-08-17T17:33:11.716Z",
+      "finishedAt": "2026-08-17T17:41:12.134Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-13T11:42:06.264Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxitf3k1",
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "wfId": "3pk6711IFuBuqjz6",
+      "wfName": "[SANDBOX tester] Aviso de estoque baixo no Slack",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Não corrigi a falha: a causa é a credencial Google OAuth2 sem token, que só um humano reconecta; o patch apenas documenta o bloqueio no nó e fixa onError=stopWorkflow.\n\n## Causa raiz\n\nCredencial, não parâmetro e não fluxo.\n\n`Unable to sign without access token` é a mensagem que a lib de autenticação do Google emite quando o cliente OAuth2 é instanciado sem `access_token` nem `refresh_token`. No n8n isso acontece quando a credencial Google OAuth2 foi salva mas o \"Connect my account\" nunca foi concluído, ou quando o acesso foi revogado/expirou do lado do Google.\n\nTrês indícios batem com isso:\n\n- O caminho executado tem só 2 nós e `buscar_linhas_do_estoque` morre em **9ms**. Não houve ida e volta de rede — o erro é levantado localmente, na hora de assinar a requisição, antes de qualquer chamada à API do Sheets.\n- A mensagem não tem corpo de resposta do Google (sem `403`, sem `PERMISSION_DENIED`, sem `invalid_grant`). Erro de permissão ou de planilha inexistente teria vindo da API.\n- Os parâmetros do nó estão íntegros: `documentId` preenchido em modo `url` e `sheetName` na aba `Estoque`. Confirmei no `workflow.json`.\n\nUm detalhe importante: a nota que já estava no nó afirmava que `documentId` e `sheetName` continuavam com o placeholder `[PREENCHER]`. **Isso está desatualizado** — os dois já foram preenchidos (o `workflow.json` foi atualizado em 2026-08-17T17:24Z). Quem ler aquela nota hoje procura um problema que não existe mais, então ela precisava sair.\n\n## O que mudei\n\nUm único nó, `buscar_linhas_do_estoque`, e nenhum parâmetro:\n\n- `notes` — reescrita: qual é o erro de verdade, por que ele é de credencial, qual é a ação humana exata (Credenciais > conta Google Sheets deste nó > Connect/Reconnect), e a remoção da parte vencida sobre `[PREENCHER]`.\n- `onError: \"stopWorkflow\"` — passa a estar explícito no nó. Hoje é o comportamento efetivo por ser o padrão; fixado, fica registrado como decisão e não como omissão.\n- `notesInFlow: true` — mantido, para o aviso aparecer no canvas.\n\nNão mexi em `credentials` (as regras proíbem, e reautorização é feita por humano no n8n), não mexi em conexões, não adicionei nó, não toquei `active`.\n\n## Por que isso resolve\n\n**Não resolve — e é proposital.** Nenhum patch de workflow gera um token OAuth. Enquanto a credencial não for reconectada, o nó vai continuar falhando, e é isso que deve acontecer.\n\nO que eu poderia ter feito era trocar `onError` para continuar, e seria a correção errada. O caminho a jusante é: `filtrar_estoque_baixo` está com `alwaysOutputData: true`, então, sem linhas de entrada, ele emite um item vazio; `tem_produto_com_estoque_baixo` testa `$json.Produto` como `notEmpty`, dá falso; e a saída falsa vai para `slack_avisar_estoque_ok`, que posta \"Estoque conferido: nenhum produto com menos de 10 unidades hoje\". Ou seja: engolir o erro transforma uma falha barulhenta num aviso falso de que o estoque está bem — exatamente o resultado mais caro num fluxo de reposição. A falha visível é a proteção.\n\nO que o patch entrega, então, é diagnóstico: quem abrir a execução ou o canvas vê a ação necessária, em vez de reabrir a mesma investigação. A correção de fato é uma ação humana:\n\n1. n8n > Credenciais > a conta Google Sheets usada por `buscar_linhas_do_estoque` > Connect/Reconnect.\n2. Reexecutar o fluxo pelo trigger manual e confirmar que o nó devolve linhas.\n\n## Risco residual\n\n- **Não confirmei qual credencial está anexada ao nó** — o `target-nodes.json` e o `workflow.json` vêm sem o bloco `credentials`, como manda o processo. Se a conta anexada for uma Service Account em vez de OAuth2, a ação humana muda (é a chave privada que está faltando/malformada, não o Connect). O sintoma seria o mesmo. Quem for reconectar precisa olhar o tipo da credencial na tela.\n- **Se depois do reconnect vier `403` ou `404`**, aí sim o problema passa a ser de acesso: a conta reconectada precisa ter permissão de leitura na planilha, e o `gid=0` da URL precisa corresponder à aba `Estoque`. É uma segunda falha possível, não a atual.\n- **Achado fora do escopo, não corrigido:** `agendar_todo_dia_8h` (scheduleTrigger, 8h) não tem nenhuma conexão de saída, e o workflow está com `active: false`. Na prática o aviso diário nunca roda sozinho — só o trigger manual dispara o fluxo. Não toquei nisso porque não é a causa da falha reportada e a correção mínima manda não misturar as coisas; e, enquanto a credencial estiver quebrada, ligar o agendamento só produziria uma falha por dia. Vale uma decisão sua depois que o Google estiver reconectado.\n",
+      "fixNote": "Claude (cockpit) [buscar_linhas_do_estoque]: Não corrigi a falha: a causa é a credencial Google OAuth2 sem token, que só um humano reconecta; o patch apenas documenta o bloqueio no nó e fixa onError=stopWorkflow.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.5835965,
+      "startedAt": "2026-08-17T17:41:45.016Z",
+      "finishedAt": "2026-08-17T17:43:59.733Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-17T17:24:34.613Z",
+      "retries": []
+    },
+    {
+      "runId": "rmsxkdy8a1",
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "wfId": "3pk6711IFuBuqjz6",
+      "wfName": "[SANDBOX tester] Aviso de estoque baixo no Slack",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta.\n\n## Causa raiz\n\nA credencial OAuth2 usada por `buscar_linhas_do_estoque` existe, mas não tem access token guardado\n(Connect nunca concluído, ou token revogado/limpo do lado do Google).\n\nTrês coisas apontam para isso e descartam problema de parâmetro:\n\n- A mensagem `Unable to sign without access token` vem da lib de auth do Google, na hora de\n  **assinar** a requisição. Ela é lançada antes de existir requisição para o Sheets.\n- O nó quebra em **9ms**. Não houve ida e volta de rede — nenhuma chamada chegou a sair.\n- Os parâmetros estão preenchidos e coerentes: `documentId` aponta para uma planilha real (modo URL)\n  e `sheetName` é `Estoque` (modo name). A nota que estava no nó dizendo que os dois estavam com\n  `[PREENCHER]` está **desatualizada** — foi escrita numa tentativa anterior, antes de os campos\n  serem preenchidos, e hoje induz ao erro.\n\nReautorização de credencial é ação humana no n8n (regra 4: patch não toca `credentials`). Não existe\nmudança de workflow que faça este nó ler a planilha sem token.\n\n## O que mudei\n\nSó o campo `notes` de `buscar_linhas_do_estoque` (com `notesInFlow: true`, que já estava ligado).\nNenhum parâmetro, nenhuma conexão, nenhum nó novo, nenhum nó desabilitado.\n\nA nota nova troca a informação errada pela certa: registra a causa real, o passo de reconnect, e\navisa por que **não** se deve trocar o `onError` deste nó.\n\n## Por que isso resolve\n\nNão resolve a falha — declara isso de propósito. O que a mudança resolve é o desperdício de rodada:\nquem abrir o fluxo agora lê a causa correta e o passo humano, em vez de perseguir um placeholder que\nnão existe mais.\n\nSobre não \"tratar o erro para o fluxo sobreviver\", que seria o caminho normal da regra 4: aqui ele é\npior que a falha. `filtrar_estoque_baixo` tem `alwaysOutputData: true`, então, se o Sheets não\ndevolver linhas, o filtro emite um item vazio; em item vazio o IF `Produto is not empty` cai na saída\nfalsa; e a saída falsa vai direto para `slack_avisar_estoque_ok`, que posta *\"Estoque conferido:\nnenhum produto com menos de 10 unidades hoje.\"*. Um `onError: continueRegularOutput` transformaria\numa falha visível num falso \"está tudo certo\" no Slack, todo dia, sem ninguém perceber. Mantive o\ncomportamento padrão (`stopWorkflow`): falhar alto é o correto neste desenho.\n\n## Risco residual\n\n- **A falha continua acontecendo** até alguém refazer o Connect da credencial no n8n. O patch não\n  muda isso.\n- Depois do reconnect, o nó pode ainda falhar por outro motivo (escopo da credencial insuficiente ou\n  a conta Google não ter acesso a essa planilha). Isso só dá para confirmar rodando.\n- **Falso \"estoque ok\" com planilha vazia** — latente, não corrigi: se a aba `Estoque` vier sem\n  linhas nenhuma, o mesmo caminho descrito acima posta \"Estoque conferido\" sem ter conferido nada.\n  Fora do escopo desta falha, mas é armadilha de verdade e merece um If de \"veio alguma linha?\" antes\n  do filtro, numa próxima rodada.\n- **`agendar_todo_dia_8h` não está ligado a nada** (nenhuma saída). O aviso diário não roda; hoje o\n  fluxo só executa pelo trigger manual — e o workflow está com `active: false`. Não liguei o\n  agendador porque está fora desta falha e, com a credencial quebrada, ligar só agendaria um erro\n  por dia. Fica registrado para você decidir.\n",
+      "fixNote": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.5701035000000001,
+      "startedAt": "2026-08-17T18:25:42.547Z",
+      "finishedAt": "2026-08-17T18:27:48.347Z",
+      "appliedAt": "2026-08-17T18:28:23.484Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-17T17:24:34.613Z",
+      "retries": []
+    },
+    {
+      "kind": "upgrade",
+      "runId": "umt1gehnn3q3v",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "startedAt": "2026-08-20T11:45:13.955Z",
+      "finishedAt": "2026-08-20T11:50:31.918Z",
+      "resumo": "Em verificacao_tecnica: reprovar sempre que uma bolha citar R$ 0,00 (checagem incondicional, roda mesmo sem chamada à tool buscar_evento), e parar de excluir esse valor da lista de preços citados antes de checar.",
+      "diffSummary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "gates": [
+        {
+          "n": "1",
+          "nome": "Estrutura",
+          "cor": "ok"
+        },
+        {
+          "n": "2",
+          "nome": "Esquema do nó",
+          "cor": "ok"
+        },
+        {
+          "n": "3",
+          "nome": "Gramática",
+          "cor": "ok"
+        },
+        {
+          "n": "4",
+          "nome": "Credencial referenciável",
+          "cor": "cold"
+        },
+        {
+          "n": "5a",
+          "nome": "Regressão de caminho",
+          "cor": "cold"
+        },
+        {
+          "n": "5b",
+          "nome": "Regressão de conteúdo",
+          "cor": "cold"
+        },
+        {
+          "n": "6",
+          "nome": "Impacto medido",
+          "cor": "cold"
+        },
+        {
+          "n": "7",
+          "nome": "Aceite do n8n",
+          "cor": "ok"
+        }
+      ],
+      "qual": "normal",
+      "applied": true,
+      "appliedAt": "2026-08-20T11:50:31.917Z",
+      "usd": {
+        "usd": 1.0127941999999999,
+        "cegas": 0,
+        "estimado": false
+      }
     }
   ]
 }

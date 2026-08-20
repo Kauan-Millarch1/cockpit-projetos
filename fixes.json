@@ -91,34 +91,16 @@
       "note": "Claude (cockpit) [Analyze image]: Analyze image lia a imagem por URL num campo que não existe no item; passei o nó para modo binário (data), consumindo o arquivo que downloadimage já baixa."
     },
     {
-      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
-      "markedAt": "2026-08-10T19:17:03.533Z",
-      "maxExecIdAtFix": "177581",
-      "note": "Fluxo de teste"
-    },
-    {
       "key": "gtpqDeEz9FSQa7pg|filtrar_por_horario|Error",
       "markedAt": "2026-08-11T11:36:17.501Z",
       "maxExecIdAtFix": "177857",
       "note": "Claude (cockpit) [filtrar_por_horario]: Liguei retry (3x, 5s) em filtrar_por_horario porque a falha foi o task runner de Code do n8n Cloud não aceitar a task em 60s, não o código."
     },
     {
-      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
-      "markedAt": "2026-08-11T13:54:07.141Z",
-      "maxExecIdAtFix": "177589",
-      "note": "Ja ajustado"
-    },
-    {
       "key": "p1GvdLOnm2DFlFCU|slack_dm_aviso_email|NodeOperationError",
       "markedAt": "2026-08-11T15:18:38.797Z",
       "maxExecIdAtFix": "177133",
       "note": "Ja ajustei"
-    },
-    {
-      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
-      "markedAt": "2026-08-13T11:42:06.228Z",
-      "maxExecIdAtFix": "181791",
-      "note": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá."
     },
     {
       "key": "QryGcVbv7DoVCeRV|msg|NodeOperationError",
@@ -143,6 +125,30 @@
       "markedAt": "2026-08-13T11:47:52.970Z",
       "maxExecIdAtFix": "181228",
       "note": "Claude ajustou o fluxo da Gabi"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "markedAt": "2026-08-13T18:32:31.916Z",
+      "maxExecIdAtFix": "181791",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-17T17:24:12.883Z",
+      "maxExecIdAtFix": "189911",
+      "note": "Corrigido"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-17T17:36:02.508Z",
+      "maxExecIdAtFix": "189916",
+      "note": "Corrigido"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-17T18:28:23.546Z",
+      "maxExecIdAtFix": "189909",
+      "note": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta."
     }
   ],
   "history": [
@@ -297,7 +303,8 @@
       "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
       "markedAt": "2026-08-13T11:42:06.228Z",
       "maxExecIdAtFix": "181791",
-      "note": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá."
+      "note": "Claude (cockpit) [msg]: liguei Retry on Fail (3 tentativas, 5 s) no nó msg para o envio sobreviver a timeouts transitórios da API do WhatsApp; a causa do timeout é externa e continua lá.",
+      "undoneAt": "2026-08-13T18:31:55.801Z"
     },
     {
       "key": "QryGcVbv7DoVCeRV|msg|NodeOperationError",
@@ -322,6 +329,62 @@
       "markedAt": "2026-08-13T11:47:52.970Z",
       "maxExecIdAtFix": "181228",
       "note": "Claude ajustou o fluxo da Gabi"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|msg|NodeApiError",
+      "markedAt": "2026-08-13T18:32:31.916Z",
+      "maxExecIdAtFix": "181791",
+      "note": "Claude ajustou"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-16T21:22:57.877Z",
+      "maxExecIdAtFix": "187444",
+      "note": "Ajustei"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-17T14:17:26.700Z",
+      "maxExecIdAtFix": "189388",
+      "note": "Claude ajustou",
+      "undoneAt": "2026-08-17T14:43:39.535Z"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-17T15:02:00.314Z",
+      "maxExecIdAtFix": "189388",
+      "note": "Ajustei"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-17T17:21:48.874Z",
+      "maxExecIdAtFix": "189900",
+      "note": "Claude (cockpit) [buscar_linhas_do_estoque]: Causa é credencial Google OAuth2 sem token (reautorização manual no n8n); o patch só anota no nó o bloqueio e os campos [PREENCHER] — não corrige a falha."
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-17T17:23:16.916Z",
+      "maxExecIdAtFix": "189909",
+      "note": "Corrigido",
+      "undoneAt": "2026-08-17T17:36:39.249Z"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|slack_avisar_estoque_baixo|NodeOperationError",
+      "markedAt": "2026-08-17T17:24:12.883Z",
+      "maxExecIdAtFix": "189911",
+      "note": "Corrigido"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-17T17:36:02.508Z",
+      "maxExecIdAtFix": "189916",
+      "note": "Corrigido"
+    },
+    {
+      "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
+      "markedAt": "2026-08-17T18:28:23.546Z",
+      "maxExecIdAtFix": "189909",
+      "note": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta."
     }
   ]
 }

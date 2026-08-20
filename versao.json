@@ -1,5 +1,5 @@
 {
-  "n": "v3.2",
-  "em": "2026-08-12",
-  "nota": "Simplified Custom Auth no HTTP Request; Cal.com Trigger v2; Options novas no Embeddings AWS Bedrock."
+  "n": "v3.5",
+  "em": "2026-08-19",
+  "nota": "Kafka v2 (compressão, Acks fix), GitHub dispatch timeout, HITL sempre visível, Slack Search v2.7, SF Trigger JWT"
 }
