@@ -9,6 +9,11 @@
      `.ico` no disco seria um segundo desenho para manter em sincronia com este,
      e o desenho já existe em código. -->
 <link rel="icon" href="data:,">
+<!-- NAO deferido, e isso e a correcao de uma armadilha: um script inline no
+     fim do body roda ANTES dos deferidos, entao a pagina chamaria
+     entradas.configurar() com window.__entradas ainda undefined. Bloquear por um
+     arquivo local de 26KB e mais barato que a classe inteira de bug de ordem. -->
+<script src="/entradas.js"></script>
 <script src="/aba.js" defer></script>
 <style>
 /* Tokens: os mesmos do flows.html. Mudar cor aqui sem mudar lá é como o painel
@@ -126,9 +131,9 @@ button{font:inherit;color:inherit}
 .novband .nv-l a{color:inherit}
 .novband .nv-esq{margin-top:7px;font-size:11.5px;color:var(--warn-txt)}
 .novband .nv-cod{font-family:var(--font-num);font-size:11px}
-/* ═══════════════════════════════════════════════════════ NAV — as três portas
-   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html e
-   cockpit.html — gerado por preview/aplicar-nav.js e travado por
+/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+   BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
+   cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
    e nunca insira um segundo bloco (foi assim que o rabo de um bloco antigo
    ficou pendurado no flows.html e a página morreu com "Illegal return
@@ -545,61 +550,12 @@ button{font:inherit;color:inherit}
 .composer textarea::placeholder{color:var(--txt-faint)}
 
 /* -------------------------------------------------- voz, anexos e a bandeja
-   Duas entradas novas no mesmo lugar onde já se escreve: falar e anexar. Elas
-   dividem a fileira de botões porque são a mesma coisa do ponto de vista de quem
-   usa — dizer o que quer sem digitar.
-
-   O microfone GRAVANDO é a única coisa aqui que pulsa, e pulsa porque é estado
-   perigoso de esquecer: um microfone aberto que ninguém percebeu é pior que um
-   botão feio. `--risk` está reservado para status de fluxo, então a gravação usa
-   `--accent` com um ponto batendo, igual ao modo gravação da tela. */
-.iobar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.iob{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--txt-faint);
-  border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;
-  line-height:1.3;cursor:pointer;min-height:30px;flex:0 0 auto}
-.iob:hover:not(:disabled){color:var(--txt);border-color:var(--accent-line)}
-.iob:disabled{opacity:.45;cursor:default}
-.iob.ouvindo{color:var(--accent-txt);border-color:var(--accent-line);background:var(--accent-soft)}
-.iob.ouvindo .pt{animation:ouvepulse 1.2s ease-in-out infinite}
-@keyframes ouvepulse{0%,100%{opacity:1}50%{opacity:.25}}
-.iob .pt{font-size:9px;line-height:1}
-
-/* O texto que o navegador ainda está adivinhando. Ele aparece esmaecido e em
-   itálico enquanto não é final, porque a Web Speech reescreve a frase inteira
-   várias vezes antes de fechar — mostrar isso como texto normal dá a impressão
-   de que a transcrição está errando, quando ela só não terminou. */
-.ditando{font-style:italic;color:var(--txt-faint)}
-
-.anexos{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-.anx{display:inline-flex;align-items:center;gap:7px;max-width:100%;font-size:11px;
-  border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:4px 6px 4px 8px;
-  color:var(--txt-dim);line-height:1.35}
-.anx .ic{font-size:11px;opacity:.8;flex:0 0 auto}
-.anx .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch}
-.anx .sz{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);flex:0 0 auto}
-/* Lido é FATO OBSERVADO, não promessa: sai do `tool_use` da sessão. Por isso
-   ganha marca própria — um anexo que a sessão nunca abriu tem que ser
-   distinguível de um que ela leu, senão anexar é um ato de fé. */
-.anx.lido{border-color:var(--accent-line);color:var(--txt)}
-.anx.lido .ic{opacity:1;color:var(--accent-txt)}
-.anx .x{border:none;background:none;color:var(--txt-faint);cursor:pointer;font-size:13px;
-  line-height:1;padding:2px 4px;border-radius:5px;flex:0 0 auto}
-.anx .x:hover{color:var(--txt);background:var(--raised)}
-.anx.subindo{opacity:.6}
-.anx.ruim{border-color:var(--warn-line,var(--line));color:var(--warn-txt)}
-.anxnota{font-size:10.5px;color:var(--txt-faint);margin-top:6px;line-height:1.5}
-.anxnota b{color:var(--txt-dim);font-weight:600}
-/* Recusa de anexo usa `.aviso.alerta` (ver o bloco AVISOS). Não há classe de
-   erro própria aqui de propósito: era uma das quatro que o vocabulário único
-   substituiu. */
-/* Arrastar para cima da caixa. O alvo é a caixa inteira, não um retângulo
-   pontilhado separado: uma segunda área de soltar seria um lugar a mais para
-   errar, e a caixa já é o lugar onde a conversa acontece. */
-/* `.compzone` é o invólucro dos chips + a caixa. Arrastar sobre ele destaca a
-   CAIXA, não o invólucro: o realce tem que aparecer onde a borda existe. */
-.bigbox.sobre,.composer.sobre{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.compzone.sobre .composer{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-@media (prefers-reduced-motion: reduce){ .iob.ouvindo .pt{animation:none} }
+   O CSS destas duas entradas mora em `/entradas.js` e é injetado por ele. Ele
+   é servido às duas páginas que têm compositor (esta e o `/upgrade`), pelo
+   mesmo motivo do `aba.js`: duas folhas para um desenho é uma a mais para
+   divergir, e a que divergisse seria a que ninguém olhou. As classes que
+   chegam de lá: `.iobar`, `.iob`, `.ditando`, `.anexos`, `.anx`, `.anxnota`,
+   e o realce `.sobre` de `.bigbox`/`.composer`/`.compositor`. */
 
 /* ------------------------------------------------------------ o desenho */
 .canvas{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-deep);
@@ -1090,6 +1046,7 @@ details.jsonbox .inner{padding:0 13px 13px}
     <a href="/" data-porta="fluxos"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Fluxos</span><kbd>alt 1</kbd></span></a>
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
+    <a href="/upgrade" data-porta="upgrade"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
   </nav>
   <!-- Volta para a abertura SEM matar a construção: a sessão mora no servidor
        e continua correndo; o card "em construção" na abertura é o caminho de
@@ -1272,373 +1229,39 @@ const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desen
    VOZ E ANEXOS — as duas entradas que não são o teclado
    ============================================================================
 
-   VOZ. O ditado é do NAVEGADOR (Web Speech API), não do servidor, e isso é uma
-   decisão de segurança, não de preguiça: transcrever no servidor significaria
-   uma chave de API de terceiro dentro deste processo, que é exatamente o que
-   este projeto evitou até hoje — a chave do n8n nunca sai da máquina e as
-   sugestões do quadro de erros são heurística em código justamente para não
-   virar chamada de modelo no servidor. O preço está dito na tela: depende do
-   Chrome e a transcrição passa pelo Google. Sem suporte, o botão não aparece —
-   um botão que não funciona é pior que a ausência dele.
+   O bloco inteiro saiu daqui para `/entradas.js`, servido a esta página e ao
+   `/upgrade`. Ele já nascia parametrizado por `idPrefixo`; o que faltava era
+   não ser copiado. Esta base carrega três blocos copiados à mão (topbar,
+   `.aviso`, modo gravação) e um deles já produziu um `Illegal return
+   statement` no `flows.html` porque alguém INSERIU em vez de SUBSTITUIR.
+   `entradas-test.js` falha no dia em que uma das duas páginas voltar a
+   declarar o bloco por conta própria.
 
-   ANEXOS. O arquivo vai para o disco da sessão e a sessão do Claude o abre com
-   `Read`. Não existe OCR nosso, nem extrator de PDF, nem parser de planilha: o
-   CLI já lê imagem e PDF nativamente, e escrever isso aqui seria manter para
-   sempre uma versão pior do que já existe. O que este código faz é levar o
-   arquivo até lá e mostrar o que aconteceu com ele. */
+   O SCRIPT DELE NÃO É DEFERIDO, e isso é a correção de uma armadilha: um script
+   inline no fim do body roda ANTES dos deferidos, então `configurar()` abaixo
+   receberia `window.__entradas` ainda `undefined` — e o erro apareceria no clique
+   de anexar, onde pareceria defeito do arquivo dela. `IO()` continua lendo na
+   hora do uso porque é assim que o teste injeta o módulo de verdade. */
+const IO = () => window.__entradas;
 
-const VOZ_OK = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+/* O que a página dá ao módulo: o estado, o vocabulário de aviso, o `callApi`
+   que já sabe reconhecer um 404 de processo velho, e as ROTAS — que são o que
+   distingue esta página da outra. `aoSnapshot` existe porque cada uma guarda a
+   volta num lugar diferente (aqui `S.snap`, no Upgrade `S.conv`).
 
-const ICONE_ANEXO = { imagem: "▣", pdf: "▤", texto: "▥", dados: "▦" };
-const kb = n => n < 1024 * 1024
-  ? Math.max(1, Math.round(n / 1024)) + "KB"
-  : (n / (1024 * 1024)).toFixed(1).replace(".", ",") + "MB";
-
-/* Um chip por anexo. `lidos` vem do servidor e é observação do `tool_use` da
-   sessão — não é "o prompt pediu para ler", é "ela abriu este arquivo". A
-   distinção é o que faz o chip valer alguma coisa.
-
-   O NOME é `sens`: "clientes-2026.csv" identifica cliente, e o modo gravação
-   existe para isso. O tipo e o tamanho ficam legíveis — eles não identificam
-   ninguém e são o que permite conferir que o anexo certo subiu. */
-function chipsAnexos(lista, lidos, podeRemover) {
-  const arr = (lista || []).filter(Boolean);
-  if (!arr.length) return "";
-  const set = new Set(lidos || []);
-  return '<div class="anexos">' + arr.map(a => {
-    const lido = set.has(a.arquivo);
-    return '<span class="anx' + (lido ? " lido" : "") + '"' +
-      (lido ? ' title="a sessão abriu este arquivo"' : ' title="anexado — a sessão decide se precisa abrir"') + ">" +
-      '<span class="ic" aria-hidden="true">' + (ICONE_ANEXO[a.tipo] || "▧") + "</span>" +
-      '<span class="nm sens">' + esc(a.dePasta ? a.arquivo.replace(/^anexos\//, "") : a.nome) + "</span>" +
-      '<span class="sz">' + kb(a.bytes || 0) + "</span>" +
-      (podeRemover
-        ? '<button type="button" class="x" data-tirar="' + esc(a.arquivo) + '" aria-label="tirar ' + esc(a.nome) + '">×</button>'
-        : "") +
-      "</span>";
-  }).join("") + "</div>";
-}
-
-/* A nota embaixo dos chips. Ela diz três coisas que ninguém adivinha: que o
-   custo do anexo é token quando a sessão abre, que texto passou por limpeza de
-   segredo, e que imagem e PDF NÃO passaram — não dá para varrer pixel. Dizer o
-   que não foi feito é a parte que costuma faltar. */
-function notaAnexos(lista) {
-  const arr = (lista || []).filter(Boolean);
-  if (!arr.length) return "";
-  const limpos = arr.reduce((a, x) => a + (x.segredosRemovidos || 0), 0);
-  const visuais = arr.filter(x => x.tipo === "imagem" || x.tipo === "pdf").length;
-  const partes = ["<b>" + arr.length + " anexo(s)</b> — a sessão lê o que precisar e ignora o resto"];
-  if (limpos) partes.push("em texto, " + limpos + " valor(es) com cara de token foram trocados por «segredo removido»");
-  if (visuais) partes.push(visuais + " imagem/PDF não passa por essa limpeza — o cockpit não varre pixel");
-  return '<div class="anxnota">' + partes.join(" · ") + "</div>";
-}
-
-/* A fileira de botões. `pasta` é o mesmo `<input type=file>` com
-   `webkitdirectory`, que é como o navegador entrega uma árvore inteira: cada
-   arquivo chega com `webkitRelativePath`, e é isso que o servidor usa para
-   preservar a estrutura em vez de achatar tudo num diretório só. */
-function barraIO(idPrefixo) {
-  return '<span class="iobar">' +
-    (VOZ_OK
-      ? '<button type="button" class="iob" id="' + idPrefixo + '-mic" aria-pressed="false" ' +
-        'title="ditar em vez de digitar — a transcrição é feita pelo navegador">' +
-        '<span class="pt" aria-hidden="true">●</span> falar</button>'
-      : "") +
-    /* Glifo geométrico, nunca emoji: medido na captura, `📎` e `🗀` saem como
-       caixa vazia nesta fonte — e o resto do produto já é monocromático por
-       decisão (o canvas proíbe emoji e logo de terceiro no mesmo espírito). */
-    '<button type="button" class="iob" id="' + idPrefixo + '-arq" ' +
-      'title="print, PDF, .md, .txt, CSV — a sessão abre e usa o que servir">' +
-      '<span aria-hidden="true">⊕</span> anexar</button>' +
-    '<button type="button" class="iob" id="' + idPrefixo + '-pasta" ' +
-      'title="uma pasta inteira: a sessão explora e escolhe o que importa">' +
-      '<span aria-hidden="true">⊞</span> pasta</button>' +
-    '<input type="file" id="' + idPrefixo + '-fi" multiple hidden ' +
-      'accept="image/png,image/jpeg,image/gif,image/webp,.pdf,.md,.markdown,.txt,.rst,.adoc,.log,.csv,.tsv,.json,.yaml,.yml,.xml,.html,.htm,.js,.mjs,.ts,.jsx,.tsx,.py,.sql,.css">' +
-    '<input type="file" id="' + idPrefixo + '-fp" webkitdirectory directory multiple hidden>' +
-    "</span>";
-}
-
-/* --------------------------------------------------------------- o ditado */
-
-/* Uma instância por vez, `continuous` ligado, `interimResults` ligado.
-   `interim` é o que torna o ditado utilizável no palco: o texto aparece
-   enquanto a pessoa fala em vez de surgir de uma vez no fim.
-   O parcial vive FORA do textarea (num nó irmão), porque escrevê-lo dentro
-   destruiria o que já estava digitado a cada reescrita da frase. */
-function ligarVoz(botao, textarea, ondePreview) {
-  if (!VOZ_OK) return;
-  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  const pinta = () => {
-    botao.classList.toggle("ouvindo", S.ouvindo);
-    botao.setAttribute("aria-pressed", String(S.ouvindo));
-    botao.lastChild.textContent = S.ouvindo ? " ouvindo — clique para parar" : " falar";
-    if (ondePreview) ondePreview.textContent = S.parcial ? S.parcial : "";
-  };
-
-  const parar = () => {
-    S.ouvindo = false; S.parcial = "";
-    if (S.rec) { try { S.rec.stop(); } catch { /* já parou */ } S.rec = null; }
-    pinta();
-  };
-
-  botao.addEventListener("click", () => {
-    if (S.ouvindo) { parar(); return; }
-    const rec = new Rec();
-    rec.lang = "pt-BR";
-    rec.continuous = true;
-    rec.interimResults = true;
-
-    rec.onresult = ev => {
-      let parcial = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const r = ev.results[i];
-        const t = r[0] ? r[0].transcript : "";
-        if (r.isFinal) {
-          // Fecha a frase DENTRO do textarea, respeitando o que já havia: o
-          // ditado é uma segunda mão escrevendo no mesmo campo, não um modo que
-          // toma conta dele.
-          const sep = textarea.value && !/\s$/.test(textarea.value) ? " " : "";
-          textarea.value += sep + t.trim();
-          textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        } else {
-          parcial += t;
-        }
-      }
-      S.parcial = parcial.trim();
-      pinta();
-    };
-    // `no-speech` e `aborted` são rotina (silêncio, ou parar pelo botão) e não
-    // merecem alarme. Permissão negada, sim: sem dizer isso o botão parece
-    // quebrado quando o que falta é um clique no cadeado do navegador.
-    rec.onerror = ev => {
-      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-        avisar("Libere o microfone no cadeado ao lado do endereço e clique em «falar» de novo.",
-          "alerta", "O navegador bloqueou o microfone");
-      } else if (ev.error === "network") {
-        // A Web Speech transcreve no servidor do navegador: sem rede ela não
-        // funciona, e dizer isso evita a caça a um defeito que não é nosso.
-        avisar("O ditado do Chrome precisa de internet para transcrever. Pode digitar normalmente.",
-          "alerta", "Sem conexão para o ditado");
-      }
-      parar();
-    };
-    rec.onend = () => { if (S.ouvindo) { try { rec.start(); } catch { parar(); } } };
-
-    S.rec = rec; S.ouvindo = true; S.parcial = "";
-    try { rec.start(); pinta(); } catch { parar(); }
-  });
-
-  pinta();
-}
-
-/* --------------------------------------------------------------- os anexos */
-
-const b64De = arquivo => new Promise((ok, falha) => {
-  const fr = new FileReader();
-  fr.onerror = () => falha(new Error("não consegui ler o arquivo"));
-  // `readAsDataURL` devolve "data:tipo;base64,XXXX" — só a cauda interessa.
-  fr.onload = () => { const s = String(fr.result || ""); ok(s.slice(s.indexOf(",") + 1)); };
-  fr.readAsDataURL(arquivo);
+   Chamado no CARREGAMENTO da página e não no primeiro uso: se `entradas.js`
+   não subiu, é aqui que isso aparece — e não no clique de anexar, onde pareceria
+   defeito do arquivo dele. */
+IO().configurar({
+  estado: S, avisar, callApi,
+  rotas: {
+    bandeja: "/api/tester/anexo",
+    bandejaRemover: "/api/tester/anexo/remover",
+    sessao: id => "/api/tester/session/" + id + "/anexo",
+    sessaoRemover: id => "/api/tester/session/" + id + "/desanexar"
+  },
+  aoSnapshot: snap => { S.snap = snap; }
 });
-
-/* Manda UM arquivo por requisição. Sequencial de propósito: o corpo fica
-   pequeno, cada recusa é atribuída ao arquivo certo, e a tela mostra progresso
-   real em vez de uma barra que representa 40 arquivos como se fossem um. */
-/* O RESUMO das recusas de um lote, em uma frase.
-   Medido arrastando uma pasta de projeto: `.env`, `.env.example` e uma chave
-   `.pem` foram recusados de uma vez, e cada um virou um aviso — três cartões
-   empilhados para um único fato ("esta pasta tem segredos, que não entram"). Numa
-   pasta de 50 arquivos isso cobre a tela e o último esconde o primeiro.
-   Agrupar por CATEGORIA é o que faz a frase escalar: o número de categorias é
-   fixo, o de arquivos não. */
-/* Singular e plural escritos, não derivados. O primeiro jeito era concatenar um
-   "s" quando havia mais de um, e saiu "3 chave ou segredos" na tela — em
-   português a flexão não cai no fim da frase. Duas strings custam menos que uma
-   regra de flexão que erra em metade dos rótulos. */
-const RECUSA_ROTULO = {
-  segredo: ["chave ou segredo", "chaves e segredos"],
-  converter: ["formato que precisa ser exportado", "formatos que precisam ser exportados"],
-  formato: ["tipo que eu não abro", "tipos que eu não abro"],
-  teto: ["acima do teto", "acima do teto"],
-  vazio: ["arquivo vazio", "arquivos vazios"],
-  ilegivel: ["não chegou legível", "não chegaram legíveis"]
-};
-
-function avisarRecusas(recusas) {
-  if (!recusas.length) return;
-  if (recusas.length === 1) {
-    avisar(recusas[0].motivo, "alerta", recusas[0].nome);
-    return;
-  }
-  // Agrupa por categoria preservando a ordem em que apareceram.
-  const porCat = new Map();
-  for (const r of recusas) {
-    const c = r.categoria || "formato";
-    if (!porCat.has(c)) porCat.set(c, []);
-    porCat.get(c).push(r.nome);
-  }
-  const partes = [...porCat.entries()].map(([c, nomes]) => {
-    const par = RECUSA_ROTULO[c] || [c, c];
-    return nomes.length + " " + par[nomes.length > 1 ? 1 : 0];
-  });
-  const nomes = recusas.map(r => r.nome).slice(0, 6).join(", ") +
-    (recusas.length > 6 ? " e mais " + (recusas.length - 6) : "");
-  /* A frase de segredo é dita por inteiro mesmo no resumo: é a única recusa cuja
-     razão a pessoa precisa entender, porque a mensagem antiga ("não sei abrir")
-     convidava a converter a chave para um formato aceito — ou seja, a insistir. */
-  const temSegredo = porCat.has("segredo");
-  avisar(nomes + (temSegredo ? " — " + MSG_SEGREDO_CURTA : ""), "alerta",
-    recusas.length + " arquivos não entraram: " + partes.join(", "));
-}
-
-const MSG_SEGREDO_CURTA = "chave e segredo não entram, e não é limitação de formato: " +
-  "a sessão não faz nenhuma chamada, então nunca precisa deles.";
-
-async function subirArquivos(files, sessaoId, repintar) {
-  const lista = [...files].slice(0, 40);
-  if (!lista.length) return;
-  S.anexoErro = null;
-  const recusas = [];
-  for (const f of lista) {
-    S.subindo++;
-    if (repintar) repintar();
-    try {
-      const b64 = await b64De(f);
-      // `webkitRelativePath` só existe quando veio de pasta. É ele que preserva
-      // a árvore; sem ele o servidor grava plano, o que é o certo para um print.
-      const rel = f.webkitRelativePath || null;
-      const corpo = { nome: f.name, rel, b64 };
-      if (sessaoId) {
-        const snap = await callApi("/api/tester/session/" + sessaoId + "/anexo", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify(corpo)
-        });
-        S.snap = snap;
-      } else {
-        const r = await callApi("/api/tester/anexo", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...corpo, bandeja: S.bandeja })
-        });
-        S.bandeja = r.bandeja; S.anexosPre = r.anexos || [];
-      }
-    } catch (err) {
-      /* A recusa é do arquivo, não do lote: os outros continuam. Ela nomeia o
-         arquivo, porque "não aceito .docx" sem dizer qual dos oito não ajuda.
-         E vai para a PILHA, uma por arquivo: o campo ancorado guarda só a última,
-         então numa pasta com três arquivos recusados ela veria um terço do
-         problema e concluiria que o resto entrou. */
-      const motivo = String(err && err.message || err);
-      recusas.push({ nome: f.name, motivo, categoria: err && err.categoria || null });
-    } finally {
-      S.subindo--;
-      if (repintar) repintar();
-    }
-  }
-
-  /* Um aviso por LOTE, não por arquivo, e só depois que o lote terminou. O campo
-     ancorado guarda o resumo pelo mesmo motivo: antes ele guardava a última
-     recusa, então numa pasta com três problemas ela lia um terço e concluía que o
-     resto entrou. */
-  if (recusas.length) {
-    S.anexoErro = recusas.length === 1
-      ? recusas[0].nome + ": " + recusas[0].motivo
-      : recusas.length + " arquivos não entraram — " + recusas.map(r => r.nome).slice(0, 6).join(", ") +
-        (recusas.length > 6 ? " e mais " + (recusas.length - 6) : "");
-    avisarRecusas(recusas);
-    if (repintar) repintar();
-  }
-}
-
-async function tirarAnexo(arquivo, sessaoId, repintar) {
-  try {
-    if (sessaoId) {
-      S.snap = await callApi("/api/tester/session/" + sessaoId + "/desanexar", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ arquivo })
-      });
-    } else {
-      const r = await callApi("/api/tester/anexo/remover", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bandeja: S.bandeja, arquivo })
-      });
-      S.anexosPre = r.anexos || [];
-    }
-  } catch (err) { S.anexoErro = String(err && err.message || err); }
-  if (repintar) repintar();
-}
-
-/* Liga tudo num par (caixa, textarea): clique nos botões, colar print, arrastar
-   arquivo ou pasta para cima da caixa, e tirar um chip.
-
-   Colar é o caminho mais curto que existe para um print — Win+Shift+S e Ctrl+V,
-   sem passar por arquivo — e é por isso que ele está aqui e não só o botão.
-   O item colado não tem nome, então ganha um com carimbo de hora: dois prints
-   colados em sequência viram dois arquivos, não um sobrescrito. */
-function ligarIO(idPrefixo, caixa, textarea, sessaoId, repintar) {
-  const $$ = id => document.getElementById(idPrefixo + "-" + id);
-  const mic = $$("mic"), arq = $$("arq"), pasta = $$("pasta"), fi = $$("fi"), fp = $$("fp");
-
-  if (mic && textarea) {
-    let prev = caixa.querySelector(".ditando");
-    if (!prev) {
-      prev = document.createElement("div");
-      prev.className = "ditando";
-      textarea.insertAdjacentElement("afterend", prev);
-    }
-    ligarVoz(mic, textarea, prev);
-  }
-
-  if (arq && fi) {
-    arq.addEventListener("click", () => fi.click());
-    fi.addEventListener("change", () => { subirArquivos(fi.files, sessaoId, repintar); fi.value = ""; });
-  }
-  if (pasta && fp) {
-    /* O diálogo que vem em seguida é do NAVEGADOR, não nosso: "Fazer upload de N
-       arquivos para este site?". Ele é obrigatório em `webkitdirectory`, não tem
-       API para customizar nem para suprimir, e chega com a fonte e a ordem de
-       botões do sistema — a mesma feiura que o `confirm()` tinha, só que esta não
-       dá para substituir.
-       O que dá para fazer é a pessoa não ser pega de surpresa. Um aviso ANTES,
-       que não bloqueia (o seletor abre junto), explicando de quem é a caixa e em
-       que clicar. Isso transforma um susto num passo esperado — e é melhor que um
-       `confirmar()` nosso na frente, que empilharia dois diálogos para uma ação. */
-    pasta.addEventListener("click", () => {
-      avisar("O Chrome vai perguntar se pode enviar os arquivos da pasta — a caixa é dele, não nossa. " +
-        "Clique em «Fazer upload» para continuar.", "info", "A próxima caixa é do navegador");
-      fp.click();
-    });
-    fp.addEventListener("change", () => { subirArquivos(fp.files, sessaoId, repintar); fp.value = ""; });
-  }
-
-  if (textarea) {
-    textarea.addEventListener("paste", ev => {
-      const itens = [...((ev.clipboardData && ev.clipboardData.files) || [])];
-      if (!itens.length) return;          // texto normal segue o caminho normal
-      ev.preventDefault();
-      const nomeados = itens.map(f => f.name && f.name !== "image.png"
-        ? f
-        : new File([f], "print-" + new Date().toISOString().slice(11, 19).replace(/:/g, "") + ".png", { type: f.type }));
-      subirArquivos(nomeados, sessaoId, repintar);
-    });
-  }
-
-  // Arrastar. `dragover` precisa de `preventDefault` senão o navegador abre o
-  // arquivo numa aba nova e a conversa é perdida.
-  const solta = ev => { ev.preventDefault(); caixa.classList.remove("sobre"); };
-  caixa.addEventListener("dragover", ev => { ev.preventDefault(); caixa.classList.add("sobre"); });
-  caixa.addEventListener("dragleave", () => caixa.classList.remove("sobre"));
-  caixa.addEventListener("drop", ev => {
-    solta(ev);
-    const fs = (ev.dataTransfer && ev.dataTransfer.files) || [];
-    if (fs.length) subirArquivos(fs, sessaoId, repintar);
-  });
-
-  caixa.querySelectorAll("[data-tirar]").forEach(b =>
-    b.addEventListener("click", () => tirarAnexo(b.dataset.tirar, sessaoId, repintar)));
-}
 
 /* ---------------------------------------------------------------- abertura */
 
@@ -1652,13 +1275,13 @@ function telaAbertura(aviso) {
         '<div class="boxfoot">' +
           '<span class="lvl">SEU NÍVEL</span>' +
           NIVEIS.map(n => '<button type="button" class="chip' + (n === S.nivel ? " on" : "") + '" data-nivel="' + esc(n) + '" aria-pressed="' + (n === S.nivel) + '">' + esc(n) + '</button>').join("") +
-          barraIO("ab") +
+          IO().barraIO("ab") +
           '<button type="button" class="btn prime go" id="comecar">Começar →</button>' +
         '</div>' +
         // Os chips ficam DENTRO da caixa, embaixo dos botões: o anexo é parte do
         // pedido, não um acessório ao lado dele.
-        chipsAnexos(S.anexosPre, [], true) +
-        notaAnexos(S.anexosPre) +
+        IO().chipsAnexos(S.anexosPre, [], true) +
+        IO().notaAnexos(S.anexosPre) +
         (S.subindo ? '<div class="anxnota">subindo ' + S.subindo + " arquivo(s)…</div>" : "") +
         // Ancorado, e no vocabulário único: a recusa pertence à caixa onde o
         // arquivo foi soltado, não à pilha do canto.
@@ -1682,7 +1305,7 @@ function telaAbertura(aviso) {
   /* Voz e anexos da abertura. O repintar preserva o que está escrito e o foco —
      subir um arquivo não pode custar a frase que a pessoa estava montando, que é
      a mesma disciplina de `capturarInputs`/`restaurarInputs` no repaint do SSE. */
-  ligarIO("ab", app.querySelector(".bigbox"), ta, null, () => {
+  IO().ligarIO("ab", app.querySelector(".bigbox"), ta, null, () => {
     const texto = ta.value, foco = document.activeElement === ta, pos = ta.selectionStart;
     telaAbertura(aviso);
     const novo = $("#ideia");
@@ -2385,13 +2008,13 @@ function composer(s) {
      Arrastar um arquivo também passa a valer sobre a área inteira, que é onde a
      mão vai. */
   return '<div class="compzone">' +
-    (anx.length ? chipsAnexos(anx, s.anexosLidos || [], !trabalhando) + notaAnexos(anx) : "") +
+    (anx.length ? IO().chipsAnexos(anx, s.anexosLidos || [], !trabalhando) + IO().notaAnexos(anx) : "") +
     (S.subindo ? '<div class="anxnota">subindo ' + S.subindo + " arquivo(s)…</div>" : "") +
     (S.anexoErro ? avisoHtml(S.anexoErro, "alerta") : "") +
     '<div class="composer">' +
     '<textarea id="resposta" rows="1" placeholder="' + esc(dica) +
       '" aria-label="sua resposta"></textarea>' +
-    barraIO("cp") +
+    IO().barraIO("cp") +
     '<button type="button" class="btn" id="enviar">Enviar</button></div>' +
     '</div>';
 }
@@ -3451,7 +3074,7 @@ function ligarEventos(s) {
     // `.compzone`, não `.composer`: os chips com o `×` moram acima da caixa, e é
     // dentro do elemento passado aqui que `ligarIO` procura por eles.
     const cx = ta.closest(".compzone") || ta.closest(".composer");
-    if (cx && S.snap) ligarIO("cp", cx, ta, S.snap.id, () => pintar());
+    if (cx && S.snap) IO().ligarIO("cp", cx, ta, S.snap.id, () => pintar());
   }
   if (enviar) enviar.addEventListener("click", mandar);
 
@@ -4043,10 +3666,10 @@ $("#voltar").addEventListener("click", inicio);
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html e cockpit.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As três portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
