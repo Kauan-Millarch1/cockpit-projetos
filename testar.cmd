@@ -86,6 +86,13 @@ if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
+echo  voz e anexo: um arquivo servido, nenhuma copia
+echo ==============================================
+node entradas-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
 echo  nota permanente do quadro de erros (fixNote)
 echo ==============================================
 node fixnote-test.js
@@ -117,6 +124,107 @@ echo ==============================================
 echo  reexecutar: o unico efeito sem desfazer
 echo ==============================================
 node reexec-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  audio: a transcricao, e a atribuicao pela aresta
+echo ==============================================
+node audio-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  upgrade: a conversa que termina no alvo
+echo ==============================================
+node upgrade-test.js
+node aplicar-test.js
+node remendo-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  conversas: o historico, e o ledger sem texto
+echo ==============================================
+node conversas-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  ledger de dois tipos: upgrade nao expulsa correcao
+echo ==============================================
+node ledger-kind-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  evidencia: ve valor sem ver contato, e nao escreve
+echo ==============================================
+node evidencia-test.js
+node preencher-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  faixa do dossie: quatro estados, quatro frases
+echo ==============================================
+node dossie-tela-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  semaforo do dossie na vitrine, e a oferta no recibo
+echo ==============================================
+node dossie-vitrine-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  dossie: divergencia por impressao, zero valor no .md
+echo ==============================================
+node dossie-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  dossie incremental: heranca, e as tres travas
+echo ==============================================
+node dossie-incremental-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  dossie automatico: depois de aplicar o patch
+echo ==============================================
+node auto-dossie-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  fila de escrita: reentrante por dono, sem deadlock
+echo ==============================================
+node mutex-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  escrever aprovado: a ordem e a garantia
+echo ==============================================
+node escrever-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  dono da escrita: os seis call sites do n8n
+echo ==============================================
+node dono-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  CSS: nenhuma regra aberta nas quatro paginas
+echo ==============================================
+node css-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.

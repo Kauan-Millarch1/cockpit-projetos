@@ -66,3 +66,24 @@ licoes.json.tmp
 # projetos/ NAO entra aqui de proposito: e o que o Tester produziu e o Kauan
 # decidiu guardar. O JSON do fluxo, o relatorio e a simulacao nao se regeneram
 # sem pagar a construcao de novo.
+
+# Dossiê do fluxo — derivado do n8n, regenerável num comando, e prosa de modelo.
+# Um .md velho rastreado parece fonte e é lembrança. Mesma razão de .cache-tester-docs/.
+.cache-fluxos/
+.dossie-runs/
+
+# A pasta de scratch da conversa do /upgrade. Gitignored, e agora com um motivo
+# mais forte: desde a evidência ela contém recorte de execução — payload de
+# cliente, ainda que mascarado. Nada disso entra em git.
+.upgrade-runs/
+
+# O histórico das conversas do /upgrade. Carrega o `chat` inteiro, os resumos de
+# evidência (recorte de execução, ainda que mascarado) e o título, que nasce do
+# que o Kauan escreveu — ele escreve "a Ana foi chamada de outro nome". Este
+# é o primeiro arquivo do projeto com dado de cliente dentro E vontade de estar
+# em git, e ele não vai. O que fica rastreado é `conversas.json`, uma linha por
+# conversa SEM título e SEM texto — mesma razão do `dossies.json`: o arquivo de
+# conteúdo é gitignored, então o custo tem de morar onde a limpeza de cache não
+# alcança. `conversas-test.js` é o que prova que nada de texto chega lá.
+conversas/
+conversas.json.tmp
