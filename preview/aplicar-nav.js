@@ -27,7 +27,7 @@ const { ico, PORTAS } = require("./nav-comum.js");
 const RAIZ = path.join(__dirname, "..");
 
 /* ═══════════════════════════════════════════════════════════════════ o CSS */
-const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -68,7 +68,7 @@ const CSS = `/* ═════════════════════�
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -91,7 +91,7 @@ const CSS = `/* ═════════════════════�
    A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
    fundo é quase branco e chapado, onde blur não produz efeito e brightness
    pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
-.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);opacity:0;
   transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
   transform-origin:var(--org,center);
   border-radius:999px;pointer-events:none;z-index:0;
@@ -132,6 +132,7 @@ const CSS = `/* ═════════════════════�
     inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
     inset 0 -2px 3px -1px rgba(0,0,0,.22),
     0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente.pronta{opacity:1}
 .nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
   padding:3px;pointer-events:none;
   backdrop-filter:blur(2px) saturate(2.4);
@@ -177,10 +178,10 @@ const marcacao = atual => '<nav class="nvd" aria-label="telas do cockpit">\n'
 /* ════════════════════════════════════════════════════════════════════ o JS */
 const JS = `<script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -222,7 +223,9 @@ const JS = `<script>
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+       geometria por quadro, e cada uma força layout do documento inteiro. */
+    if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
   }
 
@@ -277,14 +280,27 @@ const JS = `<script>
   try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
-  if (origem && !reduzir()) {
-    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
-    pintar(0);
-    lente.classList.add("varre");
-    acordar();
-  } else {
-    assentar();
+  /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
+     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
+     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
+     script corre em relação ao layout já estar limpo.
+     Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
+     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     posicionada, então o adiamento não vira flash no lugar errado. */
+  function partir() {
+    if (origem && !reduzir()) {
+      x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+      pintar(0);
+      lente.classList.add("varre");
+      acordar();
+    } else {
+      assentar();
+    }
+    lente.classList.add("pronta");
   }
+  requestAnimationFrame(function () { requestAnimationFrame(partir); });
   try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
 
   nav.addEventListener("pointerover", acordar);
@@ -295,7 +311,7 @@ const JS = `<script>
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "123".indexOf(ev.key);
+    var i = "12345".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;
