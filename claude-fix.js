@@ -27,11 +27,32 @@
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
-const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { EventEmitter } = require("node:events");
 
 const n8n = require("./n8n");
+/* O portão de destino de rede. Ele entra AQUI, e não só no `bateria.js`, porque a
+ * auditoria de 24/08/2026 mediu que `validate()` passa 10 de 10 contra as quatro
+ * variantes de exfiltração: redirecionar a `url` de um `httpRequest` que já existe
+ * não deixa nenhum dos dez portões vermelho — `credentials-untouched` fica verde
+ * JUSTAMENTE porque a credencial não foi tocada, então o nó segue autenticando com
+ * a mesma chave e passa a mandar tudo para outro lugar. Todos os dez perguntam se o
+ * documento continua VÁLIDO, e ele continua. Destino era o único fato que ninguém
+ * olhava, e este é o caminho que escreve em fluxo de produção. */
+const rede = require("./rede.js");
+/* QUAL IA roda a rodada, e COM QUAL CREDENCIAL. O adaptador é quem monta os
+ * argumentos, o ambiente e a descoberta do binário — e as três cercas
+ * (`--disallowedTools`, `--setting-sources ""`, `--strict-mcp-config`) passaram a
+ * ser DADO na tabela dele em vez de um array escrito à mão aqui. O motivo é o
+ * mesmo que o `ambiente.js` já escreveu sobre a allowlist: enquanto a lista
+ * existia em quatro arquivos, eram quatro chances de divergirem, e o lado que
+ * divergisse seria uma sessão sem cerca.
+ *
+ * Nada muda no comportamento de hoje: o padrão declarado do adaptador é
+ * `claude` + `plano` — o mesmo CLI e o mesmo login OAuth, com a chave de API
+ * AUSENTE do ambiente. A diferença só aparece no dia em que a pessoa escolher o
+ * modo `chave`, e essa escolha ainda não tem por onde chegar aqui. */
+const ia = require("./ia.js");
 
 /* ------------------------------------------------------------------ config */
 
@@ -64,21 +85,73 @@ function readEnv(name) {
   return null;
 }
 
-function findClaude() {
-  const explicit = process.env.CLAUDE_BIN || readEnv("CLAUDE_BIN");
-  const candidates = [
-    explicit,
-    path.join(os.homedir(), ".local", "bin", "claude.exe"),
-    path.join(os.homedir(), ".local", "bin", "claude"),
-    path.join(os.homedir(), "AppData", "Local", "Programs", "claude", "claude.exe")
-  ].filter(Boolean);
-  for (const c of candidates) { try { if (fs.existsSync(c)) return c; } catch { /* keep looking */ } }
-  return process.platform === "win32" ? "claude.exe" : "claude";   // hope it is on PATH
+/* QUAL IA roda esta rodada, e de quem é a conta que paga. Hoje é o PADRÃO
+   DECLARADO do adaptador — `claude` + `plano`, o mesmo binário e o mesmo login
+   OAuth de sempre, com a chave de API AUSENTE do ambiente. É uma constante e não
+   um objeto montado dentro do spawn porque é a escolha DA CORRIDA: no dia em que
+   ela vier da pessoa, o que muda é de onde este objeto sai — não o que o spawn
+   faz com ele. */
+/* A escolha de IA da rodada. FUNÇÃO, e não constante de módulo, e essa é a
+   correção de um defeito armado — não de estilo.
+ *
+ * Era `const escolhaDaRodada() = ia.escolher({})`, resolvida UMA VEZ no `require`. Como
+ * o padrão é `plano`, isso significa que a escolha de credencial de toda rodada
+ * de todo mundo é decidida no instante em que o processo sobe, antes de existir
+ * qualquer pessoa para escolher. Hoje o comportamento é o certo — é um dono, na
+ * máquina dele, gastando o plano dele — então nada muda agora, e há teste
+ * aferindo que os argumentos e o ambiente saem idênticos.
+ *
+ * O que muda é que ela deixa de ser IMPOSSÍVEL de variar. Uma escolha congelada
+ * no `require` não consegue seguir uma decisão por rodada, por pessoa ou por
+ * conta, e o sintoma disso não é um erro: é a conta de outra pessoa sendo
+ * gastada em silêncio, que é exatamente o que trocar o plano por chave de API
+ * existe para evitar.
+ *
+ * É a TERCEIRA ocorrência desta família num dia: `n8n.js` congelava `configured`
+ * e `instance` (o cofre nunca chegaria ao cabeçalho), `claude-fix.js` congelava
+ * uma cópia de `n8n.configured`, e esta. O padrão é sempre o mesmo — um valor
+ * lido no `require` para responder uma pergunta cuja resposta muda depois.
+ *
+ * `chave` continua NÃO sendo passada a `ambienteDaRodada`, e isso é deliberado
+ * enquanto o modo é `plano`: no modo plano a variável de chave tem de estar
+ * AUSENTE do ambiente, nunca vazia. Quando a escolha vier da pessoa, é aqui que
+ * ela entra — num sítio só, por arquivo, auditável. */
+function escolhaDaRodada() {
+  return ia.escolher({});
 }
 
-const CLAUDE_BIN = findClaude();
-const claudeFound = fs.existsSync(CLAUDE_BIN);
-const configured = n8n.configured;
+/* Onde está o binário. O `findClaude()` que morava aqui era a MESMA função que o
+   `tester.js` e o `iso-check.js` tinham, letra por letra — três chances de
+   deixarem de ser. Ela agora é `ia.descobrir("claude")`, e as três cópias
+   sumiram.
+   O `.env` continua sendo lido AQUI e não lá: o `ia.js` não abre arquivo de
+   configuração de propósito (uma decisão de rodada não pode depender de um
+   arquivo que ninguém passou — um `readEnv` vencendo o `process.env` já custou um
+   `PUT` real na instância de produção neste repositório), então quem lê o `.env`
+   é o `readEnv` deste arquivo e o valor entra como AMBIENTE. */
+const CLAUDE_BIN_DECLARADO = process.env.CLAUDE_BIN || readEnv("CLAUDE_BIN") || null;
+const ACHEI_CLAUDE = ia.descobrir("claude", {
+  env: CLAUDE_BIN_DECLARADO ? { CLAUDE_BIN: CLAUDE_BIN_DECLARADO } : {}
+});
+
+/* O CAMINHO É O MESMO DE ANTES NOS TRÊS ESTADOS. Achado, é o caminho; não achado
+   (o `CLAUDE_BIN` aponta para o vazio) ou indeterminado, sobra o nome nu para o
+   PATH — que é exatamente o que o `findClaude()` devolvia no `return` final. */
+const CLAUDE_BIN = ACHEI_CLAUDE.caminho
+  || (process.platform === "win32" ? ia.PROVEDORES.claude.naPath.win32 : ia.PROVEDORES.claude.naPath.outro);
+
+/* `claudeFound` CONTINUA BOOLEANO, porque é o que os consumidores de hoje
+   esperam e trocar o tipo aqui seria mudar comportamento numa fiação.
+   Mas o TERCEIRO ESTADO não pode morrer na tradução, e é por isso que
+   `claudeAchado`/`claudePorque` saem no `module.exports`: `descobrir` responde
+   `true` (achei), `false` (você apontou `CLAUDE_BIN` e lá não tem nada) e `null`
+   (não deu para procurar — sobra o nome nu no PATH, e sobre um nome nu
+   `existsSync` não responde nem sim nem não). O `false` de hoje é
+   `fs.existsSync("claude.exe")`, uma AFIRMAÇÃO que ninguém mediu: ela diz "o CLI
+   não está nesta máquina" sobre um CLI que pode estar no PATH. O
+   `integracoes.js` já tem o ramo "não sei nem se o CLI está aqui" e hoje ele é
+   inalcançável; com estes dois campos ele passa a ser. */
+const claudeFound = ACHEI_CLAUDE.achado === true;
 
 /* ---------------------------------------------------------------- scrubbing */
 
@@ -199,6 +272,51 @@ function validate(orig, prop) {
   }
   add("no-secret-literals", "nenhum segredo literal em parâmetro alterado", literal.length === 0,
     literal.length ? "parece haver token literal em: " + literal.join(", ") : null);
+
+  /* Destino de rede. É o único portão desta lista que não pergunta se o documento
+     é válido — pergunta se ele passou a ALCANÇAR um lugar que o fluxo de antes não
+     alcançava. A régua é derivada do próprio fluxo original, não de uma allowlist:
+     lista mantida à mão envelhece e acaba com `*` dentro.
+
+     A lista de gravidade vem do `rede.js` e NÃO é redeclarada aqui. `validate()` é
+     a checagem 1 da bateria, e o `bateria.js` lê a mesma lista — duas cópias
+     divergiriam na primeira correção feita num lado só, e o lado que divergisse
+     desligaria o bloqueio exatamente aqui, no caminho que escreve em produção.
+     Importar `bateria.js` não dá: ele requer este arquivo, seria ciclo.
+
+     TRÊS coisas fecham em vez de ficarem neutras, e cada uma é um caso de teste:
+
+     1. O `catch`. Se o portão que separa "arruma o nó" de "manda o dado para fora"
+        não RODOU, o botão não pode aparecer. Todos os outros portões daqui podem
+        ser lidos como "conferi e está bom"; este não pode ser lido como "não
+        consegui conferir e está bom".
+     2. O `teto`. Varredura que desistiu no meio deixa a tela verde do mesmo jeito
+        que varredura que terminou limpa, e essa é a definição de portão inútil.
+     3. A lista AUSENTE. Se alguém renomear o export no `rede.js`, `REPROVAM_REDE`
+        chega `undefined`; tratado como conjunto vazio, nada mais seria grave e o
+        bloqueio desapareceria em silêncio. Ausente é a mesma disciplina que este
+        repositório já escreveu sete vezes: campo que não veio nunca cai no galho
+        negativo. */
+  let redeOk = true, redeDetalhe = null;
+  try {
+    const graves = rede.REPROVAM_REDE;
+    if (!(graves instanceof Set) || graves.size === 0) {
+      throw new Error("`rede.REPROVAM_REDE` não chegou como conjunto — sem a régua "
+        + "não dá para dizer qual achado é saída de dado");
+    }
+    const r = rede.varrer(orig, prop);
+    const pesados = (r.achados || []).filter(a => graves.has(a.tipo) || a.tipo === "teto");
+    if (pesados.length) {
+      redeOk = false;
+      redeDetalhe = pesados.map(a => rede.frase(a)).join(" · ");
+    }
+  } catch (e) {
+    redeOk = false;
+    redeDetalhe = "não consegui conferir o destino de rede: "
+      + String((e && e.message) || e).slice(0, 200)
+      + " — sem essa conferência o diff não pode ser aprovado";
+  }
+  add("no-new-network-destination", "não manda dado para endereço novo", redeOk, redeDetalhe);
 
   const changed = stable(orig.nodes) !== stable(prop.nodes) || stable(orig.connections) !== stable(prop.connections);
   add("changed", "a proposta muda alguma coisa", changed, changed ? null : "proposal.json é idêntico ao workflow atual");
@@ -573,39 +691,76 @@ function retryTargetWf(run) {
 
 function runClaude(run, { prompt, resume }) {
   return new Promise((resolve) => {
-    const args = [
-      "-p", prompt,
-      "--output-format", "stream-json",
-      "--verbose",
-      "--permission-mode", "acceptEdits",
-      "--allowedTools", "Read,Write,Edit,Glob,Grep",
-      // `--allowedTools` só auto-aprova; NÃO restringe. Medido em 2026-08-07:
-      // com exatamente a lista acima, a sessão executou shell. A afirmação
-      // "No Bash, no network" deste arquivo só passou a ser verdade com a linha
-      // abaixo, verificada respondendo SEM_SHELL no mesmo prompt.
-      "--disallowedTools", "Bash,PowerShell,BashOutput,KillShell,Task,Agent,NotebookEdit,SlashCommand,WebFetch,WebSearch",
-      "--strict-mcp-config",
-      "--mcp-config", '{"mcpServers":{}}',
-      // Sem a config global do usuário. Medido em iso-check.js: sem isto a
-      // sessão carrega o CLAUDE.md global, que nesta máquina tem a chave da API
-      // do n8n em texto puro — uma credencial que esta sessão não tem motivo
-      // nenhum para segurar. Também derruba os hooks globais, que aqui só
-      // faziam a sessão imprimir coisa que o cockpit não pediu.
-      "--setting-sources", ""
-    ];
-    if (resume) args.push("--resume", resume);
-    if (process.env.COCKPIT_CLAUDE_MODEL || readEnv("COCKPIT_CLAUDE_MODEL")) {
-      args.push("--model", process.env.COCKPIT_CLAUDE_MODEL || readEnv("COCKPIT_CLAUDE_MODEL"));
+    /* OS ARGUMENTOS SAEM DO ADAPTADOR, e as cercas com eles. O array que estava
+       escrito aqui era o mesmo do `tester.js` e o mesmo do `upgrade.js`, com as
+       mesmas três flags que este repositório mediu uma a uma:
+         `--disallowedTools`   `--allowedTools` só AUTO-APROVA e não restringe
+                               (medido 2026-08-07: uma sessão com exatamente
+                               `Read,Write,Edit,Glob,Grep` executou shell). A
+                               afirmação "no Bash, no network" deste arquivo só é
+                               verdade por causa dela;
+         `--setting-sources ""`  sem ela a sessão carrega o `CLAUDE.md` global,
+                               que nesta máquina tem a chave da API do n8n em
+                               texto puro (medido em `iso-check.js`);
+         `--strict-mcp-config` + `--mcp-config '{"mcpServers":{}}'`  sem ela a
+                               sessão sobe todo MCP configurado e paga no boot.
+       Nenhuma some na tradução: no `ia.js` elas são DADO na tabela do provedor, e
+       um provedor sem as três é recusado por nome antes de virar spawn.
+
+       `negadas` NÃO é passado de propósito: o default do adaptador é o FECHADO
+       (`NEGADAS_SEM_REDE`), que é byte a byte a lista que estava escrita aqui.
+       Quem quer rede pede rede, e esta sessão nunca pediu.
+
+       `tetoPrompt` é uma RECUSA QUE NÃO EXISTIA NESTE ARQUIVO. Antes, um prompt
+       grande daqui morria com `spawn ENAMETOOLONG`, que não nomeia nem o prompt
+       nem o tamanho e manda quem lê procurar problema de caminho de arquivo. O
+       número é o `ia.PROMPT_MAX` (24000, o mesmo do `upgrade.js`) em vez de um
+       terceiro literal solto. Medido: o prompt da rodada 1 daqui é constante e
+       tem ~450 caracteres, e o da retentativa é a lista de portões reprovados —
+       nenhum dos dois chega perto do teto. */
+    const mont = ia.argumentosDaRodada({
+      escolha: escolhaDaRodada(),
+      prompt,
+      ferramentas: "Read,Write,Edit,Glob,Grep",
+      modelo: process.env.COCKPIT_CLAUDE_MODEL || readEnv("COCKPIT_CLAUDE_MODEL") || null,
+      resumeId: resume || null,
+      tetoPrompt: ia.PROMPT_MAX
+    });
+    if (!mont.ok) {
+      /* Montagem recusada NÃO vira spawn. O formato é o que este caminho já usa
+         — `{ok:false, sessionId, error}` — porque quem chama trata `res.ok` e
+         guarda `res.error`; inventar um formato novo aqui faria a rodada morrer
+         num `undefined` em vez de numa frase. */
+      resolve({ ok: false, sessionId: resume || null, error: mont.erro });
+      return;
     }
 
-    const child = spawn(CLAUDE_BIN, args, {
+    const child = spawn(CLAUDE_BIN, mont.args, {
       cwd: run.dir,
       windowsHide: true,
       // stdin fechado. Com um pipe aberto e vazio o CLI espera 3s por dados em
       // TODA rodada e depois escreve um aviso no stderr, que subia para o log
       // como se algo tivesse dado errado. O prompt vai por `-p`; não há stdin.
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, N8N_API_KEY: "", CLAUDE_CODE_ENTRYPOINT: "cockpit" }
+      /* Allowlist, não espalhamento. Aqui havia `{ ...process.env, N8N_API_KEY: "" }`,
+         que cegava UMA variável e deixava passar todo o resto: medido 24/08/2026
+         nesta máquina, 69 das 87 atravessavam — inclusive `CLAUDE_CODE_MESSAGING_TOKEN`,
+         que é credencial viva, e a cadeia `GIT_ASKPASS`, que aponta para o script
+         que o git chama para pedir senha. Esta é a sessão que escreve patch em
+         fluxo de produção a partir de um prompt onde texto de estranho já chega
+         íntegro, então o ambiente dela é superfície de ataque e não configuração.
+
+         A lista continua morando no `ambiente.js`; quem monta em cima dela agora
+         é o `ia.js`, e a diferença é uma só e ela é do FUTURO: no modo `chave` o
+         adaptador acrescenta a chave de API do provedor escolhido, numa linha, e
+         só dele. No modo `plano` — o de hoje, e o padrão — `ANTHROPIC_API_KEY`
+         fica AUSENTE do objeto, não presente e vazia: uma variável que não existe
+         não precisa ser lembrada.
+
+         O CARIMBO viaja como parâmetro porque ele diz QUEM spawnou, e isso é
+         próprio de cada caminho: um carimbo único faria as três abas virarem uma
+         só no que quer que leia esse campo. Este é `cockpit`, o mesmo de sempre. */
+      env: ia.ambienteDaRodada({ escolha: escolhaDaRodada(), carimbo: "cockpit" })
     });
     run.child = child;
 
@@ -849,13 +1004,52 @@ function targetNodes(w, targetName) {
 // O que o Claude enxerga do fluxo nunca inclui credencial. `redactWorkflow`
 // também troca segredo literal em parâmetro, então um token colado num nó não
 // volta copiado no patch.
+/* `pinData` é DADO DE EXECUÇÃO, não estrutura de fluxo — é o payload que alguém
+   fixou no editor do n8n para testar um nó, e nesta instância isso significa
+   conversa de lead, telefone e chave de sessão.
+
+   MEDIDO em 24/08/2026, antes desta linha existir: 6 cópias de fluxo na pasta que
+   a sessão headless LÊ carregavam 8,6 KB de `pinData`, com telefone cru dentro.
+   Ou seja, dado de cliente entrando no contexto de um modelo — pela função que
+   existe exatamente para impedir isso. E o preço é maior no produto distribuído:
+   num plano que treina, aquele conteúdo fica.
+
+   Vale para as TRÊS portas de uma vez, e isso foi conferido: `claude-fix` (a
+   pasta da correção), `upgrade.js` nos dois sítios, e `dossie.js` todos passam
+   por aqui. Se cada uma montasse a sua limpeza, seriam três correções.
+
+   Remover é seguro e NÃO apaga nada do fluxo vivo — conferido no `writeBody` do
+   `n8n.js`, que monta o corpo do `PUT` com exatamente `name`, `nodes`,
+   `connections` e `settings`. `pinData` nunca volta para a instância, então a
+   cópia limpa não pode levar embora o que a pessoa fixou no editor.
+
+   ESTA LIMPEZA É PARA FRENTE, e isso precisa estar escrito porque sem a frase
+   alguém lê `PAYLOAD_KEY` e conclui que o problema acabou. Os 6 arquivos que já
+   estavam em `.claude-runs/` no dia da medição CONTINUAM LÁ até alguém apagar —
+   nenhum diretório de corrida tem expurgo, e o total media 33,7 MB crescendo
+   desde 06/08. Apagar é decisão do Kauan e não nossa: são regeneráveis do ponto
+   de vista de perda e são evidência do ponto de vista de dimensionar exposição,
+   e o `_private/` ao lado carrega credencial.
+
+   O que dá para afirmar sobre o risco daqueles seis, conferido no fonte: eles são
+   dado PARADO, não exposição viva. O único `spawn` de sessão nasce em `drive()`,
+   que tem um chamador só, dentro de `start()`, que cria o diretório novo naquela
+   mesma chamada. Uma corrida reidratada por `rehydrate` aponta para o diretório
+   antigo, mas volta como `ready` e não chega a rodada nenhuma; `approve` e
+   `retry` não abrem sessão. Então o payload velho não volta para o contexto de
+   um modelo — ele só está no disco. Ruim, e menos urgente que o contrário. */
+const PAYLOAD_KEY = /^pinData$/;
+
 function sanitizedWorkflow(raw) {
   const w = redactWorkflow(raw);
   const walk = v => {
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") {
       const o = {};
-      for (const [k, val] of Object.entries(v)) { if (!CRED_KEY.test(k)) o[k] = walk(val); }
+      for (const [k, val] of Object.entries(v)) {
+        if (CRED_KEY.test(k) || PAYLOAD_KEY.test(k)) continue;
+        o[k] = walk(val);
+      }
       return o;
     }
     return v;
@@ -1677,7 +1871,27 @@ function subscribe(runId, fn) {
 }
 
 module.exports = {
-  configured, claudeFound, claudeBin: CLAUDE_BIN, sandboxEnabled: SANDBOX_TEST,
+  /* `configured` era `const configured = n8n.configured` CONGELADO no topo deste
+     arquivo — o valor do instante em que o módulo foi carregado, que nunca mais
+     acompanhava a instância. Medido por grep: NINGUÉM consome
+     `claudeFix.configured` hoje (os 14 usos de `.configured` no repositório são
+     todos de `n8n.configured`), então era contrato morto.
+     Vira GETTER em vez de sumir, e a direção é a regra que este repositório já
+     escreveu sete vezes: campo ausente cai no ramo negativo, e o ramo negativo
+     de um booleano chamado `configured` é o que SUB-AVISA — a tela diria "o n8n
+     não está configurado" por causa de uma chave que ninguém apagou, ela só
+     deixou de ser exportada. Como getter, ele passa a responder o que a
+     instância responde AGORA. */
+  get configured() { return n8n.configured; },
+  claudeFound, claudeBin: CLAUDE_BIN, sandboxEnabled: SANDBOX_TEST,
+  /* OS TRÊS ESTADOS DA DESCOBERTA, que `claudeFound` não sabe dizer.
+     `claudeAchado` é `true | false | null`: achei / você apontou `CLAUDE_BIN` e
+     lá não tem nada / não deu para procurar (sobra o nome nu no PATH, e sobre um
+     nome nu `existsSync` não responde). `claudePorque` é a frase de fato, já
+     nomeando a variável que conserta. Saem daqui para o `integracoes.js` poder
+     dizer "não sei" em vez de "não tem" — a distinção que ele já tem ramo para
+     mostrar e que hoje é inalcançável, porque `claudeFound` é booleano. */
+  claudeAchado: ACHEI_CLAUDE.achado, claudePorque: ACHEI_CLAUDE.porque,
   start, get, subscribe, approve, reject, revert, readStore, rehydrate,
   // o único efeito sem desfazer — leia o comentário de `retry` antes de chamar
   retry,
@@ -1694,5 +1908,12 @@ module.exports = {
   /* `runs` sai daqui pelo mesmo motivo que `sessions` sai de `tester.js`: as
      travas de `retry` SÃO a máquina de estados, e reimplementá-la no teste
      provaria a cópia, não o original. */
-  retryTargetWf, runs
+  retryTargetWf, runs,
+  /* Exportada só para o `ia-fiacao-test.js`, que troca `child_process.spawn` por
+     um filho falso ANTES de exigir este módulo e depois chama esta função de
+     verdade. Mesmo motivo do `rodar` do `upgrade.js`: o que aquele teste prova é
+     a LIGAÇÃO — que os argumentos e o ambiente que chegam ao spawn são os que o
+     adaptador montou. Remontar o array por fora provaria a cópia, não o produto.
+     Não spawna CLI de verdade sob o dublê e não fala com o n8n. */
+  runClaude
 };

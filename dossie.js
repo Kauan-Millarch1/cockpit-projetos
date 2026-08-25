@@ -1142,6 +1142,33 @@ function vazou(md, raw) {
   return achados;
 }
 
+/* ─────────── UMA RECUSA, LIMPA, ANTES DE SAIR DAQUI ────────────────────────
+ *
+ * UMA definição, TRÊS consumidores, e é por isso que ela existe como função em vez
+ * de um `replace` escrito no lugar onde calhava: o ledger `dossies.json` (rastreado
+ * em git), a telinha de progresso, e a linha de desfecho da escrita automática. Uma
+ * segunda cópia divergiria no primeiro conserto feito de um lado só, e o lado que
+ * divergisse seria o que publica.
+ *
+ * O QUE ELA TIRA É O TRECHO. `vazou()` logo acima devolve `{tipo, trecho}` e o
+ * `trecho` é o valor de parâmetro que apareceu na prosa — na prática um telefone do
+ * lead, uma chave de sessão montada a partir dele, um pedaço da conversa de um
+ * cliente. A recusa cita esse valor DE PROPÓSITO, porque ela volta literal para o
+ * modelo e é assim que ele sabe qual frase apagar. Isso vale dentro do diretório da
+ * sessão, que é scratch. Não vale em nenhum dos três destinos acima: dois são
+ * permanentes e um é uma tela que pode estar sendo gravada.
+ *
+ * SOBRA O QUE DECIDE ALGUMA COISA: qual portão recusou e de que tipo era o achado.
+ * "vazou um valor de parâmetro (…)" manda consertar a prosa; "vazou um valor de
+ * parâmetro (+55 41 99999-1395)" manda a mesma coisa e leva o telefone junto.
+ *
+ * O CORTE EM 120 NÃO É A PROTEÇÃO, é higiene de tela — quem protege é o `replace`.
+ * Escrito assim para que ninguém leia o `slice` como se fosse o portão e o afrouxe
+ * achando que está mexendo em layout. */
+function recusaLimpa(r) {
+  return String(r).replace(/\("[^"]*"\)/g, "(…)").slice(0, 120);
+}
+
 /* ═════════════════════════════════ A SESSÃO ════════════════════════════════
  *
  * §2.3: sessão AVULSA (`rodarAvulso` de `tester.js`: sem conversa, sem SSE),
@@ -1555,6 +1582,50 @@ async function preco(nos, modo = "inteiro") {
   return { usd: mediana * nos, amostras: medidos.length, modo };
 }
 
+/* A RÉGUA DE TEMPO, irmã do `preco()` e pelo mesmo motivo que o `estimate()` do
+ * caminho de correção existe: uma barra de progresso precisa de um DENOMINADOR, e
+ * o único honesto é o histórico desta máquina. Mediana e não média — uma tentativa
+ * que morreu no teto puxaria a média para longe do caso típico e a barra passaria a
+ * mentir o tempo todo, para o lado errado.
+ *
+ * FILTRA POR `modo`, E ISSO É OBRIGATÓRIO, pela mesma razão que o `preco()` filtra:
+ * a régua do incremental e a do inteiro são réguas DIFERENTES. O rewrite inteiro do
+ * Iago levou 682s para 179 nós; uma parcial de três parágrafos não tem nada a ver
+ * com esse relógio. Dividir uma escrita parcial pela régua da inteira já foi o
+ * defeito consertado uma vez neste arquivo — a oferta do recibo cobrando a
+ * reescrita inteira ao lado da promessa de conserto parcial. Não repetir com o
+ * relógio o que já custou caro com o preço.
+ *
+ * HOJE `amostras` DO `incremental` É ZERO: nenhuma escrita parcial foi medida nesta
+ * máquina. Então a régua dele NÃO EXISTE, e quem consome tem de dizer "não sei" —
+ * nunca zero (que leria como instantâneo numa escrita de minutos) e nunca o tempo
+ * da inteira com a palavra "parcial" ao lado, que é o defeito de novo.
+ *
+ * O QUE ELE DELIBERADAMENTE NÃO COPIA DO `preco()`: o `ok !== false`. Lá a exclusão
+ * é mecânica — uma tentativa reprovada regenerou zero parágrafos, então ela não tem
+ * denominador, e o `base(d) > 0` já a tira. Aqui ela TEM: uma escrita que morreu no
+ * teto gastou aquele relógio de verdade (medido: 520s numa das duas primeiras
+ * tentativas do eContrate), e a barra mede uma escrita cujo desfecho ninguém conhece
+ * enquanto ela corre. Uma régua que só conhece sucesso acaba cedo exatamente na
+ * rodada que está indo mal, que é quando alguém está olhando para ela. É a mesma
+ * escolha do `estimate()`, que também não filtra corrida que falhou. */
+const DUR_MAX_MS = 2 * 60 * 60 * 1000;
+
+async function duracao(modo = "inteiro") {
+  const ms = (await lerLedger())
+    .filter(d => modoDe(d) === modo)
+    .map(d => Number(d.ms))
+    /* Linha sem `ms`, com relógio zerado ou com um número absurdo sai fora: numa
+       amostra de três, uma delas sozinha move a mediana. Mesma disciplina do
+       `estimate()`, que descarta a duração que não é número finito antes de ordenar. */
+    .filter(v => Number.isFinite(v) && v > 0 && v <= DUR_MAX_MS)
+    .sort((a, b) => a - b);
+  /* Menos de duas medições não é régua, é anedota — mesmo corte do `preco()`. E o
+     `amostras` viaja junto para quem consome poder dizer POR QUE não sabe. */
+  if (ms.length < 2) return { medianaMs: null, amostras: ms.length, modo };
+  return { medianaMs: ms[Math.floor(ms.length / 2)], amostras: ms.length, modo };
+}
+
 /* ═════════════════════════════════ CONSTRUIR ══════════════════════════════ */
 
 const seguro = s => String(s).replace(/[^A-Za-z0-9_-]/g, "_");
@@ -1636,9 +1707,17 @@ async function pastaDaTentativa(wfId, tentativa) {
  * ausência de `updatedAt` em qualquer um dos dois lados ABORTA — "não deu para
  * conferir" não é "não mudou", que é a regra que este repositório escreveu cinco
  * vezes. */
-async function publicar({ wfId, nome, raw, final, tentativa, diz }) {
+async function publicar({ wfId, nome, raw, final, tentativa, diz, passo, rodada }) {
   const alvo = caminho(wfId);
   const tmp = alvo + "." + tentativa + ".tmp";
+  /* A ETAPA É EMITIDA ANTES DE PEDIR A VEZ NA FILA, e a colocação é a decisão:
+     esperar a fila É publicar, e o teto dessa espera é 45s
+     (`COCKPIT_ESCRITA_TIMEOUT_MS`). Emitir só depois do `rename` deixaria a tela
+     dizendo "conferindo" durante quase um minuto de espera — a barra parada bem no
+     fim, que é exatamente onde uma barra parada lê como travada.
+     `passo` é opcional porque `publicar` é exportada e chamada direto nos testes;
+     ela já vem embrulhada em try/catch de quem a construiu. */
+  if (passo) passo("publicando", { rodada, rodadas: MAX_RODADAS });
   const owner = n8n.writeOwner("upgrade", tentativa, "publicando o dossiê de " + String(nome || wfId));
   return n8n.comEscrita(owner, async () => {
     const agora = await n8n.getRawWorkflow(wfId);
@@ -1658,6 +1737,30 @@ async function publicar({ wfId, nome, raw, final, tentativa, diz }) {
   });
 }
 
+/* ──────────── AS QUATRO ETAPAS DE UMA ESCRITA, EM LISTA FECHADA ───────────
+ *
+ * O `aoDizer` já contava o que está acontecendo, em TEXTO LIVRE — e texto livre não
+ * dá para desenhar: ninguém consegue dizer, de "rodada 2 de 2 — sonnet", se aquilo
+ * é metade ou é o fim. `aoEtapa` é o MESMO relato em forma estruturada, e ele NÃO
+ * substitui o `diz`: as duas coisas servem a perguntas diferentes — uma é a linha
+ * de atividade (o que está acontecendo agora), a outra é a POSIÇÃO (onde isto está
+ * dentro do trabalho inteiro). Nenhum texto de `diz()` mudou por causa disto.
+ *
+ * A LISTA É FECHADA E EXPORTADA de propósito: `i` de `total` só significa alguma
+ * coisa se as duas pontas concordarem sobre quantas etapas existem, e uma etapa
+ * inventada aqui viraria uma barra passando de 100% do outro lado. Quem desenha lê
+ * `ETAPAS.length`, nunca um 4 cravado na página.
+ *
+ * FATO, NUNCA VEREDITO: daqui não sai porcentagem, nem cor, nem frase de tela. `i`
+ * de `total` é o que se mediu; o que isso vale numa barra é juízo da página — a
+ * mesma divisão que o resto deste arquivo mantém.
+ *
+ * A SEQUÊNCIA NÃO É MONOTÔNICA, e quem desenha precisa saber disto: uma rodada
+ * reprovada no portão volta de `conferindo` para `escrevendo`, então `i` ANDA PARA
+ * TRÁS. É fato, não defeito — o que avançou foi o `rodada`, que viaja junto
+ * justamente para a tela poder dizer "2 de 2" em vez de fingir progresso. */
+const ETAPAS = ["preparando", "escrevendo", "conferindo", "publicando"];
+
 /* A TRAVA DE FLUXO ENVOLVE A SESSÃO INTEIRA — pasta de trabalho e publish
    (§Step 2b.1). `construir` é a casca que a segura; `umaEscrita` é o trabalho. */
 /* `automatico` é um CARIMBO, nunca um comportamento: nada abaixo desta linha muda
@@ -1665,15 +1768,36 @@ async function publicar({ wfId, nome, raw, final, tentativa, diz }) {
    `autoDe`), e a frase da trava o diz porque `donoDoDossie` é o que a tela mostra
    quando uma segunda escrita é recusada — "já tem uma escrita rodando" sem dizer
    que ela começou sozinha é a metade que confunde. */
-async function construir(wfId, { aoDizer, incremental = false, automatico = false } = {}) {
+async function construir(wfId, { aoDizer, aoEtapa, incremental = false, automatico = false } = {}) {
   const tentativa = idTentativa();
   return comTravaFluxo(wfId, "escrevendo o dossiê" + (incremental ? " (incremental)" : "")
     + (automatico ? " · automático" : "") + " · " + tentativa,
-    () => umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa }));
+    () => umaEscrita(wfId, { aoDizer, aoEtapa, incremental, automatico, tentativa }));
 }
 
-async function umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa }) {
+async function umaEscrita(wfId, { aoDizer, aoEtapa, incremental, automatico, tentativa }) {
   const diz = t => { if (aoDizer) try { aoDizer(t); } catch { /* segue */ } };
+
+  /* Embrulhado igual ao `diz`, e pelo mesmo motivo: quem escuta é a tela, e uma
+     tela que joga não pode derrubar uma escrita de onze minutos que já gastou cota.
+     O `i` sai DAQUI, da posição dentro de `ETAPAS`, nunca de um número escrito à mão
+     no ponto de emissão: duas definições da mesma posição divergem no primeiro
+     conserto feito num lado só, e a que divergisse desenharia a barra errada.
+     A FORMA É SEMPRE A MESMA — `rodada` e `rodadas` viajam `null` nas etapas que não
+     têm rodada, em vez de sumirem do objeto. Campo ausente e campo nulo levam a
+     leituras diferentes do outro lado, e este repositório já pagou seis vezes por
+     deixar um ausente cair no ramo errado. */
+  const passo = (nome, extra) => {
+    if (!aoEtapa) return;
+    try { aoEtapa({ etapa: nome, i: ETAPAS.indexOf(nome) + 1, total: ETAPAS.length, rodada: null, rodadas: null, ...(extra || {}) }); }
+    catch { /* segue */ }
+  };
+
+  /* `preparando` cobre tudo até a pasta ficar de pé: ler o fluxo, decidir a
+     admissão do incremental e montar o diretório. Nada disto gasta modelo, e é
+     justamente por isso que precisa aparecer — são segundos de tela parada antes da
+     primeira linha de atividade da sessão. */
+  passo("preparando");
 
   /* `getRawWorkflow` é o buraco deliberado da whitelist e é process-local:
      nenhuma rota serve a saída dele. O que vai para a pasta da sessão é o
@@ -1729,6 +1853,7 @@ async function umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa })
   let recusas = null;
   const custos = [];
   for (let rodada = 1; rodada <= MAX_RODADAS; rodada++) {
+    passo("escrevendo", { rodada, rodadas: MAX_RODADAS });
     diz("rodada " + rodada + " de " + MAX_RODADAS + " — " + MODELO);
     const r = await tester.rodarAvulso({
       prompt: plano ? promptIncremental(raw, plano.regenerar, recusas) : prompt(raw, nos.length, recusas),
@@ -1748,6 +1873,12 @@ async function umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa })
        sobre O TEXTO NOVO SÓ. `validar` não fala o formato do arquivo final com
        âncoras — apontá-lo para o documento composto não é afrouxar o portão, é
        usá-lo num idioma que ele não lê. Inalterado; o que muda é `somente`. */
+    /* `conferindo` cobre OS DOIS PORTÕES — o `validar` sobre o texto novo e o
+       `vazou` sobre o documento composto. Eles são código local, de graça e rápidos,
+       mas a etapa existe assim mesmo: uma rodada reprovada volta para `escrevendo`,
+       e sem esta emissão a tela mostraria a barra parada em "escrevendo" durante a
+       rodada 1 inteira e a rodada 2 inteira, sem nunca dizer que houve um portão. */
+    passo("conferindo", { rodada, rodadas: MAX_RODADAS });
     const v = validar(md, raw, imp, exigidos ? { somente: exigidos } : {});
     if (!v.ok) {
       diz("recusado por código: " + v.erros.length + " motivo(s) — " + v.erros[0].slice(0, 120));
@@ -1793,7 +1924,7 @@ async function umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa })
       break;
     }
 
-    const pub = await publicar({ wfId, nome: raw.name, raw, final, tentativa, diz });
+    const pub = await publicar({ wfId, nome: raw.name, raw, final, tentativa, diz, passo, rodada });
     if (!pub.ok) { recusas = [pub.porque]; diz("abortei: " + pub.porque); break; }
 
     const medido = custos.filter(c => !c.usdDesconhecido);
@@ -1832,10 +1963,11 @@ async function umaEscrita(wfId, { aoDizer, incremental, automatico, tentativa })
     usd: Number(medido.reduce((a, c) => a + c.usd, 0).toFixed(4)),
     ...(medido.length === custos.length ? {} : { usdDesconhecido: true }),
     ok: false,
-    /* O motivo entra abreviado: `dossies.json` é rastreado em git, e a recusa
-       CITA o trecho que vazou — copiar isso para dentro do git levaria o valor
-       exatamente para onde o portão existe para não deixar chegar. */
-    porque: (recusas || []).map(r => String(r).replace(/\("[^"]*"\)/g, "(…)").slice(0, 120)).slice(0, 6)
+    /* O motivo entra LIMPO, pelo `recusaLimpa` — ver a definição dele. Aqui o
+       destino é `dossies.json`, que é rastreado em git; nas outras duas chamadas
+       o destino é a tela. Os três precisam da MESMA limpeza, e por isso ela
+       deixou de ser um `replace` escrito aqui dentro. */
+    porque: (recusas || []).map(recusaLimpa).slice(0, 6)
   });
   return { ok: false, erro: "não passou nas checagens em " + MAX_RODADAS + " rodadas", recusas, custos, modo };
 }
@@ -2052,7 +2184,13 @@ flexibiliza o §2.8 do PLAN-UPGRADE. A variavel COCKPIT_DOSSIE_AUTO manda nisso:
 module.exports = {
   impressoes, adjacencias, canon, semRuido, estado, paraPrompt,
   compor, parse, ler, caminho, valoresDoFluxo, vazou, validar, executaveis,
-  construir, lerLedger, preco, REGRAS, prompt, LIMITE_LARANJA, MIN_CONTEUDO, ehConteudo, MODELO, DIR,
+  construir, lerLedger, preco, REGRAS, prompt,
+  /* `ETAPAS` sai porque é CONTRATO entre os dois lados: quem desenha a barra lê o
+     tamanho daqui em vez de cravar um 4 na página, e uma etapa acrescentada aqui
+     chega lá sozinha. `duracao` sai porque é a régua do denominador dessa barra, e
+     ela é PURA no sentido que importa — só lê o ledger, não fala com rede nem com
+     n8n, então o número é conferível sem servidor de pé. */
+  ETAPAS, duracao, recusaLimpa, LIMITE_LARANJA, MIN_CONTEUDO, ehConteudo, MODELO, DIR,
   GATE_V, FP_CX_HEX, conexoesNormalizadas,
   /* O incremental (§Step 2). As duas primeiras são PURAS e é por isso que estão
      aqui: o veredito de admissão e o conjunto a regenerar têm de ser prováveis sem

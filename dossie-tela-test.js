@@ -45,7 +45,10 @@ const src = pega("const AVISO_GLIFO = {", "function pilhaAvisos()")
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const usdTxt = v => "US$" + v.toFixed(2).replace(".", ",");
-const S = { dossie: new Map(), anexosPre: [], subindo: 0, anexoErro: null, convId: null, conv: null };
+/* `gavetaAnexos` nasce FALSE porque a tira nasce recolhida — o estado é da
+   página (um `<details>` nativo perderia o aberto/fechado a cada repintura do SSE),
+   e o compositor lê exatamente este campo. */
+const S = { dossie: new Map(), anexosPre: [], subindo: 0, anexoErro: null, convId: null, conv: null, gavetaAnexos: false };
 /* `IO` é o MÓDULO DE VERDADE, `entradas.js`, carregado em Node — não um dublê.
    O compositor desenha a fileira de anexar chamando `IO().barraIO()`, e um dublê
    aqui provaria a cópia em vez da tela: é a mesma disciplina que faz o `avisoHtml`
@@ -112,9 +115,39 @@ const verde = api.faixaDossie(flux);
 t("verde: compara prosa contra JSON", /54KB de prosa/.test(verde) && /284KB de JSON/.test(verde));
 t("verde: as duas etiquetas obrigatórias viajam no title", /Escrito por um modelo/.test(verde) && /2026-08-18T16:44/.test(verde));
 
-põe({ cor: "verde", nos: 5, paragrafos: 5, bytes: 100, preco: {}, job: { escrevendo: true, atividade: "rodada 1 de 2 — sonnet" } });
-t("escrevendo: botão desabilitado e mostra a atividade",
-  /escrevendo…/.test(api.faixaDossie(flux)) && /rodada 1 de 2/.test(api.faixaDossie(flux)) && /disabled/.test(api.faixaDossie(flux)));
+/* ESTE BOTÃO DEIXOU DE SER MORTO, e o caso foi repontado para a decisão nova em vez
+   de perder a asserção. Ele fixava `/disabled/`: durante a escrita não havia o que
+   fazer além de esperar, então o botão era um rótulo. HAVIA o que fazer — VER: uma
+   escrita de minutos (medido: 514s num fluxo de 103 nós, 682s num de 179) com a tela
+   mostrando só a última linha de atividade não diz em que etapa está, em que rodada,
+   nem quanto falta, e é exatamente essa a pergunta de quem espera. Agora ele é a
+   porta da telinha de progresso, e o que se afirma aqui é MAIS forte que o antigo:
+   ele está vivo, carrega `data-prog`, e continua dizendo o que dizia. */
+põe({ cor: "verde", nos: 5, paragrafos: 5, bytes: 100, preco: {},
+  job: { escrevendo: true, atividade: "rodada 1 de 2 — sonnet",
+    comecouEm: new Date(Date.now() - 60000).toISOString(), rodada: 1, rodadas: 2,
+    duracao: { medianaMs: 600000, amostras: 2 } } });
+const fEscr = api.faixaDossie(flux);
+const btEscr = (fEscr.match(/<button[^>]*data-prog[^>]*>/) || [""])[0];
+t("escrevendo: o botão está VIVO e é a porta da telinha de progresso",
+  !!btEscr && /data-prog="1"/.test(btEscr) && !/disabled/.test(btEscr));
+/* OS DOIS NUNCA PODEM COEXISTIR NO MESMO NÓ. `ligarDelegacao` trata `[data-dossie]`
+   como "começa a escrita"; num botão que também é `[data-prog]` um clique tentaria
+   começar uma SEGUNDA escrita enquanto a primeira roda — e o que sobra disso é um
+   409 do servidor num lugar da tela que existe para mostrar progresso. */
+t("...e ele NÃO carrega `data-dossie`: um clique não pode pedir uma segunda escrita",
+  !!btEscr && !/data-dossie/.test(btEscr));
+t("...e continua dizendo `escrevendo…` e a rodada",
+  /✎ escrevendo…/.test(fEscr) && /rodada 1 de 2/.test(fEscr));
+/* SEM RÉGUA NÃO HÁ PORCENTAGEM, e o rótulo cai para a rodada em vez de inventar um
+   número. Um "0% · ver progresso" ali seria uma afirmação onde não há medida. */
+põe({ cor: "verde", nos: 5, paragrafos: 5, bytes: 100, preco: {},
+  job: { escrevendo: true, atividade: "rodada 1 de 2 — sonnet",
+    comecouEm: new Date().toISOString(), rodada: 1, rodadas: 2,
+    duracao: { medianaMs: null, amostras: 0 } } });
+const fSemRegua = api.faixaDossie(flux);
+t("...e sem régua o rótulo leva a rodada, nunca uma porcentagem inventada",
+  /rodada 1\/2 · ver progresso/.test(fSemRegua) && !/%/.test(fSemRegua));
 
 põe({ cor: "cinza", nos: 5, paragrafos: 0, bytes: 0, preco: {}, ocupado: "Agente eContrate" });
 t("outro fluxo sendo escrito: recusa e diz qual", /escrevendo o de Agente eContrate/.test(api.faixaDossie(flux)));
@@ -495,16 +528,39 @@ S.conv = { anexos: [{ nome: "spec.md", arquivo: "anexos/spec.md", tipo: "texto",
 const cSess = api.compositorHtml(flux);
 t("com conversa aberta: o chip vem do SNAPSHOT, não da bandeja",
   /spec\.md/.test(cSess) && !/colunas\.csv/.test(cSess) && api.anexosAgora().length === 1);
-t("...e o `lido` só existe com sessão (na bandeja ninguém abriu nada ainda)",
-  /class="anx lido"/.test(cSess) && api.lidosAgora().length === 1);
+/* A TIRA, E OS DOIS CASOS DE CADA MARCA. Os chips saíram de baixo do campo: com a
+   conversa aberta eles sobem para a tira recolhida (`gavetaAnexos`, em
+   `entradas.js`), montada ACIMA do compositor. As marcas continuam existindo e
+   continuam certas — o que mudou é ONDE elas ficam —, então cada uma é medida nas
+   DUAS direções: recolhida ela não aparece E A TIRA APARECE (a informação mudou de
+   lugar, não sumiu da tela), aberta ela aparece.
+   Medir só a ausência aceitaria a tira ter sumido junto; medir só a presença
+   aceitaria a tira nascer aberta, que é o defeito oposto — o compositor voltaria a
+   ser a parede de chips que este conserto tirou de lá.
+   E ABRIR É `S.gavetaAnexos`, não uma chamada solta a `gavetaAnexos`: assim quem
+   desenha continua sendo a página, pela mesma função servida, e o teste não vira
+   uma segunda redação do desenho. */
+t("com conversa aberta o chip sobe para a TIRA, que nasce RECOLHIDA",
+  /class="anxgav/.test(cSess) && /1 anexo nesta conversa/.test(cSess)
+  && /aria-expanded="false"/.test(cSess) && !/class="anx lido"/.test(cSess));
+S.gavetaAnexos = true;
+const cTira = api.compositorHtml(flux);
+t("...e o `lido` só existe com sessão, agora dentro da tira ABERTA",
+  /class="anx lido"/.test(cTira) && api.lidosAgora().length === 1);
 /* TIRAR UM CHIP É BLOQUEADO COM RODADA CORRENDO: o arquivo já está no prompt que
    está sendo respondido, e removê-lo no meio faria a resposta citar algo que não
-   está mais lá. */
+   está mais lá. A tira fica ABERTA nos dois casos de propósito: com ela recolhida a
+   ausência do `×` seria verdadeira por acaso — não há chip nenhum ali — e o caso
+   deixaria de medir a regra que ele existe para medir. */
 S.conv.status = "correndo";
 t("rodada correndo: não dá para tirar o chip", !/data-tirar/.test(api.compositorHtml(flux)));
 S.conv.status = "aguardando";
-t("rodada parada: dá para tirar", /data-tirar/.test(api.compositorHtml(flux)));
-S.convId = null; S.conv = null; S.anexosPre = [];
+t("rodada parada: dá para tirar, dentro da tira aberta",
+  /data-tirar/.test(api.compositorHtml(flux)));
+S.gavetaAnexos = false;
+t("...e com a tira recolhida o × some junto com os chips, mas a tira continua na tela",
+  !/data-tirar/.test(api.compositorHtml(flux)) && /class="anxgav/.test(api.compositorHtml(flux)));
+S.convId = null; S.conv = null; S.anexosPre = []; S.gavetaAnexos = false;
 
 /* ─────────── O NOME ACESSÍVEL DO CAMPO, E A FAMÍLIA `.tag` ───────────────
  *

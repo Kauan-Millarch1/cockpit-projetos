@@ -9,6 +9,10 @@
 //
 // FACTS ONLY. Nothing here decides a flow is healthy, stale or risky.
 // All judgement lives in flows.html.
+//
+// A CHAVE tem três fontes (cofre → `.env` → nada) e NENHUMA delas é resolvida
+// no `require`: ver o bloco "DE ONDE VEM A CHAVE" logo abaixo de `loadConfig`.
+// Ela nunca sai daqui — nem em retorno, nem em erro, nem truncada.
 
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
@@ -26,31 +30,352 @@ const WORKFLOWS_TTL_MS = 5 * 60 * 1000;
 const GRAPH_TTL_MS = 10 * 60 * 1000;
 const EXEC_CACHE_CAP = 600;        // extracted executions kept on disk
 const MSG_CAP = 400;               // truncate error strings
-// Detail costs one ?includeData=true fetch of a multi-MB payload per errored
-// execution, serialized behind MAX_INFLIGHT. On a bad day (dozens of failures)
-// an uncapped loop would hold /overview open for a minute on every refresh.
+/* Detail costs one ?includeData=true fetch of a multi-MB payload per errored
+   execution. On a bad day (dozens of failures) an uncapped loop would hold
+   /overview open for a minute on every refresh.
+
+   ESTE COMENTÁRIO DIZIA "serialized behind MAX_INFLIGHT" e era FALSO: o `for`
+   com `await` dentro mantinha `inFlight` em 1, então os quatro slots do
+   orçamento nunca eram usados e o custo era (nº de falhas × RTT). Medido em
+   2026-08-20: 240–690ms por GET conforme o tamanho do fluxo (o payload do Iago
+   é 679KB), ou seja ~19s no caminho crítico do boot num dia com 40 falhas.
+   Hoje as leituras vão em rajada por `emRajada`, que é onde `MAX_INFLIGHT` de
+   fato limita — e o teto abaixo é o que impede a rajada de virar 300 GETs. */
 const ERROR_DETAIL_CAP = 40;
 
 const EXEC_CACHE_FILE = path.join(__dirname, ".cache-n8n-exec.json");
 
 /* ------------------------------------------------------------------- config */
 
+/* `loadConfig()` lê os arquivos `.env`/`.env.local` DESTE diretório e eles
+   VENCEM `process.env`. Isso é medido, é contrato, e não pode ser invertido por
+   acidente: `mutex-test.js` e `cofre-n8n-test.js` copiam este arquivo para uma
+   pasta SEM `.env` justamente porque, dentro da pasta do projeto, cravar
+   `N8N_BASE_URL` em `process.env` não isola nada — a leitura iria para a
+   instância de produção do dono. Inverter a precedência quebraria esses testes
+   do pior jeito possível: eles continuariam VERDES, falando com o n8n de
+   verdade.
+
+   `deArquivo` viaja porque "a chave está em texto puro num arquivo ao lado do
+   `server.js`" e "a chave veio do ambiente do processo" são fatos diferentes, e
+   só o primeiro é o que o cofre existe para tirar da frente. Quem desenha a
+   tela precisa poder dizer qual dos dois é. */
 function loadConfig() {
   const env = { ...process.env };
+  const deArquivo = new Set();
   for (const f of CFG_FILES) {
     const p = path.join(__dirname, f);
     if (!fs.existsSync(p)) continue;
     for (const line of fs.readFileSync(p, "utf8").split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
-      if (m) env[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
+      if (m) { env[m[1]] = m[2].trim().replace(/^["']|["']$/g, ""); deArquivo.add(m[1]); }
     }
   }
   const base = (env.N8N_BASE_URL || "").replace(/\/+$/, "");
-  return { baseUrl: base, apiKey: env.N8N_API_KEY || "" };
+  return {
+    baseUrl: base,
+    apiKey: env.N8N_API_KEY || "",
+    deArquivo: deArquivo.has("N8N_API_KEY")
+  };
 }
 
-const cfg = loadConfig();
-const configured = !!(cfg.baseUrl && cfg.apiKey);
+/* ══════════════════════ DE ONDE VEM A CHAVE ═══════════════════════════════
+ *
+ * TRÊS FONTES, nesta ORDEM, e a ordem é declarada aqui e VIAJA em
+ * `estadoChave()` — nunca implícita, nunca deduzível só lendo o efeito:
+ *
+ *   1. COFRE  — a chave cifrada pelo DPAPI em `%APPDATA%\Cockpit\n8n.dat`,
+ *               FORA da pasta do projeto. Vale se ela existir E ABRIR.
+ *               O teto dessa proteção está escrito no cabeçalho de `cofre.js`
+ *               e não é repetido aqui: ele protege a cópia que VIAJA (pasta
+ *               zipada, backup, commit por engano), não protege contra outro
+ *               processo rodando na mesma conta do Windows.
+ *   2. `.env` — o caminho do dono HOJE, e ele não pode quebrar. Um cockpit que
+ *               parasse de ler o `.env` no dia em que o cofre entrou seria uma
+ *               migração forçada disfarçada de melhoria.
+ *   3. nada configurado.
+ *
+ * ───────────────────────── ANTES ISTO ERA CONGELADO NO `require`
+ *
+ * `const cfg = loadConfig()` e `const configured = ...` liam UMA vez, no
+ * carregamento do módulo. Enquanto a única fonte era um arquivo que a pessoa
+ * editava e depois reiniciava o programa, isso era honesto. Com uma tela que
+ * cola a chave em cima, deixa de ser: a chave entraria no cofre e este processo
+ * continuaria dizendo "não configurado" até alguém fechar a janela — que é
+ * exatamente a fricção que o cofre veio remover. Por isso `configured` e
+ * `instance` são GETTERS, e toda leitura acontece na hora do uso.
+ *
+ * ───────────────────────── TRÊS ESTADOS, NUNCA DOIS
+ *
+ * "não tem chave" e "tem chave e ela não abre" mandam a pessoa para lugares
+ * OPOSTOS. A primeira convida a colar uma; a segunda diz que o arquivo existe e
+ * não decifra NESTA conta do Windows — o que acontece de propósito quando o
+ * cofre veio de outra máquina, e onde colar de novo resolve por outro motivo,
+ * sem sugerir que a chave dela foi revogada.
+ *
+ * Então FALHA AO ABRIR O COFRE NÃO É `configured: false`. Existe chave
+ * configurada, `configured` continua verdadeiro, a requisição falha com um erro
+ * que NOMEIA o cofre, e o motivo viaja em `estadoChave().cofre`.
+ *
+ * Este repositório já escreveu essa regra sete vezes — `docAgentes` acusando um
+ * arquivo de 48KB de não existir, `ingredientes.credenciais` dizendo "você não
+ * tem credencial", o cinza do dossiê que não pode ler como vermelho, `resolucao`
+ * ausente que não pode ler como "está tudo no fluxo aberto", `d.incremental`,
+ * `escreveNoN8n` e a trava do compositor. As sete foram no mesmo sentido: o
+ * campo ausente NUNCA cai no ramo negativo. Esta é a oitava.
+ */
+
+/* O `require` é guardado porque este arquivo é COPIADO para fora da pasta do
+   projeto por teste (o `mutex-test.js` leva `n8n.js` e `simulate.js`, e mais
+   nada), e um `Cannot find module` ali derrubaria o cliente inteiro por causa de
+   um módulo que serve a UMA das três fontes. O preço está declarado: um erro de
+   sintaxe em `cofre.js` viraria "cofre indisponível" em vez de barulho — e é
+   por isso que o motivo VIAJA em `estadoChave().cofre.porque` em vez de ser
+   engolido. Cofre que não carregou tem de dar para ler na tela. */
+let cofre = null, cofreNaoCarregou = null;
+try { cofre = require("./cofre.js"); }
+catch (err) { cofreNaoCarregou = String((err && err.message) || err); }
+
+const ORDEM_DA_CHAVE = ["cofre", "env"];
+
+/* A chave nunca aparece — nem inteira, nem truncada. Truncada é PIOR que nada:
+   um prefixo publicado deixa conferir um palpite, e o painel vira um oráculo de
+   credencial. Duas varreduras porque elas pegam coisas diferentes: o valor
+   literal (quando existe um para comparar) e a FORMA de JWT (quando não existe,
+   ou quando o que vazou foi outra chave — a de outro serviço, a antiga). Mesma
+   ideia do `pareceChave()` do `cofre.js`, aplicada na saída em vez da entrada. */
+const FORMA_JWT = /eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}(?:\.[A-Za-z0-9_-]+)?/g;
+
+function semSegredo(txt, ...valores) {
+  let s = String(txt == null ? "" : txt);
+  for (const v of valores) {
+    if (typeof v === "string" && v.length >= 8) s = s.split(v).join("«chave»");
+  }
+  return s.replace(FORMA_JWT, "«chave»");
+}
+
+/* ── o `.env`, relido na hora, com memo por mtime ─────────────────────────
+   Memo invalidado por mtime+tamanho dos arquivos, e NÃO por TTL: um TTL faria a
+   tela dizer "não configurado" por N segundos DEPOIS de a chave entrar, que é a
+   mesma classe de mentira que `esquema.resumo()` já evita exatamente assim.
+   `process.env` não tem mtime, então ele entra na comparação pelo valor — e o
+   valor fica só em memória, no mesmo processo que já carrega `process.env`
+   inteiro; não vai para assinatura, para log nem para retorno nenhum. */
+let envMemo = null;
+
+function assinaturaEnv() {
+  let s = "";
+  for (const f of CFG_FILES) {
+    try {
+      const st = fs.statSync(path.join(__dirname, f));
+      s += f + "@" + st.mtimeMs + "#" + st.size + ";";
+    } catch { s += f + "@-;"; }
+  }
+  return s;
+}
+
+function envAtual() {
+  const assin = assinaturaEnv();
+  const ambBase = process.env.N8N_BASE_URL || "";
+  const ambChave = process.env.N8N_API_KEY || "";
+  if (envMemo && envMemo.assin === assin && envMemo.ambBase === ambBase && envMemo.ambChave === ambChave) {
+    return envMemo.cfg;
+  }
+  envMemo = { assin, ambBase, ambChave, cfg: loadConfig() };
+  return envMemo.cfg;
+}
+
+/* ── cache da leitura do cofre, INCLUSIVE DA FALHA ────────────────────────
+ *
+ * `cofre.ler()` abre um PowerShell: ~800ms MEDIDO, e está escrito no cabeçalho
+ * do `cofre.js`. `request()` é chamado a cada GET — a rajada do boot dispara
+ * até `MAX_INFLIGHT` de uma vez e o poll bate a cada 20s. Uma leitura por
+ * requisição seria absurda, e é a primeira coisa que alguém tentaria fazer ao
+ * ligar o cofre aqui.
+ *
+ * `cofre.js` já guarda o valor decifrado em memória, então o SUCESSO já sairia
+ * barato de graça. O que ele NÃO guarda é a FALHA: um blob corrompido faz
+ * `ler()` abrir um PowerShell NOVO a cada chamada, e o painel passaria a gastar
+ * 800ms por requisição para receber o mesmo erro — com o poll de 20s isso é um
+ * processo aberto por requisição, para sempre. Quem tem de guardar as duas
+ * pontas é aqui.
+ *
+ * POR QUE O CACHE É SEGURO — e isto é uma frase verificável, não uma esperança:
+ *
+ *   - a única coisa que muda a resposta é a chave ser TROCADA, e trocar passa
+ *     por `esquecerChave()`, que zera as DUAS memórias (a daqui e a do
+ *     `cofre.js`). É invalidação explícita, e é a rota de troca que a chama;
+ *   - e para o caso em que ninguém chamou — um segundo cockpit aberto, um
+ *     restore de backup, a pessoa apagando o arquivo na mão — o `mtimeMs` e o
+ *     tamanho do arquivo do cofre entram na assinatura. DIVERGÊNCIA DECIDE,
+ *     nunca o relógio: mesma disciplina do semáforo do dossiê e do cache do
+ *     esquema, e o oposto de um TTL, que aqui só teria dois efeitos — pagar
+ *     800ms de PowerShell de novo e fazer a tela mudar de estado sem nada ter
+ *     mudado no mundo.
+ *
+ * A leitura EM VOO é compartilhada porque o cache só existe depois da primeira
+ * volta: sem isso, a rajada do boot abriria quatro PowerShells para ler o mesmo
+ * arquivo, que é justamente o custo que este bloco existe para não pagar. */
+let cofreMemo = null, cofreVoo = null;
+
+function assinaturaCofre() {
+  const p = cofre && cofre.ARQUIVO;
+  if (!p) return "sem-modulo";
+  try { const st = fs.statSync(p); return "ha@" + st.mtimeMs + "#" + st.size; }
+  catch (err) { return (err && err.code) === "ENOENT" ? "ausente" : "ilegivel"; }
+}
+
+/* Fato sobre a FORMA, síncrono, sem abrir processo nenhum: existe cofre nesta
+   máquina e há algo guardado nele? Quem diz se aquilo DECIFRA é `lerCofre()`, e
+   quem diz se a chave VALE é o n8n. Nenhuma das três respostas finge ser outra. */
+function estadoCofre() {
+  if (cofreNaoCarregou) {
+    return { disponivel: false, porque: semSegredo("o módulo do cofre não carregou: " + cofreNaoCarregou),
+      temChave: false, onde: null };
+  }
+  try {
+    const st = cofre.estado();
+    return {
+      disponivel: !!(st && st.disponivel), porque: (st && st.porque) || null,
+      temChave: !!(st && st.temChave), onde: (st && st.onde) || null
+    };
+  } catch (err) {
+    return { disponivel: false, porque: semSegredo("o cofre não respondeu: " + ((err && err.message) || err)),
+      temChave: false, onde: null };
+  }
+}
+
+function lerCofre() {
+  const assin = assinaturaCofre();
+  if (cofreMemo && cofreMemo.assin === assin) return Promise.resolve(cofreMemo);
+  if (cofreVoo && cofreVoo.assin === assin) return cofreVoo.p;
+
+  const p = (async () => {
+    const est = estadoCofre();
+    if (!est.disponivel || !est.temChave) {
+      return { assin, chave: null, erro: null, abriu: null, est };
+    }
+    try {
+      const chave = await cofre.ler();
+      /* `ler()` devolve `null` quando o arquivo existe e está vazio. Isso é
+         "não tem chave", não "não abriu" — e a diferença é a razão de este
+         bloco existir, então ela não pode ser apagada aqui. */
+      return { assin, chave: chave || null, erro: null, abriu: chave ? true : null, est };
+    } catch (err) {
+      /* EXISTE cofre e ele NÃO abriu. Terceiro estado. */
+      return { assin, chave: null, erro: semSegredo((err && err.message) || err), abriu: false, est };
+    }
+  })().then(r => {
+    if (cofreVoo && cofreVoo.p === p) cofreVoo = null;
+    cofreMemo = r;
+    return r;
+  }, err => {
+    if (cofreVoo && cofreVoo.p === p) cofreVoo = null;
+    throw err;
+  });
+
+  cofreVoo = { assin, p };
+  return p;
+}
+
+/* A porta de troca da chave. Quem grava uma chave nova CHAMA ISTO — é a
+   invalidação explícita de que o cache acima depende para poder existir. Zera
+   também a memória do próprio `cofre.js`, senão um arquivo trocado por fora
+   continuaria a devolver o valor antigo por lá. */
+function esquecerChave() {
+  envMemo = null; cofreMemo = null; cofreVoo = null;
+  if (cofre && typeof cofre.esquecer === "function") {
+    try { cofre.esquecer(); } catch { /* módulo estranho: o resto já foi zerado */ }
+  }
+}
+
+/* Porta de teste, e ela é declarada em vez de tolerada. `entradas-test.js`
+   troca `n8n` no `require.cache` e faz `n8n.configured = true` para exercitar o
+   `upgrade.js` sem instância — técnica padrão desta casa. Com um getter puro
+   aquilo lançaria `TypeError` em modo estrito, então existe um setter, e o que
+   ele guarda VIAJA em `estadoChave().forcado`: uma mentira de teste que a tela
+   consegue ver não vira uma mentira de produção que ninguém acha. */
+let configuradoForcado = null;
+
+function configuradoAgora() {
+  if (typeof configuradoForcado === "boolean") return configuradoForcado;
+  const env = envAtual();
+  if (!env.baseUrl) return false;
+  if (env.apiKey) return true;
+  if (cofreMemo && cofreMemo.chave) return true;
+  /* SÍNCRONO de propósito. `configured` é lido como PROPRIEDADE em dezenas de
+     lugares (`if (!n8n.configured) return 503`), e transformá-lo em `await`
+     mudaria a forma de todos eles — inclusive dos que estão fora deste módulo e
+     que este trabalho não pode tocar. Então a pergunta aqui é a que dá para
+     responder sem abrir o cofre: EXISTE chave configurada? `cofre.estado()` é
+     um `statSync`.
+     A consequência é deliberada e está no bloco lá em cima: um cofre com chave
+     que NÃO ABRE responde `true`. Responder `false` mandaria a pessoa editar um
+     `.env` que ela não usa, para um problema que não é esse. */
+  const est = estadoCofre();
+  return !!(est.disponivel && est.temChave);
+}
+
+/* A resolução de verdade, com a PROCEDÊNCIA junto. O cofre ganha do `.env`, mas
+   só quando ele abre: cofre quebrado com `.env` bom continua funcionando pelo
+   `.env`, e o motivo do cofre continua viajando para a tela poder dizer as duas
+   coisas ao mesmo tempo. */
+async function configAtual() {
+  const env = envAtual();
+  const cf = await lerCofre();
+  if (cf.chave) return { baseUrl: env.baseUrl, chave: cf.chave, fonte: "cofre", env, cofre: cf };
+  return {
+    baseUrl: env.baseUrl,
+    chave: env.apiKey || "",
+    fonte: env.apiKey ? "env" : null,
+    env, cofre: cf
+  };
+}
+
+/* A recusa nomeia a fonte, porque "cole uma chave" e "a chave que está aqui não
+   abre" são duas telas. E nenhuma das frases carrega valor nenhum. */
+function faltaChave(c) {
+  if (!c.baseUrl) return "n8n não configurado: falta N8N_BASE_URL (em `.env`).";
+  if (c.cofre && c.cofre.erro) {
+    return "há uma chave guardada no cofre e ela NÃO abriu: " + c.cofre.erro
+      + ". Isso não é o mesmo que não ter chave — se este cofre veio de outra máquina ou de"
+      + " outra conta do Windows ele não decifra aqui, por desenho; cole a chave de novo.";
+  }
+  return "n8n não configurado: falta N8N_API_KEY — cole a chave na tela, ou ponha em `.env`.";
+}
+
+/* FATO, nunca juízo, e a ordem de precedência sai junto em vez de ficar
+   implícita no efeito. É `async` porque a pergunta que a tela faz é "a chave
+   abre?", e responder isso é abrir o cofre — o que fica em cache, então a
+   segunda pergunta é de graça. Nada aqui devolve a chave, nem pedaço dela.
+
+   `abriu` tem TRÊS valores e é o campo que decide a tela:
+     `null`  — não havia o que abrir (sem cofre, ou cofre vazio);
+     `true`  — abriu, e é dela que a chave está vindo;
+     `false` — existe cofre e ele NÃO abriu. Nunca confundir com "não tem". */
+async function estadoChave() {
+  const c = await configAtual();
+  return {
+    ordem: ORDEM_DA_CHAVE.slice(),
+    fonte: c.fonte,
+    configurado: configuradoAgora(),
+    instancia: c.baseUrl || null,
+    env: {
+      temChave: !!c.env.apiKey,
+      deArquivo: !!c.env.deArquivo,
+      arquivos: CFG_FILES.slice()
+    },
+    cofre: {
+      disponivel: c.cofre.est.disponivel,
+      porque: c.cofre.est.porque,
+      temChave: c.cofre.est.temChave,
+      onde: c.cofre.est.onde,
+      abriu: c.cofre.abriu,
+      erro: c.cofre.erro
+    },
+    forcado: typeof configuradoForcado === "boolean" ? configuradoForcado : null
+  };
+}
 
 /* ---------------------------------------------------------------- transport */
 
@@ -65,12 +390,16 @@ async function api(pathname, params = {}) {
 // re-tentado: repetir uma escrita que talvez tenha chegado é pior que devolver
 // o erro — só GET entra no laço de retry.
 async function request(method, pathname, { params = {}, body = null } = {}) {
-  if (!configured) throw new Error("n8n não configurado: falta N8N_BASE_URL ou N8N_API_KEY em .env");
+  /* Resolvido na HORA, e ANTES do portão de `inFlight`: abrir o cofre não pode
+     ocupar um dos quatro slots de rede, e a primeira leitura pode custar os
+     ~800ms do PowerShell (uma vez por processo — ver o bloco do cache). */
+  const conf = await configAtual();
+  if (!conf.baseUrl || !conf.chave) throw new Error(faltaChave(conf));
 
   while (inFlight >= MAX_INFLIGHT) await new Promise(r => setTimeout(r, 60));
   inFlight++;
   try {
-    const url = new URL(cfg.baseUrl + pathname);
+    const url = new URL(conf.baseUrl + pathname);
     for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, String(v));
 
     const idempotent = method === "GET";
@@ -84,7 +413,7 @@ async function request(method, pathname, { params = {}, body = null } = {}) {
         res = await fetch(url, {
           method,
           headers: {
-            "X-N8N-API-KEY": cfg.apiKey,
+            "X-N8N-API-KEY": conf.chave,
             accept: "application/json",
             ...(body ? { "content-type": "application/json" } : {})
           },
@@ -116,31 +445,75 @@ async function request(method, pathname, { params = {}, body = null } = {}) {
   } finally { inFlight--; }
 }
 
+/* ─────────────────────── LER EM RAJADA, SEM TETO NOVO ────────────────────
+ *
+ * `MAX_INFLIGHT` existe desde o primeiro dia e o portão em `request()` sempre
+ * funcionou — o que não funcionava eram os laços que o consomem. Um `for` com
+ * `await request(...)` dentro mantém `inFlight` em 1: os outros três slots ficam
+ * ociosos, e o custo total passa a ser (nº de GETs × RTT). MEDIDO em 2026-08-20,
+ * contra a instância viva: 75 GETs de workflow a ~248ms de RTT = 18,3s para
+ * `callers()`, com três quartos do orçamento declarado parados.
+ *
+ * Isto não inventa teto: a largura padrão É `MAX_INFLIGHT`, e cada requisição
+ * continua passando pelo mesmo portão. O que muda é que as N trilhas puxam da
+ * mesma fila de itens, então há sempre até quatro GETs no ar em vez de um.
+ * O retorno marginal de 4→8 foi medido (80ms/req → 37ms/req) e de 8→12 desaba
+ * (7%); subir o teto é decisão de quem cuida da instância, não desta função.
+ *
+ * A ORDEM DO RESULTADO É A ORDEM DA ENTRADA, e isso não é estética. Quem lê
+ * `callers()` empata dois chamadores com a mesma contagem de execução e o
+ * desempate cai na ordem de chegada — uma ordem que muda a cada refresh faria a
+ * tela nomear um chamador diferente sem nada ter mudado no n8n. Por isso o
+ * resultado vai para uma POSIÇÃO fixa do array, nunca para um `push`.
+ *
+ * `trabalho` não deve lançar: quem chama trata o próprio erro e devolve um
+ * resultado marcado, porque é o chamador que sabe se um item que falhou conta
+ * como `falhas++` ou como silêncio. A rede embaixo existe só para garantir que
+ * toda trilha drene (e portanto que `inFlight` volte a zero) antes de o erro
+ * subir — um `Promise.all` que rejeita no meio deixaria as outras trilhas
+ * correndo soltas. */
+async function emRajada(itens, trabalho, largura = MAX_INFLIGHT) {
+  const out = new Array(itens.length);
+  let proximo = 0, primeiroErro = null;
+  const trilha = async () => {
+    for (;;) {
+      const i = proximo++;
+      if (i >= itens.length) return;
+      try { out[i] = await trabalho(itens[i], i); }
+      catch (err) { if (!primeiroErro) primeiroErro = err; }
+    }
+  };
+  const trilhas = Math.max(1, Math.min(largura, itens.length));
+  await Promise.all(Array.from({ length: trilhas }, trilha));
+  if (primeiroErro) throw primeiroErro;
+  return out;
+}
+
 /* --------------------------------------------------------------- whitelists */
 
 const clip = s => (typeof s === "string" ? s.slice(0, MSG_CAP) : null);
 const num = n => (typeof n === "number" && Number.isFinite(n) ? n : null);
 
-// Trigger types are how a flow gets woken up — a fact worth surfacing, and the
-// node *type* string carries no user data (unlike node parameters).
-function triggerTypes(nodes) {
-  const out = new Set();
-  for (const n of nodes || []) {
-    const t = String(n.type || "");
-    if (/trigger|webhook|cron|schedule|executeWorkflowTrigger|formTrigger/i.test(t)) out.add(t);
-  }
-  return [...out];
-}
+/* `triggers` e `createdAt` SAÍRAM daqui em 2026-08-20, e o motivo é o oposto do
+   habitual: não havia consumidor nenhum. Grepados nas quatro páginas servidas
+   (`flows`, `cockpit`, `tester`, `upgrade`) e em `aba.js`, `entradas.js`,
+   `server.js`, `upgrade.js`, `evidencia.js`, `dossie.js`, `bateria.js`: zero
+   leituras de `wf.triggers` e zero de `wf.createdAt`. Quem decide se um nó é
+   gatilho é `isTrigger()` no `flows.html`, contra o TIPO do nó vindo de
+   `/api/n8n/graph/:id` — nunca contra este campo. Medidos no payload vivo:
+   3.974 e 2.925 bytes em 75 fluxos, pagos em todo `/api/n8n/overview`.
 
+   Estreitar a whitelist é a direção segura, e é a única direção que este
+   arquivo aceita sem uma boa razão. Se um dia a tela precisar de novo do tipo de
+   gatilho, o caminho é `extractGraph` — que já emite `type` por nó — e não
+   reabrir uma cópia agregada aqui. */
 function extractWorkflow(w) {
   return {
     id: String(w.id),
     name: String(w.name ?? ""),
     active: !!w.active,
-    createdAt: w.createdAt ?? null,
     updatedAt: w.updatedAt ?? null,
     nodeCount: Array.isArray(w.nodes) ? w.nodes.length : null,
-    triggers: triggerTypes(w.nodes),
     tags: (w.tags || []).map(t => String(t.name ?? "")).filter(Boolean)
   };
 }
@@ -237,7 +610,28 @@ function extractGraph(w) {
   return { id: String(w.id), name: String(w.name ?? ""), active: !!w.active, nodes, edges };
 }
 
-// Summary row from the executions list. No payload is present at this level.
+/* Summary row from the executions list. No payload is present at this level.
+ *
+ * `retryOf` e `waitTill` saíram em 2026-08-20 por não terem consumidor nenhum —
+ * grepados nas quatro páginas e nos módulos do servidor. Os dois únicos hits de
+ * "waiting" no `flows.html` são `e.status === "waiting"`, comparação de string
+ * contra o STATUS, e não este booleano; `retryOf` não aparece em lugar nenhum
+ * fora daqui e de uma fixture de teste. Medidos no payload vivo: 15.440 e
+ * 14.475 bytes em 965 execuções.
+ *
+ * `stoppedAt` FICA, e não é por falta de coragem: ele não atravessa o fio (ver
+ * `paraOFio`), mas a detecção de delta do `poll()` compara
+ * `prev.stoppedAt !== r.stoppedAt` para saber que uma execução TERMINOU. Tirá-lo
+ * daqui pararia o painel de perceber execução concluída, em silêncio — o pior
+ * defeito que uma limpeza de payload consegue causar. Comparar `ms` no lugar
+ * não serve: é um campo derivado, e derivar a detecção de mudança de um valor
+ * calculado é trocar um fato por uma coincidência aritmética.
+ *
+ * `mode` também fica, e por um motivo mais chato: tem UM consumidor real,
+ * `flows.html:4828`, que o escreve no `title` da linha do feed (o tooltip
+ * "fluxo · status · mode · exec N"). São 16.741 bytes para um hover. Removê-lo
+ * exige editar o `flows.html` junto, ou a tela passa a mostrar `undefined` —
+ * e essa é uma decisão de tela, não deste arquivo. */
 function extractExecRow(e) {
   const started = e.startedAt ?? null;
   const stopped = e.stoppedAt ?? null;
@@ -247,11 +641,43 @@ function extractExecRow(e) {
     status: String(e.status ?? ""),
     mode: String(e.mode ?? ""),
     startedAt: started,
-    stoppedAt: stopped,
-    ms: started && stopped ? new Date(stopped) - new Date(started) : null,
-    retryOf: e.retryOf != null ? String(e.retryOf) : null,
-    waiting: !!e.waitTill
+    stoppedAt: stopped,     // process-local — ver `paraOFio`
+    ms: started && stopped ? new Date(stopped) - new Date(started) : null
   };
+}
+
+/* ────────────────────── O QUE NÃO ATRAVESSA O FIO ─────────────────────────
+ *
+ * Segunda passada, e ela só ESTREITA: roda sobre um objeto que já saiu de
+ * `extractExecRow`/`extractExecDetail`, então por construção não existe campo
+ * novo para ela deixar passar. Alargar a fronteira por aqui é impossível; é o
+ * contrário de widenar a whitelist, e é por isso que uma lista por nome é
+ * aceitável neste ponto e não seria dentro das funções `extract*`.
+ *
+ * Existe por dois motivos distintos:
+ *
+ *   1. `stoppedAt` é NECESSÁRIO dentro do processo (a detecção de delta) e
+ *      inútil no cliente: `startedAt + ms` dá o mesmo instante, e nenhuma das
+ *      quatro páginas o lê. 37.635 bytes por `/api/n8n/overview`, medidos.
+ *   2. `waiting` e `retryOf` já não são mais produzidos — mas
+ *      `.cache-n8n-exec.json` guarda até 600 detalhes gravados por versões
+ *      anteriores, e um detalhe velho continua atravessando com eles. Filtrar na
+ *      SAÍDA limpa os dois casos sem descartar o cache: `EXEC_CACHE_V` sobe
+ *      quando o detalhe passa a extrair campo NOVO (aí o registro velho fica
+ *      pobre e a tela mente), e uma REMOÇÃO não tem esse problema — o registro
+ *      velho só carrega um campo que ninguém lê.
+ *
+ * Aplicada em todo lugar onde uma linha ou um detalhe sai deste módulo para o
+ * fio: `overview()`, `poll()` e `getDetail()`. Cópia rasa: `nodeRuns` é
+ * compartilhado com o cache de propósito — ele é imutável e copiá-lo por
+ * chamada seria alocar 100 objetos por execução sem ganhar nada. */
+const FORA_DO_FIO = ["stoppedAt", "waiting", "retryOf"];
+
+function paraOFio(o) {
+  if (!o || typeof o !== "object") return o;
+  const out = { ...o };
+  for (const k of FORA_DO_FIO) delete out[k];
+  return out;
 }
 
 // Detail from ?includeData=true. This is the dangerous one: `error.node` holds
@@ -326,8 +752,35 @@ function maskPII(s) {
     });
 }
 
-function sampleValue(v, cap) {
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
+function sampleValue(v, cap, cru) {
+  /* VAZAMENTO MEDIDO, corrigido em 24/08/2026. O ramo de número devolvia
+     `String(v)` e SAÍA — sem passar pelo `maskPII`. Um telefone que chega do n8n
+     como número em vez de string pulava a máscara inteira.
+     Medido no `.cache-n8n-exec.json` daquele dia: 13 pessoas reais, 213
+     ocorrências de telefone CRU, ao lado de 2282 corretamente mascarados. Iam
+     para o disco e para o browser por `/api/n8n/overview`.
+     `boolean` continua saindo direto: `true` não é dado de ninguém.
+
+     O CUSTO, medido e não suposto: o `maskPII` mexe em qualquer sequência de 10+
+     dígitos, então um carimbo de tempo que chegasse aqui sairia como
+     `1755 ***** 0000`. A primeira versão deste comentário afirmava que a máscara
+     "não estraga os números honestos do painel" — e o teste mostrou que estraga.
+     Afirmação minha, derrubada pelo próprio teste.
+     Daí o `cru`: `SAMPLE_REF` casa com `id`, `event_id`, `external_id`, `sku`, e
+     esses são numéricos longos com frequência. `ref` é IDENTIFICADOR, `quem` é
+     CONTATO — campos de naturezas diferentes, e fechar o vazamento de um não
+     deve custar a legibilidade do outro. Só o sítio de `ref` pede `cru`.
+
+     A armadilha de medição que isto deixou, e que vai reaparecer: telefone
+     brasileiro com DDI tem 13 dígitos (55 + DDD + 9) e carimbo de tempo em
+     milissegundos também. Uma varredura que classifique por COMPRIMENTO acusa
+     milhares de carimbos como telefone. Classifique por prefixo e converta para
+     data antes de concluir. */
+  if (typeof v === "boolean") return String(v);
+  if (typeof v === "number") {
+    const s = cru ? String(v) : maskPII(String(v)).trim();
+    return s.length > cap ? s.slice(0, cap - 1) + "…" : s;
+  }
   if (typeof v !== "string") return null;          // objeto e array não passam
   const s = maskPII(v).replace(/\s+/g, " ").trim();
   if (!s) return null;
@@ -358,7 +811,7 @@ function sampleOf(json) {
         const s = sampleValue(v, SAMPLE_VAL_CAP); if (s) out.nome = s;
       }
       else if (!out.quem && SAMPLE_WHO.test(k)) { const s = sampleValue(v, SAMPLE_VAL_CAP); if (s) out.quem = s; }
-      else if (!out.ref && SAMPLE_REF.test(k)) { const s = sampleValue(v, SAMPLE_VAL_CAP); if (s) out.ref = s; }
+      else if (!out.ref && SAMPLE_REF.test(k)) { const s = sampleValue(v, SAMPLE_VAL_CAP, true); if (s) out.ref = s; }
       // `name`/`nome` solto, sem pai de pessoa: guardado à parte e usado só se
       // nada melhor aparecer na execução inteira.
       else if (!out.nomeFraco && SAMPLE_NAME_WEAK.test(k)) { const s = sampleValue(v, SAMPLE_VAL_CAP); if (s) out.nomeFraco = s; }
@@ -634,13 +1087,17 @@ async function getGraph(id) {
   return graph;
 }
 
+/* O CACHE guarda o extraído; quem sai pelo fio sai por `paraOFio`. Os dois
+   `return` passam por ela, inclusive o do cache — um detalhe gravado por uma
+   versão anterior carrega `waiting`/`retryOf`, e o cliente não pode receber
+   forma diferente conforme a idade do registro que respondeu. */
 async function getDetail(id) {
   const hit = state.details.get(String(id));
-  if (hit) return hit;
+  if (hit) return paraOFio(hit);
   const raw = await api(`/api/v1/executions/${encodeURIComponent(id)}`, { includeData: "true" });
   const d = extractExecDetail(raw);
   if (d.status !== "running" && d.status !== "waiting") { state.details.set(d.id, d); saveExecCache(); }
-  return d;
+  return paraOFio(d);
 }
 
 /* A linha de UMA execução, sem `includeData`. Existe para o caminho de retry:
@@ -835,18 +1292,50 @@ async function callers({ force = false } = {}) {
   const porFilho = {};
   let lidos = 0, falhas = 0;
 
-  for (const w of rows.slice(0, CALLERS_SCAN_CAP)) {
+  /* A LEITURA é em rajada (até `MAX_INFLIGHT` GETs no ar); a MONTAGEM é
+     sequencial, na ordem de `rows`. Separar as duas é o que mantém `porFilho`
+     idêntico ao de antes byte a byte: montar de dentro da rajada faria a ordem
+     de cada lista depender de qual resposta voltou primeiro, e o desempate por
+     contagem de execução na tela mudaria de dono sem nada ter mudado no n8n.
+
+     O `catch` fica DENTRO do trabalho e devolve `null` em vez de lançar: assim
+     um fluxo apagado ou sem permissão continua virando `falhas++` — e `falhas`
+     é o que sustenta a frase "ninguém chama este fluxo" — em vez de derrubar a
+     varredura inteira. */
+  const alvos = rows.slice(0, CALLERS_SCAN_CAP);
+  /* Cada trilha PROJETA o documento na hora e devolve só os pares
+     (nó chamador, id do filho). Guardar os 75 documentos crus para montar
+     depois seria a mesma resposta com dois defeitos de graça: vários MB vivos
+     ao mesmo tempo (o maior fluxo desta instância tem 291KB) e `credentials`
+     de 75 fluxos parados na memória muito depois de terem servido para algo.
+     A projeção é o que `porFilho` usa e nada mais atravessa. */
+  const lidas = await emRajada(alvos, async w => {
     let raw;
     try { raw = await request("GET", `/api/v1/workflows/${encodeURIComponent(w.id)}`); }
-    catch { falhas++; continue; }
-    lidos++;
+    catch { return null; }
+    const chamadas = [];
     for (const nd of raw.nodes || []) {
       if (!SUBFLOW_RE.test(String(nd.type || ""))) continue;
       const filho = subWorkflowId(nd);
       if (!filho) continue;
-      if (!porFilho[filho]) porFilho[filho] = [];
-      if (porFilho[filho].some(c => c.id === String(w.id))) continue;
-      porFilho[filho].push({ id: String(w.id), name: String(w.name ?? ""), viaNode: String(nd.name ?? "") });
+      // dedupe DENTRO do fluxo: o mesmo filho chamado por dois nós entra uma
+      // vez, pelo primeiro nó — exatamente o que o `some()` fazia antes.
+      if (chamadas.some(c => c.childId === filho)) continue;
+      chamadas.push({ childId: filho, viaNode: String(nd.name ?? "") });
+    }
+    return { chamadas };
+  });
+
+  for (let i = 0; i < alvos.length; i++) {
+    const w = alvos[i], lida = lidas[i];
+    if (!lida) { falhas++; continue; }
+    lidos++;
+    for (const c of lida.chamadas) {
+      if (!porFilho[c.childId]) porFilho[c.childId] = [];
+      // o mesmo `some()` de antes, e não é redundante com o dedupe de dentro:
+      // se um id de fluxo aparecer duas vezes em `rows`, este é quem segura.
+      if (porFilho[c.childId].some(x => x.id === String(w.id))) continue;
+      porFilho[c.childId].push({ id: String(w.id), name: String(w.name ?? ""), viaNode: c.viaNode });
     }
   }
 
@@ -904,14 +1393,23 @@ async function poll() {
 
   // Errors are rare (observed ~5 per 9h), so pulling detail for each is cheap
   // and turns "algo falhou" into "nó X falhou com mensagem Y".
-  const newDetails = [];
-  for (const r of fresh) {
-    if (r.status !== "error" || state.details.has(r.id)) continue;
-    try { newDetails.push(await getDetail(r.id)); }
-    catch (err) { state.lastError = String(err.message || err); }
-  }
+  /* Em rajada pelo mesmo motivo do `overview`, e não por simetria: se só o
+     `overview` fosse corrigido, o comentário do `ERROR_DETAIL_CAP` voltaria a
+     ser meia-verdade — verdadeiro num laço e falso no outro, que é pior que a
+     mentira inteira porque parece conferido. Um tick com uma rajada de falhas
+     (deploy ruim no n8n) é justamente quando o poll não pode segurar o SSE. */
+  const aBuscar = fresh.filter(r => r.status === "error" && !state.details.has(r.id));
+  const buscados = await emRajada(aBuscar, async r => {
+    try { return await getDetail(r.id); }
+    catch (err) { state.lastError = String(err.message || err); return null; }
+  });
+  const newDetails = buscados.filter(Boolean);
 
-  return { fetchedAt: state.lastPoll, executions: fresh, errors: newDetails };
+  /* `fresh` são as MESMAS linhas que ficaram em `state.execs` — com `stoppedAt`,
+     que é o que a comparação lá em cima acabou de usar. `paraOFio` copia antes
+     de sair: o processo mantém o campo, o fio não o recebe. `errors` já vem
+     limpo, porque `getDetail` filtra na saída. */
+  return { fetchedAt: state.lastPoll, executions: fresh.map(paraOFio), errors: newDetails };
 }
 
 async function overview() {
@@ -923,21 +1421,35 @@ async function overview() {
   // Backfill can surface errors that predate this process; fetch their detail
   // too, otherwise the error board is blind to anything before boot. Newest
   // first, capped — a truncated board must never read as complete.
+  /* Em rajada, até `MAX_INFLIGHT` no ar — ver `emRajada`. A ORDEM é a de
+     `errored` (mais nova primeiro) porque o resultado vai para a posição do
+     item, não para um `push`: com `push` a lista sairia na ordem em que as
+     respostas voltassem, e o quadro de erros passaria a listar as assinaturas
+     em ordem diferente a cada refresh sem nada ter mudado.
+
+     O teto e o `errorsTruncated` continuam valendo exatamente como antes: o
+     `slice` é o mesmo, e "detalhado" continua sendo quantos DE FATO voltaram,
+     não quantos foram pedidos — um que falhou vira `null` e é filtrado, então
+     ele conta como truncado, que é a verdade. */
   const errored = executions.filter(r => r.status === "error");
-  const errors = [];
-  for (const r of errored.slice(0, ERROR_DETAIL_CAP)) {
-    try { errors.push(await getDetail(r.id)); }
-    catch (err) { state.lastError = String(err.message || err); }
-  }
+  const aDetalhar = errored.slice(0, ERROR_DETAIL_CAP);
+  const detalhados = await emRajada(aDetalhar, async r => {
+    try { return await getDetail(r.id); }
+    catch (err) { state.lastError = String(err.message || err); return null; }
+  });
+  const errors = detalhados.filter(Boolean);
 
   return {
     fetchedAt: new Date().toISOString(),
     lastPoll: state.lastPoll,
     windowHours: WINDOW_HOURS,
-    instance: cfg.baseUrl,
-    configured,
+    instance: envAtual().baseUrl,
+    configured: configuradoAgora(),
     workflows,
-    executions,
+    /* `executions` são as linhas de `state.execs`, que carregam `stoppedAt` para
+       o `poll()` comparar. `paraOFio` copia na saída — o filtro é aqui, na porta,
+       e não em `extractExecRow`, justamente para o processo não perder o campo. */
+    executions: executions.map(paraOFio),
     errors,
     errorsTotal: errored.length,
     errorsDetailed: errors.length,
@@ -978,6 +1490,34 @@ async function overview() {
 
 async function getRawWorkflow(id) {
   return request("GET", `/api/v1/workflows/${encodeURIComponent(id)}`);
+}
+
+/* UM GET para o documento cru E para o grafo, porque os dois são o MESMO GET.
+ *
+ * `getRawWorkflow` faz `request("GET", "/api/v1/workflows/:id")` e `getGraph`
+ * faz `api("/api/v1/workflows/:id")`, que é literalmente `request("GET", …)` com
+ * um objeto de params vazio. Mesma URL, mesmo método. Quem precisava dos dois
+ * pedia o mesmo documento duas vezes: medido em `/api/upgrade/peso`, eram **26
+ * GETs para os 13 fluxos da vitrine**, e o maior deles é um documento de 291KB.
+ *
+ * Fica AQUI e não no chamador, e a razão é a fronteira: extrair o grafo é
+ * derivar fato a partir de payload cru, e é este módulo que sabe o que pode
+ * atravessar. Exportar `extractGraph` para o `server.js` derivar por fora moveria
+ * essa decisão para fora da whitelist — a direção errada, e por um ganho que esta
+ * função entrega igual.
+ *
+ * Também SEMEIA o cache de grafo, então um `getGraph(id)` logo depois acerta em
+ * vez de pedir uma terceira vez. Semear é seguro: é o mesmo `extractGraph` do
+ * mesmo documento, mais fresco que o que estivesse guardado.
+ *
+ * Não abre buraco novo: `raw` é exatamente o que `getRawWorkflow` já devolve, com
+ * a mesma regra — process-local, nenhuma rota HTTP serve esta saída, e quem chama
+ * é responsável por limpar antes de mandar qualquer coisa para o navegador. */
+async function getRawEGrafo(id) {
+  const raw = await getRawWorkflow(id);
+  const graph = extractGraph(raw);
+  state.graphs.set(id, { at: Date.now(), graph });
+  return { raw, graph };
 }
 
 /* O SEGUNDO buraco deliberado, e ele é maior que o primeiro — leia antes de usar.
@@ -1334,9 +1874,26 @@ async function findWorkflowByName(name) {
 }
 
 module.exports = {
-  configured, instance: cfg.baseUrl, overview, poll, getGraph, getDetail, getExecRow, locateNode, callers, WINDOW_HOURS,
+  /* GETTERS, e não valores. Estas duas linhas eram o congelamento: `configured`
+     e `instance` eram resolvidos no `require` e ficavam presos ao que existia
+     naquele instante. Todo consumidor de fora (`server.js`, `tester.js`,
+     `upgrade.js`, `catalog.js`, `licoes.js`, `integracoes.js`) já lia
+     `n8n.configured` DENTRO da função que precisa — então virar getter conserta
+     todos eles de uma vez, sem tocar em nenhum.
+     A exceção medida é `claude-fix.js:81`, `const configured = n8n.configured`,
+     que copia o valor no boot: essa cópia continua congelada e é a única do
+     repositório (varrido por atribuição e por desestruturação).
+     O setter existe pela porta de teste declarada acima — não use em produção. */
+  get configured() { return configuradoAgora(); },
+  set configured(v) { configuradoForcado = typeof v === "boolean" ? v : null; },
+  get instance() { return envAtual().baseUrl; },
+  /* A chave: de onde vem, se abriu, e a invalidação explícita do cache.
+     `estadoChave` é fato — a tela decide o que dizer com ele. Nenhum dos dois
+     devolve a chave, nem pedaço dela. */
+  estadoChave, esquecerChave, ORDEM_DA_CHAVE,
+  overview, poll, getGraph, getDetail, getExecRow, locateNode, callers, WINDOW_HOURS,
   // write path — ver o bloco acima antes de usar
-  getRawWorkflow, putWorkflow, createWorkflow, writeOwner, WRITE_KINDS, DOING_CAP,
+  getRawWorkflow, getRawEGrafo, putWorkflow, createWorkflow, writeOwner, WRITE_KINDS, DOING_CAP,
   /* Os dois buracos deliberados, e o segundo é maior — leia o comentário deles.
      Process-local: nenhuma rota serve a saída. `getRawExecution` tem UM chamador
      legítimo, o `evidencia.js`, que é quem sabe recortar e mascarar. */
@@ -1350,5 +1907,13 @@ module.exports = {
   // o único efeito que sai da instância — leia o comentário de `retryExecution`
   retryExecution,
   // exportado para teste
-  pickSettings, SETTINGS_ALLOWED, midiaEnviada
+  pickSettings, SETTINGS_ALLOWED, midiaEnviada,
+  /* A varredura de saída. Sai daqui para o teste medir contra a EXPRESSÃO QUE
+     ESTÁ NO ARQUIVO: reescrevê-la no teste provaria a cópia, não esta. */
+  semSegredo,
+  /* A rajada e o filtro de saída. Puros, sem I/O — dá para provar a ordem, o
+     teto e a rede de erro sem abrir conexão nenhuma. `MAX_INFLIGHT` sai junto
+     porque o teste tem de medir contra o teto QUE ESTÁ NO ARQUIVO: cravar 4 no
+     teste faria ele passar em silêncio no dia em que alguém subisse o teto. */
+  emRajada, paraOFio, FORA_DO_FIO, MAX_INFLIGHT
 };

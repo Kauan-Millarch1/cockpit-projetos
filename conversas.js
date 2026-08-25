@@ -145,6 +145,22 @@ function documento(s) {
       perguntas: Array.isArray(m.perguntas) ? m.perguntas.map(String) : null,
       base: Array.isArray(m.base) ? m.base.map(String) : null,
       procedencia: m.procedencia || null,
+      /* O QUE FOI COM ESTA MENSAGEM — só a FORMA: nome, caminho relativo, tipo e
+         tamanho. Nunca o arquivo: um print viraria 66KB de base64 dentro do
+         histórico, que é lido inteiro em toda abertura da gaveta.
+         Isto cruza fronteira nenhuma que o `chat` já não cruze — `conversas/` é
+         gitignorado (o que vai para o git é o `conversas.json`, uma linha por
+         conversa e sem texto) e aqui ao lado já mora a frase dele verbatim.
+         SEM ISTO a conversa reaberta perde o print: a lista viva morre com o
+         processo, e o histórico ficaria dizendo que aquela mensagem era texto puro.
+         `null` quando não veio nada, e não `[]`: ausência de campo é o que as
+         conversas gravadas ANTES desta versão têm, e as duas leem igual na tela. */
+      anexos: Array.isArray(m.anexos) && m.anexos.length
+        ? m.anexos.map(a => ({
+          arquivo: String(a.arquivo || ""), nome: String(a.nome || ""),
+          tipo: a.tipo ? String(a.tipo) : null, bytes: Number(a.bytes || 0)
+        }))
+        : null,
       em: m.em || null
     })),
     alvo: s.alvo || null,

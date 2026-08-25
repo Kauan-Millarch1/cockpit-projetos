@@ -314,12 +314,24 @@ t("`Grep` é base e nunca sai (o `fluxo.json` tem 285KB)",
 t("`Write`/`Edit` nunca saem (a sessão escreve `resposta.json`)",
   /Write/.test(up.ferramentasDaRodada({})) && /Edit/.test(up.ferramentasDaRodada({})));
 /* A CERCA QUE IMPORTA continua sendo `--disallowedTools`: este repositório mediu
-   que `--allowedTools` é lista de AUTO-APROVAÇÃO e não restringe nada. */
-t("`rodar` passa `--disallowedTools` e `--setting-sources \"\"`",
-  /--disallowedTools/.test(fs.readFileSync(path.join(__dirname, "upgrade.js"), "utf8"))
-  && /--setting-sources/.test(fs.readFileSync(path.join(__dirname, "upgrade.js"), "utf8")));
+   que `--allowedTools` é lista de AUTO-APROVAÇÃO e não restringe nada.
+   REESCRITO na fiação do `ia.js`, e reescrito em vez de apagado. Estes dois casos
+   liam o array de argumentos escrito à mão no `upgrade.js`; ele não existe mais —
+   as cercas viraram DADO na tabela de provedor do `ia.js`. Pior: o primeiro deles
+   lia a fonte CRUA, então depois da fiação ele continuaria VERDE em cima do
+   comentário que explica por que a flag saiu de lá. Um caso que casa dentro de um
+   comentário aprova a ausência da decisão, e este teria aprovado.
+   Agora eles medem fonte sem comentário e fixam a cadeia: a rodada monta pelo
+   adaptador, e a lista de ferramentas é a que `ferramentasDaRodada(s)` decidiu.
+   Que as cercas CHEGAM ao spawn é o `ia-fiacao-test.js` que prova, por execução. */
+const UPFONTE = fs.readFileSync(path.join(__dirname, "upgrade.js"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, " ")
+  .split("\n").map(l => l.replace(/(^|[^:])\/\/.*$/, "$1")).join("\n");
+t("`rodar` monta os argumentos pelo adaptador, onde moram `--disallowedTools` e `--setting-sources \"\"`",
+  /const\s+mont\s*=\s*ia\.argumentosDaRodada\(/.test(UPFONTE)
+  && /spawn\(CLAUDE_BIN,\s*mont\.args/.test(UPFONTE));
 t("e a lista de ferramentas da rodada sai da função, não de um literal",
-  /--allowedTools", ferramentasDaRodada\(s\)/.test(fs.readFileSync(path.join(__dirname, "upgrade.js"), "utf8")));
+  /ferramentas:\s*ferramentasDaRodada\(s\)/.test(UPFONTE));
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 console.log("\n[ 6 ] a bandeja é adotada, e o inventário sai do DISCO");

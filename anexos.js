@@ -299,6 +299,27 @@ async function remover(baseDir, arquivo) {
   await fsp.rm(alvo, { force: true });
 }
 
+/* O CAMINHO ABSOLUTO DE UM ANEXO, para quem precisa SERVIR o arquivo — a conversa
+ * do /upgrade desenha o print dentro da mensagem que o levou.
+ *
+ * A guarda é a MESMA do `remover`, e é dupla de propósito: `dentro` prova que o
+ * caminho não escapou do diretório da sessão, e o segundo `dentro` prova que ele
+ * está debaixo de `anexos/`. Sem o segundo, um `arquivo: "fluxo.json"` (ou, pior,
+ * `"../_private/<id>.json"`, que é o backup COM credencial) sairia por uma rota
+ * que existe para mostrar uma imagem. Duas camadas independentes, a mesma
+ * disciplina de `nomeSeguro`/`dentro()`.
+ *
+ * NÃO checa existência: quem chama precisa distinguir "não existe" de "não pode",
+ * porque as duas frases levam a decisões opostas na tela — `.upgrade-runs/` é
+ * scratch e o arquivo pode ter sido limpo, o que é um fato sobre o disco, não uma
+ * recusa. */
+function caminhoDeAnexo(baseDir, arquivo) {
+  const alvo = dentro(baseDir, String(arquivo || ""));
+  const anexosDir = dentro(baseDir, "anexos");
+  dentro(anexosDir, path.relative(anexosDir, alvo));
+  return alvo;
+}
+
 const mb = n => (n / (1024 * 1024)).toFixed(1).replace(".", ",") + "MB";
 
 /* ------------------------------------------------------------------- a bandeja
@@ -528,7 +549,7 @@ function resumo(metas) {
 
 module.exports = {
   gravar, remover, indice, escreverIndice, trechoPrompt, inventario, resumo,
-  novaBandeja, dirBandeja, adotar, limparBandejas,
+  novaBandeja, dirBandeja, adotar, limparBandejas, caminhoDeAnexo,
   // exportados para teste
   nomeSeguro, relSeguro, limparSegredos, pareceSegredo, TIPOS, CONVERTER, MSG_SEGREDO,
   MAX_ARQUIVOS, MAX_BYTES_ARQUIVO, MAX_BYTES_TOTAL, MAX_PROFUNDIDADE

@@ -339,7 +339,11 @@ const vdSrc = semComentario(pega("async function verDossie(id, forcar) {", "\n/*
 t("a leitura de um fluxo alimenta TAMBÉM o mapa da vitrine (uma cor, duas telas)",
   vdSrc.includes("S.dossieVit.set("));
 
-const varSrc = semComentario(pega("async function varrerDossies(ids) {", "\n/* Peso e desenho"));
+/* A ASSINATURA GANHOU `opcoes`, e o caso foi ATUALIZADO em vez de apagado: a
+   garantia que ele protegia continua inteira (lotes de 40, falha marcada com
+   `erro`) e o que mudou é que agora existe um chamador que NÃO pode escrever
+   `S.dossieVitMeta` — o seletor de fluxo, que varre os 75 e não os 11 da grade. */
+const varSrc = semComentario(pega("async function varrerDossies(ids, opcoes) {", "\n/* Peso e desenho"));
 t("a varredura vai em lotes do tamanho do teto da rota", /i \+= 40/.test(varSrc));
 t("um lote que falhou marca os ids com `erro`, nunca com cinza",
   varSrc.includes("erro: e.message") && !varSrc.includes('cor: "cinza"'));
@@ -350,6 +354,30 @@ t("a varredura só existe depois da primeira pintura (chamada dentro de `carrega
    as três mudam a cor. Sem isto os selos ficariam parados na foto do boot. */
 const irSrc = semComentario(pega("function irPara(id) {", "\naddEventListener(\"popstate\""));
 t("voltar para a vitrine reconfere os selos", irSrc.includes("varrerDossies("));
+
+/* `meta` — A FRASE DA VITRINE FALA DOS CARTÕES DA GRADE, e por isso ela não pode
+   ser alimentada por uma varredura de outra lista. `resumoDossieVitrine(vivos)` lê
+   `S.dossieVitMeta.falhas` para dizer "N fluxo(s) não deu para conferir, então os
+   números acima são piso": com os 75 fluxos escrevendo ali, aquela frase passaria a
+   contar leituras de fluxos que não estão na tela — número certo sobre a pergunta
+   errada, que é a forma de mentir que esta tela mais evita.
+   O DEFAULT É ESCREVER: os dois chamadores antigos não passam nada e não mudaram de
+   comportamento, e um default no outro sentido apagaria a frase em silêncio. */
+t("`meta` é opcional e o default ESCREVE (os dois chamadores antigos não mudam)",
+  /const comMeta = !opcoes \|\| opcoes\.meta !== false/.test(varSrc));
+t("...e nada é escrito em `S.dossieVitMeta` quando o chamador pediu `meta: false`",
+  /if \(comMeta\) S\.dossieVitMeta = /.test(varSrc));
+/* O seletor é o chamador que precisa disso. Sem o `meta: false` no ponto de
+   chamada, a asserção acima seria uma capacidade que ninguém usa. */
+const selSrc = semComentario(pega("function abrirSeletor(origem) {", "\nfunction fecharSeletor()"));
+t("o seletor varre os fluxos sem selo e pede `meta: false`",
+  /varrerDossies\(semSelo, \{ meta: false \}\)/.test(selSrc));
+/* Ele pede SÓ o que falta: os 11 da grade já vieram na varredura de boot, e
+   repedi-los não está errado (a rota tem cache) — mas pedir apenas o que falta é o
+   que faz a frase "conferindo o dossiê…" das 64 linhas ficar VERDADEIRA sem custo
+   nenhum nas outras. */
+t("...e só dos ids que ainda não têm selo",
+  /filter\(id => !S\.dossieVit\.has\(id\)\)/.test(selSrc));
 
 /* ───────────────────────────────────────────────────────────────────────────── */
 console.log("\n[ 7 ] o servidor emite FATO, e só o que o cartão precisa");

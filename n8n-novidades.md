@@ -10,6 +10,21 @@ no `novidades.json` e o item não volta.
 
 <!-- BLOCO: novidades -->
 
+- **Add snapshot option to every browser use interaction tool** · n8n 2.36 — As tools de interação do Browser Use (click, type, select, drag, hover, press, scroll, upload, dialog) ganham o parâmetro opcional snapshot para devolver o snapshot de acessibilidade na própria resposta, dispensando uma chamada separada de snapshot depois de cada ação.  
+  <https://github.com/n8n-io/n8n/pull/36111>
+- **MCP Server Trigger Node: Add server instructions option** · n8n 2.36 — O MCP Server Trigger ganha o campo opcional Instructions, enviado a clientes MCP na resposta de initialize; workflows existentes ficam com o campo vazio e sem mudança de comportamento.  
+  <https://github.com/n8n-io/n8n/pull/35945>
+- **MiniMax Node: Add M3 and H3 model support** · n8n 2.36 — O node MiniMax ganha o modelo MiniMax-M3 (agora padrão) e o MiniMax-H3 para geração de vídeo via API V2, com parâmetros próprios como duration, resolution e aspect ratio; workflows na API V1 continuam iguais.  
+  <https://github.com/n8n-io/n8n/pull/35935>
+- **Schedule Trigger Node: Add a per-node missed execution grace period** · n8n 2.36 — O Schedule Trigger (v1.4+) ganha o campo Missed Execution Grace Period (Seconds) por node, que sobrepõe o N8N_SCHEDULER_MISFIRE_GRACE da instância quando preenchido; valor 0 ou inválido mantém o padrão da instância.  
+  <https://github.com/n8n-io/n8n/pull/35771>
+- **Schedule Trigger Node: Add "If Execution Is Missed" option** · n8n 2.36 — O Schedule Trigger (v1.4, aba Settings) ganha a opção 'If Execution Is Missed' para escolher entre pular ou rodar uma vez a ocorrência perdida com a instância fora do ar; workflows existentes continuam pulando por padrão até essa opção ser escolhida.  
+  <https://github.com/n8n-io/n8n/pull/35626>
+- **Discord Node: Add member moderation actions** · n8n 2.36 — O resource Member do Discord node ganha as ações Ban, Unban, Kick e Timeout, com reason customizável ou preset e, em Timeout, presets de duração até 28 dias; passa a dar para moderar contas direto no fluxo sem HTTP Request.  
+  <https://github.com/n8n-io/n8n/pull/33486>
+- **lmChatOpenRouter Node: Add provider routing options** · n8n 2.36 — O node OpenRouter Chat Model ganha, em Options > Provider Routing, os campos order, allowFallbacks, requireParameters, dataCollection, zdr, only, ignore e sort para controlar roteamento entre sub-provedores, fallback e retenção de dados.  
+  <https://github.com/n8n-io/n8n/pull/24822>
+
 - **GitHub Node: Add timeout option to Dispatch and Wait for Completion** · n8n 2.35 — O GitHub node ganha a opção Limit Wait Time em Dispatch and Wait for Completion: ao expirar, o node segue com os dados de entrada em vez do payload do callback, então quem ativa essa opção precisa tratar esse caso downstream em vez de assumir que sempre chega o callback.  
   <https://github.com/n8n-io/n8n/pull/35837>
 - **Kafka Node: Add compression options to version 2** · n8n 2.35 — A v2 do Kafka node ganha o campo Compression (None, GZIP, Snappy, LZ4, Zstd); se um Kafka Trigger em v1 consumir o mesmo tópico, ele só decodifica GZIP ou None, então workflows mistos precisam escolher a compressão pensando em quem consome.  

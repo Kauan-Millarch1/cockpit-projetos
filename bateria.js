@@ -42,6 +42,7 @@
 const fix = require("./claude-fix.js");
 const esquema = require("./esquema.js");
 const catalog = require("./catalog.js");
+const rede = require("./rede.js");
 /* `ligacaoCredenciais` vem do `tester.js` em vez de ser reimplementada aqui, e a
  * razão é a mesma que faz o painel e a run de correção chamarem o mesmo
  * `locateNode`: duas definições de "candidato de credencial" divergem no primeiro
@@ -413,6 +414,86 @@ function checaCredencial(documento, proposta, patch, contexto, deps) {
  *
  * Cinza quando não há amostra: sem `execucoesPorNo` a linha não sabe nada, e
  * "zero execuções" e "não medi" são fatos opostos sobre o risco do clique. */
+/* ─────────────────────────────── checagem 8: destino de rede ──────────────── */
+
+/* A checagem que não existia, e a auditoria de 24/08/2026 mediu o preço da
+ * ausência: das quatro variantes de exfiltração testadas contra o código REAL,
+ * três passaram inteiras — `validate()` 10 de 10 com zero falhas, checagens 1, 2 e
+ * 3 verdes, `podeAplicar: true`. Redirecionar a `url` de um `httpRequest` que já
+ * existe é o pior caso, porque `credentials-untouched` fica verde JUSTAMENTE por a
+ * credencial não ter sido tocada: o nó segue autenticando e passa a mandar tudo
+ * para outro lugar.
+ *
+ * PESO, e é a decisão desta linha, não um detalhe. Destino novo REPROVA em vez de
+ * ressalvar. Três razões, e a terceira é a que decide:
+ *   1. é raro num patch de correção — a régua sai do próprio fluxo, então só
+ *      dispara quando aparece um endereço que o fluxo inteiro não alcançava;
+ *   2. é a única classe aqui cujo efeito não tem desfazer: o backup restaura o
+ *      documento, não o dado que já saiu;
+ *   3. o texto que escreve este patch pode ter vindo de um estranho pelo WhatsApp
+ *      (caminho medido no `03-subprocesso-e-prompt.md`), e o único humano no meio
+ *      é alguém lendo um diff de 179 nós.
+ * O preço é declarado: um patch que acrescenta uma integração NOVA de verdade não
+ * passa por aqui, e a frase diz o caminho — pôr o nó no editor do n8n à mão.
+ *
+ * `mencaoNova`, `leSegredo` e `despejo` ficam em RESSALVA: são fatos que merecem
+ * ser ditos e não são, sozinhos, uma saída de dado. Misturar os dois pesos faria a
+ * linha vermelha aparecer no dia em que alguém edita o prompt de um agente — e a
+ * calibração do `preencher.js` já pagou para aprender que um vermelho frequente e
+ * inconsequente ensina a clicar em ignorar. */
+/* A régua mora no `rede.js`, que é quem define os tipos de achado: dizer quais
+   deles significam SAÍDA DE DADO é taxonomia da própria classificação. Aqui só se
+   decide o PESO (vermelho contra laranja), que é política e é desta casa.
+   Importar em vez de repetir porque o `validate()` do `claude-fix.js` lê a mesma
+   lista: duas cópias divergiriam na primeira correção feita num lado só, e o lado
+   que divergisse desligaria o bloqueio no caminho que escreve em produção. */
+const REPROVAM_REDE = rede.REPROVAM_REDE;
+
+function checaRede(documento, proposta, deps) {
+  const rd = (deps && deps.rede) || rede;
+  let r;
+  try { r = rd.varrer(documento, proposta); }
+  catch (e) {
+    /* Falha DURA, ao contrário do esquema: aqui cinza não serve. Se o portão que
+       decide sobre saída de dado não rodou, o botão não pode aparecer — e
+       `BLOQUEIAM` inclui `reprova`, então esta linha é o que segura. */
+    return linha(8, "Destino de rede", COR.reprova,
+      "não consegui conferir o destino de rede deste patch: "
+      + String((e && e.message) || e).slice(0, 160)
+      + " — sem essa conferência o botão não aparece, porque é ela que separa um patch que arruma "
+      + "de um patch que manda o dado para fora");
+  }
+
+  const graves = r.achados.filter(a => REPROVAM_REDE.has(a.tipo));
+  const leves = r.achados.filter(a => !REPROVAM_REDE.has(a.tipo) && a.tipo !== "teto");
+  const tetos = r.achados.filter(a => a.tipo === "teto");
+
+  if (graves.length) {
+    return linha(8, "Destino de rede", COR.reprova,
+      graves.length + " mudança(s) de destino de rede neste patch. O fluxo de antes alcançava "
+      + r.conhecidos.length + " endereço(s), e este patch acrescenta destino que não estava lá — "
+      + "se a integração é nova de propósito, o caminho é pôr o nó no editor do n8n à mão, "
+      + "não aprovar por aqui",
+      graves.concat(tetos).map(a => rd.frase(a)));
+  }
+
+  if (tetos.length) {
+    return linha(8, "Destino de rede", COR.reprova,
+      "não terminei de varrer os destinos deste patch, então não posso dizer que ele não abre um novo",
+      tetos.map(a => rd.frase(a)));
+  }
+
+  if (leves.length) {
+    return linha(8, "Destino de rede", COR.ressalva,
+      "nenhum destino novo, mas " + leves.length + " coisa(s) mudaram no que este patch lê ou cita",
+      leves.map(a => rd.frase(a)));
+  }
+
+  return linha(8, "Destino de rede", COR.ok,
+    "nenhum endereço novo: tudo que os nós tocados alcançam já era alcançado pelo fluxo de antes"
+    + (r.conhecidos.length ? " (" + r.conhecidos.length + " endereço(s) conhecido(s))" : ""));
+}
+
 function checaImpacto(patch, contexto) {
   const porNo = contexto && contexto.execucoesPorNo;
   if (!porNo || typeof porNo !== "object") {
@@ -463,6 +544,7 @@ function bateria({ documento, patch, proposta, contexto } = {}) {
     checaEsquema(proposta, tocados, deps),
     checaGramatica(proposta, tocados, patch),
     checaCredencial(documento, proposta, patch, ctx, deps),
+    checaRede(documento, proposta, deps),
     checaImpacto(patch, ctx)
   ];
 
@@ -483,7 +565,8 @@ module.exports = {
   bateria,
   COR, BLOQUEIAM, DETALHE_MAX,
   // exportadas para teste: cada checagem é conferível sozinha, sem montar a bateria
-  checaEstrutura, checaEsquema, checaGramatica, checaCredencial, checaImpacto,
+  checaEstrutura, checaEsquema, checaGramatica, checaCredencial, checaRede, checaImpacto,
+  REPROVAM_REDE,
   nosTocados, nosNovos, ordemDe, linha
 };
 

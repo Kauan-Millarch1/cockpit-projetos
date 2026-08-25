@@ -22,11 +22,17 @@
 const { spawn } = require("child_process");
 const fs = require("fs");
 const fsp = require("fs/promises");
-const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
 const n8n = require("./n8n");
+/* QUAL IA roda a rodada, e COM QUAL CREDENCIAL. Ele é quem monta os argumentos
+ * (com as três cercas como DADO, não como array escrito à mão aqui), o ambiente
+ * do filho — em cima da allowlist do `ambiente.js`, que continua sendo a fonte —
+ * e a descoberta do binário. O `ambiente.js` deixou de ser lido diretamente por
+ * este arquivo: o caminho agora passa pelo adaptador, que é o único ponto do
+ * repositório autorizado a acrescentar uma chave de API a um ambiente headless. */
+const ia = require("./ia.js");
 const catalog = require("./catalog");
 const agentes = require("./agentes");
 /* O esquema autoritativo dos nós (pacote npm, por versão) e a gramática em
@@ -93,33 +99,52 @@ function readEnv(name) {
   return null;
 }
 
-function findClaude() {
-  const explicit = readEnv("CLAUDE_BIN");
-  const cands = [
-    explicit,
-    path.join(os.homedir(), ".local", "bin", "claude.exe"),
-    path.join(os.homedir(), ".local", "bin", "claude"),
-    path.join(os.homedir(), "AppData", "Local", "Programs", "claude", "claude.exe")
-  ].filter(Boolean);
-  for (const c of cands) { try { if (fs.existsSync(c)) return c; } catch { /* segue */ } }
-  return process.platform === "win32" ? "claude.exe" : "claude";
-}
-const CLAUDE_BIN = findClaude();
+/* O `findClaude()` que morava aqui era, letra por letra, o do `claude-fix.js` e o
+ * do `iso-check.js` — três cópias da mesma busca, três chances de deixarem de
+ * ser. Ele sumiu: quem descobre o binário é o `ia.descobrir("claude")`, chamado
+ * uma vez no `claude-fix.js`, e este arquivo lê o resultado. É o mesmo caminho
+ * que o `upgrade.js` já fazia (`const CLAUDE_BIN = fix.claudeBin`), e o valor é
+ * idêntico ao de antes nos três estados: `readEnv("CLAUDE_BIN")` daqui olhava
+ * `process.env` e depois o `.env`, exatamente como o `readEnv` de lá. */
+const CLAUDE_BIN = fix.claudeBin;
 
-/* Allowlist. A ausência de ANTHROPIC_API_KEY aqui é a garantia de que o custo
- * fica no plano — uma variável que não existe não precisa ser lembrada. */
-const ENV_ALLOW = [
-  "PATH", "Path", "PATHEXT", "SYSTEMROOT", "SystemRoot", "WINDIR", "COMSPEC",
-  "TEMP", "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "HOME",
-  "APPDATA", "LOCALAPPDATA", "PROGRAMFILES", "PROGRAMDATA",
-  "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE", "LANG", "LC_ALL"
-];
-function envLimpo() {
-  const out = {};
-  for (const k of ENV_ALLOW) if (process.env[k] != null) out[k] = process.env[k];
-  out.CLAUDE_CODE_ENTRYPOINT = "cockpit-tester";
-  return out;
+/* QUAL IA roda a rodada, e de quem é a conta. Hoje é o PADRÃO DECLARADO do
+ * adaptador — `claude` + `plano`: o mesmo CLI e o mesmo login OAuth de sempre,
+ * com a chave de API AUSENTE do ambiente do filho. Nada muda no comportamento de
+ * hoje; a diferença só aparece no dia em que a pessoa escolher o modo `chave`. */
+/* A escolha de IA da rodada. FUNÇÃO, e não constante de módulo, e essa é a
+   correção de um defeito armado — não de estilo.
+ *
+ * Era `const escolhaDaRodada() = ia.escolher({})`, resolvida UMA VEZ no `require`. Como
+ * o padrão é `plano`, isso significa que a escolha de credencial de toda rodada
+ * de todo mundo é decidida no instante em que o processo sobe, antes de existir
+ * qualquer pessoa para escolher. Hoje o comportamento é o certo — é um dono, na
+ * máquina dele, gastando o plano dele — então nada muda agora, e há teste
+ * aferindo que os argumentos e o ambiente saem idênticos.
+ *
+ * O que muda é que ela deixa de ser IMPOSSÍVEL de variar. Uma escolha congelada
+ * no `require` não consegue seguir uma decisão por rodada, por pessoa ou por
+ * conta, e o sintoma disso não é um erro: é a conta de outra pessoa sendo
+ * gastada em silêncio, que é exatamente o que trocar o plano por chave de API
+ * existe para evitar.
+ *
+ * É a TERCEIRA ocorrência desta família num dia: `n8n.js` congelava `configured`
+ * e `instance` (o cofre nunca chegaria ao cabeçalho), `claude-fix.js` congelava
+ * uma cópia de `n8n.configured`, e esta. O padrão é sempre o mesmo — um valor
+ * lido no `require` para responder uma pergunta cuja resposta muda depois.
+ *
+ * `chave` continua NÃO sendo passada a `ambienteDaRodada`, e isso é deliberado
+ * enquanto o modo é `plano`: no modo plano a variável de chave tem de estar
+ * AUSENTE do ambiente, nunca vazia. Quando a escolha vier da pessoa, é aqui que
+ * ela entra — num sítio só, por arquivo, auditável. */
+function escolhaDaRodada() {
+  return ia.escolher({});
 }
+
+/* Quem spawnou. Constante e não literal repetido porque as DUAS sessões deste
+ * arquivo (a da esteira e a avulsa) carimbam a mesma coisa, e um carimbo que
+ * divergisse entre elas partiria a aba em duas no que quer que leia esse campo. */
+const CARIMBO_IA = "cockpit-tester";
 
 /* --------------------------------------------------------------- utilidades */
 
@@ -277,9 +302,12 @@ function snapshot(s) {
  * Isto é a cerca de verdade das duas sessões. A de pesquisa tem rede e por isso
  * NÃO pode ter shell; a de construção não pode ter nem um nem outro. Sem esta
  * linha, "sessão sem rede" e "sessão sem Bash" eram afirmações falsas — inclusive
- * a que o CLAUDE.md já fazia sobre o claude-fix.js. */
-const NEGADAS_SEMPRE = "Bash,PowerShell,BashOutput,KillShell,Task,Agent,NotebookEdit,SlashCommand";
-const NEGADAS_SEM_REDE = NEGADAS_SEMPRE + ",WebFetch,WebSearch";
+ * a que o CLAUDE.md já fazia sobre o claude-fix.js.
+ *
+ * AS DUAS LISTAS MORAM NO `ia.js` (`NEGADAS_SEMPRE` / `NEGADAS_SEM_REDE`), byte a
+ * byte o que estava escrito aqui. QUAL DAS DUAS continua sendo decisão desta
+ * função, e tem de continuar: esta é a única sessão do cockpit com rede, e
+ * confundir as duas daria rede a quem não tem — ou tiraria de quem precisa. */
 
 /* O limite de linha de comando do Windows: 32767 caracteres para todo o comando.
  * O prompt viaja em `-p`, então um prompt grande não falha com "prompt grande" —
@@ -316,33 +344,44 @@ function custoDaRodada({ rotulo, usd, ms, comRede, morto, cancelada }) {
 
 function rodar(s, { rotulo, prompt, ferramentas, cwd, modelo, comRede, aoUsarFerramenta, tetoMs }) {
   return new Promise(resolve => {
-    if (String(prompt).length > PROMPT_MAX) {
-      const msg = "o prompt da etapa `" + rotulo + "` ficou com " + String(prompt).length +
-        " caracteres e o limite aqui é " + PROMPT_MAX +
-        " (a linha de comando do Windows não aceita mais). Material grande tem que ir para arquivo no diretório da sessão, como `AGENTES.md` e `catalogo.json`, não para dentro do prompt";
+    /* OS ARGUMENTOS SAEM DO ADAPTADOR, e as três cercas com eles —
+       `--disallowedTools`, `--setting-sources ""` e `--strict-mcp-config` são
+       DADO na tabela do provedor no `ia.js`, e um provedor sem as três é recusado
+       por nome antes de virar spawn.
+
+       `negadas` É PARÂMETRO E TEM DE CONTINUAR SENDO: esta é a única sessão do
+       cockpit COM REDE (a de pesquisa), e a distinção entre as duas listas é a
+       fronteira de segurança do Tester. Com rede não pode ter shell; sem rede não
+       pode ter nem um nem outro. Trocar a semântica aqui daria rede a uma sessão
+       que não tem, ou tiraria a rede da que precisa. O default do adaptador é o
+       FECHADO, de propósito: quem quer rede pede rede. */
+    const mont = ia.argumentosDaRodada({
+      escolha: escolhaDaRodada(),
+      prompt,
+      ferramentas,
+      negadas: comRede ? ia.NEGADAS_SEMPRE : ia.NEGADAS_SEM_REDE,
+      modelo,
+      tetoPrompt: PROMPT_MAX
+    });
+    if (!mont.ok) {
+      /* A frase do adaptador já traz o tamanho, o teto e para onde vai material
+         grande. O que ela NÃO pode saber é qual etapa estourou — e é isso que a
+         mensagem de hoje diz. Então o nome da etapa é prefixado em vez de a
+         frase ser reescrita: duas redações do mesmo teto divergem no número. */
+      const msg = "o prompt da etapa `" + rotulo + "`: " + mont.erro;
       diz(s, msg, "erro");
       resolve({ erro: msg, texto: "", usd: 0, ms: 0 });
       return;
     }
-    const args = [
-      "-p", prompt,
-      "--output-format", "stream-json", "--verbose",
-      "--permission-mode", "acceptEdits",
-      "--allowedTools", ferramentas,
-      "--disallowedTools", comRede ? NEGADAS_SEMPRE : NEGADAS_SEM_REDE,
-      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
-      // Medido em iso-check.js: sem isto a sessão carrega o CLAUDE.md global,
-      // que tem a chave do n8n em texto puro. Numa sessão COM REDE isso seria
-      // uma credencial ao lado de uma ferramenta de saída.
-      "--setting-sources", "",
-      "--model", modelo
-    ];
 
     const t0 = Date.now();
-    const child = spawn(CLAUDE_BIN, args, {
+    const child = spawn(CLAUDE_BIN, mont.args, {
       cwd, windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],   // stdin fechado: senão o CLI espera 3s e avisa
-      env: envLimpo()
+      /* Allowlist, não espalhamento — a lista continua no `ambiente.js` e quem
+         monta em cima dela é o `ia.js`. No modo `plano` (o de hoje, e o padrão)
+         `ANTHROPIC_API_KEY` fica AUSENTE do objeto, não presente e vazia. */
+      env: ia.ambienteDaRodada({ escolha: escolhaDaRodada(), carimbo: CARIMBO_IA })
     });
     s.filho = child;
 
@@ -410,35 +449,44 @@ function rodar(s, { rotulo, prompt, ferramentas, cwd, modelo, comRede, aoUsarFer
 /* Uma sessão SEM conversa: nenhuma `s`, nenhum SSE, nenhum ledger de custo.
  *
  * Existe para o job diário do `novidades.js`, que roda sem ninguém olhando. E
- * existe AQUI, e não lá, por um motivo só: a cerca desta sessão são os flags do
- * `rodar()` acima — `--disallowedTools`, `--setting-sources ""`, `envLimpo()`.
- * Este repositório já mediu que `--allowedTools` NÃO restringe nada (uma sessão
- * com ele executou shell), e que sem `--setting-sources ""` a sessão carrega o
- * `CLAUDE.md` global, que nesta máquina tem a chave do n8n em texto puro. Uma
- * segunda cópia desses flags noutro arquivo divergiria da primeira na primeira
- * correção feita só de um lado, e o lado que divergisse seria uma sessão sem
- * cerca. Então há uma cópia, e é esta.
+ * existe AQUI, e não lá, por um motivo só: a cerca desta sessão são os flags que
+ * o `rodar()` acima monta — `--disallowedTools`, `--setting-sources ""` e o
+ * ambiente por allowlist. Este repositório já mediu que `--allowedTools` NÃO
+ * restringe nada (uma sessão com ele executou shell), e que sem
+ * `--setting-sources ""` a sessão carrega o `CLAUDE.md` global, que nesta máquina
+ * tem a chave do n8n em texto puro. Uma segunda cópia desses flags noutro arquivo
+ * divergiria da primeira na primeira correção feita só de um lado, e o lado que
+ * divergisse seria uma sessão sem cerca.
+ *
+ * Desde a fiação do `ia.js` não há mais nem uma cópia: as duas funções chamam o
+ * MESMO `ia.argumentosDaRodada`, onde as cercas são dado numa tabela em vez de um
+ * array escrito à mão. A razão de esta sessão morar aqui vale igual — o que ela
+ * herda deste arquivo é o desenho, e o desenho agora é uma chamada só.
  *
  * Devolve o texto e o custo; quem chamou decide o que fazer com os dois. */
 function rodarAvulso({ prompt, ferramentas, cwd, modelo, comRede = false, tetoMs = ROUND_TIMEOUT_MS, aoDizer }) {
   return new Promise(resolve => {
-    if (String(prompt).length > PROMPT_MAX) {
-      resolve({ erro: "prompt com " + String(prompt).length + " caracteres, acima do teto de " + PROMPT_MAX, texto: "", usd: 0, ms: 0 });
+    /* Mesma montagem do `rodar()` acima, e é isto que mantém a promessa que o
+       cabeçalho desta função faz: a cerca desta sessão são os flags da outra. Com
+       o adaptador não há mais duas listas para divergirem — há uma tabela. */
+    const mont = ia.argumentosDaRodada({
+      escolha: escolhaDaRodada(),
+      prompt,
+      ferramentas,
+      negadas: comRede ? ia.NEGADAS_SEMPRE : ia.NEGADAS_SEM_REDE,
+      modelo: modelo || MODELO_CONVERSA,
+      tetoPrompt: PROMPT_MAX
+    });
+    if (!mont.ok) {
+      /* Sem `s` aqui: esta sessão não tem conversa, nem SSE, nem ledger. O
+         formato é o que o `novidades.js` já trata — `{erro, texto, usd, ms}`. */
+      resolve({ erro: mont.erro, texto: "", usd: 0, ms: 0 });
       return;
     }
-    const args = [
-      "-p", prompt,
-      "--output-format", "stream-json", "--verbose",
-      "--permission-mode", "acceptEdits",
-      "--allowedTools", ferramentas,
-      "--disallowedTools", comRede ? NEGADAS_SEMPRE : NEGADAS_SEM_REDE,
-      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
-      "--setting-sources", "",
-      "--model", modelo || MODELO_CONVERSA
-    ];
     const t0 = Date.now();
-    const child = spawn(CLAUDE_BIN, args, {
-      cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: envLimpo()
+    const child = spawn(CLAUDE_BIN, mont.args, {
+      cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
+      env: ia.ambienteDaRodada({ escolha: escolhaDaRodada(), carimbo: CARIMBO_IA })
     });
     let buf = "", texto = "", usd = 0, erro = null;
     const timer = setTimeout(() => {
@@ -2906,4 +2954,11 @@ module.exports = { status, iniciar, responder, cancelar, resimular, pegar, assin
    * parte desta feature cuja falha é INVISÍVEL — um arquivo que não foi escrito
    * não dá erro, o modelo só constrói pior. `esquema-test.js` prova que os três
    * saem. */
-  escreverContexto };
+  escreverContexto,
+  /* Exportada só para o `ia-fiacao-test.js`, pela mesma razão que `upgrade.js`
+   * exporta a dele: aquele teste troca `child_process.spawn` por um filho falso
+   * e chama ESTA função, para provar que os argumentos e o ambiente que chegam
+   * ao spawn são os que o adaptador montou. Um teste que remonta o array por
+   * fora prova a cópia; o produto pode deixar de passar um argumento e nada fica
+   * vermelho. Não spawna CLI de verdade sob o dublê. */
+  rodar };

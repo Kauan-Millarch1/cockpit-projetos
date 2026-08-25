@@ -1,5 +1,5 @@
 {
-  "n": "v3.5",
-  "em": "2026-08-19",
-  "nota": "Kafka v2 (compressão, Acks fix), GitHub dispatch timeout, HITL sempre visível, Slack Search v2.7, SF Trigger JWT"
+  "n": "v3.6",
+  "em": "2026-08-20",
+  "nota": "n8n 2.36: novos params em Browser Use, MCP Trigger, MiniMax, Schedule Trigger, Discord e OpenRouter"
 }

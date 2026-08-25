@@ -585,5 +585,70 @@
     "custo": [],
     "custoTotal": 0,
     "exportado": false
+  },
+  {
+    "id": "t50bcbdc38493",
+    "ideia": "avisar no Slack quando cair pedido novo",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-25T11:59:26.910Z",
+    "terminadoEm": "2026-08-25T11:59:42.439Z",
+    "status": "cancelada",
+    "etapaFinal": 1,
+    "ehAgente": null,
+    "rodadasEntrevista": 1,
+    "respostas": 0,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 0,
+    "gates": null,
+    "sandbox": null,
+    "fantasma": null,
+    "custo": [],
+    "custoTotal": 0,
+    "exportado": false
+  },
+  {
+    "id": "t22322f9b9cb9",
+    "ideia": "Quando eu receber um e-mail quero ser notificado no slack",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-25T12:22:38.986Z",
+    "terminadoEm": "2026-08-25T12:34:08.272Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "ehAgente": false,
+    "rodadasEntrevista": 2,
+    "respostas": 4,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 4,
+    "gates": {
+      "passou": true,
+      "rodada": 1,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "recusou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.12746280000000001,
+        "ms": 68820,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1141438,
+        "ms": 59216,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 1.6573749999999998,
+        "ms": 278373,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 1.899,
+    "exportado": true
   }
 ]

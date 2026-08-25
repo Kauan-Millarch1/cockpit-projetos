@@ -180,7 +180,84 @@ button { font-family: inherit; }
    a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
    existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
    comum espremeria a navegação até quebrar. */
-/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+/* ------------------------------------------------------- a logo da empresa
+   Vem ANTES da chama, com um `.sep` entre as duas, para a leitura ser
+   "empresa | produto": a Ecommerce Puro é dona do cockpit, o cockpit não é dono
+   dela. Leva `alt` de verdade, nunca `aria-hidden` — é a identidade da empresa,
+   não ornamento, e quem lê por leitor de tela tem que saber de quem é o painel.
+
+   ALTURA 32px, e o número foi MEDIDO, não escolhido. O arquivo é um lockup de
+   DUAS linhas — "ecommerce" cheio sobre "PURO" vazado, que sangra nos quatro
+   lados — então a linha "ecommerce" ocupa só ~25% da altura total (medido: a
+   faixa densa vai de y=156 a y=266 de 445). A 18px, que era o palpite inicial,
+   ela renderiza com 4,5px de altura: um borrão cinza, que é PIOR que logo
+   nenhuma, porque lê como bug de renderização e não como marca. Renderizado a
+   1:1 em 18, 24, 26, 28, 30, 32 e 34, 32px é onde as letras voltam a ser letras
+   — e cabe nos 58px de topbar com 13px de folga de cada lado.
+
+   O ARQUIVO É UM SÓ, E ISSO É MEDIÇÃO: 118.370 pixels visíveis, TODOS exatamente
+   255,255,255, zero pixel cromático. Por isso `invert(1)` resolve o tema claro
+   sem um segundo PNG — o filtro mexe no RGB e preserva o alpha, então o branco
+   vira preto E a borda antisserrilhada acompanha. Um segundo arquivo seria uma
+   segunda coisa para divergir na primeira troca de logo, e a que divergisse
+   seria justamente a que ninguém olhou.
+
+   Os três blocos de tema abaixo estão presos SÓ a `prefers-color-scheme` e a
+   `data-theme`, nunca a um token de cor, e aqui isso é obrigatório: o `:root` do
+   `cockpit.html` é CLARO por padrão e o das outras três é ESCURO, então qualquer
+   regra que dependesse do padrão do `:root` sairia invertida em uma das quatro
+   páginas. As quatro trocam tema pondo `data-theme` no `documentElement`, que é
+   o que faz o toggle ◐ continuar vencendo nas duas direções. */
+.eplogo { height: 32px; width: auto; flex: 0 0 auto; display: block; filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eplogo { filter: none; } }
+:root[data-theme="dark"] .eplogo { filter: none; }
+:root[data-theme="light"] .eplogo { filter: invert(1); }
+/* Abaixo de 620px a logo e o separador dela saem, no MESMO ponto em que a
+   cápsula de navegação recolhe os rótulos. A topbar já estoura em 390px — medido
+   e registrado no CLAUDE.md — e trocar identidade por conteúdo cortado seria o
+   pior dos dois defeitos: o wordmark "COCKPIT / <tela>" ao lado já diz de quem é
+   a tela, e a logo cortada não diria nada. */
+@media (max-width: 620px) { .eplogo, .eplogo-sep { display: none; } }
+
+/* ---------------------------------------- e o bloco de identidade não encolhe
+   MEDIDO, e é regressão que esta logo causaria se ficasse de fora. `.brand` é
+   item de flex com `flex-shrink: 1` e `min-width: auto`, então nasce podendo
+   encolher até o próprio min-content — e o `h1` dentro dele quebra em duas
+   linhas. Com a logo ocupando ~109px (72 da imagem + 18 + 1 + 18 dos
+   separadores), o "COCKPIT / fluxos n8n" passou a quebrar já em 1440px, que é a
+   largura em que este painel é lido.
+
+   E medir revelou que o defeito é ANTERIOR à logo: sem ela, `/` e `/upgrade` já
+   quebravam em 1280px. A logo não criou o problema, adiantou ele — e consertar é
+   a mesma decisão que a cápsula de navegação já tomou ao lado ("Nunca encolhe"),
+   pelo mesmo motivo: o que está aqui é identidade, e identidade cortada não
+   informa nada.
+
+   Quem cede no lugar é o ENDEREÇO DA INSTÂNCIA. A regra é a lição do
+   `min-width: 0` que o CLAUDE.md já registra: sem ela o `.meta` também tem piso
+   de min-content, se recusa a encolher, e a pressão volta para o `.brand`.
+   Trocar o piso por reticências é o certo aqui porque o endereço é a única coisa
+   do topbar que continua legível pela metade — o começo dele já identifica a
+   instância. O `tester.html` JÁ tinha estas quatro propriedades (declaradas
+   adiante no arquivo, com os mesmos valores); estão aqui de novo porque este
+   bloco é byte a byte igual nas quatro páginas, e essa igualdade vale mais que
+   evitar uma declaração repetida de valor idêntico. */
+/* O piso vale SÓ onde a logo existe, e este recorte foi pago com medição: a
+   primeira versão aplicou `flex: 0 0 auto` sem faixa e o estouro pré-existente
+   do `/disco` e do `/tester` em 390px CRESCEU de 133px para 181px e de 151px
+   para 202px — abaixo de 620px a logo já saiu, então travar o `.brand` ali é
+   pagar o preço sem receber nada em troca. 621px é o complemento exato do
+   `max-width: 620px` que a cápsula de navegação já usa: uma faixa só, não uma
+   segunda definição de "aqui é estreito". */
+@media (min-width: 621px) {
+  .brand { flex: 0 0 auto; }
+  .brand .wm { white-space: nowrap; }
+}
+/* Esta vale em qualquer largura: deixar o `.meta` encolher nunca aumenta o
+   estouro, só muda quem cede primeiro. */
+.topbar .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -221,7 +298,7 @@ button { font-family: inherit; }
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -244,7 +321,7 @@ button { font-family: inherit; }
    A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
    fundo é quase branco e chapado, onde blur não produz efeito e brightness
    pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
-.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);opacity:0;
   transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
   transform-origin:var(--org,center);
   border-radius:999px;pointer-events:none;z-index:0;
@@ -285,6 +362,7 @@ button { font-family: inherit; }
     inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
     inset 0 -2px 3px -1px rgba(0,0,0,.22),
     0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente.pronta{opacity:1}
 .nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
   padding:3px;pointer-events:none;
   backdrop-filter:blur(2px) saturate(2.4);
@@ -342,10 +420,50 @@ button { font-family: inherit; }
 .meta b { color: var(--txt-dim); font-weight: 500; }
 .spacer { flex: 1; }
 .livedot { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-num); font-size: 11.5px; color: var(--txt-dim); }
-.livedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--cold); }
-.livedot.on i { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: beat 2.4s infinite; }
+/* O PONTO DE 7 PIXELS QUE CUSTAVA 7,5% DE CPU PARA SEMPRE.
+ *
+ * A pulsação era um `box-shadow` cujo spread ia de 0 a 8px. `box-shadow` NÃO é
+ * compositável: cada quadro exige recálculo de estilo e repintura na thread
+ * principal. Medido no navegador, com a página parada e ninguém olhando:
+ * **7,52% de CPU, 53 recálculos de estilo e 110 repinturas por segundo**, ~73ms
+ * de thread principal por segundo, e a página presa em **39,3 fps** em repouso.
+ * Desligando só este ponto: 0,36%. Numa jornada de 8 horas com a aba aberta são
+ * ~35 minutos de CPU gastos por um círculo de 7 pixels.
+ *
+ * O anel agora é um pseudo-elemento que ESCALA. `transform` e `opacity` são as
+ * duas propriedades que o compositor resolve sozinho, sem tocar em estilo nem em
+ * pintura — é a mesma razão por que a `.gbeam` viajante, que anima `transform`,
+ * já custava praticamente zero.
+ *
+ * A escala de 3,3 é derivada, não escolhida: o spread ia a 8px num ponto de 7px,
+ * logo o raio ia de 3,5 para 11,5 — e 11,5/3,5 = 3,29.
+ *
+ * `z-index: -1` põe o anel ATRÁS do ponto, que é onde o `box-shadow` estava. Para
+ * isso funcionar o `i` precisa ficar com `z-index: auto` (só `position: relative`):
+ * um `z-index` explícito nele criaria contexto de empilhamento, e aí o filho
+ * negativo passaria a pintar por CIMA do fundo do próprio ponto.
+ *
+ * `will-change` é deliberado aqui e não em outro lugar: esta é a única animação da
+ * casa que roda o tempo todo, então promover a camada uma vez vale mais que o
+ * pouco de memória — e são 7 pixels. */
+.livedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--cold); position: relative; }
+.livedot.on i { background: var(--ok); }
+.livedot.on i::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: -1;
+  background: var(--ok-soft); animation: beat 2.4s infinite;
+  will-change: transform, opacity;
+}
 .livedot.off i { background: var(--risk); }
-@keyframes beat { 0%{box-shadow:0 0 0 0 var(--ok-soft)} 70%{box-shadow:0 0 0 8px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+@keyframes beat {
+  0%   { transform: scale(1);   opacity: 1 }
+  70%  { transform: scale(3.3); opacity: 0 }
+  100% { transform: scale(3.3); opacity: 0 }
+}
+/* Quem pediu menos movimento não paga a animação nem vê o anel: o estado "ao vivo"
+   continua dito pela COR do ponto, que é onde a informação sempre esteve. */
+@media (prefers-reduced-motion: reduce) {
+  .livedot.on i::after { animation: none; opacity: 0; }
+}
 
 .btn {
   height: 32px; padding: 0 13px; border-radius: 8px; cursor: pointer;
@@ -1533,6 +1651,8 @@ textarea, input { caret-color: var(--accent); }
 <div class="backdrop"><i class="gbeam"></i><i class="gbeam b2"></i></div>
 
 <header class="topbar">
+  <img class="eplogo" src="/ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
   <div class="brand">
     <span class="flame" aria-hidden="true">
       <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
@@ -1546,6 +1666,7 @@ textarea, input { caret-color: var(--accent); }
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
     <a href="/upgrade" data-porta="upgrade"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
+      <a href="/conta" data-porta="conta"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.9a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 20.1a7.4 7.4 0 0 1 14.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Conta</span><kbd>alt 5</kbd></span></a>
   </nav>
   <div class="sep"></div>
   <!-- `sens`: numa filmagem ou num projetor, o endereço da instância diz a
@@ -1556,6 +1677,12 @@ textarea, input { caret-color: var(--accent); }
   <div class="spacer"></div>
   <div class="meta" id="stamp">carregando…</div>
   <div class="livedot" id="live"><i></i><span>—</span></div>
+  <!-- A porta para `/integracoes` SAIU daqui em 25/08/2026, a pedido do Kauan.
+       Ela agora mora na aba Conta, e a razão é de permissão e não de arrumação:
+       quem pode mexer em chave e integração é o admin, e o cargo só existe
+       depois de saber quem é a pessoa. Um botão na topbar de uma tela que não
+       sabe quem está olhando não consegue esconder nada — e um botão que leva a
+       uma tela que recusa é pior que botão nenhum. -->
   <button class="btn ghost" id="theme" title="Alternar tema">◐</button>
   <button class="btn ghost rec" id="rec" type="button" aria-pressed="false"
     title="modo gravação — borra dados de clientes para filmar a tela"><span class="dot" aria-hidden="true">⏺</span> <span class="lbl">Gravar</span></button>
@@ -2467,6 +2594,30 @@ function agoShort(ms) {
   const h = Math.round(m / 60); if (h < 48) return h + "h";
   return Math.round(h / 24) + "d";
 }
+
+/* OS RELÓGIOS RELATIVOS ANDAM SEM REDESENHAR A TELA.
+ *
+ * Todo "há 40s" desta página deriva de `Date.now()`, então ele envelhece sozinho
+ * enquanto nada acontece no n8n. Antes, o que o mantinha honesto era o `renderAll()`
+ * de cada tique do poll — que reconstrói ~2.400 elementos a cada 20 segundos, quase
+ * sempre para reescrever os mesmos números. Trocar isso por não redesenhar deixaria
+ * o cartão dizendo "há 2min" doze minutos depois, e um relógio parado sobre dado
+ * vivo é a mesma classe de mentira que o selo de frescor existe para não contar.
+ *
+ * Então quem carrega um relógio marca a si mesmo com `data-desde` (o instante, em
+ * ISO) e esta função reescreve só o texto desses nós. São ~34 na tela cheia contra
+ * os 2.400 do redesenho.
+ *
+ * `dataset.desde` é atribuído pelo DOM, nunca interpolado em `innerHTML`: o ISO vem
+ * do payload do n8n, e a regra desta casa é que payload do n8n é hostil. Esta página
+ * não tem `esc()`. */
+function tocarRelogios() {
+  const agora = Date.now();
+  for (const n of document.querySelectorAll("[data-desde]")) {
+    const t = new Date(n.dataset.desde).getTime();
+    n.textContent = Number.isFinite(t) ? agoShort(agora - t) : "—";
+  }
+}
 /* Chave composta a prova de concatenacao. A primeira versao montava
  *  na mao em dois lugares, e um dos dois acabou com um
  * byte de controle invisivel no lugar do separador: as chaves nunca batiam, o
@@ -2636,6 +2787,8 @@ function renderKpis(flows) {
   const p95 = durs.length ? durs[Math.floor(0.95 * (durs.length - 1))] : null;
   const rate = win.length ? 1 - errs.length / win.length : null;
   const newest = win.reduce((a, e) => (!a || e.startedAt > a ? e.startedAt : a), null);
+  // Uma varredura só, e apenas quando há falha para contar. Ver o comentário abaixo.
+  const assinaturas = errs.length ? errorGroups().length : 0;
   const activeFlows = flows.filter(f => f.active).length;
   const movingFlows = flows.filter(f => f.total > 0).length;
 
@@ -2648,7 +2801,11 @@ function renderKpis(flows) {
       raw: rate == null ? undefined : rate, fmt: v => pct(v),
       cls: rate == null ? "is-cold" : rate >= 0.99 ? "is-ok" : rate >= 0.95 ? "is-warn" : "is-risk" },
     { lbl: "Falhas " + WINDOW_H + "h", val: errs.length.toLocaleString("pt-BR"), raw: errs.length,
-      sub: errs.length ? errorGroups().length + " assinatura" + (errorGroups().length === 1 ? "" : "s") + " distinta" + (errorGroups().length === 1 ? "" : "s") : "nenhuma",
+      /* `errorGroups()` varre `S.details` inteiro montando `Map` e `Set` por grupo.
+         Estavam TRÊS chamadas nesta linha, para usar o mesmo número três vezes: uma
+         para o total e duas para decidir plural. Como `renderKpis` roda a cada 10s
+         pelo tique lento, eram três varreduras por tique para uma pergunta só. */
+      sub: errs.length ? assinaturas + " assinatura" + (assinaturas === 1 ? "" : "s") + " distinta" + (assinaturas === 1 ? "" : "s") : "nenhuma",
       cls: errs.length === 0 ? "is-ok" : errs.length >= BANDS.errCountRisk ? "is-risk" : "is-warn" },
     { lbl: "Fluxos ativos", val: String(activeFlows), raw: activeFlows, sub: "de " + S.workflows.size + " no total", cls: "" },
     // "Rodando agora" ficaria pregado em zero: estas execuções duram 60–600ms e
@@ -2851,7 +3008,10 @@ function renderCards(flows) {
     st.innerHTML = "<span><b>" + f.total + "</b> exec</span>"
       + "<span><b>" + f.errors + "</b> falhas</span>"
       + "<span>p95 <b>" + dur(f.p95) + "</b></span>"
-      + "<span>" + (f.lastRun ? "há <b>" + agoShort(Date.now() - new Date(f.lastRun.startedAt).getTime()) + "</b>" : "—") + "</span>";
+      + "<span>" + (f.lastRun ? 'há <b class="desde">' + agoShort(Date.now() - new Date(f.lastRun.startedAt).getTime()) + "</b>" : "—") + "</span>";
+    /* O instante entra pelo DOM, não interpolado na string acima: ele vem do
+       payload do n8n, e esta página não tem `esc()`. Ver `tocarRelogios()`. */
+    if (f.lastRun) { const bd = st.querySelector("b.desde"); if (bd) bd.dataset.desde = f.lastRun.startedAt; }
     c.append(st);
     // Clique no cartão faz as duas coisas: põe o fluxo no palco e filtra o
     // quadro de erros. Clicar de novo no mesmo cartão desfaz o filtro.
@@ -2983,10 +3143,22 @@ function errorCard(g) {
 
   // Tempo relativo, não hora do relógio: a janela de 24h cruza a meia-noite e
   // "primeira 15:49 · última 09:52" se lê ao contrário.
-  const when = el("div", "when",
-    "última há " + agoShort(Date.now() - new Date(g.last).getTime())
-    + (g.count > 1 ? " · primeira há " + agoShort(Date.now() - new Date(g.first).getTime()) : "")
-    + (g.d.lastNode ? " · último nó executado: " + g.d.lastNode : ""));
+  /* Montado por nós filhos e não por uma string só: os dois instantes precisam de
+     `data-desde` para `tocarRelogios()` alcançá-los, e `g.d.lastNode` é nome de nó
+     vindo do payload do n8n — trocar isto por `innerHTML` abriria injeção numa
+     página que não tem `esc()`. Cada `el()` escreve `textContent`. */
+  const when = el("div", "when");
+  /* `span`, não `b`: aqui o texto sempre foi plano, e um negrito novo seria uma
+     mudança de peso tipográfico entrando de carona numa correção de performance.
+     No cartão de fluxo é `b` porque lá já era. */
+  const relogio = iso => {
+    const s = el("span", "desde", agoShort(Date.now() - new Date(iso).getTime()));
+    s.dataset.desde = iso;
+    return s;
+  };
+  when.append(el("span", null, "última há "), relogio(g.last));
+  if (g.count > 1) when.append(el("span", null, " · primeira há "), relogio(g.first));
+  if (g.d.lastNode) when.append(el("span", null, " · último nó executado: " + g.d.lastNode));
   e.append(when);
 
   if (g.fix) {
@@ -4854,6 +5026,73 @@ function renderAll() {
   renderStamp();
 }
 
+/* O TIQUE EM QUE NADA ACONTECEU, que é a maioria deles.
+ *
+ * `server.js` emite `delta` a cada `POLL_MS` (20s) mesmo quando nada rodou — de
+ * propósito, porque o navegador precisa do carimbo para provar que o dado está
+ * fresco. Medido no stream ao vivo: 9 deltas em 184s, **todos com
+ * `executions: []` e `errors: []`**, porque esta instância faz 40 execuções por
+ * hora, ou 0,22 linha por tique. E `renderAll()` rodava em todos eles.
+ *
+ * O que `renderAll()` custa, contado nos containers: ~24 nós na faixa de KPI,
+ * ~34 na trilha, ~616 nos cartões (mais 42 parses de HTML, dois SVG por cartão),
+ * ~440 no quadro de erros e **1.200 no feed** — ~2.400 elementos destruídos e
+ * recriados para reescrever exatamente os mesmos números, quatro vezes por minuto,
+ * para sempre, com a aba aberta.
+ *
+ * A saída barata NÃO é "não desenhar": é desenhar só o que envelheceu. Num tique
+ * vazio, o que muda no mundo é o carimbo de frescor e os relógios relativos — e
+ * nada mais, porque nenhuma execução entrou e nenhuma saiu da janela.
+ *
+ * `renderFeed` e `renderRail` ficam fora com risco ZERO: a trilha não tem relógio
+ * nenhum e o feed usa `hhmm()`, que é hora de parede e não envelhece. Os cartões e
+ * o quadro de erros ficam fora porque os relógios deles passaram a andar por
+ * `tocarRelogios()`.
+ *
+ * O que NÃO entra aqui, e é decisão: a faixa de KPI continua sendo refeita pelo
+ * intervalo de 10s que já existia — ela é o único bloco cujo conteúdo é derivado da
+ * janela inteira, e a assinatura que provaria que ele não mudou custaria mais que
+ * os 24 nós que ele tem. */
+function renderTiqueVazio() {
+  tocarRelogios();
+  renderStamp();
+}
+
+/* A PODA DO `S.details`, que crescia sem teto.
+ *
+ * `S.execs` já era podado pela janela. `S.details` tinha três `set` e **zero
+ * `delete`**: `loadExec()` guarda o detalhe de cada execução que passa pelo palco,
+ * e o detalhe tem 34KB de mediana. Com o fluxo mais movimentado no palco (764
+ * execuções em 24h, uma a cada dois minutos), são ~8MB em 8 horas e ~26MB num dia
+ * de aba aberta. Pior que a memória: `errorGroups()` varre esse Map, e ele era o
+ * denominador de um laço que roda a cada tique.
+ *
+ * O que sai é só o detalhe de execução que DEU CERTO e caiu fora da janela — os que
+ * `loadExec` acumula. O que fica:
+ *
+ *  - **todo detalhe de erro**, mesmo fora da janela. `errorGroups()` é construído a
+ *    partir deles, e o `CLAUDE.md` já registra que uma marca de correção sob leitura
+ *    capada não prova nada; podar erro pioraria isso em silêncio.
+ *  - **o detalhe no palco** (`S.loadedExec`), senão o replay perde a fita aberta
+ *    justamente enquanto alguém a olha.
+ *
+ * Devolve quantos saíram, porque quem chama usa isso para decidir se precisa
+ * redesenhar. */
+function podarDetalhes() {
+  const piso = windowFloor();
+  const noPalco = S.loadedExec ? String(S.loadedExec.id) : null;
+  let fora = 0;
+  for (const [id, d] of S.details) {
+    if (String(id) === noPalco) continue;
+    if (!d || d.status === "error" || d.error) continue;
+    const t = d.startedAt ? new Date(d.startedAt).getTime() : null;
+    if (t == null || t >= piso) continue;
+    S.details.delete(id);
+    fora++;
+  }
+  return fora;
+}
+
 /* ------------------------------------------------------------- flow canvas */
 
 /* O nó é quadrado, como no editor do n8n. Era 132×38 (retângulo com texto
@@ -5526,7 +5765,29 @@ function renderHappened(detail) {
   det.append(sum);
 
   const lista = el("div", "listabox");
-  for (const l of linhas) {
+  /* A LISTA SÓ É MONTADA QUANDO ALGUÉM ABRE O `<details>`.
+   *
+   * Ela nasce fechada, e montá-la custava, medido no pior caso desta instância:
+   * 158 linhas, ~700 elementos e **158 parses de SVG** (um `innerHTML` de glifo por
+   * linha). `renderHappened` roda dentro de `loadExec`, que o handler do delta
+   * chama sempre que o fluxo aberto executou — num fluxo movimentado, a cada poll.
+   * Era o trabalho mais caro desta página sendo pago a cada 20 segundos para
+   * desenhar algo atrás de uma seta que ninguém clicou.
+   *
+   * `det` é criado novo em cada `renderHappened`, então o listener morre com ele —
+   * não há o que remover e não há acumulação.
+   *
+   * O modo gravação continua alcançando as linhas: `.sens` é resolvido por CSS, e
+   * CSS não se importa com quando o nó nasceu. */
+  let montada = false;
+  const montarLista = () => {
+    if (montada) return;
+    montada = true;
+    for (const l of linhas) linha(l);
+  };
+  det.addEventListener("toggle", () => { if (det.open) montarLista(); });
+
+  function linha(l) {
     const row = el("div", "row" + (l.ef && l.ef.external ? " ext" : "") + (l.bad ? " bad" : ""));
     const ic = el("span", "ic");
     ic.innerHTML = glyphHtml(l.node ? l.node.type : "", 15);
@@ -5720,11 +5981,21 @@ function stream() {
     const d = JSON.parse(ev.data);
     S.lastPoll = d.fetchedAt;
     await loadFixes();   // leitura de um arquivo local, mais barata que o poll que a disparou
+    const novas = (d.executions || []).length + (d.errors || []).length;
     for (const e of d.executions || []) S.execs.set(e.id, e);
     for (const x of d.errors || []) S.details.set(x.id, x);
     // limpa fora da janela para o painel não inflar com o tempo
-    for (const [id, e] of S.execs) if (e.startedAt && new Date(e.startedAt).getTime() < windowFloor()) S.execs.delete(id);
-    renderAll();
+    let saiu = 0;
+    for (const [id, e] of S.execs) {
+      if (e.startedAt && new Date(e.startedAt).getTime() < windowFloor()) { S.execs.delete(id); saiu++; }
+    }
+    saiu += podarDetalhes();
+    /* Nada entrou e nada saiu da janela: o mundo não mudou, só envelheceu. Ver
+       `renderTiqueVazio()` — é a diferença entre ~2.400 elementos e ~34 textos, e
+       ela acontece quatro vezes por minuto. A contagem de saída entra na conta
+       porque uma execução que cai fora da janela muda os cartões e o feed mesmo
+       sem nenhuma linha nova ter chegado. */
+    if (novas || saiu) renderAll(); else renderTiqueVazio();
     setLive("on", "ao vivo");
 
     // se o fluxo aberto acabou de rodar, mostra rodando de verdade
@@ -5908,18 +6179,31 @@ for (const [x, y] of [[14, 20], [72, 20], [32, 64], [88, 52]]) {
   document.body.append(s);
 }
 
-// O relógio relativo ("há 40s") pode andar sozinho porque deriva de um evento
-// real. O selo de frescor NUNCA usa new Date() — só o timestamp do payload.
-setInterval(() => { if (S.workflows.size) renderKpis(flowsWithActivity()); }, 10000);
+/* O relógio relativo ("há 40s") pode andar sozinho porque deriva de um evento
+   real. O selo de frescor NUNCA usa new Date() — só o timestamp do payload.
+
+   `document.hidden` é a diferença entre um painel e um cooler ligado: `renderKpis`
+   passa por `flowsWithActivity()`, que faz ~980 `new Date()` e chama `errorGroups()`,
+   e isto rodava a cada 10 segundos numa aba de fundo, para sempre, sem ninguém
+   olhando. Ao voltar para a aba, roda na hora — o mesmo remédio que `aba.js` já usa
+   no poll dele, porque um painel que demora 10s para ficar verdadeiro depois de
+   você olhar para ele é pior que um que gasta. */
+const tiqueLento = () => {
+  if (document.hidden || !S.workflows.size) return;
+  renderKpis(flowsWithActivity());
+  tocarRelogios();
+};
+setInterval(tiqueLento, 10000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) tiqueLento(); });
 
 boot();
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -5961,7 +6245,9 @@ boot();
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+       geometria por quadro, e cada uma força layout do documento inteiro. */
+    if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
   }
 
@@ -6016,14 +6302,27 @@ boot();
   try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
-  if (origem && !reduzir()) {
-    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
-    pintar(0);
-    lente.classList.add("varre");
-    acordar();
-  } else {
-    assentar();
+  /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
+     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
+     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
+     script corre em relação ao layout já estar limpo.
+     Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
+     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     posicionada, então o adiamento não vira flash no lugar errado. */
+  function partir() {
+    if (origem && !reduzir()) {
+      x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+      pintar(0);
+      lente.classList.add("varre");
+      acordar();
+    } else {
+      assentar();
+    }
+    lente.classList.add("pronta");
   }
+  requestAnimationFrame(function () { requestAnimationFrame(partir); });
   try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
 
   nav.addEventListener("pointerover", acordar);
@@ -6034,7 +6333,7 @@ boot();
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "123".indexOf(ev.key);
+    var i = "12345".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;

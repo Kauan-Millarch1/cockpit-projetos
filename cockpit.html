@@ -78,7 +78,84 @@
   .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; }
   .brand .wm b { color:var(--txt); }
   .brand .wm span { color:var(--txt-faint); font-weight:500; }
-/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+/* ------------------------------------------------------- a logo da empresa
+   Vem ANTES da chama, com um `.sep` entre as duas, para a leitura ser
+   "empresa | produto": a Ecommerce Puro é dona do cockpit, o cockpit não é dono
+   dela. Leva `alt` de verdade, nunca `aria-hidden` — é a identidade da empresa,
+   não ornamento, e quem lê por leitor de tela tem que saber de quem é o painel.
+
+   ALTURA 32px, e o número foi MEDIDO, não escolhido. O arquivo é um lockup de
+   DUAS linhas — "ecommerce" cheio sobre "PURO" vazado, que sangra nos quatro
+   lados — então a linha "ecommerce" ocupa só ~25% da altura total (medido: a
+   faixa densa vai de y=156 a y=266 de 445). A 18px, que era o palpite inicial,
+   ela renderiza com 4,5px de altura: um borrão cinza, que é PIOR que logo
+   nenhuma, porque lê como bug de renderização e não como marca. Renderizado a
+   1:1 em 18, 24, 26, 28, 30, 32 e 34, 32px é onde as letras voltam a ser letras
+   — e cabe nos 58px de topbar com 13px de folga de cada lado.
+
+   O ARQUIVO É UM SÓ, E ISSO É MEDIÇÃO: 118.370 pixels visíveis, TODOS exatamente
+   255,255,255, zero pixel cromático. Por isso `invert(1)` resolve o tema claro
+   sem um segundo PNG — o filtro mexe no RGB e preserva o alpha, então o branco
+   vira preto E a borda antisserrilhada acompanha. Um segundo arquivo seria uma
+   segunda coisa para divergir na primeira troca de logo, e a que divergisse
+   seria justamente a que ninguém olhou.
+
+   Os três blocos de tema abaixo estão presos SÓ a `prefers-color-scheme` e a
+   `data-theme`, nunca a um token de cor, e aqui isso é obrigatório: o `:root` do
+   `cockpit.html` é CLARO por padrão e o das outras três é ESCURO, então qualquer
+   regra que dependesse do padrão do `:root` sairia invertida em uma das quatro
+   páginas. As quatro trocam tema pondo `data-theme` no `documentElement`, que é
+   o que faz o toggle ◐ continuar vencendo nas duas direções. */
+.eplogo { height: 32px; width: auto; flex: 0 0 auto; display: block; filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eplogo { filter: none; } }
+:root[data-theme="dark"] .eplogo { filter: none; }
+:root[data-theme="light"] .eplogo { filter: invert(1); }
+/* Abaixo de 620px a logo e o separador dela saem, no MESMO ponto em que a
+   cápsula de navegação recolhe os rótulos. A topbar já estoura em 390px — medido
+   e registrado no CLAUDE.md — e trocar identidade por conteúdo cortado seria o
+   pior dos dois defeitos: o wordmark "COCKPIT / <tela>" ao lado já diz de quem é
+   a tela, e a logo cortada não diria nada. */
+@media (max-width: 620px) { .eplogo, .eplogo-sep { display: none; } }
+
+/* ---------------------------------------- e o bloco de identidade não encolhe
+   MEDIDO, e é regressão que esta logo causaria se ficasse de fora. `.brand` é
+   item de flex com `flex-shrink: 1` e `min-width: auto`, então nasce podendo
+   encolher até o próprio min-content — e o `h1` dentro dele quebra em duas
+   linhas. Com a logo ocupando ~109px (72 da imagem + 18 + 1 + 18 dos
+   separadores), o "COCKPIT / fluxos n8n" passou a quebrar já em 1440px, que é a
+   largura em que este painel é lido.
+
+   E medir revelou que o defeito é ANTERIOR à logo: sem ela, `/` e `/upgrade` já
+   quebravam em 1280px. A logo não criou o problema, adiantou ele — e consertar é
+   a mesma decisão que a cápsula de navegação já tomou ao lado ("Nunca encolhe"),
+   pelo mesmo motivo: o que está aqui é identidade, e identidade cortada não
+   informa nada.
+
+   Quem cede no lugar é o ENDEREÇO DA INSTÂNCIA. A regra é a lição do
+   `min-width: 0` que o CLAUDE.md já registra: sem ela o `.meta` também tem piso
+   de min-content, se recusa a encolher, e a pressão volta para o `.brand`.
+   Trocar o piso por reticências é o certo aqui porque o endereço é a única coisa
+   do topbar que continua legível pela metade — o começo dele já identifica a
+   instância. O `tester.html` JÁ tinha estas quatro propriedades (declaradas
+   adiante no arquivo, com os mesmos valores); estão aqui de novo porque este
+   bloco é byte a byte igual nas quatro páginas, e essa igualdade vale mais que
+   evitar uma declaração repetida de valor idêntico. */
+/* O piso vale SÓ onde a logo existe, e este recorte foi pago com medição: a
+   primeira versão aplicou `flex: 0 0 auto` sem faixa e o estouro pré-existente
+   do `/disco` e do `/tester` em 390px CRESCEU de 133px para 181px e de 151px
+   para 202px — abaixo de 620px a logo já saiu, então travar o `.brand` ali é
+   pagar o preço sem receber nada em troca. 621px é o complemento exato do
+   `max-width: 620px` que a cápsula de navegação já usa: uma faixa só, não uma
+   segunda definição de "aqui é estreito". */
+@media (min-width: 621px) {
+  .brand { flex: 0 0 auto; }
+  .brand .wm { white-space: nowrap; }
+}
+/* Esta vale em qualquer largura: deixar o `.meta` encolher nunca aumenta o
+   estouro, só muda quem cede primeiro. */
+.topbar .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -119,7 +196,7 @@
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -142,7 +219,7 @@
    A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
    fundo é quase branco e chapado, onde blur não produz efeito e brightness
    pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
-.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);opacity:0;
   transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
   transform-origin:var(--org,center);
   border-radius:999px;pointer-events:none;z-index:0;
@@ -183,6 +260,7 @@
     inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
     inset 0 -2px 3px -1px rgba(0,0,0,.22),
     0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente.pronta{opacity:1}
 .nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
   padding:3px;pointer-events:none;
   backdrop-filter:blur(2px) saturate(2.4);
@@ -467,6 +545,8 @@
      de produto inteiro na cara de quem olha. A lateral continua existindo para
      o que é DESTA tela: saúde e varredura. -->
 <header class="topbar">
+  <img class="eplogo" src="/ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
   <div class="brand">
     <span class="flame" aria-hidden="true">
       <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
@@ -480,6 +560,7 @@
     <a href="/disco" data-porta="disco" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
     <a href="/upgrade" data-porta="upgrade"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
+      <a href="/conta" data-porta="conta"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.9a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 20.1a7.4 7.4 0 0 1 14.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Conta</span><kbd>alt 5</kbd></span></a>
   </nav>
   <div class="spacer"></div>
   <button class="iconbtn" id="theme" type="button" title="alternar tema">◐</button>
@@ -626,10 +707,26 @@ async function load(refresh) {
   render();
 }
 
+/* `rows()` É CHAMADO QUINZE VEZES POR PINTURA, e `render()` roda a cada tecla
+   digitada na busca. Medido: 21 projetos × 15 = **315 espalhamentos de objeto e 315
+   `computeHealth` por tecla**, sempre com o mesmo resultado.
+
+   O cache é por identidade de `state.data` mais o dia, e não por TTL: `load()`
+   substitui `state.data` inteiro quando os dados chegam, então a identidade É a
+   invalidação — a mesma disciplina que `esquema.resumo()` usa com o mtime e que o
+   `estatico.js` usa no buffer do gzip. O dia entra porque `computeHealth` mede
+   idade contra ele: uma aba aberta cruzando a meia-noite tem de recalcular, senão
+   o painel afirma "parado há 14 dias" no dia 15.
+
+   `today()` devolve string (`YYYY-MM-DD`), o que faz a comparação ser por valor
+   sem alocar nada. */
+let cacheRows = { data: null, dia: null, valor: [] };
 function rows() {
   if (!state.data) return [];
   const t = today();
-  return state.data.projects.map(p => ({ ...p, h: computeHealth(p, t) }));
+  if (cacheRows.data === state.data && cacheRows.dia === t) return cacheRows.valor;
+  cacheRows = { data: state.data, dia: t, valor: state.data.projects.map(p => ({ ...p, h: computeHealth(p, t) })) };
+  return cacheRows.valor;
 }
 const countIn = key => key === "todos" ? rows().length : rows().filter(r => r.h.band.key === key).length;
 
@@ -807,7 +904,7 @@ async function detailView(name) {
 
     '<section class="panel"><h3>Documentação e stack</h3>' +
       (d.pkg && !d.pkg.error
-        ? '<dl class="kv"><dt>scripts</dt><dd>' + (d.pkg.scripts.join(", ") || "—") + "</dd>" +
+        ? '<dl class="kv"><dt>scripts</dt><dd>' + esc(d.pkg.scripts.join(", ") || "—") + "</dd>" +
           "<dt>deps</dt><dd>" + d.pkg.deps + " + " + d.pkg.devDeps + " dev</dd>" +
           "<dt>lockfile</dt><dd>" + esc(d.pkg.lockfile || "nenhum") + "</dd></dl>"
         : '<p class="note">Sem package.json.</p>') +
@@ -840,6 +937,10 @@ async function detailView(name) {
 /* =========================================================================
    ROTEAMENTO
    ========================================================================= */
+// Fora de `render()`: cada pintura criaria um closure novo, e o relógio da pintura
+// anterior dispararia de qualquer forma. Ver o `oninput` da busca, abaixo.
+let alarmeBusca = null;
+
 function render() {
   renderRail();
   const main = el("main");
@@ -856,7 +957,31 @@ function render() {
     state.band = state.band === b.dataset.band ? "todos" : b.dataset.band; render();
   });
   const q = el("q");
-  if (q) { q.oninput = e => { state.q = e.target.value; render(); q.focus(); }; }
+  if (q) {
+    /* A BUSCA NÃO REPINTA POR TECLA. `render()` reescreve o `<main>` inteiro, e a
+       versão anterior fazia isso a cada `input` — inclusive devolvendo o foco com
+       `q.focus()`, que joga o caret para o FIM: editar o meio da palavra era
+       impossível.
+
+       O adiamento é de 120ms, e é curto de propósito: digitar é a única coisa nesta
+       tela que tem retorno visual imediato, e um adiamento perceptível se lê como
+       painel travado. O relógio vive fora de `render()` porque cada pintura cria um
+       closure novo — o `setTimeout` da pintura anterior dispararia de qualquer
+       forma, e seria uma repintura por tecla com passos extras. */
+    q.oninput = e => {
+      state.q = e.target.value;
+      const caret = e.target.selectionStart;
+      clearTimeout(alarmeBusca);
+      alarmeBusca = setTimeout(() => {
+        render();
+        const n = el("q");
+        if (!n) return;
+        n.focus();
+        // O caret volta para onde estava, não para o fim.
+        try { n.setSelectionRange(caret, caret); } catch { /* navegador sem suporte */ }
+      }, 120);
+    };
+  }
   const s = el("sort");
   if (s) s.onchange = e => { state.sort = e.target.value; render(); };
 }
@@ -1015,10 +1140,10 @@ load(false);
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -1060,7 +1185,9 @@ load(false);
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+       geometria por quadro, e cada uma força layout do documento inteiro. */
+    if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
   }
 
@@ -1115,14 +1242,27 @@ load(false);
   try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
-  if (origem && !reduzir()) {
-    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
-    pintar(0);
-    lente.classList.add("varre");
-    acordar();
-  } else {
-    assentar();
+  /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
+     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
+     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
+     script corre em relação ao layout já estar limpo.
+     Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
+     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     posicionada, então o adiamento não vira flash no lugar errado. */
+  function partir() {
+    if (origem && !reduzir()) {
+      x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+      pintar(0);
+      lente.classList.add("varre");
+      acordar();
+    } else {
+      assentar();
+    }
+    lente.classList.add("pronta");
   }
+  requestAnimationFrame(function () { requestAnimationFrame(partir); });
   try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
 
   nav.addEventListener("pointerover", acordar);
@@ -1133,7 +1273,7 @@ load(false);
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "123".indexOf(ev.key);
+    var i = "12345".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;

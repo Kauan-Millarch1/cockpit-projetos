@@ -28,7 +28,28 @@ function t(nome, cond) {
   if (cond) { ok++; console.log("  ok    " + nome); }
   else { bad++; console.log("  FALHOU " + nome); }
 }
-const src = f => fs.readFileSync(path.join(__dirname, f), "utf8");
+/* O fonte SEM COMENTÁRIO, e isto é uma correção, não um detalhe de leitura.
+ *
+ * Todo caso deste arquivo mede o fonte por regex, e o fonte lido cru inclui a
+ * prosa. Isso quebra nas DUAS direções, e as duas já aconteceram neste
+ * repositório:
+ *
+ *   - a negativa passa a acusar prosa. Medido 24/08/2026: o caso "etapa 0 não
+ *     ligou fila nenhuma" ficou VERMELHO porque um comentário novo no `n8n.js`
+ *     citava `mutex-test.js` pelo nome. Nada tinha sido ligado; a palavra estava
+ *     numa frase.
+ *   - a positiva passa a aprovar a AUSÊNCIA da decisão que ela acha que confere.
+ *     Essa é a pior, e é a que o `dossie-tela-test.js` pagou: um mutante apagou
+ *     uma guarda inteira e dois casos seguiram verdes, porque o comentário que
+ *     explicava a guarda carregava o nome que eles procuravam.
+ *
+ * Comentário que cita o próprio assunto do teste é o caso NORMAL num repositório
+ * cujos arquivos explicam por escrito o que decidem. Então a peneira é a
+ * ferramenta certa, não a exceção. */
+const semComentario = s => s
+  .replace(/\/\*[\s\S]*?\*\//g, " ")
+  .replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+const src = f => semComentario(fs.readFileSync(path.join(__dirname, f), "utf8"));
 
 /* ───────────────────────────────────────────── 1. o construtor do dono ──── */
 

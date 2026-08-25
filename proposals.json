@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-20T18:41:55.560Z",
+  "savedAt": "2026-08-25T19:57:49.644Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -456,7 +456,7 @@
         "edgesAdded": 0,
         "edgesRemoved": 0
       },
-      "report": "# Correção — `gcal_trigger_marilia` (NodeApiError / Service unavailable)\n\n## Causa raiz\n\nFalha **transitória do lado do Google**, não erro de configuração do fluxo.\n\n`gcal_trigger_marilia` é um poll trigger (`n8n-nodes-base.googleCalendarTrigger`, `pollTimes.mode =\neveryMinute`) que consulta a agenda `marilia.ribeiro@ecommercepuro.com.br` filtrando por\n`matchTerm: \"eContrate - Agendamentos\"`. A mensagem `Service unavailable - try again later` com\ndescrição `Backend Error` é a tradução que o n8n dá para um **HTTP 503 devolvido pela API do Google\nCalendar**. É indisponibilidade momentânea do serviço remoto — nada no `parameters` do nó a provoca\ne nenhum outro nó do fluxo está envolvido.\n\nEvidências que sustentam isso, e não outra hipótese:\n\n- **1 ocorrência em 24h** contra ~1440 polls no mesmo período (um por minuto). Erro de configuração,\n  de credencial ou de calendário inexistente falharia em **todos** os polls, não em um.\n- `staticData[\"node:gcal_trigger_marilia\"].lastTimeChecked` está em `2026-08-06T10:43:29Z`, ou seja,\n  **o poll voltou a rodar normalmente depois da falha** e o cursor continuou avançando. Não houve\n  perda de posição nem trigger travado.\n- Não é credencial: 401/403 dariam mensagem de autorização, não `Backend Error`. Nenhum bloco\n  `credentials` foi tocado neste patch.\n- Não é sub-workflow: o nó da assinatura existe neste fluxo mesmo (`whj5x0keweg3Ffvo`), então não se\n  aplica o caso de falha de filho reportada no pai.\n\n## O que mudei\n\nUm nó, só configurações de resiliência — nenhuma mudança de `parameters`, de tipo, de conexão ou de\ncredencial:\n\n| Campo | Antes | Depois |\n|---|---|---|\n| `retryOnFail` | ausente (false) | `true` |\n| `maxTries` | ausente | `3` |\n| `waitBetweenTries` | ausente | `5000` (ms) |\n| `notes` | ausente | nota explicando o 503 e por que **não** usar `onError` aqui |\n\nÉ exatamente o que a própria mensagem do n8n recomenda: *\"consider setting this node to retry\nautomatically (in the node settings)\"*.\n\n## Por que isso resolve\n\nUm 503 do Google costuma durar segundos. Com o retry ligado, a mesma chamada é refeita até 3 vezes\ncom 5s de intervalo antes de o poll ser considerado perdido — a janela típica de indisponibilidade\ncabe dentro disso, e a execução deixa de ser registrada como erro. O teto de 10s adicionais fica bem\nabaixo do intervalo de 1 minuto entre polls, então **não há risco de sobrepor o poll seguinte**.\n\nDuas alternativas foram descartadas de propósito:\n\n- **`onError: \"continueRegularOutput\"`** (padrão que a maioria dos outros nós deste fluxo usa) seria\n  errado num trigger: um poll que falhou não tem evento nenhum, e deixar o item vazio seguir para\n  `merge_eventos_calendario` → `parsear_evento` → `enviar_slack_notif` produziria **notificação de\n  agendamento que não existe**. Um erro visível é melhor que uma notificação falsa.\n- **`alwaysOutputData: true`** tem o mesmo defeito, pela mesma razão.\n\n## Risco residual\n\n- **Retry em poll trigger é a parte que não consigo verificar daqui.** `retryOnFail` é aplicado pelo\n  motor de execução do n8n; não tenho como provar, sem rede e sem Bash, que o caminho de *polling*\n  (que roda pelo gerenciador de workflows ativos) honra essa configuração do mesmo jeito que um nó\n  no meio do fluxo. Se não honrar, a mudança é **inerte, não nociva** — o trigger continua se\n  recuperando sozinho no minuto seguinte, exatamente como já aconteceu aqui.\n- **Isso não elimina o 503, só absorve o curto.** Se o Google ficar fora por mais de ~10s, a falha\n  volta a aparecer no painel. Nesse caso o evento criado durante a queda ainda é recuperado no poll\n  seguinte, porque o `lastTimeChecked` só avança em poll bem-sucedido — mas com atraso.\n- **`gcal_trigger_isabelle` tem exatamente a mesma exposição** (mesmo tipo, mesmo `everyMinute`,\n  mesma API) e **não foi incluído**, para manter a correção mínima e restrita à assinatura\n  observada. Vale aplicar a mesma configuração nele se você quiser cobrir a agenda da Isabelle antes\n  que ela apareça no painel. `gcal_trigger_yasmin` está desativado e não polla.\n- **A assinatura pode reaparecer no board sem que a correção tenha falhado.** Só sai de vez depois\n  de um período sem novas execuções com erro — falha de disponibilidade de terceiro não tem prova de\n  correção imediata.\n",
+      "report": "# Correção — `gcal_trigger_marilia` (NodeApiError / Service unavailable)\n\n## Causa raiz\n\nFalha **transitória do lado do Google**, não erro de configuração do fluxo.\n\n`gcal_trigger_marilia` é um poll trigger (`n8n-nodes-base.googleCalendarTrigger`, `pollTimes.mode =\neveryMinute`) que consulta a agenda `[EMAIL-REDIGIDO]` filtrando por\n`matchTerm: \"eContrate - Agendamentos\"`. A mensagem `Service unavailable - try again later` com\ndescrição `Backend Error` é a tradução que o n8n dá para um **HTTP 503 devolvido pela API do Google\nCalendar**. É indisponibilidade momentânea do serviço remoto — nada no `parameters` do nó a provoca\ne nenhum outro nó do fluxo está envolvido.\n\nEvidências que sustentam isso, e não outra hipótese:\n\n- **1 ocorrência em 24h** contra ~1440 polls no mesmo período (um por minuto). Erro de configuração,\n  de credencial ou de calendário inexistente falharia em **todos** os polls, não em um.\n- `staticData[\"node:gcal_trigger_marilia\"].lastTimeChecked` está em `2026-08-06T10:43:29Z`, ou seja,\n  **o poll voltou a rodar normalmente depois da falha** e o cursor continuou avançando. Não houve\n  perda de posição nem trigger travado.\n- Não é credencial: 401/403 dariam mensagem de autorização, não `Backend Error`. Nenhum bloco\n  `credentials` foi tocado neste patch.\n- Não é sub-workflow: o nó da assinatura existe neste fluxo mesmo (`whj5x0keweg3Ffvo`), então não se\n  aplica o caso de falha de filho reportada no pai.\n\n## O que mudei\n\nUm nó, só configurações de resiliência — nenhuma mudança de `parameters`, de tipo, de conexão ou de\ncredencial:\n\n| Campo | Antes | Depois |\n|---|---|---|\n| `retryOnFail` | ausente (false) | `true` |\n| `maxTries` | ausente | `3` |\n| `waitBetweenTries` | ausente | `5000` (ms) |\n| `notes` | ausente | nota explicando o 503 e por que **não** usar `onError` aqui |\n\nÉ exatamente o que a própria mensagem do n8n recomenda: *\"consider setting this node to retry\nautomatically (in the node settings)\"*.\n\n## Por que isso resolve\n\nUm 503 do Google costuma durar segundos. Com o retry ligado, a mesma chamada é refeita até 3 vezes\ncom 5s de intervalo antes de o poll ser considerado perdido — a janela típica de indisponibilidade\ncabe dentro disso, e a execução deixa de ser registrada como erro. O teto de 10s adicionais fica bem\nabaixo do intervalo de 1 minuto entre polls, então **não há risco de sobrepor o poll seguinte**.\n\nDuas alternativas foram descartadas de propósito:\n\n- **`onError: \"continueRegularOutput\"`** (padrão que a maioria dos outros nós deste fluxo usa) seria\n  errado num trigger: um poll que falhou não tem evento nenhum, e deixar o item vazio seguir para\n  `merge_eventos_calendario` → `parsear_evento` → `enviar_slack_notif` produziria **notificação de\n  agendamento que não existe**. Um erro visível é melhor que uma notificação falsa.\n- **`alwaysOutputData: true`** tem o mesmo defeito, pela mesma razão.\n\n## Risco residual\n\n- **Retry em poll trigger é a parte que não consigo verificar daqui.** `retryOnFail` é aplicado pelo\n  motor de execução do n8n; não tenho como provar, sem rede e sem Bash, que o caminho de *polling*\n  (que roda pelo gerenciador de workflows ativos) honra essa configuração do mesmo jeito que um nó\n  no meio do fluxo. Se não honrar, a mudança é **inerte, não nociva** — o trigger continua se\n  recuperando sozinho no minuto seguinte, exatamente como já aconteceu aqui.\n- **Isso não elimina o 503, só absorve o curto.** Se o Google ficar fora por mais de ~10s, a falha\n  volta a aparecer no painel. Nesse caso o evento criado durante a queda ainda é recuperado no poll\n  seguinte, porque o `lastTimeChecked` só avança em poll bem-sucedido — mas com atraso.\n- **`gcal_trigger_isabelle` tem exatamente a mesma exposição** (mesmo tipo, mesmo `everyMinute`,\n  mesma API) e **não foi incluído**, para manter a correção mínima e restrita à assinatura\n  observada. Vale aplicar a mesma configuração nele se você quiser cobrir a agenda da Isabelle antes\n  que ela apareça no painel. `gcal_trigger_yasmin` está desativado e não polla.\n- **A assinatura pode reaparecer no board sem que a correção tenha falhado.** Só sai de vez depois\n  de um período sem novas execuções com erro — falha de disponibilidade de terceiro não tem prova de\n  correção imediata.\n",
       "sandbox": {
         "ok": null,
         "skipped": true
@@ -1991,7 +1991,7 @@
         "edgesAdded": 0,
         "edgesRemoved": 0
       },
-      "report": "**Resumo:** `upload_audio_storage` recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus `onError: continueRegularOutput` para ele não matar mais a resposta ao lead.\n\n## Causa raiz\n\nDuas coisas, e só a segunda eu consigo corrigir aqui.\n\n**1. A recusa em si é do Supabase Storage, não do n8n.** O nó é um `httpRequest` que faz\n`POST https://zlwgtfdwnibaavlcqttu.supabase.co/storage/v1/object/gabi-audio/<from>/inbound/<wamid>.ogg`\ncom `authentication: predefinedCredentialType` / `nodeCredentialType: supabaseApi`. A mensagem\n\"Bad request - please check your parameters\" é só como o n8n traduz um HTTP 400; o que interessa é a\ndescrição, `Unauthorized`, que é o campo `error` do corpo devolvido pelo Storage. Ou seja: a requisição\nchegou, foi entendida e foi **recusada por autorização**. Os parâmetros do nó estão corretos — URL,\nmétodo, `contentType: binaryData`, `inputDataFieldName: audio` (o `download_audio` logo acima grava a\nbinária justamente em `audio`), header `Content-Type: audio/ogg`. Os três nós de upload do fluxo\n(`upload_audio_storage`, `upload_audio_storage1`, `upload_audio_storage2`) são idênticos nesse ponto,\nentão não é um nó mal configurado no meio de outros certos.\n\nNão consigo decidir, com o que tenho aqui, qual das duas hipóteses é a verdadeira — o corpo do erro\nveio truncado em \"Unauthorized\", sem o `message` que diferenciaria as duas:\n\n- **Chave.** A credencial `supabaseApi` manda `apikey` **e** `Authorization: Bearer <serviceRole>`. O\n  PostgREST aceita só o `apikey`, mas o Storage exige um JWT válido no `Authorization`. Se a credencial\n  foi trocada pelas chaves novas (`sb_secret_...`), que não são JWT, o Storage passa a recusar\n  enquanto `buscar_lead` e `buscar_lead1` continuam funcionando — que é exatamente o que a execução\n  181229 mostra: os nós Supabase de tabela passaram, só o de Storage caiu.\n- **Policy.** O nó manda `x-upsert: true`. Upsert exige `UPDATE` no bucket além de `INSERT`. Como o\n  caminho do arquivo é derivado do `wamid`, uma reentrega do mesmo evento do WhatsApp cai no mesmo\n  objeto, vira UPDATE e é negada — o que combinaria com \"1× em 24h\" em vez de falha constante.\n\nQualquer uma das duas se resolve no Supabase (reautorizar a credencial ou ajustar a policy do bucket\n`gabi-audio`), por humano, no console. Não toquei em nenhum bloco `credentials`.\n\n**2. O que é defeito do fluxo: esse upload não deveria poder derrubar a conversa.** Em\n`download_audio` as saídas estão nesta ordem: `upload_audio_storage` primeiro, `openAI_audio` depois.\nComo o upload não tinha `onError`, ele abortou a execução antes de a transcrição rodar — e com ela\nmorreram `salvar_msg_inbound_audio`, o `AI Agent1` e o envio da resposta. O lead mandou um áudio e não\nrecebeu nada de volta por causa de uma gravação de arquivo de arquivo morto. O próprio autor já tratou\na persistência como não-crítica em `salvar_msg_inbound_audio`, que tem `onError: continueRegularOutput`;\naqui faltou.\n\n## O que mudei\n\nSó o nó `upload_audio_storage`, e nenhum parâmetro:\n\n- `onError: \"continueRegularOutput\"`.\n- `notes` com a data, a execução, o significado do 400/Unauthorized e as duas verificações a fazer no\n  Supabase, na ordem.\n\nNada de `rewire`: com `onError` posto, inverter a ordem das saídas de `download_audio` seria redundante.\nNada de `retryOnFail`: um 400 de autorização não melhora com nova tentativa, só somaria latência.\n\n## Por que isso resolve\n\nResolve **metade**, e a metade que dava o prejuízo maior: o áudio de entrada volta a ser transcrito e\nrespondido mesmo quando o Storage recusa, porque `openAI_audio` deixa de ser cancelado pelo nó\nanterior. A execução continua marcada com o erro do upload, então a falha permanece visível no quadro\nde erros em vez de virar silêncio — e a nota diz para onde olhar.\n\n**Não resolve o 400/Unauthorized.** O arquivo continuará não sendo gravado no bucket até alguém mexer\nno Supabase. Consequência conhecida: `salvar_msg_inbound_audio` grava em `media_url` a URL pública\n`.../object/public/gabi-audio/<from>/inbound/<wamid>.ogg` de um arquivo que não existe, então essas\nlinhas ficam com link quebrado.\n\n## Risco residual\n\n- Se a causa real for a policy de UPDATE e não a chave, o teste de uma linha é tirar `x-upsert: true`\n  e ver o erro virar 409 (conflito) em vez de 400 — **eu não fiz isso**, porque mudaria o\n  comportamento de reenvio com base num palpite.\n- Os outros dois uploads (`upload_audio_storage1`, `upload_audio_storage2`) continuam sem `onError` e\n  vão quebrar do mesmo jeito nos caminhos deles. Não mexi: estão fora da falha reportada.\n- Achado que não é desta falha, mas dá para conferir enquanto o assunto está aberto:\n  `upload_audio_storage2`, alimentado pelo `Convert text to speech` (áudio **de saída**), grava no\n  mesmo caminho `/inbound/<wamid>.ogg` dos áudios de entrada, com `inputDataFieldName: \"data\"`. Parece\n  cópia-e-cola e pode sobrescrever áudio de entrada. Não corrigi — outro nó, outro diff.\n",
+      "report": "**Resumo:** `upload_audio_storage` recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus `onError: continueRegularOutput` para ele não matar mais a resposta ao lead.\n\n## Causa raiz\n\nDuas coisas, e só a segunda eu consigo corrigir aqui.\n\n**1. A recusa em si é do Supabase Storage, não do n8n.** O nó é um `httpRequest` que faz\n`POST https://[REF-REDIGIDA].supabase.co/storage/v1/object/gabi-audio/<from>/inbound/<wamid>.ogg`\ncom `authentication: predefinedCredentialType` / `nodeCredentialType: supabaseApi`. A mensagem\n\"Bad request - please check your parameters\" é só como o n8n traduz um HTTP 400; o que interessa é a\ndescrição, `Unauthorized`, que é o campo `error` do corpo devolvido pelo Storage. Ou seja: a requisição\nchegou, foi entendida e foi **recusada por autorização**. Os parâmetros do nó estão corretos — URL,\nmétodo, `contentType: binaryData`, `inputDataFieldName: audio` (o `download_audio` logo acima grava a\nbinária justamente em `audio`), header `Content-Type: audio/ogg`. Os três nós de upload do fluxo\n(`upload_audio_storage`, `upload_audio_storage1`, `upload_audio_storage2`) são idênticos nesse ponto,\nentão não é um nó mal configurado no meio de outros certos.\n\nNão consigo decidir, com o que tenho aqui, qual das duas hipóteses é a verdadeira — o corpo do erro\nveio truncado em \"Unauthorized\", sem o `message` que diferenciaria as duas:\n\n- **Chave.** A credencial `supabaseApi` manda `apikey` **e** `Authorization: Bearer <serviceRole>`. O\n  PostgREST aceita só o `apikey`, mas o Storage exige um JWT válido no `Authorization`. Se a credencial\n  foi trocada pelas chaves novas (`sb_secret_...`), que não são JWT, o Storage passa a recusar\n  enquanto `buscar_lead` e `buscar_lead1` continuam funcionando — que é exatamente o que a execução\n  181229 mostra: os nós Supabase de tabela passaram, só o de Storage caiu.\n- **Policy.** O nó manda `x-upsert: true`. Upsert exige `UPDATE` no bucket além de `INSERT`. Como o\n  caminho do arquivo é derivado do `wamid`, uma reentrega do mesmo evento do WhatsApp cai no mesmo\n  objeto, vira UPDATE e é negada — o que combinaria com \"1× em 24h\" em vez de falha constante.\n\nQualquer uma das duas se resolve no Supabase (reautorizar a credencial ou ajustar a policy do bucket\n`gabi-audio`), por humano, no console. Não toquei em nenhum bloco `credentials`.\n\n**2. O que é defeito do fluxo: esse upload não deveria poder derrubar a conversa.** Em\n`download_audio` as saídas estão nesta ordem: `upload_audio_storage` primeiro, `openAI_audio` depois.\nComo o upload não tinha `onError`, ele abortou a execução antes de a transcrição rodar — e com ela\nmorreram `salvar_msg_inbound_audio`, o `AI Agent1` e o envio da resposta. O lead mandou um áudio e não\nrecebeu nada de volta por causa de uma gravação de arquivo de arquivo morto. O próprio autor já tratou\na persistência como não-crítica em `salvar_msg_inbound_audio`, que tem `onError: continueRegularOutput`;\naqui faltou.\n\n## O que mudei\n\nSó o nó `upload_audio_storage`, e nenhum parâmetro:\n\n- `onError: \"continueRegularOutput\"`.\n- `notes` com a data, a execução, o significado do 400/Unauthorized e as duas verificações a fazer no\n  Supabase, na ordem.\n\nNada de `rewire`: com `onError` posto, inverter a ordem das saídas de `download_audio` seria redundante.\nNada de `retryOnFail`: um 400 de autorização não melhora com nova tentativa, só somaria latência.\n\n## Por que isso resolve\n\nResolve **metade**, e a metade que dava o prejuízo maior: o áudio de entrada volta a ser transcrito e\nrespondido mesmo quando o Storage recusa, porque `openAI_audio` deixa de ser cancelado pelo nó\nanterior. A execução continua marcada com o erro do upload, então a falha permanece visível no quadro\nde erros em vez de virar silêncio — e a nota diz para onde olhar.\n\n**Não resolve o 400/Unauthorized.** O arquivo continuará não sendo gravado no bucket até alguém mexer\nno Supabase. Consequência conhecida: `salvar_msg_inbound_audio` grava em `media_url` a URL pública\n`.../object/public/gabi-audio/<from>/inbound/<wamid>.ogg` de um arquivo que não existe, então essas\nlinhas ficam com link quebrado.\n\n## Risco residual\n\n- Se a causa real for a policy de UPDATE e não a chave, o teste de uma linha é tirar `x-upsert: true`\n  e ver o erro virar 409 (conflito) em vez de 400 — **eu não fiz isso**, porque mudaria o\n  comportamento de reenvio com base num palpite.\n- Os outros dois uploads (`upload_audio_storage1`, `upload_audio_storage2`) continuam sem `onError` e\n  vão quebrar do mesmo jeito nos caminhos deles. Não mexi: estão fora da falha reportada.\n- Achado que não é desta falha, mas dá para conferir enquanto o assunto está aberto:\n  `upload_audio_storage2`, alimentado pelo `Convert text to speech` (áudio **de saída**), grava no\n  mesmo caminho `/inbound/<wamid>.ogg` dos áudios de entrada, com `inputDataFieldName: \"data\"`. Parece\n  cópia-e-cola e pode sobrescrever áudio de entrada. Não corrigi — outro nó, outro diff.\n",
       "fixNote": "Claude (cockpit) [upload_audio_storage]: upload_audio_storage recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus onError: continueRegularOutput para ele não matar mais a resposta ao lead.",
       "sandbox": {
         "ok": null,
@@ -2798,6 +2798,300 @@
         "cegas": 0,
         "estimado": false
       }
+    },
+    {
+      "kind": "fix",
+      "runId": "rmt7lb5021",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Redis_SET_lock mandava `$executionId` cru ao Redis; agora o valor vai coagido a string com keyType fixo — é o que gerava o Invalid argument type.\n\n## Causa raiz\n\n`Redis_SET_lock` grava o lock com:\n\n```\nkey:   ={{ \"processing:\" + $json[\"contato-wpp\"] }}\nvalue: ={{ $executionId }}\n```\n\nA chave é concatenação de string, então ela **sempre** sai string, mesmo que `contato-wpp` esteja\nvazio (`\"processing:undefined\"` continua sendo string). O valor não: `$executionId` é entregue ao\nnó como o tipo que a expressão devolver. O cliente Redis do n8n aceita só string ou Buffer como\nargumento de comando — qualquer outra coisa (`undefined`, número, `null`) vira\n`TypeError: Invalid argument type`, que o nó embrulha como `NodeOperationError`. É exatamente a\nmensagem da falha, e ela vem da camada do cliente, não de validação do n8n.\n\nDuas evidências que sustentam isso dentro deste fluxo:\n\n1. Este é o **único** nó Redis do workflow com `operation: set` que não força string no valor. Os\n   outros quatro (`redis_set_evento_detalhe`, `redis_set_eventos_lista`, `salvar_mapa_pos_resposta`,\n   `salvar_mapa_redis`) usam `JSON.stringify(...)`, que sempre devolve string — e nenhum deles falha.\n2. `$executionId` aparece **uma única vez** no workflow inteiro: nesta linha. O fluxo é disparado por\n   `When Executed by Another Workflow`, e é justamente em execução de sub-fluxo que esse valor pode\n   não chegar como string.\n\nO `Redis_GET_lock` e o `Redis_DEL_lock`, que montam a chave do mesmo jeito mas não passam valor\nnenhum, nunca estouram — o que descarta a chave como causa.\n\n## O que mudei\n\nSó o nó `Redis_SET_lock`, só `parameters`:\n\n- `value`: `={{ $executionId }}` → `={{ String($executionId ?? $now.toMillis()) }}`.\n  O `String(...)` garante o tipo; o `?? $now.toMillis()` garante que o valor nunca seja string\n  vazia — importante porque `Code_verificar_lock` trata `value === ''` como \"sem lock\".\n- `keyType`: acrescentado como `\"string\"`, tirando o nó da detecção automática de tipo.\n- `notes`: uma linha registrando o porquê, para quem abrir o nó no editor.\n\nChave, TTL (30s), `expire` e conexões ficaram intactos. Nenhum nó novo, nenhum nó desligado,\nnenhuma credencial tocada.\n\n## Por que isso resolve\n\nO comando `SET` passa a receber dois argumentos comprovadamente string, que é a única coisa que o\ncliente Redis exige. Como nada no fluxo lê o valor do lock de volta para comparar dono\n(`Code_verificar_lock` só testa se existe e não está vazio; `Redis_DEL_lock` apaga sem conferir),\ntrocar o conteúdo do valor não muda comportamento nenhum — muda só o tipo, que é o que quebrava.\n\n## Risco residual\n\n- **Não consegui confirmar em execução.** Não tenho acesso à instância nem às execuções 203590/203591,\n  então a inferência sobre *por que* `$executionId` não chega string (undefined em sub-fluxo? número?)\n  é dedução a partir da mensagem e do contraste com os outros nós Redis. O patch é imune aos dois\n  casos, mas se a falha voltar, o próximo passo é abrir uma dessas execuções e olhar o valor\n  resolvido do parâmetro na aba de input do nó.\n\n- **Há um segundo defeito neste trecho que eu NÃO corrigi**, porque não é a causa deste erro e a\n  regra aqui é correção mínima — mas ele explica as duas execuções em 7 segundos:\n  `Code_verificar_lock` faz `const redisData = $input.item.json`, e o item que chega nele vem de\n  `resolver_event_id`, não de `Redis_GET_lock` (o caminho é GET → marcar_contacted_event_leads →\n  resolver_event_id → Code_verificar_lock). `resolver_event_id` devolve\n  `{ event_id, event_name, has_event_tag, product_original }` — nunca um campo `value`. Logo\n  `lock_ativo` é **sempre `false`**, `If_lock` sempre vai pelo ramo verdadeiro e o mutex nunca\n  segura ninguém. A correção seria uma linha (`$('Redis_GET_lock').first().json` no lugar de\n  `$input.item.json`), mas é outra mudança, com outro risco, e merece decisão sua em separado.\n\n- `Redis_SET_lock` continua sem `onError`, ou seja, ainda derruba a execução se o Redis cair. Deixei\n  assim de propósito: os irmãos GET/DEL usam `continueRegularOutput`, mas seguir adiante sem lock\n  significa arriscar responder o lead duas vezes. Se preferir disponibilidade a duplicata, é trocar\n  esse campo — mas aí vale resolver antes o item acima, senão o lock segue decorativo.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock mandava $executionId cru ao Redis; agora o valor vai coagido a string com keyType fixo — é o que gerava o Invalid argument type.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.5817645000000002,
+      "startedAt": "2026-08-24T18:49:12.728Z",
+      "finishedAt": "2026-08-24T18:54:12.682Z",
+      "appliedAt": "2026-08-24T18:54:51.020Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-20T11:50:31.686Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmt8mg9rj1",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Alinhei a chave do Redis_SET_lock com a do GET/DEL e coagi com String(), e liguei onError para a conversa não morrer; não tenho prova de que a chave era o argumento inválido.\n\n## Causa raiz\n\n`Invalid argument type` é a mensagem do cliente Redis (node-redis) quando um argumento de comando\nnão é string, number ou Buffer. No `set`, os argumentos são a chave, o valor e o TTL. Então a\npergunta útil é: qual desses três chega sem garantia de tipo?\n\n- **Valor** — já está protegido: `String($executionId ?? $now.toMillis())`. Foi exatamente o que a\n  tentativa anterior fez (está registrado no `notes` do nó, junto com `keyType: \"string\"`), e a\n  falha voltou depois disso. Ou seja: a hipótese anterior — `$executionId` não vindo como string —\n  não explica a recorrência.\n- **TTL** — literal `30`. Não é expressão, não varia.\n- **Chave** — é a única que ainda depende de dado de runtime: `\"processing:\" + $json[\"contato-wpp\"]`.\n\nE a chave tem um segundo problema, esse verificável direto no JSON: **`Redis_SET_lock` é o único dos\ntrês nós do lock que lê o telefone de `$json`**. Os irmãos leem da fonte:\n\n- `Redis_GET_lock` (linha 1678): `\"processing:\" + $(\"parametros\").first().json[\"contato-wpp\"]`\n- `Redis_DEL_lock` (linha 1985): `\"processing:\" + $('parametros').first().json['contato-wpp']`\n- `Redis_SET_lock` (linha 1740): `\"processing:\" + $json[\"contato-wpp\"]`  ← o que quebra\n\n`$json` no SET é a saída de `Code_verificar_lock`, que espalha `$(\"parametros\").first().json` e\nacrescenta `lock_ativo`. Hoje isso normalmente carrega o `contato-wpp` — mas é uma dependência\nindireta que ninguém garante: qualquer mudança no Code node, ou um item vazio vindo de `parametros`\n(que está com `alwaysOutputData: true`), muda a chave do SET sem mudar a do GET e a do DEL.\n\n**Onde está o buraco de dado, mais atrás:** `Verificação_numero` devolve `phone_normalizado: null`\nsempre que o número não normaliza (sem `message.from`, menos de 12 dígitos, celular fora do padrão),\ne `parametros` copia isso para `contato-wpp`. Não corrigi isso aqui — ver Risco residual.\n\n**Honestidade:** não consigo provar, só com o JSON, que a chave foi o argumento recusado. Eu não\ntenho o payload das execuções 203590/203591 nem o log do nó. O que eu tenho é: o valor já estava\ncoagido e falhou mesmo assim, e a chave é o único argumento que sobra sem coerção.\n\n## O que mudei\n\nSó o nó `Redis_SET_lock`, três campos:\n\n1. `key` → `={{ \"processing:\" + String($('parametros').first().json['contato-wpp']) }}`\n   Mesma fonte do GET e do DEL, e `String()` garante o tipo. A coerção é exatamente a que o `+` do\n   JavaScript já fazia (`String(null)` = `\"null\"`), então a chave gerada continua idêntica à dos\n   irmãos em todos os casos — inclusive quando o telefone é nulo. Não introduz divergência de lock.\n2. `onError: \"continueRegularOutput\"` — igual ao que `Redis_GET_lock`, `Redis_DEL_lock` e\n   `Redis_INCR_msg_count` já têm.\n3. `notes` reescrito, registrando o que foi testado e descartado.\n\nNão mexi em `value`, `keyType`, `expire`, `ttl`, conexões, nem em nenhum outro nó.\n\n## Por que isso resolve\n\nSe o argumento recusado era a chave, ela agora é string por construção, e o `NodeOperationError`\nnão acontece. Se **não** era a chave, o `onError` faz o nó parar de derrubar a execução: o item\nsegue para `verificar_lead_supabase` com o erro anexado, o lead continua sendo atendido, e a falha\npassa a aparecer como item de erro diagnosticável em vez de matar o fluxo. Nos dois cenários a\nsintomática recorrente (\"2× em 24h, conversa morre no lock\") acaba — no primeiro por correção, no\nsegundo por contenção. Digo isso assim de propósito: o patch garante a contenção, não garante a cura.\n\n## Risco residual\n\n- **O lock vira best-effort.** Com `onError`, um Redis fora do ar deixa o fluxo seguir sem lock, e\n  duas mensagens do mesmo contato podem ser processadas em paralelo. Isso já era verdade na prática,\n  porque o `Redis_GET_lock` já tinha `onError` e um GET falho vira `lock_ativo: false`. O patch\n  torna o comportamento consistente, não o introduz.\n- **Telefone nulo continua gerando lock compartilhado.** Se `phone_normalizado` for `null`, a chave\n  vira `processing:null` para todos os leads nessa situação, e o segundo cai em\n  `No Operation, lock_drop` — a mensagem é descartada em silêncio. É um bug real e separado deste;\n  o lugar de resolver é antes, tratando `phone_valido: false` logo depois de `Verificação_numero`\n  (um If que desvia, ou fallback para `phone_original`). Não incluí para manter o patch mínimo.\n- **Não validei contra execução real.** Sem acesso ao n8n aqui, a confirmação é olhar as próximas\n  execuções do `Redis_SET_lock` no editor.\n- **Fora do escopo, mas achei:** o nó `resolver_event_id` tem um Bearer token literal\n  (`epk_...`) dentro do `jsCode`, indo para `admin.ecommercepuro.com.br`. Não toquei nele — mas isso\n  devia virar credencial do n8n em vez de ficar no código do nó.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Alinhei a chave do Redis_SET_lock com a do GET/DEL e coagi com String(), e liguei onError para a conversa não morrer; não tenho prova de que a chave era o argumento inválido.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.8179305000000001,
+      "startedAt": "2026-08-25T12:08:57.985Z",
+      "finishedAt": "2026-08-25T12:15:47.056Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-24T18:54:50.886Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmt8muifo2",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a falhar sem abortar (onError); a causa exata do 'Invalid argument type' não foi confirmada.\n\n## Causa raiz\n\nNão consigo afirmar com certeza qual argumento o cliente Redis recusou, e digo isso antes de tudo: com os parâmetros **como estão hoje** no fluxo, eu não consigo reproduzir `Invalid argument type`. O `value` já vai coagido (`String(...)`) e o `keyType` já está fixo em `string` — foi o que a tentativa anterior fez, e a nota que ela deixou no nó explica isso. As duas ocorrências são de 18h atrás, ambas no mesmo momento, e não voltaram desde então; é plausível que aquele patch tenha fechado o estouro e que este chamado seja a reabertura do incidente antigo.\n\nO que sobra, e que é verificável lendo o fluxo, é que `Redis_SET_lock` é o **único dos três nós de lock** que não segue o padrão dos outros dois:\n\n| nó | chave | onError |\n|---|---|---|\n| `Redis_GET_lock` | `\"processing:\" + $('parametros').first().json['contato-wpp']` | `continueRegularOutput` |\n| `Redis_DEL_lock` | `\"processing:\" + $('parametros').first().json['contato-wpp']` | `continueRegularOutput` |\n| ⚠ `Redis_SET_lock` | `\"processing:\" + $json['contato-wpp']` | *(nenhum — estoura)* |\n\nO `$json` que chega em `Redis_SET_lock` não vem de `parametros`. O caminho é `Redis_GET_lock → marcar_contacted_event_leads → resolver_event_id → Code_verificar_lock → If_lock → Redis_SET_lock`, e `resolver_event_id` devolve só `{event_id, event_name, has_event_tag, product_original}`. O campo `contato-wpp` só reaparece porque `Code_verificar_lock` espalha `$(\"parametros\").first().json` de novo. Ou seja: a chave do SET depende de um espalhamento intermediário, enquanto GET e DEL leem a fonte direta. Se esse espalhamento mudar ou sumir, o SET grava `processing:undefined` — chave diferente da que o GET lê e da que o DEL apaga — e o argumento que chega ao cliente Redis deixa de ser derivado do dado que o resto do lock usa.\n\nTambém vale registrar o que `Verificação_numero` faz: `normalizarTelefone` devolve `null` para todo número que não normaliza, `parametros` copia esse `null` para `contato-wpp` com tipo `string`, e daí para baixo a chave do lock passa a ser derivada de `null`. Isso não deveria, por si só, produzir um argumento não-string, mas é a origem de dado vazio mais próxima do nó que quebrou.\n\n## O que mudei\n\nUm nó só, `Redis_SET_lock`:\n\n1. **Chave** — de `$json[\"contato-wpp\"]` para `$('parametros').first().json['contato-wpp']`, byte a byte igual à de `Redis_GET_lock`. Os três nós de lock passam a operar sempre sobre a mesma chave.\n2. **`onError: \"continueRegularOutput\"`** — o mesmo que `Redis_GET_lock` e `Redis_DEL_lock` já têm.\n3. **`notes`** — substituí a nota da tentativa anterior (o diagnóstico dela, `$executionId` não vindo como string, não se sustenta: em n8n `$executionId` é string) por uma que descreve a mudança e aponta o defeito de `Code_verificar_lock` descrito abaixo.\n\nNão mexi no `value`: a coerção que já estava lá é inofensiva e tirá-la não seria mínimo.\n\n## Por que isso resolve\n\nResolve com honestidade parcial, e a distinção importa:\n\n- **Resolve de fato** a divergência de chave. Hoje o SET pode gravar em `processing:undefined` enquanto o DEL apaga `processing:5511…`; o lock ficaria pendurado até o TTL de 30s. Depois do patch os três nós concordam.\n- **Resolve de fato** o estouro fatal. `Redis_SET_lock` era o único ponto do trecho de lock sem tratamento de erro: qualquer recusa do cliente Redis derrubava a execução inteira e o lead não era atendido. Com `onError`, a próxima recusa vira um item com `error` e a conversa segue para `verificar_lead_supabase` — que já tem `alwaysOutputData` e `onError` próprios.\n- **Não resolve**, porque não sei se ainda existe, o `Invalid argument type` em si. Se ele voltar, volta agora como execução que **completa** com o erro registrado no item, e não como execução abortada — dá para ler o argumento exato na execução e fechar o diagnóstico.\n\n## Risco residual\n\n- **O lock está inerte, e eu não consertei isso.** `Code_verificar_lock` faz `const redisData = $input.item.json` e testa `redisData.value`, mas o input dele é `resolver_event_id`, não `Redis_GET_lock` — e mesmo se estivesse ligado direto, a operação `get` do Redis grava o resultado sob o parâmetro `propertyName` (não preenchido, default `propertyName`), nunca sob `value`. Resultado: `lock_ativo` é sempre `false`, `If_lock` sempre vai para o SET, e duas execuções simultâneas do mesmo número passam as duas. Isso combina com \"2× nas últimas 24h, ambas no mesmo momento\". **Deixei de propósito fora do patch**: corrigir faria mensagens legítimas começarem a cair em `No Operation, lock_drop`, o que é mudança de comportamento bem maior que a falha relatada e é decisão sua, não minha.\n- Com `onError`, uma falha de Redis passa a ser silenciosa no fluxo. Como o lock hoje não bloqueia nada de qualquer forma, a perda prática é zero — mas quando o item 1 for corrigido, esse `onError` precisa ser reavaliado junto.\n- Número inválido (`phone_normalizado: null`) continua virando chave de lock derivada de `null`. Não tratei: seria mudança fora do nó que quebrou, e o mesmo `null` já atravessa GET e DEL do mesmo jeito.\n- **Fora do escopo, mas registro:** `resolver_event_id` tem um token de API literal no `jsCode` (`Authorization: Bearer epk_…`). Não toquei nesse nó e não incluí o valor aqui. Vale rotacionar e mover para credencial.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a falhar sem abortar (onError); a causa exata do 'Invalid argument type' não foi confirmada.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.7138635000000002,
+      "startedAt": "2026-08-25T12:20:02.400Z",
+      "finishedAt": "2026-08-25T12:26:59.095Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-24T18:54:50.886Z",
+      "retries": []
     }
   ]
 }

@@ -240,8 +240,12 @@ console.log("\n6. a bateria — ordem, injeção e a regra do botão");
   const base = { catalogo: CAT, execucoesPorNo: {}, deps: { esquema: esquemaFalso("pronto"), ligacaoCredenciais: ligarFalso() } };
 
   const r = b.bateria({ documento: doc, patch, proposta: prop, contexto: base });
-  t("a bateria devolve as cinco linhas desta fatia", r.linhas.length === 5);
-  t("...em ordem crescente", r.linhas.map(l => l.n).join(",") === "1,2,3,4,6");
+  /* SEIS desde a checagem 8 (destino de rede), acrescentada em 24/08/2026. Este
+     caso contava CINCO e ficou vermelho quando ela entrou — que é o
+     comportamento certo de um teste de contrato: a bateria ganhou uma linha e
+     alguém tem de confirmar que era para ganhar. Foi. */
+  t("a bateria devolve as seis linhas desta fatia", r.linhas.length === 6);
+  t("...em ordem crescente", r.linhas.map(l => l.n).join(",") === "1,2,3,4,6,8");
   t("sem vermelho, podeAplicar é true", r.podeAplicar === true && r.bloqueia === false);
 
   const comExtras = b.bateria({ documento: doc, patch, proposta: prop, contexto: Object.assign({}, base, {
@@ -251,10 +255,10 @@ console.log("\n6. a bateria — ordem, injeção e a regra do botão");
       { n: "5a", nome: "Regressão de caminho", cor: b.COR.ok, frase: "o encanamento continua ligado", detalhe: null }
     ]
   }) });
-  t("as linhas injetadas entram na bateria", comExtras.linhas.length === 8);
+  t("as linhas injetadas entram na bateria", comExtras.linhas.length === 9);
   /* `5a` tem de cair entre `5` e `6`. Ordenar as strings direto poria `10` antes
      de `2` e `5b` antes de `5a` só por sorte. */
-  t("...e `5a`/`5b` caem entre 4 e 6", comExtras.linhas.map(l => l.n).join(",") === "1,2,3,4,5a,5b,6,7");
+  t("...e `5a`/`5b` caem entre 4 e 6", comExtras.linhas.map(l => l.n).join(",") === "1,2,3,4,5a,5b,6,7,8");
   t("cinza injetado NÃO bloqueia o botão", comExtras.podeAplicar === true);
 
   const comVermelho = b.bateria({ documento: doc, patch, proposta: prop, contexto: Object.assign({}, base, {
@@ -295,11 +299,11 @@ console.log("\n6. a bateria — ordem, injeção e a regra do botão");
       linhasExtras: [
         { n: "10", nome: "décima", cor: b.COR.ok, frase: "uma linha de dois dígitos", detalhe: null },
         { n: "5a", nome: "quinta a", cor: b.COR.ok, frase: "a regressão de caminho", detalhe: null }
-      ] }) }).linhas.map(l => l.n).join(",") === "1,2,3,4,5a,6,10");
+      ] }) }).linhas.map(l => l.n).join(",") === "1,2,3,4,5a,6,8,10");
 
   t("linha extra sem `n` é ignorada em vez de bagunçar a ordem",
     b.bateria({ documento: doc, patch, proposta: prop, contexto: Object.assign({}, base, {
-      linhasExtras: [{ nome: "sem numero", cor: b.COR.ok, frase: "x" }] }) }).linhas.length === 5);
+      linhasExtras: [{ nome: "sem numero", cor: b.COR.ok, frase: "x" }] }) }).linhas.length === 6);
 }
 
 console.log("\n7. FALSO POSITIVO — o que a bateria NÃO pode reprovar");

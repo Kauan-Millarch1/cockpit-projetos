@@ -185,7 +185,84 @@ button { font-family: inherit; }
    a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
    existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
    comum espremeria a navegação até quebrar. */
-/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+/* ------------------------------------------------------- a logo da empresa
+   Vem ANTES da chama, com um `.sep` entre as duas, para a leitura ser
+   "empresa | produto": a Ecommerce Puro é dona do cockpit, o cockpit não é dono
+   dela. Leva `alt` de verdade, nunca `aria-hidden` — é a identidade da empresa,
+   não ornamento, e quem lê por leitor de tela tem que saber de quem é o painel.
+
+   ALTURA 32px, e o número foi MEDIDO, não escolhido. O arquivo é um lockup de
+   DUAS linhas — "ecommerce" cheio sobre "PURO" vazado, que sangra nos quatro
+   lados — então a linha "ecommerce" ocupa só ~25% da altura total (medido: a
+   faixa densa vai de y=156 a y=266 de 445). A 18px, que era o palpite inicial,
+   ela renderiza com 4,5px de altura: um borrão cinza, que é PIOR que logo
+   nenhuma, porque lê como bug de renderização e não como marca. Renderizado a
+   1:1 em 18, 24, 26, 28, 30, 32 e 34, 32px é onde as letras voltam a ser letras
+   — e cabe nos 58px de topbar com 13px de folga de cada lado.
+
+   O ARQUIVO É UM SÓ, E ISSO É MEDIÇÃO: 118.370 pixels visíveis, TODOS exatamente
+   255,255,255, zero pixel cromático. Por isso `invert(1)` resolve o tema claro
+   sem um segundo PNG — o filtro mexe no RGB e preserva o alpha, então o branco
+   vira preto E a borda antisserrilhada acompanha. Um segundo arquivo seria uma
+   segunda coisa para divergir na primeira troca de logo, e a que divergisse
+   seria justamente a que ninguém olhou.
+
+   Os três blocos de tema abaixo estão presos SÓ a `prefers-color-scheme` e a
+   `data-theme`, nunca a um token de cor, e aqui isso é obrigatório: o `:root` do
+   `cockpit.html` é CLARO por padrão e o das outras três é ESCURO, então qualquer
+   regra que dependesse do padrão do `:root` sairia invertida em uma das quatro
+   páginas. As quatro trocam tema pondo `data-theme` no `documentElement`, que é
+   o que faz o toggle ◐ continuar vencendo nas duas direções. */
+.eplogo { height: 32px; width: auto; flex: 0 0 auto; display: block; filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eplogo { filter: none; } }
+:root[data-theme="dark"] .eplogo { filter: none; }
+:root[data-theme="light"] .eplogo { filter: invert(1); }
+/* Abaixo de 620px a logo e o separador dela saem, no MESMO ponto em que a
+   cápsula de navegação recolhe os rótulos. A topbar já estoura em 390px — medido
+   e registrado no CLAUDE.md — e trocar identidade por conteúdo cortado seria o
+   pior dos dois defeitos: o wordmark "COCKPIT / <tela>" ao lado já diz de quem é
+   a tela, e a logo cortada não diria nada. */
+@media (max-width: 620px) { .eplogo, .eplogo-sep { display: none; } }
+
+/* ---------------------------------------- e o bloco de identidade não encolhe
+   MEDIDO, e é regressão que esta logo causaria se ficasse de fora. `.brand` é
+   item de flex com `flex-shrink: 1` e `min-width: auto`, então nasce podendo
+   encolher até o próprio min-content — e o `h1` dentro dele quebra em duas
+   linhas. Com a logo ocupando ~109px (72 da imagem + 18 + 1 + 18 dos
+   separadores), o "COCKPIT / fluxos n8n" passou a quebrar já em 1440px, que é a
+   largura em que este painel é lido.
+
+   E medir revelou que o defeito é ANTERIOR à logo: sem ela, `/` e `/upgrade` já
+   quebravam em 1280px. A logo não criou o problema, adiantou ele — e consertar é
+   a mesma decisão que a cápsula de navegação já tomou ao lado ("Nunca encolhe"),
+   pelo mesmo motivo: o que está aqui é identidade, e identidade cortada não
+   informa nada.
+
+   Quem cede no lugar é o ENDEREÇO DA INSTÂNCIA. A regra é a lição do
+   `min-width: 0` que o CLAUDE.md já registra: sem ela o `.meta` também tem piso
+   de min-content, se recusa a encolher, e a pressão volta para o `.brand`.
+   Trocar o piso por reticências é o certo aqui porque o endereço é a única coisa
+   do topbar que continua legível pela metade — o começo dele já identifica a
+   instância. O `tester.html` JÁ tinha estas quatro propriedades (declaradas
+   adiante no arquivo, com os mesmos valores); estão aqui de novo porque este
+   bloco é byte a byte igual nas quatro páginas, e essa igualdade vale mais que
+   evitar uma declaração repetida de valor idêntico. */
+/* O piso vale SÓ onde a logo existe, e este recorte foi pago com medição: a
+   primeira versão aplicou `flex: 0 0 auto` sem faixa e o estouro pré-existente
+   do `/disco` e do `/tester` em 390px CRESCEU de 133px para 181px e de 151px
+   para 202px — abaixo de 620px a logo já saiu, então travar o `.brand` ali é
+   pagar o preço sem receber nada em troca. 621px é o complemento exato do
+   `max-width: 620px` que a cápsula de navegação já usa: uma faixa só, não uma
+   segunda definição de "aqui é estreito". */
+@media (min-width: 621px) {
+  .brand { flex: 0 0 auto; }
+  .brand .wm { white-space: nowrap; }
+}
+/* Esta vale em qualquer largura: deixar o `.meta` encolher nunca aumenta o
+   estouro, só muda quem cede primeiro. */
+.topbar .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -226,7 +303,7 @@ button { font-family: inherit; }
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -249,7 +326,7 @@ button { font-family: inherit; }
    A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
    fundo é quase branco e chapado, onde blur não produz efeito e brightness
    pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
-.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);opacity:0;
   transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
   transform-origin:var(--org,center);
   border-radius:999px;pointer-events:none;z-index:0;
@@ -290,6 +367,7 @@ button { font-family: inherit; }
     inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
     inset 0 -2px 3px -1px rgba(0,0,0,.22),
     0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente.pronta{opacity:1}
 .nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
   padding:3px;pointer-events:none;
   backdrop-filter:blur(2px) saturate(2.4);
@@ -347,10 +425,27 @@ button { font-family: inherit; }
 .meta b { color: var(--txt-dim); font-weight: 500; }
 .spacer { flex: 1; }
 .livedot { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-num); font-size: 11.5px; color: var(--txt-dim); }
-.livedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--cold); }
-.livedot.on i { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: beat 2.4s infinite; }
+/* Anel que ESCALA, não `box-shadow` que cresce — ver o comentário longo em
+   `flows.html`, onde este ponto foi medido custando 7,5% de CPU em repouso.
+   Aqui ele nunca recebe a classe `on` hoje (esta tela não abre o stream), mas o
+   CSS é o mesmo e divergir agora seria deixar a armadilha armada para o dia em
+   que receber. Escala 3,3 = (3,5+8)/3,5, derivada do spread antigo. */
+.livedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--cold); position: relative; }
+.livedot.on i { background: var(--ok); }
+.livedot.on i::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: -1;
+  background: var(--ok-soft); animation: beat 2.4s infinite;
+  will-change: transform, opacity;
+}
 .livedot.off i { background: var(--risk); }
-@keyframes beat { 0%{box-shadow:0 0 0 0 var(--ok-soft)} 70%{box-shadow:0 0 0 8px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+@keyframes beat {
+  0%   { transform: scale(1);   opacity: 1 }
+  70%  { transform: scale(3.3); opacity: 0 }
+  100% { transform: scale(3.3); opacity: 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .livedot.on i::after { animation: none; opacity: 0; }
+}
 
 .btn {
   height: 32px; padding: 0 13px; border-radius: 8px; cursor: pointer;
@@ -684,8 +779,15 @@ main { padding: 22px 26px 90px; min-width: 0; }
    Mesmo vocabulário do .hoff-scrim: --bg-deep a 72% com blur de 9px. Um segundo
    jeito de escurecer a página seria um segundo jeito de dizer "isto está na
    frente", e esta casa já tem um. */
+/* `z-index: 45`, e não os 92 que vieram do `flows.html`. A camada desta página é
+   declarada: 40 a gaveta, 45 o seletor, 50 o `.scrim` do `confirmar()` — e este
+   arquivo afirma em dois lugares que o `.scrim` é o que está mais à frente de
+   tudo. Não existe caminho hoje para abrir um por cima do outro (o `confirmar()`
+   marca `inert` em tudo, inclusive no botão que abre o seletor), então isto não
+   conserta um defeito: mantém a invariante escrita LITERALMENTE verdadeira, em vez
+   de verdadeira por sorte. */
 .fmod-scrim {
-  position: fixed; inset: 0; z-index: 92; display: grid; place-items: center; padding: 24px;
+  position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 24px;
   background: color-mix(in srgb, var(--bg-deep) 72%, transparent);
   backdrop-filter: blur(9px) saturate(1.1);
   -webkit-backdrop-filter: blur(9px) saturate(1.1);
@@ -753,6 +855,78 @@ main { padding: 22px 26px 90px; min-width: 0; }
 .fitem .num .er { display: block; font-size: 10px; color: var(--risk-txt); margin-top: 2px; }
 .fitem .num .er.zero { color: var(--txt-faint); }
 .fitem.todos { border-bottom: 1px solid var(--line-soft); border-radius: 10px 10px 0 0; margin-bottom: 4px; }
+
+/* ---- O SELETOR DE FLUXO: o que ESTA página acrescenta à casca herdada ----
+   A casca (`.fmod*`, `.fitem*`) veio do `flows.html` quando esta página foi
+   composta e ficou CSS MORTA: nada em `upgrade.html` a usava — medido por grep,
+   as únicas ocorrências eram as próprias regras. O seletor a acende em vez de
+   escrever uma quinta cópia, e o que segue abaixo é só o que este seletor tem e
+   o do `flows.html` não: o grupo, o selo do dossiê na linha, e a contagem de nós.
+   O que os dois fazem é DIFERENTE — lá a escolha filtra uma lista de execuções,
+   aqui ela ABRE um fluxo — então o dia em que virar arquivo servido, o que se
+   compartilha é a casca e a mecânica de teclado, nunca a decisão. */
+
+/* O CABEÇALHO DE GRUPO. Não é um `.fitem`: ele não é clicável, e um cabeçalho com
+   `cursor: pointer` é um convite a um clique que não faz nada. */
+.fmod-grp {
+  display: flex; align-items: baseline; gap: 8px; padding: 12px 10px 5px;
+  font-family: var(--font-num); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--txt-faint);
+}
+/* `nowrap` e `flex: 0 0 auto` no título: sem os dois ele é um item flex nascido com
+   `min-width: auto`, cede antes da nota (que é longa) e "FORA DA PORTA" sai quebrado
+   em três linhas na sarjeta esquerda — medido na captura. Quem cede é a nota, que é
+   texto corrido e tem onde quebrar. */
+.fmod-grp b { color: var(--txt-dim); font-weight: 600; white-space: nowrap; flex: 0 0 auto; }
+/* `min-width: 0` é o que faz a nota ser quem cede: sem ele os dois itens têm piso
+   no próprio min-content e o título quebra junto. Mesma lição que o `.tela-hd`
+   desta página já pagou. */
+.fmod-grp .nt { font-family: var(--font); font-size: 10.5px; letter-spacing: 0;
+  text-transform: none; color: var(--txt-faint); min-width: 0; }
+
+/* O SELO DO DOSSIÊ, na terceira linha da coluna do nome. Ele é o motivo de o
+   seletor valer algo antes do clique: com a trava no ar, cinza e vermelho
+   significam "não dá para conversar com este fluxo", e hoje isso é 73 de 75.
+   Um seletor que não dissesse isso mandaria o Kauan para uma tela travada 73
+   vezes em 75 — que é exatamente o defeito que o selo do cartão já impede.
+   A COR SAI DA RECEITA MEDIDA (`color-mix(... 72%, var(--txt))`) e não do token
+   cru: esta linha aterrissa sobre `--surface` E sobre `--accent-soft` no hover e
+   no cursor, e um texto de status tem de passar em TODAS as superfícies em que
+   cai, não na mais fácil. O glifo mantém a cor cheia — é forma, não texto. */
+.fitem .sel {
+  display: block; margin-top: 3px; font-size: 10.5px; color: var(--txt-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fitem .sel .g { font-family: var(--font-num); margin-right: 4px; }
+.fitem .sel.ok { color: color-mix(in srgb, var(--ok-txt) 72%, var(--txt)); }
+.fitem .sel.warn { color: color-mix(in srgb, var(--warn-txt) 72%, var(--txt)); }
+.fitem .sel.risk { color: color-mix(in srgb, var(--risk-txt) 72%, var(--txt)); }
+.fitem .sel.cold { color: color-mix(in srgb, var(--cold-txt) 72%, var(--txt)); }
+.fitem .sel.ok .g { color: var(--ok-txt); }
+.fitem .sel.warn .g { color: var(--warn-txt); }
+.fitem .sel.risk .g { color: var(--risk-txt); }
+.fitem .sel.cold .g { color: var(--cold-txt); }
+.fitem .num .nos { display: block; font-size: 10px; color: var(--txt-faint); margin-top: 2px; }
+/* AS DUAS LINHAS FRACAS SOBEM UM PASSO SOB O CURSOR, e isto foi MEDIDO no DOM vivo,
+   não escolhido: `--txt-faint` foi calibrado contra `--surface`/`--surface-2` e o
+   fundo da linha sob o cursor é `--accent-soft` composto, onde a mesma cor deu
+   **4,1797** no tema escuro — reprovação de AA. É a regra que este arquivo já
+   escreve: um token de texto tem de passar em TODA superfície em que cai, nunca na
+   mais fácil. `.n2` entra junto porque tem o mesmo token e o mesmo destino; ela só
+   não apareceu na primeira medição porque a linha sob o cursor daquele momento não
+   tinha prefixo de projeto. */
+.fitem:hover .n2, .fitem.cur .n2,
+.fitem:hover .num .nos, .fitem.cur .num .nos { color: var(--txt-dim); }
+/* A linha do fluxo ABERTO agora. Ela não sai da lista: escolher o mesmo fluxo tem
+   de ser possível (é como se fecha o seletor sem sair de onde está), e esconder o
+   atual faria a lista mudar de tamanho conforme onde você está. */
+.fitem.aqui .n1::after {
+  content: "aberto agora"; margin-left: 8px; font-family: var(--font-num);
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent-txt); border: 1px solid var(--accent-line);
+  border-radius: 5px; padding: 1px 4px; vertical-align: 1px;
+}
+.up-hd .abrir-sel { margin-left: auto; }
 
 /* --------------------------------------------------------------- flow cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px; }
@@ -1562,6 +1736,25 @@ textarea, input { caret-color: var(--accent); }
 .up-sub code { font-family: var(--font-num); font-size: 11.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
 
 /* ---- vitrine: ideia C, a forma do fluxo como identidade ---- */
+/* A TIRA DE ESCRITA EM CURSO, no topo da vitrine. Ela é a porta de volta para o
+   progresso de quem saiu da tela do fluxo no meio — dentro do cartão ela não pode
+   morar, porque o cartão É um `<button>` e botão dentro de botão é HTML inválido.
+   `--accent` e nunca cor de status: uma escrita em curso é MOVIMENTO, não veredito.
+   As duas cores de texto foram medidas sobre o `--accent-soft` composto: o rótulo
+   usa a receita `color-mix(... 72%, var(--txt))` (5,94 no escuro, 8,11 no claro) e
+   o `--txt` cheio do meio passa folgado nos dois temas. */
+.tira-esc {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 10px;
+  padding: 9px 13px; margin: 0 0 14px; font-family: var(--font); font-size: 12.5px; color: var(--txt);
+}
+.tira-esc:hover { border-color: var(--accent); }
+.tira-esc:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tira-esc .g { font-family: var(--font-num); flex: 0 0 auto;
+  color: color-mix(in srgb, var(--accent-txt) 72%, var(--txt)); }
+.tira-esc .q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tira-esc .ver { margin-left: auto; flex: 0 0 auto; font-family: var(--font-num); font-size: 11px;
+  color: color-mix(in srgb, var(--accent-txt) 72%, var(--txt)); }
 .vit { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 15px; }
 .vcard { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r);
   overflow: hidden; box-shadow: var(--shadow); cursor: pointer; text-align: left;
@@ -1762,6 +1955,13 @@ textarea, input { caret-color: var(--accent); }
 .secao .hint { font-size: 10.5px; color: var(--warn-txt); background: var(--warn-soft);
   padding: 2px 7px; border-radius: 5px; margin-left: auto; }
 
+/* O hospedeiro do palco é `display: contents` e isso NÃO é detalhe: `.palco-box`
+   é `flex: 1 1 auto` dentro da `.col-desenho`, que é flex-column. Um wrapper
+   normal viraria ele o item flexível e a caixa desabaria para a altura do
+   conteúdo — o desenho sumiria da tela. Com `contents` o hospedeiro não existe
+   para o layout e a caixa continua sendo o item flexível, exatamente como antes
+   de o nó passar a ser preservado. */
+.palco-host { display: contents; }
 .palco-box { border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden;
   background: radial-gradient(circle at 1px 1px, var(--grid-bold) 1px, transparent 0) 0 0/17px 17px;
   flex: 1 1 auto; min-height: 0; position: relative; }
@@ -1858,6 +2058,237 @@ textarea, input { caret-color: var(--accent); }
 .mtag.alvo { color: var(--accent-txt); border-color: var(--accent-line); }
 .perg { margin: 8px 0 0; padding-left: 17px; }
 .perg li { margin: 3px 0; }
+
+/* ---- o que foi COM a mensagem, dentro da bolha ----
+   `white-space: normal` porque a `.bub` é `pre-wrap`: sem isto, o espaço entre as
+   miniaturas viraria linha em branco dentro da bolha. */
+/* `align-items: flex-start` porque o padrão do flex é `stretch`: sem isto o chip do
+   CSV esticava até a altura da miniatura ao lado — uma caixa vazia de 170px com um
+   nome de arquivo no topo, medido na captura. */
+.banx { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-top: 9px;
+  white-space: normal; }
+.banx-img { display: block; line-height: 0; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--accent-line); background: var(--surface-2); }
+/* Teto pequeno de propósito: a bolha é a CONVERSA, e um print de 1440px empurraria
+   a mensagem seguinte para fora da tela. Quem quer ver grande clica — o `<a>` abre o
+   arquivo em tamanho real, que é o que decide se ele mandou o print certo. */
+.banx-img img { display: block; max-width: 240px; max-height: 170px; width: auto; height: auto; }
+.banx-img:hover { border-color: var(--accent); }
+.banx-img:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banx-chip, .banx-ido {
+  display: inline-flex; align-items: baseline; gap: 7px; max-width: 100%;
+  font-family: var(--font-num); font-size: 10.5px; color: var(--txt-dim);
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px;
+  background: var(--surface-2); text-decoration: none; min-width: 0;
+}
+.banx-chip:hover { border-color: var(--accent-line); color: var(--txt); }
+.banx-chip .sens { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt); }
+/* `--txt-dim` e NÃO `--txt-faint`: medido no DOM vivo, faint aqui dá **4,2513** no
+   tema escuro — reprovação de AA. O fundo é `--surface-2` composto dentro de uma
+   bolha `--accent-soft`, e é a regra que esta base já escreve: um token de texto
+   tem de passar em TODA superfície em que cai, nunca na mais fácil. A hierarquia
+   não se perde porque o nome subiu para `--txt` no mesmo movimento. */
+.banx-chip .t { color: var(--txt-dim); flex: 0 0 auto; }
+/* O arquivo que já não existe. `--cold`, nunca `--risk`: scratch apagado é o que
+   estava previsto acontecer, não uma falha — vermelho aqui gastaria o alarme que o
+   patch em produção precisa.
+   A COR SAI DA RECEITA MEDIDA, não do token cru: `--cold-txt` sozinho deu 4,4237 no
+   escuro e 4,1293 no claro — reprovado nos dois. */
+.banx-ido { color: color-mix(in srgb, var(--cold-txt) 72%, var(--txt)); border-style: dashed; }
+
+/* ═════════ A TELINHA DE PROGRESSO DO DOSSIÊ — a escrita tem onde ser vista ═══
+ *
+ * O PEDIDO, com estas palavras: "essa parte de dossiê precisa ser igual quando
+ * enviamos o claude arrumar o fluxo, que abre uma telinha e fica mostrando o
+ * progresso". A escrita leva MINUTOS (medido: 514s num fluxo de 103 nós, 682s num
+ * de 179) e o que existia no lugar dela era um botão desabilitado com uma linha de
+ * atividade dentro — nada dizia em que etapa está, em que rodada, nem quanto falta.
+ *
+ * A BARRA NÃO É NOVA, E ESSA É A DECISÃO. `.pbar`/`.pfill` (com `.unknown` e
+ * `.over`) já existiam neste arquivo, vieram junto com o bloco do handoff e
+ * estavam MORTAS — medido por grep, as únicas ocorrências eram as próprias regras.
+ * Acender CSS morto é o que o seletor de fluxo já fez com a casca `.fmod*`; uma
+ * segunda família de barra seria uma segunda calibragem da mesma coisa, e a que
+ * divergisse seria a que ninguém olhou. Os dois estados de que esta tela precisa
+ * — sem régua e estourado — são exatamente `.unknown` e `.over`.
+ *
+ * `z-index: 46`, e a posição é a camada DECLARADA desta página: 40 o overlay da
+ * verificação, 45 o seletor de fluxo, 46 ESTA telinha, 47 o visor do anexo, 50 o
+ * `.scrim` do `confirmar()`. ACIMA do seletor porque ela é aberta por cima do que
+ * a tela já tem; ABAIXO do visor porque o visor é aberto de dentro de uma conversa
+ * que continua viva enquanto o dossiê é escrito; e ABAIXO do `.scrim` porque este
+ * arquivo afirma em três lugares que o diálogo de confirmação é o que está mais à
+ * frente de tudo — um progresso por cima de um diálogo que decide GASTO esconderia
+ * justamente o botão que decide o gasto.
+ *
+ * A COR AQUI É DO TEMA, ao contrário do visor: o que está dentro desta caixa é
+ * texto nosso, não o print de uma interface qualquer. Todas as medições foram
+ * feitas contra `--surface` e contra o `--surface-2` composto sobre ela, e o texto
+ * de status usa a receita `color-mix(in srgb, var(--*-txt) 72%, var(--txt))` que
+ * esta casa já escreveu — o token cru reprova AA em texto pequeno. */
+.prog-scrim {
+  position: fixed; inset: 0; z-index: 46; display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--bg-deep) 72%, transparent);
+  backdrop-filter: blur(9px) saturate(1.1);
+  -webkit-backdrop-filter: blur(9px) saturate(1.1);
+  animation: progin .2s ease-out both;
+}
+@keyframes progin { from { opacity: 0; } }
+.prog {
+  position: relative; width: min(540px, 100%); max-height: min(84vh, 760px);
+  display: grid; grid-template-rows: auto minmax(0,1fr) auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow), 0 50px 110px -50px rgba(0,0,0,.85);
+  overflow: hidden;
+  animation: progup .24s cubic-bezier(.16,.84,.34,1) both;
+}
+@keyframes progup { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+.prog-hd { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 8px; }
+.prog-hd .idx { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em;
+  color: var(--brand-txt); flex: 0 0 auto; }
+/* `min-width: 0` + `nowrap`: o nome do fluxo é longo ("Agente Iago Comercial") e
+   sem os dois ele quebra em duas linhas dentro de uma caixa de 540px — a mesma
+   lição que o `.tela-hd` e o `.fmod-grp` desta página já pagaram. */
+.prog-hd h3 { margin: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-corpo { min-height: 0; overflow-y: auto; padding: 2px 16px 14px; }
+/* AS QUATRO ETAPAS. A lista é fechada e vem do `dossie.js` (`ETAPAS`) pelo campo
+   `etapaTotal` — nenhum 4 cravado aqui nem na página. */
+.prog-etapas { display: flex; flex-direction: column; gap: 1px; margin: 6px 0 4px; }
+.prog-et { display: flex; align-items: baseline; gap: 9px; padding: 5px 9px; border-radius: 8px;
+  font-size: 12.5px; color: var(--txt-faint); }
+.prog-et .n { font-family: var(--font-num); font-size: 10.5px; flex: 0 0 auto; }
+.prog-et .q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-et.feita { color: color-mix(in srgb, var(--ok-txt) 72%, var(--txt)); }
+.prog-et.agora { color: color-mix(in srgb, var(--accent-txt) 72%, var(--txt)); background: var(--accent-soft); }
+/* A LINHA VIVA. É o mesmo fato que o `title` do selo já carrega, e é o único
+   texto desta caixa que muda sozinho — por isso ele fica em `--txt` cheio. */
+.prog-at { margin: 10px 0 2px; font-size: 13px; color: var(--txt); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-bar { margin: 10px 0 6px; }
+.prog-nums { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-family: var(--font-num); font-size: 11px; color: var(--txt-dim); }
+.prog-nums .dir { margin-left: auto; }
+.prog-nums .over { color: color-mix(in srgb, var(--warn-txt) 72%, var(--txt)); }
+/* A frase do indeterminado. Ela NÃO é `--txt-faint`: é a única coisa na tela que
+   explica por que a barra não diz um número, e esconder a explicação da barra
+   parada é o mesmo que não ter a explicação. */
+.prog-porque { margin-top: 7px; font-size: 12px; line-height: 1.5; color: var(--txt-dim); }
+.prog-res { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.55; color: var(--txt-dim); }
+.prog-res b { display: block; margin-bottom: 4px; font-size: 12px; }
+.prog-res.ok b { color: color-mix(in srgb, var(--ok-txt) 72%, var(--txt)); }
+.prog-res.mau b { color: color-mix(in srgb, var(--risk-txt) 72%, var(--txt)); }
+.prog-res ul { margin: 6px 0 0; padding-left: 16px; }
+.prog-ft { padding: 11px 16px; border-top: 1px solid var(--line-soft); background: var(--surface-2);
+  font-size: 11.5px; line-height: 1.5; color: var(--txt-dim); }
+.prog-ft ul { margin: 0 0 10px; padding-left: 15px; }
+.prog-ft li { margin: 2px 0; }
+.prog-ft .x { display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; border-radius: 9px;
+  height: 30px; padding: 0 12px; color: var(--txt-dim); font-family: var(--font-num); font-size: 11.5px; }
+.prog-ft .x:hover { color: var(--txt); border-color: var(--accent-line); background: var(--accent-soft); }
+@media (prefers-reduced-motion: reduce) {
+  /* O estado fica, a barra fica, o movimento de entrada sai. Nenhuma informação
+     mora na animação — e a listra do `.pbar.unknown` já tem regra própria mais
+     acima, que alcança esta caixa porque a barra é a MESMA. */
+  .prog-scrim, .prog { animation: none; }
+}
+
+/* ═══════════════ O VISOR: o print abre AQUI, não noutra guia ════════════════
+ *
+ * O DEFEITO, relatado com um print: clicar na miniatura abria uma GUIA NOVA com a
+ * imagem crua sobre o fundo preto do navegador. Aquilo não é ampliar, é SAIR — a
+ * conversa fica para trás, o que ele escreveu sai da tela, e voltar é um Alt+Tab
+ * para um lugar que não é o painel. O que ele queria era ver o que mandou do lado
+ * do que escreveu.
+ *
+ * `z-index: 47`, e a posição é a camada DECLARADA desta página: 40 o overlay da
+ * verificação, 45 o seletor de fluxo, 47 este visor, 50 o `.scrim` do
+ * `confirmar()`. ACIMA do seletor porque o visor é aberto por cima de tudo o que a
+ * tela já tem; ABAIXO do `.scrim` porque este arquivo afirma em dois lugares que o
+ * diálogo de confirmação é o que está mais à frente de tudo — e um visor por cima
+ * de um diálogo destrutivo esconderia o botão que decide o gasto.
+ *
+ * O VÉU usa o vocabulário da casa (`--bg-deep` a 72% com `blur(9px)`), igual ao
+ * `.fmod-scrim` e ao `.ver-scrim`: um segundo jeito de escurecer a página seria um
+ * segundo jeito de dizer "isto está na frente", e esta casa já tem um.
+ *
+ * A CAIXA, NÃO — e isto é decisão, não esquecimento de tokenizar. O chão é
+ * `#101018` FIXO nos dois temas porque o que está dentro dele é o print de UMA
+ * interface qualquer, que pode ser branca ou preta: um chão que muda de cor com o
+ * tema mudaria a borda aparente da imagem do cliente conforme o horário do dia, e
+ * um print branco sobre um chão branco perde a própria moldura. Chão fixo é o que
+ * separa o print do resto da tela.
+ *
+ * CONSEQUÊNCIA, e ela é o motivo desta nota existir: OS TOKENS DE TEXTO NÃO VALEM
+ * AQUI DENTRO. Medido contra `#101018`: `--txt-faint` do tema claro (`#666973`) dá
+ * 3,4553 e `--cold-txt` claro (`#6D717E`) dá 3,8884 — os dois reprovam em AA. Toda
+ * cor de texto do visor é literal e medida contra esse chão:
+ *     nome do arquivo        `#EAECF6`  16,0703:1
+ *     meta (tipo · tamanho)  `#A8AEC2`   8,5622:1
+ *     link da guia           `#9AA6FF`   8,3586:1
+ *     frase do arquivo sumido`#9AA3B8`   7,4865:1
+ * O `--accent` cru foi RECUSADO no link: `#5865F5` dá 4,1420 no escuro e `#3B48E0`
+ * dá 2,8749 no claro. É a mesma regra que esta casa já escreve — um token de texto
+ * tem de passar em TODA superfície em que cai, e esta superfície não é do tema. */
+.vis-scrim {
+  position: fixed; inset: 0; z-index: 47; display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--bg-deep) 72%, transparent);
+  backdrop-filter: blur(9px) saturate(1.1);
+  -webkit-backdrop-filter: blur(9px) saturate(1.1);
+  animation: visin .2s ease-out both;
+}
+@keyframes visin { from { opacity: 0; } }
+.vis {
+  position: relative; width: min(1080px, 100%); max-height: min(90vh, 900px);
+  display: grid; grid-template-rows: auto minmax(0,1fr) auto;
+  background: #101018; border: 1px solid rgba(255,255,255,.13); border-radius: 14px;
+  box-shadow: 0 50px 110px -50px rgba(0,0,0,.9);
+  overflow: hidden;
+  animation: visup .24s cubic-bezier(.16,.84,.34,1) both;
+}
+@keyframes visup { from { opacity: 0; transform: translateY(9px) scale(.99); } }
+.vis-hd { display: flex; align-items: center; gap: 10px; padding: 10px 13px;
+  border-bottom: 1px solid rgba(255,255,255,.08); }
+.vis-hd .idx { font-family: var(--font-num); font-size: 10px; letter-spacing: .16em; color: #A8AEC2; }
+.vis-hd .x { margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid rgba(255,255,255,.16); background: transparent; cursor: pointer;
+  height: 28px; padding: 0 11px; border-radius: 8px; color: #A8AEC2;
+  font-family: var(--font-num); font-size: 11px; }
+.vis-hd .x:hover { color: #EAECF6; border-color: rgba(255,255,255,.34); }
+.vis-hd .x:focus-visible { outline: 2px solid #9AA6FF; outline-offset: 2px; }
+/* `place-items: center` com `overflow: auto`: um print maior que a caixa rola em
+   vez de ser cortado, e um menor não estica — ampliar um print de 300px até 1080
+   entregaria uma imagem borrada afirmando ser o original. */
+.vis-corpo { min-height: 0; display: grid; place-items: center; padding: 14px; overflow: auto; }
+/* Teto explícito em vez de `max-height: 100%`: a porcentagem depende de a linha da
+   grade ter altura definida, e `.vis` tem `max-height`, não `height`. Um valor em
+   `vh` não depende de nada e dá o mesmo resultado. */
+.vis-corpo img { display: block; max-width: 100%; max-height: min(72vh, 690px);
+  width: auto; height: auto; border-radius: 4px; }
+.vis-ft { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.vis-ft .nm { font-family: var(--font-num); font-size: 12px; color: #EAECF6;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-ft .mt { font-family: var(--font-num); font-size: 10.5px; color: #A8AEC2; flex: 0 0 auto; }
+/* A GUIA CONTINUA EXISTINDO, agora por escolha: quem quer o print numa aba só dele
+   — para comparar com o n8n aberto ao lado — clica aqui, e quem só queria ver
+   grande não paga por isso. */
+.vis-ft .lk { margin-left: auto; flex: 0 0 auto; font-family: var(--font-num); font-size: 11px;
+  color: #9AA6FF; text-decoration: none; border-bottom: 1px solid rgba(154,166,255,.42); }
+.vis-ft .lk:hover { border-bottom-color: #9AA6FF; }
+.vis-ft .lk:focus-visible { outline: 2px solid #9AA6FF; outline-offset: 3px; }
+/* A FRASE DO ARQUIVO SUMIDO DENTRO DO VISOR. `.banx-ido` traz a receita
+   `color-mix(--cold-txt 72%, --txt)`, que no tema claro é tinta escura: sobre este
+   chão fixo ela desapareceria. Mesma frase, mesmo ouvinte, outra cor — e a cor é a
+   medida acima. */
+.vis-corpo .banx-ido { color: #9AA3B8; border-color: rgba(255,255,255,.16); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  /* O estado fica, o movimento sai — o visor continua abrindo, com a imagem, o
+     rodapé e o foco no lugar. Nenhuma informação mora na animação. */
+  .vis-scrim, .vis { animation: none; }
+}
 
 .alvos { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .alvo { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; padding: 6px 9px;
@@ -2469,6 +2900,8 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
 <div class="backdrop"><i class="gbeam"></i><i class="gbeam b2"></i></div>
 
 <header class="topbar">
+  <img class="eplogo" src="/ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
   <div class="brand">
     <span class="flame" aria-hidden="true">
       <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
@@ -2482,6 +2915,7 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
     <a href="/upgrade" data-porta="upgrade" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
+      <a href="/conta" data-porta="conta"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.9a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 20.1a7.4 7.4 0 0 1 14.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Conta</span><kbd>alt 5</kbd></span></a>
   </nav>
   <div class="sep"></div>
   <div class="meta sens" id="instance">—</div>
@@ -2574,6 +3008,67 @@ function nosFalhos(f) {
    manual por definição; esconder seria a tela decidir que ele não existe. Mas ele
    não pode competir visualmente com um de 751. */
 const morno = f => !f.exec24;
+
+/* `[PROJETO] Nome` partido em dois, num lugar só. Nasceu dentro do `cartao()` e
+   o seletor precisava do MESMO corte para poder buscar por projeto — e a segunda
+   cópia da regex divergiria no primeiro fluxo que fugisse da convenção. */
+function partesNome(nome) {
+  const m = String(nome || "").match(/^\[([^\]]+)\]\s*(.*)$/);
+  return { proj: m ? m[1] : null, nome: (m && m[2]) || String(nome || "") };
+}
+
+/* ═══════════════════ O SELETOR DE FLUXO — dois grupos, e o segundo é o motivo
+ *
+ * A vitrine já É um seletor: 11 cartões, todos visíveis numa tela. Filtrar 11
+ * itens que você está olhando não vale um modal. O que vale é o que a grade NÃO
+ * mostra: `S.fluxos` traz os 75 fluxos da instância e `naPorta` deixa 11 na tela,
+ * então há 64 fluxos que hoje só se alcançam colando `?f=<id>` na URL — e para
+ * isso é preciso saber o id.
+ *
+ * POR ISSO SÃO DOIS GRUPOS, e o de baixo é a razão de o seletor existir. Juntá-los
+ * numa lista só seria mentir por omissão nos dois sentidos: o fluxo de 731
+ * execuções e um `My workflow 3` apareceriam como iguais, e a resposta de "por que
+ * este não está na grade?" — que é uma pergunta que a pessoa VAI fazer ao ver o
+ * nome ali — não estaria em lugar nenhum. A nota do grupo é essa resposta.
+ *
+ * A ORDEM DE CADA GRUPO É A DECISÃO DE CADA UM. Em cima, `ordem` — a mesma da
+ * grade, por execução, porque onde roda mais é onde um upgrade paga, e duas ordens
+ * para a mesma lista faria o seletor discordar da tela atrás dele. Embaixo, por
+ * NOME: são fluxos com zero execução, então ordená-los por execução seria ordenar
+ * um empate de 64, e ali quem procura procura por nome.
+ *
+ * ABRIR UM FLUXO DE FORA DA PORTA FUNCIONA E NÃO É ACIDENTE: `render()` acha o
+ * fluxo em `S.fluxos` inteiro (não no recorte da vitrine), e `irPara(id)` já pede
+ * `pesar([id])` e `verDossie(id)` sob demanda — o peso e o dossiê daquele fluxo
+ * chegam depois do clique, como chegariam pelo `?f=`. O que ele NÃO ganha é o selo
+ * da varredura de boot, que só cobre a vitrine; ver `abrirSeletor`. */
+const SELETOR_GRUPO = {
+  vitrine: {
+    titulo: "na vitrine",
+    nota: n => "os " + n + " cartões da grade, na mesma ordem: por execução"
+  },
+  fora: {
+    titulo: "fora da porta",
+    nota: n => n + " fluxo(s) que a grade não mostra — não rodaram na janela, "
+      + "não estão ativos e nenhum fluxo vivo os chama (ou têm nome de rascunho). "
+      + "Dá para abrir: o peso e o dossiê são pedidos no clique."
+  }
+};
+
+/* Puro sobre a lista de fluxos: nenhuma leitura de `S`, nenhum DOM. É isto que faz
+   o agrupamento e as duas ordens serem testáveis sem navegador — mesma razão de
+   `resolverAlvo` e `podeConversar` serem puros. */
+function gruposDoSeletor(fluxos) {
+  const todos = fluxos || [];
+  const dentro = todos.filter(naPorta).slice().sort(ordem);
+  const ids = new Set(dentro.map(f => String(f.id)));
+  const fora = todos.filter(f => !ids.has(String(f.id)))
+    .slice().sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+  const grupos = [];
+  if (dentro.length) grupos.push({ chave: "vitrine", fluxos: dentro });
+  if (fora.length) grupos.push({ chave: "fora", fluxos: fora });
+  return grupos;
+}
 
 /* ═══════════════════ O HISTÓRICO DE CONVERSAS — o juízo da gaveta ═══════════
  *
@@ -2782,15 +3277,40 @@ const LAYOUT = (() => {
 const S = { fluxos: null, erro: null, sel: fDaUrl, peso: new Map(), convId: null, conv: null, es: null,
   // a câmera do desenho, e o observador que a repinta quando a caixa muda de tamanho
   cam: null, camObs: null,
+  /* O NÓ DO PALCO, preservado entre repaints — mesma razão da gaveta e do overlay
+     da verificação, e o maior ganho dos três. Medido: o palco do Iago são 184 nós
+     e 220 arestas, que viram 97KB de string e 1.140 elementos SVG; `render()`
+     roda a cada evento de `atividade`, que chega VÁRIAS VEZES POR SEGUNDO durante
+     uma rodada. Dentro do HTML de `telaFluxo()` isso era 97KB montados e
+     re-parseados a cada um desses eventos.
+     `palcoAssin` é o que o desenho MOSTRA (alvo aceso, nós falhos); `palcoGrafo`
+     é a identidade do objeto do grafo, comparada à parte porque duas contagens de
+     nó podem coincidir e o objeto não. */
+  palcoEl: null, palcoAssin: null, palcoGrafo: null,
   // quantas mensagens a tela já rolou até o fim — ver `rolarConversa`
   chatVisto: 0,
+  /* O SELETOR DE FLUXO, aberto ou não. Ele carrega o próprio nó, o retrato da lista
+     e o cursor: `null` é fechado, e é isso que a cadeia do Esc consulta para saber
+     se aquela tecla é dela ou do `parar()`. */
+  seletor: null,
+  /* O VISOR DO ANEXO, aberto ou não. Guarda o próprio véu, os irmãos que ele
+     marcou `inert` e o `<a>` que o abriu — `null` é fechado, e é isso que a
+     cadeia do Esc consulta para saber de quem é aquela tecla. Ele vive em `S`
+     e não no DOM pela mesma razão da gaveta e do seletor: `render()` reescreve
+     o `#app` a cada evento do SSE, e a conversa repinta várias vezes por
+     segundo enquanto uma rodada corre. */
+  visor: null,
   /* Disparo único: a mensagem que ELE acabou de mandar desce a conversa mesmo que
      ele estivesse lendo lá em cima. Mandar é um ato deliberado — não ver a própria
      frase entrar é a tela parecendo não ter respondido. Vale só para a mensagem
      dele; as que chegam sozinhas obedecem à regra de `rolarConversa`. */
   rolForcar: false,
   // o estado do dossiê por fluxo, e o timer que acompanha uma escrita em curso
-  dossie: new Map(), dossiePoll: null,
+  /* `dossiePollDe` é DE QUAL FLUXO o timer acima está perguntando. Sem ele não há
+     como distinguir "já estou acompanhando este" de "estou acompanhando outro", e a
+     telinha, o clique e a varredura reiniciariam o laço um por cima do outro — cada
+     reinício zerando a janela de corrida, ou seja um poll que nunca termina. */
+  dossie: new Map(), dossiePoll: null, dossiePollDe: null,
   /* O SEMÁFORO DA VITRINE — a varredura de todos os cartões. É um segundo mapa e
      não o `dossie` acima de propósito: a fatia que a varredura devolve não tem
      `nos`, `bytes`, `paragrafos` nem `preco`, então `faixaDossie` e `botaoDossie`
@@ -2836,7 +3356,20 @@ const S = { fluxos: null, erro: null, sel: fDaUrl, peso: new Map(), convId: null
      que sumiu sem explicação é pior que um arquivo negado. `ouvindo`/`parcial`/`rec`
      são o microfone. */
   bandeja: null, anexosPre: [], anexoErro: null, subindo: 0,
-  ouvindo: false, parcial: "", rec: null };
+  ouvindo: false, parcial: "", rec: null,
+  /* A TIRA DE ANEXOS ABERTA OU RECOLHIDA. Vive aqui e não no DOM pela mesma razão
+     que o `rascunho`, a gaveta e o seletor: `render()` reescreve o `#app` a cada
+     evento do SSE, e essa coluna repinta VÁRIAS VEZES POR SEGUNDO enquanto uma
+     rodada corre. Num `<details>` nativo ele abriria a tira e ela se fecharia
+     sozinha no evento seguinte — que é exatamente por que `entradas.js` pede o
+     estado por parâmetro em vez de guardá-lo. Nasce recolhida: a tira existe para
+     TIRAR o chip de cima do compositor, e nascer aberta desfaria o conserto. */
+  gavetaAnexos: false,
+  /* A TELINHA DE PROGRESSO DO DOSSIÊ, aberta ou não. Mesmo formato do `seletor` e
+     do `visor`: `null` é fechada, e é isso que a cadeia do Esc consulta para saber
+     de quem é a tecla. Ela nasce em `document.body`, fora do `#app`, então
+     `render()` não a alcança — quem a atualiza é `pintarProgresso()`. */
+  prog: null };
 const app = document.getElementById("app");
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const num = n => new Intl.NumberFormat("pt-BR").format(n || 0);
@@ -3432,12 +3965,68 @@ function montarCamera() {
   S.camObs.observe(box);
 }
 
+/* ═══════════════════════════════ O PALCO, VIVO ═══════════════════════════════
+ *
+ * O NÓ DO PALCO É PRESERVADO ENTRE REPAINTS, pelo mesmo motivo e no mesmo molde
+ * de `pintarGaveta()` e `pintarVerif()` — e este é o maior dos três.
+ *
+ * Medido no fluxo do Iago: 184 nós e 220 arestas viram 97KB de string e 1.140
+ * elementos SVG. `render()` reescreve o `#app` inteiro, e uma rodada emite
+ * `atividade` VÁRIAS VEZES POR SEGUNDO (o próprio comentário do listener do SSE
+ * já dizia isso). Enquanto o palco era parte da string de `telaFluxo()`, cada um
+ * desses eventos remontava os 97KB, o navegador reparseava os 1.140 elementos, e
+ * `montarCamera()` religava sete listeners e criava um `ResizeObserver` novo.
+ *
+ * O que decide reconstruir é o que o desenho MOSTRA — alvo aceso, nós falhos, e a
+ * identidade do grafo — nunca a atividade. `atividade` não muda um pixel do
+ * palco, então não pode custar um único elemento.
+ *
+ * A identidade do grafo é comparada À PARTE das contagens: dois grafos diferentes
+ * podem ter o mesmo número de nós e de arestas, e aí a assinatura sozinha diria
+ * que nada mudou. Comparar o objeto resolve isso em O(1) e sem hash. */
+const palcoAssinatura = f => JSON.stringify([
+  String(S.sel),
+  f && f.graph ? [f.graph.nos.length, (f.graph.arestas || []).length] : null,
+  [...nosAcesos()].sort(),
+  [...nosFalhos(f)].sort()
+]);
+
+/* Chamado no fim de todo `render()`, ANTES de `montarCamera()` — a câmera lê
+   `.pn.on` do DOM em `extentoAcesos()` para voar até o alvo, então o desenho tem
+   de estar anexado antes.
+   Devolve se RECONSTRUIU, e é isso que decide se a câmera é remontada: com o nó
+   preservado, os sete listeners e o `ResizeObserver` sobrevivem nele, e chamar
+   `montarCamera()` de novo os DUPLICARIA — um arraste passaria a andar o dobro.
+   O enquadramento não se perde ao pular a remontagem: ele vive em `S.cam` e já
+   está aplicado no `viewBox` do nó que ficou. */
+function pintarPalco(f) {
+  const host = document.getElementById("palco-host");
+  if (!host) {
+    /* Sem hospedeiro é a vitrine (ou um fluxo que não existe). Solta o nó: voltar
+       para o fluxo tem de reconstruir, porque `S.fluxos` pode ter sido relido e o
+       grafo daquele momento não é necessariamente este. */
+    S.palcoEl = null; S.palcoAssin = null; S.palcoGrafo = null;
+    return false;
+  }
+  const assin = palcoAssinatura(f);
+  const grafo = f ? f.graph : null;
+  const mudou = !S.palcoEl || S.palcoAssin !== assin || S.palcoGrafo !== grafo;
+  if (mudou) {
+    const casca = document.createElement("div");
+    casca.innerHTML = palco(grafo, nosAcesos(), nosFalhos(f));
+    S.palcoEl = casca.firstElementChild;
+    S.palcoAssin = assin;
+    S.palcoGrafo = grafo;
+  }
+  if (S.palcoEl && S.palcoEl.parentNode !== host) host.appendChild(S.palcoEl);
+  return mudou;
+}
+
 /* --------------------------------------------------------------- vitrine ---- */
 
 function cartao(f) {
   const p = peso(f);
-  const pr = (f.nome.match(/^\[([^\]]+)\]\s*(.*)$/) || [null, null, f.nome]);
-  const proj = pr[1], nome = pr[2] || f.nome;
+  const { proj, nome } = partesNome(f.nome);
   return '<button class="vcard' + (morno(f) ? " morno" : "") + '" data-id="' + esc(f.id) + '">'
     + '<div class="vc-art">' + mini(f, 258, 96)
     + '<span class="vc-nos">' + num(f.nos) + "</span></div>"
@@ -3464,18 +4053,69 @@ function linhaSeloDossie(f) {
     + esc(s.txt) + "</span></div>";
 }
 
+/* A TIRA DE ESCRITA EM CURSO, NO TOPO DA VITRINE.
+ *
+ * POR QUE UMA TIRA E NÃO UM BOTÃO DENTRO DO CARTÃO: o cartão da vitrine É um
+ * `<button class="vcard">`, e botão dentro de botão é HTML inválido — o navegador
+ * quebra o aninhamento e o clique de dentro vira o clique de fora, ou seja abrir o
+ * fluxo em vez de abrir o progresso. Então a porta de volta mora FORA dos cartões.
+ *
+ * ELA SÓ EXISTE ENQUANTO HÁ ESCRITA. Uma faixa permanente dizendo "nenhuma escrita
+ * em curso" seria mais uma linha para o olho aprender a pular, e a vitrine já tem
+ * a frase do semáforo logo abaixo.
+ *
+ * O TEXTO É O MESMO DO SELO (`seloDossie`), REUSADO INTEIRO, mais o nome do fluxo:
+ * uma segunda redação de "escrevendo o dossiê… · 41%" aqui divergiria da do cartão
+ * no primeiro ajuste feito de um lado só, e as duas passariam a discordar sobre a
+ * mesma escrita a três centímetros de distância. */
+function tiraEscrevendo() {
+  for (const [id, d] of S.dossieVit) {
+    if (!d || !d.job || !d.job.escrevendo) continue;
+    const fl = (S.fluxos || []).find(x => String(x.id) === String(id));
+    const nome = (fl && fl.nome) || d.nome || String(id);
+    const s = seloDossie(d);
+    return '<button type="button" class="tira-esc" data-prog="1" data-wf="' + esc(String(id)) + '"'
+      + ' title="' + esc(d.job.atividade || "") + '">'
+      + '<span class="g" aria-hidden="true">✎</span>'
+      + '<span class="q">' + esc(s.txt) + " de <b>" + esc(nome) + "</b></span>"
+      + '<span class="ver">ver progresso →</span></button>';
+  }
+  return "";
+}
+
 function telaVitrine() {
   const vivos = (S.fluxos || []).filter(naPorta).sort(ordem);
   const erroBox = S.erro
     ? '<div class="aviso-inline"><span class="g">⚠</span><div>' + esc(S.erro) + "</div></div>" : "";
   if (!S.fluxos) return erroBox + '<div class="vazio">lendo a instância…</div>';
   if (!vivos.length) {
-    return erroBox + '<div class="vazio">nenhum fluxo chegou na porta: nada rodou na janela e nada está ativo.<br>'
-      + "isto é uma frase sobre a instância, não sobre esta tela.</div>";
+    /* O SELETOR TAMBÉM APARECE AQUI, e é a tela em que ele mais importa: "nenhum
+       fluxo chegou na porta" é uma frase sobre a JANELA, e a instância pode ter 75
+       fluxos parados. Sem este botão, a única tela onde a grade não oferece nada
+       seria também a única sem saída. */
+    return erroBox + tiraEscrevendo() + '<div class="vazio">nenhum fluxo chegou na porta: nada rodou na janela e nada está ativo.<br>'
+      + "isto é uma frase sobre a instância, não sobre esta tela.<br><br>"
+      + '<button class="btn sm" data-seletor="1">ver os ' + (S.fluxos || []).length
+      + " fluxos da instância ▾</button></div>";
   }
   const semExec = vivos.filter(morno).length;
   return erroBox
-    + '<div class="up-hd"><span class="ix">[ 01 ]</span><h2>Qual fluxo você quer melhorar</h2></div>'
+    /* A TIRA VEM ANTES DO CABEÇALHO: uma escrita que está acontecendo AGORA é o
+       único fato desta tela que muda sozinho, e ela é também a porta de volta para
+       quem saiu da tela do fluxo no meio. Embaixo da grade ela estaria fora da
+       vista exatamente em quem tem 11 cartões. */
+    + tiraEscrevendo()
+    /* O BOTÃO DO SELETOR NO CABEÇALHO. Ele não repete a grade: a grade mostra os 11
+       que chegaram na porta, e a instância tem 75 — os outros 64 só se alcançavam
+       colando `?f=<id>` na URL, o que exige saber o id. É por isso que ele diz
+       "todos os fluxos" e não "filtrar". */
+    + '<div class="up-hd"><span class="ix">[ 01 ]</span><h2>Qual fluxo você quer melhorar</h2>'
+    + '<button class="btn sm abrir-sel" data-seletor="1" title="Escolher entre todos os '
+    + (S.fluxos || []).length + ' fluxos da instância, inclusive os que não estão na grade">'
+    /* `▾` e NÃO `⌕`: a lupa em texto (U+2315) sai como um círculo vazio nesta fonte
+       — medido, e é a mesma armadilha de `📎` e `🗀`. Dentro da telinha ela existe
+       DESENHADA (`lupaSvg`), que é onde ela vale a pena. */
+    + "todos os fluxos ▾</button></div>"
     + '<p class="up-sub"><b>' + vivos.length + " fluxos</b> chegaram na porta"
     + (semExec ? " (" + semExec + " sem execução na janela, no fim e apagados)" : "")
     + ". A ordem é por execução: onde roda mais é onde um upgrade paga. O desenho é a "
@@ -3525,6 +4165,119 @@ const DOSSIE_FRASE = {
 const DOSSIE_CLS = { verde: "ok", laranja: "warn", vermelho: "risk", cinza: "cold" };
 const kb = b => (Number(b || 0) / 1024).toFixed(0) + "KB";
 
+/* ═══════ O PROGRESSO DE UMA ESCRITA DE DOSSIÊ — o juízo, sem DOM ═══════════
+ *
+ * O SERVIDOR MANDA POSIÇÃO E RÉGUA, NUNCA PORCENTAGEM: `etapa`/`etapaI`/
+ * `etapaTotal` e `rodada`/`rodadas` são o que ele mediu, `duracao` é a mediana do
+ * histórico DESTA máquina para o modo pedido. O que isso vale numa barra — quantos
+ * por cento, que cor, que frase — é juízo, e mora aqui, do mesmo jeito que a cor do
+ * semáforo sai do `dossie.estado()` e a faixa quem escreve é esta página. Um
+ * denominador calculado no servidor seria uma segunda régua ao lado da que a tela
+ * desenha.
+ *
+ * PURA, e pelo mesmo motivo de `podeConversar`, `resolverAlvo` e `custoDaRodada`:
+ * quem decide o que a barra AFIRMA tem de ser testável sem browser e sem rede.
+ *
+ * TETO EM 97%, NUNCA 100% ANTES DE TERMINAR. Barra cheia com a tela parada é a
+ * forma mais rápida de perder a confiança de um painel — está escrito no
+ * `CLAUDE.md` desde a barra da correção, e vale igual aqui: a mediana é a mediana,
+ * não uma promessa, e uma escrita que passar dela continua andando.
+ *
+ * TRÊS MOTIVOS DE INDETERMINADO, E OS TRÊS SÃO FRASES DIFERENTES — é a oitava vez
+ * que esta base escreve a regra dos três estados, e aqui o ramo negativo perigoso é
+ * "não tem histórico":
+ *   · `campoAusente` — o campo `duracao` (ou o `comecouEm`) NÃO VEIO. O cockpit que
+ *     está respondendo subiu antes desta versão do `server.js`, e Node não recarrega
+ *     esse arquivo. Ler isso como "sem histórico" seria a tela dizer que a máquina
+ *     nunca mediu nada numa máquina que tem régua de 4 escritas.
+ *   · `lendo` — o campo veio `null`. A rota devolve 202 sem esperar a leitura do
+ *     ledger, então por alguns instantes a resposta honesta é "ainda estou lendo".
+ *   · `semRegua` — mediu e não há régua: `medianaMs` nulo com `amostras` contadas.
+ *     Hoje é o caso de TODA escrita parcial (zero medidas nesta máquina), e isso é
+ *     correto, não defeito — a primeira delas é que cria a régua.
+ *
+ * ETAPA DESCONHECIDA NÃO CAI NO PRIMEIRO RÓTULO: ela volta como o nome CRU entre
+ * aspas, do mesmo jeito que `seloDossie` faz com uma cor que não conhece. E etapa
+ * AUSENTE volta `null`, que é outro estado ainda: um processo velho que não manda o
+ * campo não pode virar «undefined» escrito na tela. */
+const PROG_ETAPA = {
+  preparando: "lendo o fluxo e montando o diretório",
+  escrevendo: "a sessão escrevendo a prosa",
+  conferindo: "conferindo nos portões",
+  publicando: "publicando o arquivo"
+};
+
+/* A frase de cada indeterminado. `semRegua` cita `amostras` porque 0 e 1 são
+   histórias diferentes — "nunca" e "só uma vez, e a régua precisa de duas". */
+const PROG_INDET = {
+  campoAusente: () => "Não sei quanto falta: o cockpit que está respondendo subiu antes desta "
+    + "versão do servidor e não manda a régua. Node não recarrega o `server.js` — feche a janela "
+    + "do cockpit e abra de novo.",
+  lendo: () => "Ainda estou lendo o histórico para saber quanto uma escrita destas costuma demorar.",
+  semRegua: n => "Nunca medi uma escrita assim — não sei quanto falta"
+    + (n ? " (" + n + " escrita medida até agora, e a régua precisa de duas)"
+         : " (nenhuma escrita deste tipo foi medida nesta máquina)")
+    + ". É esta que cria a régua."
+};
+
+/* `dur` é desta página. O `flows.html` tem um parecido e ele fica lá: importar um
+   trecho de outra página seria a quarta cópia à mão desta base, e um formato de
+   duração que diverge entre dois painéis do mesmo produto é ruído barato de evitar. */
+const dur = ms => {
+  const s = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+  if (s < 60) return s + "s";
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + "min " + String(s % 60).padStart(2, "0") + "s";
+  return Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "min";
+};
+
+function progressoDossie(job, agora = Date.now()) {
+  /* Sem escrita não há progresso, e `null` é o que faz cada chamador não desenhar
+     nada em vez de desenhar um zero. Um 0% sobre uma escrita que não existe é uma
+     afirmação, não um vazio. */
+  if (!job || !job.escrevendo) return null;
+
+  const t0 = Date.parse(job.comecouEm);
+  const decorridoMs = Number.isFinite(t0) ? Math.max(0, agora - t0) : null;
+  const faseTxt = job.etapa == null
+    ? null
+    : (PROG_ETAPA[job.etapa] || "«" + String(job.etapa) + "»");
+  /* A SEQUÊNCIA NÃO É MONOTÔNICA e a tela tem de aguentar isso sem parecer que
+     quebrou: uma rodada reprovada volta de `conferindo` para `escrevendo`, e o
+     `etapaI` ANDA PARA TRÁS. O que avança é `rodada` — por isso ela é dita, e por
+     isso a barra não é feita de etapas cumpridas. */
+  const r = job.rodada, rs = job.rodadas;
+  const rodadaTxt = r == null ? null : ("rodada " + r + (rs == null ? "" : "/" + rs));
+  const base = { pct: null, indeterminado: true, porqueIndet: null, faseTxt, rodadaTxt,
+    estourou: false, decorridoMs, medianaMs: null, amostras: null };
+
+  if (!("duracao" in job) || decorridoMs === null) return { ...base, porqueIndet: "campoAusente" };
+  if (job.duracao === null) return { ...base, porqueIndet: "lendo" };
+  const d = job.duracao || {};
+  const amostras = Number(d.amostras) || 0;
+  const med = Number(d.medianaMs);
+  if (!(med > 0)) return { ...base, porqueIndet: "semRegua", amostras };
+
+  return { pct: Math.min(0.97, Math.max(0, decorridoMs / med)), indeterminado: false,
+    porqueIndet: null, faseTxt, rodadaTxt, estourou: decorridoMs > med,
+    decorridoMs, medianaMs: med, amostras };
+}
+
+/* A frase debaixo da barra. Ela é o que separa "andando, não sei quanto falta" de
+   "andando, e já passou da mediana" — e a segunda NÃO é falha: a mediana é mediana,
+   metade das escritas passa dela. Por isso `--warn` e nunca `--risk`. */
+function fraseProgresso(p) {
+  if (!p) return "";
+  if (p.indeterminado) return (PROG_INDET[p.porqueIndet] || PROG_INDET.campoAusente)(p.amostras);
+  if (p.estourou) {
+    return "Já passou da mediana das " + p.amostras + " escritas medidas ("
+      + dur(p.medianaMs) + "). Isso não é falha: metade das escritas passa dela — a barra para "
+      + "de crescer aqui porque não sei mais quanto falta.";
+  }
+  return "Pela mediana das " + p.amostras + " escritas medidas, uma destas leva cerca de "
+    + dur(p.medianaMs) + ".";
+}
+
 /* O SELO DO CARTÃO — o mesmo semáforo, na vitrine.
  *
  * POR QUE ELE EXISTE: a faixa acima só dispara quando a tela DAQUELE fluxo é
@@ -3565,7 +4318,20 @@ function seloDossie(d) {
      trava recusa quando não sabe, e o cartão não pode chamar isso de travado. */
   const travado = !podeConversar(d).pode;
   if (d.job && d.job.escrevendo) {
-    return { cls: "cold", glifo: "✎", txt: "escrevendo o dossiê…", travado,
+    /* O TEXTO DE ANTES NÃO MUDA — ele só GANHA CAUDA. "escrevendo o dossiê…" é o
+       que dois testes fixam e é a frase que responde a pergunta do cartão; trocá-la
+       por "41%" faria o número responder uma pergunta que ninguém fez ("41% de
+       quê?"). A cauda é o que o cartão não tinha: ONDE ISSO ESTÁ.
+       E ela tem três formas porque há três coisas que se pode saber: a porcentagem
+       quando existe régua; a rodada quando não existe (é o que avança de verdade —
+       o `etapaI` anda para trás numa rodada reprovada); e NADA quando não se sabe
+       nem uma nem outra, que é melhor que um "0%" inventado. */
+    const p = progressoDossie(d.job);
+    const cauda = !p ? ""
+      : !p.indeterminado ? " · " + Math.round(p.pct * 100) + "%"
+      : p.rodadaTxt ? " · " + p.rodadaTxt
+      : "";
+    return { cls: "cold", glifo: "✎", txt: "escrevendo o dossiê…" + cauda, travado,
       tit: "uma sessão local está escrevendo o dossiê deste fluxo agora"
         + (d.job.atividade ? " — " + d.job.atividade : "") + "." };
   }
@@ -3915,7 +4681,25 @@ function resumoDossieVitrine(vivos) {
 function botaoDossie(d, wfId) {
   if (!d) return "";
   if (d.job && d.job.escrevendo) {
-    return '<button class="btn sm" disabled>✎ escrevendo… <span class="s">' + esc(d.job.atividade || "") + "</span></button>";
+    /* ESTE BOTÃO DEIXOU DE SER MORTO, e a mudança é o motivo de a telinha existir.
+       Ele era `disabled` porque não havia nada a fazer além de esperar — mas havia:
+       VER. Uma escrita de minutos com a tela mostrando só a última linha de
+       atividade não diz em que etapa está, em que rodada, nem quanto falta, e é
+       justamente essa a pergunta de quem espera. Agora ele é a porta de volta para o
+       progresso, inclusive depois de sair da tela e voltar: a escrita roda no
+       processo do cockpit e sobrevive à navegação, então o caminho de volta tem de
+       existir em algum lugar visível.
+       `data-prog` e não `id`: ele aparece em mais de um lugar (a faixa, e a tira do
+       topo da vitrine), e dois nós com o mesmo `id` fazem o segundo pintar sem fazer
+       nada, em silêncio — defeito que o botão do dossiê já pagou nesta página. */
+    const p = progressoDossie(d.job);
+    const onde = !p ? "ver progresso"
+      : !p.indeterminado ? Math.round(p.pct * 100) + "% · ver progresso"
+      : p.rodadaTxt ? p.rodadaTxt + " · ver progresso"
+      : "ver progresso";
+    return '<button type="button" class="btn sm" data-prog="1"' + (wfId ? ' data-wf="' + esc(String(wfId)) + '"' : "")
+      + ' title="' + esc(d.job.atividade || "a escrita está em curso") + '">✎ escrevendo… <span class="s">'
+      + esc(onde) + "</span></button>";
   }
   if (d.ocupado) return '<button class="btn sm" disabled title="uma escrita por vez">escrevendo o de ' + esc(d.ocupado) + "…</button>";
   /* O QUE ESTÁ ESCRITO NO BOTÃO É O QUE O CLIQUE FAZ, INCLUSIVE O MODO. O rótulo
@@ -4062,6 +4846,46 @@ function compositorHtml(f) {
      tela saltando duas vezes por uma resposta que quase sempre chega, e o segundo
      salto é o que lê como "algo deu errado". */
   const anx = anexosAgora();
+  /* Tirar um chip é bloqueado enquanto uma rodada corre — o arquivo já está no
+     prompt que está sendo respondido, e removê-lo no meio faria a resposta citar
+     algo que não está mais lá. Um cálculo só, lido pela tira E pelos chips da
+     bandeja: duas cópias desta condição divergiriam no primeiro ajuste. */
+  const podeTirar = !(S.conv && S.conv.status === "correndo");
+  /* ══════════ A TIRA: O CHIP SAI DE CIMA DO COMPOSITOR ══════════
+   *
+   * O DEFEITO, relatado com um print: ele anexou uma imagem, mandou a mensagem, e
+   * o chip continuou colado embaixo do campo. Lido junto com o campo já vazio,
+   * isso diz "ainda não mandei" — e o arquivo tinha ido, tinha sido aberto pela
+   * sessão, e a tela não dizia.
+   *
+   * SUMIR SERIA MENTIR NA DIREÇÃO OPOSTA. O anexo é da CONVERSA e não da mensagem:
+   * ele fica no diretório da sessão e volta no prompt de TODA rodada seguinte, que
+   * é o que faz o print continuar valendo quando ele escreve a segunda frase.
+   * Então ele SAI DO COMPOSITOR e vira a tira recolhida acima dele — o campo fica
+   * limpo, o fato continua na tela a um clique.
+   *
+   * SÓ COM CONVERSA EXISTINDO. Antes dela o arquivo está na BANDEJA e ainda VAI:
+   * ali o chip embaixo do campo é a leitura certa, e a frase de lá diz "vai com a
+   * próxima mensagem". Dois estados, duas leituras — uma tira para os dois
+   * ensinaria a não acreditar nela.
+   *
+   * O DESENHO É DO `entradas.js` (`gavetaAnexos`), inteiro, com o CSS dele: uma
+   * segunda redação da tira aqui seria a quinta cópia à mão desta base, e a cópia
+   * é invisível até divergir.
+   *
+   * ELA É IRMÃ DO COMPOSITOR, NÃO FILHA — e é isso que a mantém quando a trava do
+   * dossiê derruba o campo (ver o fim desta função). */
+  const naConversa = !!S.convId;
+  const tira = naConversa
+    ? IO().gavetaAnexos(anx, lidosAgora(), podeTirar, {
+        aberta: !!S.gavetaAnexos,
+        /* O 4º argumento, e NÃO um ouvinte `data-anxgaveta` nosso: os dois juntos
+           alternariam a tira duas vezes por clique. `ligarGaveta` registra um
+           ouvinte por documento e guarda só o último callback, então chamar isto a
+           cada repintura não empilha nada. O valor que chega é o estado NOVO. */
+        aoAlternar: nova => { S.gavetaAnexos = nova; render(); }
+      })
+    : "";
   const campo = travado => '<div class="compositor' + (travado ? " esperando" : "") + '">'
     /* NOME ACESSÍVEL FIXO, e ele não pode ser o `placeholder`: placeholder DESAPARECE
        no primeiro caractere digitado, então num leitor de tela o campo mais
@@ -4077,14 +4901,37 @@ function compositorHtml(f) {
     + '<div class="cp-bt">' + IO().barraIO("up", travado) + '<span class="nota">'
     + esc(travado ? esperando : "Enter envia · Shift+Enter quebra linha") + "</span>"
     + '<button type="button" class="btn pri sm" id="enviar"' + (travado ? " disabled" : "") + ">enviar</button></div>"
-    /* Os chips ficam DENTRO da caixa, embaixo dos botões: o anexo é parte do
-       pedido, não um acessório ao lado dele. Tirar um chip é bloqueado enquanto
-       uma rodada corre — o arquivo já está no prompt que está sendo respondido, e
-       removê-lo no meio faria a resposta citar algo que não está mais lá. */
-    + (anx.length || S.subindo || S.anexoErro
+    /* Os chips da BANDEJA ficam DENTRO da caixa, embaixo dos botões: ali o anexo
+       ainda é parte do pedido que está sendo escrito, e não uma coisa ao lado dele.
+       COM CONVERSA ABERTA ELES SAEM DAQUI e vão para a tira (ver o comentário longo
+       lá em cima) — o que resta neste bloco é o que pertence ao MOMENTO e não à
+       conversa: o upload em curso e a recusa do arquivo que não entrou. */
+    + ((anx.length && !naConversa) || S.subindo || S.anexoErro
       ? '<div class="cp-anx">'
-        + IO().chipsAnexos(anx, lidosAgora(), !(S.conv && S.conv.status === "correndo"))
-        + IO().notaAnexos(anx)
+        + (naConversa ? ""
+          : IO().chipsAnexos(anx, lidosAgora(), podeTirar)
+            + IO().notaAnexos(anx))
+        /* A FRASE DE DEPOIS DO ENVIO SAIU DAQUI, e não foi apagada: ela mora agora
+           no corpo aberto da tira (`GAV_PORQUE`, em `entradas.js`), que é onde o
+           chip passou a viver. Mantê-la aqui seria uma segunda redação do mesmo
+           fato a dois centímetros da primeira, e a que divergisse seria a que
+           ninguém releu. O defeito que ela fechou continua fechado — e por um
+           desenho mais forte que uma frase: MOSTRAR onde o arquivo está bate
+           AFIRMAR que ele foi. A mensagem que levou cada arquivo continua mostrando
+           o print dentro dela — ver `anexosDaBolha`.
+           O QUE FICA É A FRASE DA BANDEJA, e ela ficou porque o estado dela ficou:
+           ele perguntou "é para aparecer dessa forma?" olhando exatamente esta tela
+           — chip na bandeja, campo vazio, nada enviado. O MOMENTO DA DÚVIDA É ANTES
+           DE ENVIAR, e era ali que a tela não dizia nada. Agora ela diz também para
+           onde o chip vai depois, senão o chip mudar de lugar no primeiro envio é
+           mais uma coisa acontecendo sem aviso. */
+        + (anx.length && !S.convId
+          ? '<div class="anxnota">'
+            + "Vai com a próxima mensagem que você mandar — o print aparece dentro da mensagem "
+            + "que o levou. Depois estes arquivos ficam com a conversa, voltam no prompt de "
+            + "toda rodada, e os chips passam para a tira acima do campo."
+            + "</div>"
+          : "")
         + (S.subindo ? '<div class="anxnota">subindo ' + S.subindo + " arquivo(s)…</div>" : "")
         // Ancorado, e no vocabulário único: a recusa pertence à caixa onde o
         // arquivo foi soltado, não à pilha do canto.
@@ -4098,14 +4945,14 @@ function compositorHtml(f) {
      controle — sair sozinho em 6s deixaria o campo sem a ressalva que o explica. */
   if (v.pode) {
     return v.aviso
-      ? '<div class="trava">' + avisoHtml(v.aviso, "alerta", "estado do dossiê desconhecido") + campo(false) + "</div>"
-      : campo(false);
+      ? tira + '<div class="trava">' + avisoHtml(v.aviso, "alerta", "estado do dossiê desconhecido") + campo(false) + "</div>"
+      : tira + campo(false);
   }
   /* Ainda perguntando: o campo continua no lugar, surdo. Trocar a caixa de texto
      por um bloco e depois de volta, em meio segundo, é a tela saltando duas vezes
      por uma resposta que quase sempre chega — e o segundo salto é o que faz parecer
      que algo deu errado. Nada aqui é recusa: não sabemos ainda. */
-  if (v.razao === "perguntando") return campo(true);
+  if (v.razao === "perguntando") return tira + campo(true);
 
   const [titulo, corpo] = (TRAVA_FRASE[v.razao] || TRAVA_FRASE.cinza)(d);
   /* `escrevendo` não repete o botão: o da faixa, dois centímetros acima, já está
@@ -4132,17 +4979,26 @@ function compositorHtml(f) {
     : "";
   /* E O ANEXO TAMBÉM É DITO, pelo mesmo raciocínio do rascunho. Os arquivos já
      estão no servidor (na bandeja, ou no diretório da conversa) e sobrevivem à
-     trava; o que sai da tela é o chip, junto com o compositor. Guardar em silêncio
-     é o pior dos três desfechos: ele arrasta o print de novo, e aí há duas cópias
-     do mesmo arquivo e nenhum jeito de saber qual entrou.
+     trava. Guardar em silêncio é o pior dos três desfechos: ele arrasta o print de
+     novo, e aí há duas cópias do mesmo arquivo e nenhum jeito de saber qual entrou.
      Aqui vai só a CONTAGEM: o nome é `sens` (identifica cliente) e este bloco é
-     sobre o dossiê, não sobre o material. */
+     sobre o dossiê, não sobre o material.
+     A TIRA FICA QUANDO A TRAVA SOBE — ela é irmã do compositor, não filha —, e é
+     por isso que a frase tem DUAS redações em vez de uma ou nenhuma. Com a tira na
+     tela, a antiga ("os chips voltam junto com o campo") passa a ser falsa duas
+     vezes: os chips não saíram, e não é o campo que os traz de volta. ESCOLHI
+     REESCREVER E NÃO REMOVER porque sobra um fato que a tira não diz — que os
+     arquivos sobrevivem à trava e continuam valendo quando o campo voltar; a tira
+     mostra QUAIS são, nunca que eles atravessam este bloqueio. Sem conversa não há
+     tira, e aí a frase antiga continua sendo a verdadeira, palavra por palavra. */
   const nAnx = anexosAgora().length;
-  const anxGuardado = nAnx
-    ? '<div class="nota">Os ' + nAnx + " anexo(s) que você mandou continuam guardados — "
-      + "os chips voltam junto com o campo.</div>"
-    : "";
-  return '<div class="trava">'
+  const anxGuardado = !nAnx ? ""
+    : naConversa
+      ? '<div class="nota">Os ' + nAnx + " anexo(s) continuam guardados com a conversa — "
+        + "a tira acima segue mostrando quais são, e eles voltam no prompt assim que o campo voltar.</div>"
+      : '<div class="nota">Os ' + nAnx + " anexo(s) que você mandou continuam guardados — "
+        + "os chips voltam junto com o campo.</div>";
+  return tira + '<div class="trava">'
     + avisoHtml(corpo, v.razao === "escrevendo" ? "info" : "alerta", titulo)
     + acao + guardado + anxGuardado + "</div>";
 }
@@ -4178,6 +5034,66 @@ function tarjaNovos() {
       + (n.tipoNo ? '<span class="tag cold">' + esc(curto(n.tipoNo)) + "</span>" : "")
       + '<span class="o">' + esc(n.oque || "") + "</span></div>").join("")
     + "</div>";
+}
+
+/* O QUE FOI COM A MENSAGEM, desenhado dentro da bolha dela.
+ *
+ * O DEFEITO QUE ISTO FECHA foi ele quem viu: manda um print e a conversa desenha a
+ * mensagem como texto puro. Medido, o arquivo chega ao disco, entra no prompt e é
+ * ABERTO pela sessão — o `Read` volta com a imagem decodificada —, mas nada na tela
+ * dizia isso, e o chip continuava no compositor, o que lê como *ainda não mandei*.
+ * Um pipeline que funciona e uma tela que não mostra é indistinguível de um que não
+ * funciona, e a segunda leitura é a que faz alguém mandar de novo.
+ *
+ * IMAGEM VIRA IMAGEM; o resto vira chip com o nome. A miniatura é `sens` — é dado de
+ * cliente, e o modo gravação tem de borrar isto antes de qualquer coisa nesta tela.
+ * Ela também é `<a>` para o próprio arquivo: ver o print em tamanho real é o que
+ * decide se ele mandou o certo, e um `<img>` sozinho não amplia.
+ *
+ * TRÊS ESTADOS, e o terceiro é o motivo de a rota devolver 404 com corpo em JSON:
+ * `.upgrade-runs/` é scratch e gitignorado, então o arquivo pode ter sido limpo
+ * enquanto o histórico guardou nome, tipo e tamanho. Aí o `onerror` troca a
+ * miniatura por uma frase dizendo que o arquivo não está mais aqui — nunca uma
+ * imagem quebrada, que lê como defeito da tela.
+ *
+ * `null` e `[]` LEEM IGUAL: conversa gravada antes desta versão não tem o campo, e
+ * uma mensagem sem anexo não tem o que desenhar. As duas somem sem dizer nada, que é
+ * o correto — afirmar "esta mensagem não levou anexo" sobre um campo que nunca
+ * existiu seria a sétima vez que este arquivo lê ausência como negativa. */
+function anexosDaBolha(m) {
+  const lista = Array.isArray(m && m.anexos) ? m.anexos : [];
+  if (!lista.length || !S.convId) return "";
+  const rota = a => "/api/upgrade/arquivo/" + encodeURIComponent(S.convId)
+    + "?nome=" + encodeURIComponent(a.arquivo);
+  const itens = lista.map(a => {
+    const kb = (Number(a.bytes || 0) / 1024).toFixed(0) + "KB";
+    if (a.tipo === "imagem") {
+      /* SEM `onerror` inline. Um handler escrito dentro de uma string HTML precisa de
+         três níveis de aspas e é onde um `esc()` esquecido vira execução; e seriam
+         tantas definições dele quantos anexos na tela. O ramo do arquivo ausente é
+         UM ouvinte em CAPTURA no documento (`ligarDelegacao`), porque o evento
+         `error` de um `<img>` não borbulha. */
+      /* O `href` FICA, e tirá-lo seria o conserto errado deste defeito. O clique
+         esquerdo simples é interceptado em `ligarDelegacao` e abre o visor da
+         própria página; ctrl+clique, o botão do meio e o "abrir em nova guia" do
+         menu de contexto continuam funcionando porque continuam tendo para onde
+         ir. Um `<span>` com `onclick` seria mais simples de escrever e destruiria
+         três formas de abrir que já funcionam — e nenhuma delas apareceria
+         quebrada: elas simplesmente deixariam de existir, em silêncio.
+         `data-nome` e `data-meta` viajam prontos porque o rodapé do visor mostra
+         os dois, e reconstituí-los partindo o `title` ao meio pelo `·` seria
+         inventar um formato para um nome de arquivo que vem do disco. */
+      return '<a class="banx-img" href="' + esc(rota(a)) + '" target="_blank" rel="noopener"'
+        + ' data-nome="' + esc(a.nome) + '" data-meta="' + esc((a.tipo || "arquivo") + " · " + kb) + '"'
+        + ' title="' + esc(a.nome + " · " + kb) + '">'
+        + '<img class="sens" src="' + esc(rota(a)) + '" alt="' + esc(a.nome) + '" loading="lazy">'
+        + "</a>";
+    }
+    return '<a class="banx-chip" href="' + esc(rota(a)) + '" target="_blank" rel="noopener">'
+      + '<span class="sens">' + esc(a.nome) + "</span>"
+      + '<span class="t">' + esc(a.tipo || "arquivo") + " · " + kb + "</span></a>";
+  }).join("");
+  return '<div class="banx">' + itens + "</div>";
 }
 
 function blocosConversa() {
@@ -4222,7 +5138,9 @@ function blocosConversa() {
       + "uma sessão nova: o histórico vai pelo prompt.</div></div>"
     : "";
   return '<div class="chat">' + reaberta + c.chat.map(m => {
-    if (m.de === "eu") return '<div class="msg eu"><div class="bub">' + esc(m.texto) + "</div></div>";
+    if (m.de === "eu") {
+      return '<div class="msg eu"><div class="bub">' + esc(m.texto) + anexosDaBolha(m) + "</div></div>";
+    }
     const tag = m.tipo === "alvo"
       ? '<span class="mtag alvo">ALVO PROPOSTO</span>'
       : '<span class="mtag">' + (m.perguntas && m.perguntas.length ? "PERGUNTA DE VOLTA" : "RESPOSTA") + "</span>";
@@ -5240,13 +6158,17 @@ function gaveta(f) {
 }
 
 function telaFluxo(f) {
-  const falhos = nosFalhos(f);
   const c = S.conv;
   return '<div class="tela" data-layout="' + esc(LAYOUT) + '">'
     + '<div class="tela-hd"><div class="th-l"><span class="ix">[ UPGRADE ]</span><b>' + esc(f.nome) + "</b>"
     + '<span class="tag cold">' + num(f.nos) + " nós</span>"
     + '<span class="tag cold">' + num(f.exec24) + " exec/24h</span></div>"
     + '<div class="th-r">' + botaoGaveta()
+    /* TROCAR DE FLUXO SEM PASSAR PELA VITRINE. O mesmo botão do cabeçalho da grade,
+       e por isso o mesmo `data-seletor` com um ouvinte delegado só — dois nós com o
+       mesmo `id` seriam HTML inválido e o segundo pintaria sem fazer nada, sem erro
+       no console, que é o defeito que o botão do dossiê já pagou nesta página. */
+    + '<button class="btn sm" data-seletor="1">trocar de fluxo ▾</button>'
     + '<button class="btn sm" id="voltar">← vitrine</button>'
     + '<button class="btn sm" id="abrir-n8n">abrir no n8n ↗</button></div></div>'
     + faixaDossie(f)
@@ -5272,7 +6194,9 @@ function telaFluxo(f) {
     + '<div class="secao"><span class="ix">[ 02 ]</span> '
     + (S.conv && S.conv.alvo ? "O alvo, aceso no fluxo" : "O fluxo hoje")
     + '<span class="hint">nada foi escrito no n8n</span></div>'
-    + palco(f.graph, nosAcesos(), falhos)
+    // O palco NÃO entra na string: ele é um nó preservado entre repaints, e
+    // `pintarPalco()` o re-anexa aqui no fim de cada `render()`. Ver `S.palcoEl`.
+    + '<div class="palco-host" id="palco-host"></div>'
     + tarjaNovos()
     + '<div class="leg"><span><i class="sw on"></i> vai ser mexido</span>'
     + (temNovos() ? '<span><i class="sw novo"></i> entra no fluxo</span>' : "")
@@ -5398,13 +6322,81 @@ function restaurarInputs(st) {
  * `closest` em vez de `e.target.id` porque o clique pode cair num filho do botão
  * (um `<strong>`, um glifo) e aí o alvo não é o botão. */
 function ligarDelegacao() {
+  /* O ANEXO QUE JÁ NÃO ESTÁ NO DISCO. `.upgrade-runs/` é scratch e gitignorado: uma
+     limpeza de cache apaga o arquivo, e o histórico guarda só nome, tipo e tamanho.
+     Sem este ramo o que aparece é o ícone de imagem quebrada, que lê como defeito
+     da tela em vez de fato sobre o disco.
+     EM CAPTURA, e não é escolha: o evento `error` de um `<img>` NÃO borbulha, então
+     um ouvinte na bolha do documento nunca é chamado. */
+  document.addEventListener("error", ev => {
+    const img = ev.target;
+    if (!img || img.tagName !== "IMG") return;
+    /* O VISOR CAI NESTE MESMO OUVINTE, e isso é o ponto: a rota é a mesma, as duas
+       causas são as mesmas, e a frase tem de ser a mesma. Um tratamento próprio para
+       a imagem do visor seria uma SEGUNDA redação desta frase, e a que divergisse
+       no primeiro ajuste seria a que ninguém releu.
+       O QUE MUDA É O QUE SAI DO LUGAR: na bolha some a moldura inteira
+       (`.banx-img`), porque um link para um arquivo que não abre não é link nenhum;
+       no visor some só o `<img>`, porque trocar o `.vis-corpo` levaria junto a caixa
+       que está segurando o rodapé e o botão de fechar — e aí não sobraria por onde
+       sair a não ser o Esc. */
+    const cx = img.closest && img.closest(".banx-img");
+    const alvo = cx || (img.closest && img.closest(".vis-corpo") ? img : null);
+    if (!alvo) return;
+    const av = document.createElement("span");
+    av.className = "banx-ido";
+    /* A FRASE NÃO ACUSA O DISCO, e essa escolha é a lição que este arquivo já pagou
+       três vezes. Daqui só se sabe que a imagem não carregou, e há DUAS causas com
+       decisões opostas: o scratch foi limpo (fato sobre o disco, esperado) ou o
+       cockpit que está respondendo subiu antes desta versão e não tem a rota — Node
+       não recarrega o `server.js`. Dizer "não está mais no disco" na segunda causa
+       manda ele procurar um arquivo que está lá, exatamente como o
+       `Response.json()` sobre corpo 404 mandou procurar defeito na instalação do
+       Claude. As duas causas ficam no `title`, e nenhuma é afirmada como a certa. */
+    av.textContent = "○ não consegui abrir este anexo";
+    av.title = (img.getAttribute("alt") || "")
+      + " — ou o arquivo já foi limpo (`.upgrade-runs/` é descartável e o histórico guarda só o nome,"
+      + " o tipo e o tamanho), ou o cockpit que está rodando subiu antes desta versão e não tem a rota"
+      + " do arquivo. Node não recarrega o `server.js`: feche a janela do cockpit e abra de novo.";
+    alvo.replaceWith(av);
+  }, true);
   document.addEventListener("click", ev => {
     if (!ev.target || !ev.target.closest) return;
+    /* O SÉTIMO CLIQUE: a miniatura do anexo abre O VISOR DESTA PÁGINA, não uma guia.
+       Ele foi relatado assim, com um print: clicar no print levava para uma aba nova
+       com a imagem crua sobre fundo preto. Isso não é ampliar, é sair da conversa.
+
+       SÓ O CLIQUE ESQUERDO SIMPLES É INTERCEPTADO, e a lista de teclas não é zelo:
+       ctrl/⌘+clique, shift+clique e alt+clique são TRÊS FORMAS DE ABRIR que já
+       funcionam hoje, e o `preventDefault()` mata as três de uma vez. Tirar o `href`
+       do `<a>` — que seria mais simples de escrever — mataria essas três mais o
+       "abrir em nova guia" do menu de contexto e o arrastar do link para a barra de
+       endereços. Nenhuma delas apareceria quebrada: elas deixariam de existir, em
+       silêncio, que é o defeito mais difícil de reconhecer nesta base.
+       O botão do meio nem chega aqui (o navegador manda `auxclick`), e o teste de
+       `ev.button` é o que garante isso quando alguém sintetiza o evento.
+
+       O CHIP (`a.banx-chip`) NÃO ENTRA, de propósito: PDF, CSV e `.md` não cabem num
+       visor de imagem, e o navegador já sabe exibir os dois primeiros. Um visor que
+       mostrasse um ícone de arquivo no lugar do arquivo seria pior que a guia — ele
+       tiraria o único caminho que hoje funciona e não poria nada no lugar. */
+    const fig = ev.target.closest("a.banx-img");
+    if (fig && ev.button === 0 && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey && !ev.altKey) {
+      ev.preventDefault();
+      abrirVisor(fig.getAttribute("href"), fig.dataset.nome || "", fig.dataset.meta || "", fig);
+      return;
+    }
     /* O QUINTO CLIQUE: escrever o dossiê. Ele entrou aqui quando passou a aparecer
        em DOIS lugares (a faixa e o bloco que substitui o compositor travado), o que
        tornou o `id="dos-btn"` impossível — dois nós com o mesmo id são HTML
        inválido, e `getElementById` acharia só o primeiro. É por `data-dossie`, e o
        fluxo aberto é lido do estado, não capturado num closure de `render()`. */
+    /* O SEXTO CLIQUE: abrir o seletor de fluxo. Delegado pela MESMA razão do quinto
+       — ele existe em dois lugares (o cabeçalho da grade e o da tela do fluxo), e um
+       `id` repetido pintaria o segundo botão sem fazer nada, em silêncio.
+       O nó vai como `origem` para o foco voltar para ele ao fechar. */
+    const sel = ev.target.closest("[data-seletor]");
+    if (sel && !sel.disabled) { ev.preventDefault(); abrirSeletor(sel); return; }
     const dos = ev.target.closest("[data-dossie]");
     if (dos && !dos.disabled) {
       ev.preventDefault();
@@ -5419,6 +6411,25 @@ function ligarDelegacao() {
       const fx = (S.fluxos || []).find(x => String(x.id) === String(wf))
         || (dd && dd.wfId ? { id: String(dd.wfId), nome: dd.nome || String(dd.wfId) } : null);
       if (fx) escreverDossie(fx);
+      return;
+    }
+    /* O OITAVO CLIQUE: ver o progresso da escrita do dossiê. Delegado pela MESMA
+       razão do quinto e do sexto — ele existe em dois lugares (a faixa da tela do
+       fluxo e a tira do topo da vitrine), e um `id` repetido pintaria o segundo sem
+       fazer nada, em silêncio.
+       A ORDEM CONTRA O `[data-dossie]` É LIVRE, e vale dizer por quê em vez de
+       deixar parecer sorte: os dois NUNCA existem no mesmo nó. `botaoDossie` devolve
+       o de progresso enquanto `job.escrevendo` e o de escrever no resto do tempo, e
+       a tira da vitrine só tem `data-prog`. Ele fica depois para o bloco do dossiê
+       continuar sendo o primeiro a ler `S.sel` — é ali que a queda de `data-wf` para
+       o fluxo aberto é uma decisão, e um `S.sel` acima dela a esconderia.
+       `data-wf` quando o botão diz de qual fluxo é — a tira da vitrine sempre diz,
+       porque lá não há fluxo aberto para cair. */
+    const pg = ev.target.closest("[data-prog]");
+    if (pg && !pg.disabled) {
+      ev.preventDefault();
+      const alvoPg = pg.dataset.wf || S.sel;
+      if (alvoPg) abrirProgressoDossie(String(alvoPg), pg);
       return;
     }
     const bt = ev.target.closest("button[id]");
@@ -6042,12 +7053,36 @@ addEventListener("keydown", e => {
      então na bolha o `.scrim` já não existe mais para ser testado. Ver a nota longa
      em `tecladoGaveta`. */
   if (document.querySelector(".scrim")) return;
+  /* O VISOR ENTRA AQUI, logo abaixo do `.scrim` e acima de todo o resto, porque é
+     essa a camada dele: 50 o `.scrim`, 47 o visor, 45 o seletor, 40 o overlay da
+     verificação. Com ele aberto, Esc FECHA O VISOR e não para a rodada.
+     ELE NÃO REGISTRA OUVINTE PRÓPRIO, e isso é a decisão inteira: com um
+     `keydown` só dele, um Esc fecharia o visor E chamaria o `parar()` — duas ações
+     diferentes na mesma tecla, e uma delas mata uma rodada de modelo JÁ PAGA. É o
+     mesmo defeito que a nota do `tecladoGaveta` descreve por inteiro e a mesma
+     razão pela qual o seletor também entra por aqui. */
+  if (tecladoVisor(e)) return;
+  /* A TELINHA DO DOSSIÊ ENTRA AQUI, logo abaixo do visor: a camada desta página é
+     50 o `.scrim`, 47 o visor, 46 esta telinha, 45 o seletor, 40 o overlay — e a
+     ordem desta cadeia é a mesma, do mais à frente para o mais atrás. Com ela
+     aberta, Esc FECHA A TELINHA e não para a rodada.
+     ELA NÃO REGISTRA OUVINTE PRÓPRIO, e é a decisão inteira: com um `keydown` só
+     dela, um Esc fecharia a telinha E chamaria o `parar()` — duas ações diferentes
+     na mesma tecla, e uma delas mata uma rodada de modelo JÁ PAGA. Mesmo defeito
+     que a nota do `tecladoGaveta` descreve por inteiro, medido no navegador. */
+  if (tecladoProgresso(e)) return;
   /* O OVERLAY ENTRA AQUI, entre o `confirmar()` e tudo o mais.
      Acima dele só o `.scrim`: aquele diálogo nasce de um botão desta tela e tem de
      receber o Esc primeiro. Abaixo, o `parar()` — e a ordem importa muito, porque
      FECHAR A TELA NÃO É PARAR A RODADA. Sem este `return`, um Esc para sair da
      verificação cancelaria uma rodada de modelo já paga. */
   if (S.verif && e.key === "Escape") { e.preventDefault(); fecharVerif(); return; }
+  /* O SELETOR ENTRA AQUI, e a posição é a mesma decisão que a gaveta tomou: com ele
+     aberto, Esc FECHA O SELETOR e não para a rodada. Se ele tivesse ouvinte próprio,
+     as duas coisas aconteceriam com um Esc só — e uma delas é uma rodada de modelo
+     já paga. Acima dele ficam o `.scrim` e o overlay, que também nascem de um botão
+     desta tela e têm de receber a tecla primeiro. */
+  if (tecladoSeletor(e)) return;
   if (tecladoGaveta(e)) return;
   /* `/` abre o filtro com a gaveta aberta — o `.kbd` ao lado do campo promete
      isso, e um atalho anunciado que não existe é pior que nenhum. */
@@ -6063,9 +7098,774 @@ addEventListener("keydown", e => {
 
 /* ---------------------------------------------------------------- render --- */
 
+/* ═══════════════════════════ O VISOR DO ANEXO ═══════════════════════════════
+ *
+ * O QUE ELE É: a telinha que mostra o print DENTRO da conversa. Clicar na
+ * miniatura abria uma guia nova com a imagem crua sobre o fundo preto do
+ * navegador — foi assim que ele relatou, com um print do próprio sintoma. Uma
+ * guia nova não é ampliar, é SAIR: o que ele escreveu sai da tela junto, e o
+ * caminho de volta é um Alt+Tab para um lugar que não é o painel. O print e a
+ * frase que o acompanha decidem juntos se o pedido está certo, e separá-los é
+ * tirar metade da evidência de cada vez.
+ *
+ * DIÁLOGO DE VERDADE, com a mecânica que esta página já tem em dois lugares
+ * (`confirmar()` e `abrirSeletor`) — copiada de lá, nunca reinventada: `role`,
+ * `aria-modal`, `inert` nos outros filhos do `body`, Esc, clique no véu, botão
+ * visível e o foco de volta para quem abriu. Um terceiro jeito de fazer modal
+ * nesta página seria um terceiro jeito de errar o foco.
+ *
+ * MONTADO POR DOM, NUNCA POR `innerHTML`. O nome do arquivo vem do disco, ou
+ * seja de fora, e `textContent` fecha essa porta sem depender de ninguém lembrar
+ * de escapar — a mesma razão pela qual `avisar()` é montado assim.
+ *
+ * A COR DE TUDO AQUI DENTRO ESTÁ NO CSS E É LITERAL, medida contra o chão fixo
+ * `#101018`: os tokens do tema não valem sobre uma superfície que não muda com o
+ * tema. Ver a nota longa no bloco `.vis-scrim`. */
+function abrirVisor(url, nome, meta, origem) {
+  /* Sem `url` não há o que mostrar, e um visor vazio seria a imagem quebrada com
+     um passo a mais. Um visor já aberto não abre outro: dois véus empilhados
+     deixariam um `inert` para trás ao fechar o de cima. */
+  if (S.visor || !url) return;
+
+  const scrim = document.createElement("div");
+  scrim.className = "vis-scrim";
+  const cx = document.createElement("div");
+  cx.className = "vis";
+  cx.setAttribute("role", "dialog");
+  cx.setAttribute("aria-modal", "true");
+  /* `aria-label` COM O NOME DO ARQUIVO, e não um título fixo: com dois prints na
+     mesma conversa, ouvir "visor de anexo" nas duas vezes não distingue nada — e
+     qual dos dois abriu é exatamente a pergunta. */
+  cx.setAttribute("aria-label", "Anexo: " + (nome || "arquivo"));
+
+  const hd = document.createElement("div");
+  hd.className = "vis-hd";
+  const ix = document.createElement("span");
+  ix.className = "idx"; ix.textContent = "[ ANEXO ]";
+  /* O ✕ é BOTÃO VISÍVEL e escrito, não só um glifo: Esc e o véu fecham, mas os
+     dois são atalhos que ninguém descobre olhando — e o momento em que se procura
+     como sair é o momento em que não se vai adivinhar uma tecla. Mesma decisão do
+     "⨯ parar" do Tester. */
+  const x = document.createElement("button");
+  x.className = "x"; x.type = "button";
+  /* O GLIFO É `aria-hidden` e a palavra fica: um leitor de tela leria "✕" como
+     "multiplicação" antes de "fechar". É a mesma regra que o `avisar()` desta
+     página já segue — a cor e o desenho não são a informação, o texto é. */
+  const xg = document.createElement("span");
+  xg.setAttribute("aria-hidden", "true"); xg.textContent = "✕";
+  x.append(xg, document.createTextNode("fechar"));
+  hd.append(ix, x);
+
+  const corpo = document.createElement("div");
+  corpo.className = "vis-corpo";
+  const img = document.createElement("img");
+  /* `sens` TAMBÉM AQUI, e aqui é onde mais importa: no visor o print está em
+     tamanho grande, e o modo gravação existe justamente para quando há uma câmera
+     apontada para o monitor. `[data-rec="1"] .sens` mora no `documentElement`,
+     então alcança este nó, que nasce no `document.body` e não no `#app`. */
+  img.className = "sens";
+  img.alt = nome || "anexo";
+  img.src = url;
+  corpo.append(img);
+
+  const ft = document.createElement("div");
+  ft.className = "vis-ft";
+  /* O NOME É `sens` pela mesma razão que na bolha: `clientes-2026.csv` identifica
+     cliente. O tipo e o tamanho ficam legíveis, que é o que deixa confirmar que o
+     arquivo certo subiu sem publicar de quem ele é. */
+  const nm = document.createElement("span");
+  nm.className = "nm sens";
+  nm.textContent = nome || "arquivo";
+  const mt = document.createElement("span");
+  mt.className = "mt"; mt.textContent = meta || "";
+  /* A GUIA CONTINUA EXISTINDO, agora por ESCOLHA. Quem quer o print numa aba só
+     dele — para deixá-lo aberto ao lado do n8n — clica aqui; quem só queria ver
+     grande deixou de pagar por isso. Tirar a guia junto com o defeito teria
+     trocado um incômodo por uma perda. */
+  const lk = document.createElement("a");
+  lk.className = "lk"; lk.href = url; lk.target = "_blank"; lk.rel = "noopener";
+  lk.textContent = "abrir em nova guia ↗";
+  ft.append(nm, mt, lk);
+
+  cx.append(hd, corpo, ft);
+  scrim.append(cx);
+
+  /* `inert` NOS OUTROS FILHOS DO BODY, a mecânica do `confirmar()` e do seletor,
+     copiada e não inventada. Sem ela o Tab caminha por trás do véu — 17 controles
+     seguiam tabuláveis no `flows.html` antes de isto existir lá. O retrato
+     (`behind`) é tirado ANTES de o véu entrar no body, senão ele marcaria a si
+     mesmo como inerte e nada dentro do visor receberia foco. */
+  const behind = [...document.body.children];
+  for (const n of behind) n.setAttribute("inert", "");
+  document.body.append(scrim);
+
+  S.visor = { scrim, behind, origem: origem || null };
+  x.onclick = fecharVisor;
+  /* Só o VÉU fecha, nunca um clique nascido dentro da caixa: sem o teste de
+     `target`, arrastar para selecionar o nome do arquivo e soltar fora do texto
+     fecharia o visor no meio da seleção. Mesma guarda do seletor de fluxo. */
+  scrim.onclick = ev => { if (ev.target === scrim) fecharVisor(); };
+  x.focus();
+}
+
+function fecharVisor() {
+  const v = S.visor;
+  if (!v) return;
+  S.visor = null;
+  for (const n of v.behind) n.removeAttribute("inert");
+  v.scrim.remove();
+  /* O `<a>` QUE ABRIU COSTUMA NÃO EXISTIR MAIS. `render()` reescreve o `#app`, e a
+     conversa repinta várias vezes por segundo enquanto uma rodada corre: entre
+     abrir e fechar o visor cabem dezenas de repaints, e o nó que recebeu o clique
+     já foi descartado. Devolver o foco a um nó fora do documento derruba o foco no
+     `body` de qualquer jeito, e o Tab recomeça do topo da página — é o defeito que
+     o handoff do `flows.html` conserta reencontrando o botão por `data-key`.
+     AQUI NÃO DÁ PARA REENCONTRAR POR SELETOR, e é por isso que a queda é no
+     `body`: `a.banx-img` casaria com qualquer anexo da conversa, e devolver o foco
+     para o print errado é pior que devolvê-lo ao documento — o segundo é uma
+     posição neutra, o primeiro é uma afirmação falsa sobre onde ele estava.
+     Focar o `body` não quebra: é devolver o foco ao documento, e o Tab segue dali. */
+  const volta = (v.origem && document.contains(v.origem)) ? v.origem : document.body;
+  if (volta && volta.focus) volta.focus();
+}
+
+/* O ESC DO VISOR, e ele NÃO tem ouvinte próprio — ver a nota na cadeia de captura
+   do `keydown`. Devolve `true` quando consumiu a tecla, que é o contrato de
+   `tecladoSeletor` e `tecladoGaveta`: quem consome interrompe a cadeia, e o que
+   está atrás dela é o `parar()`, que custa uma rodada já paga. */
+function tecladoVisor(e) {
+  if (!S.visor) return false;
+  if (e.key === "Escape") { e.preventDefault(); fecharVisor(); return true; }
+  /* Qualquer outra tecla segue a cadeia: o `inert` já tirou o resto da página da
+     ordem de tabulação, e o visor tem dois focáveis só. */
+  return false;
+}
+
+/* ═══════════════ A TELINHA DE PROGRESSO DO DOSSIÊ ═══════════════════════════
+ *
+ * O PEDIDO, com estas palavras: "abre uma telinha e fica mostrando o progresso, e
+ * se eu clicar voltar pra vitrine, ele precisa ficar realizando o dossiê mesmo
+ * assim, e mostrar no card do fluxo a porcentagem".
+ *
+ * METADE DISSO JÁ ERA VERDADE, e vale escrever porque muda o que faltava fazer: a
+ * escrita SEMPRE rodou no servidor (`dossieJob` é singleton lá) e SEMPRE sobreviveu
+ * à navegação — o que morria era a PERGUNTA, porque `acompanharDossie` só era
+ * chamado de dentro da tela do fluxo. Então o que se construiu aqui foi a janela e
+ * o caminho de volta, não a persistência.
+ *
+ * DIÁLOGO DE VERDADE, com a mecânica que esta página já tem em TRÊS lugares
+ * (`confirmar()`, `abrirSeletor`, `abrirVisor`) — copiada de lá, nunca reinventada:
+ * `role`, `aria-modal`, `aria-labelledby`, `inert` nos outros filhos do `body`, Esc,
+ * clique no véu, botão de fechar visível e o foco de volta para quem abriu. Um
+ * quarto jeito de fazer modal nesta página seria um quarto jeito de errar o foco.
+ *
+ * NÃO EXISTE BOTÃO DE CANCELAR, e o rodapé diz por quê em vez de o botão faltar em
+ * silêncio: não há caminho de cancelamento no `dossie.js` — nenhuma rota, nenhum
+ * sinal, nenhum `AbortController` — e um botão que promete parar e não para é pior
+ * que a ausência dele. O que interrompe de verdade é fechar a JANELA do cockpit,
+ * porque é o processo dele que escreve; isso está escrito lá, como fato.
+ *
+ * ELA NÃO FECHA SOZINHA NO FIM. Quando `escrevendo` vira `false` ela TROCA para o
+ * desfecho — escreveu, ou não passou nas checagens com o motivo. Fechar sozinha
+ * esconderia justamente o desfecho, que é a metade que este desenho promete nunca
+ * esconder: um dossiê que ele ACREDITA fresco e está velho é pior que um que ele
+ * sabe velho.
+ *
+ * ELA NASCE EM `document.body`, fora do `#app`, porque `render()` reescreve o `#app`
+ * inteiro — dentro dele a telinha sumiria no primeiro evento do SSE. Quem a mantém
+ * em dia é `pintarProgresso()`, chamado pelo `render()` e por um tique próprio. */
+
+/* O TIQUE É DELA, e é separado do poll de propósito. O poll pergunta ao servidor a
+   cada 5s (`DOSSIE_POLL_MS`); o relógio decorrido e a barra são aritmética local
+   sobre `comecouEm`, e prender os dois ao mesmo intervalo faria o relógio andar de
+   cinco em cinco segundos — um relógio que salta lê como travado, que é o oposto do
+   que uma tela de progresso existe para dizer. */
+const PROG_TIQUE_MS = 1000;
+
+function abrirProgressoDossie(wfId, origem) {
+  /* Uma telinha já aberta não abre outra: dois véus empilhados deixariam um `inert`
+     para trás ao fechar o de cima — a mesma guarda do visor. */
+  if (S.prog || !wfId) return;
+
+  const scrim = document.createElement("div");
+  scrim.className = "prog-scrim";
+  const cx = document.createElement("div");
+  cx.className = "prog";
+  cx.setAttribute("role", "dialog");
+  cx.setAttribute("aria-modal", "true");
+  cx.setAttribute("aria-labelledby", "prog-tit");
+
+  const hd = document.createElement("div"); hd.className = "prog-hd";
+  const ix = document.createElement("span"); ix.className = "idx"; ix.textContent = "[ DOSSIÊ ]";
+  const h3 = document.createElement("h3"); h3.id = "prog-tit";
+  hd.append(ix, h3);
+
+  const corpo = document.createElement("div"); corpo.className = "prog-corpo";
+  const ft = document.createElement("div"); ft.className = "prog-ft";
+  cx.append(hd, corpo, ft);
+  scrim.append(cx);
+
+  /* O retrato dos irmãos é tirado ANTES de o véu entrar no body, senão ele marcaria
+     a si mesmo como inerte e nada dentro da telinha receberia foco. */
+  const behind = [...document.body.children];
+  for (const n of behind) n.setAttribute("inert", "");
+  document.body.append(scrim);
+
+  S.prog = { wf: String(wfId), scrim, cx, h3, corpo, ft, behind,
+    origem: origem || null, tique: null, fechar: null, nEtapas: 0 };
+  /* Só o VÉU fecha, nunca um clique nascido dentro da caixa: sem o teste de
+     `target`, arrastar para selecionar o nome do fluxo e soltar fora do texto
+     fecharia a telinha no meio da seleção. Mesma guarda do seletor e do visor. */
+  scrim.onclick = ev => { if (ev.target === scrim) fecharProgressoDossie(); };
+
+  pintarProgresso();
+  if (S.prog && S.prog.fechar) S.prog.fechar.focus();
+  S.prog.tique = setInterval(pintarProgresso, PROG_TIQUE_MS);
+  /* E PERGUNTAR DE NOVO. Abrir a telinha a partir da vitrine ou de um F5 no meio da
+     escrita pode acontecer com o poll parado; `acompanharDossie` já recusa
+     reiniciar o que está acompanhando o mesmo fluxo, então isto é barato e nunca
+     zera a janela de corrida de um poll em curso. */
+  acompanharDossie(wfId);
+}
+
+function fecharProgressoDossie() {
+  const P = S.prog;
+  if (!P) return;
+  S.prog = null;
+  if (P.tique) clearInterval(P.tique);
+  for (const n of P.behind) n.removeAttribute("inert");
+  P.scrim.remove();
+  /* O BOTÃO QUE ABRIU COSTUMA NÃO EXISTIR MAIS: `render()` reescreve o `#app` e o
+     poll repinta a cada 5s, então entre abrir e fechar cabem dezenas de repaints.
+     Procura-se primeiro o nó original, depois QUALQUER porta de progresso na tela
+     (mesma lição do `data-seletor`), e a queda é o `#app` — devolver o foco a um nó
+     fora do documento derruba tudo no `body` e o Tab recomeça do topo da página. */
+  const volta = (P.origem && document.contains(P.origem) && P.origem)
+    || document.querySelector("[data-prog]") || app;
+  if (volta) { if (!volta.tabIndex || volta.tabIndex < 0) volta.tabIndex = -1; volta.focus(); }
+}
+
+/* O ESC DELA, e ela NÃO tem ouvinte próprio — ver a nota na cadeia de captura do
+   `keydown`. Devolve `true` quando consumiu a tecla, que é o contrato de
+   `tecladoVisor`, `tecladoSeletor` e `tecladoGaveta`: quem consome interrompe a
+   cadeia, e o que está atrás dela é o `parar()`, que custa uma rodada já paga. */
+function tecladoProgresso(e) {
+  if (!S.prog) return false;
+  if (e.key === "Escape") { e.preventDefault(); fecharProgressoDossie(); return true; }
+  return false;
+}
+
+/* Escrever texto sem sujar o DOM à toa. Importa mais do que parece: o corpo desta
+   caixa é `aria-live`, e reescrever o mesmo texto a cada segundo faria um leitor de
+   tela anunciar a mesma frase 60 vezes por minuto. */
+const poeTxt = (el, txt) => { const s = String(txt == null ? "" : txt); if (el.textContent !== s) el.textContent = s; };
+
+function pintarProgresso() {
+  const P = S.prog;
+  if (!P) return;
+
+  /* A FONTE É O MAPA DA TELA DO FLUXO PRIMEIRO, o da vitrine depois. O primeiro é a
+     leitura mais fresca que existe (é ele que o poll atualiza) e é o único que traz
+     o desfecho — a fatia da vitrine carrega só a posição. Cair no segundo é o caso
+     de abrir a telinha a partir de um cartão antes de a primeira volta do poll ter
+     acontecido. */
+  const d = S.dossie.get(P.wf) || S.dossieVit.get(P.wf) || null;
+  const fl = (S.fluxos || []).find(x => String(x.id) === P.wf);
+  poeTxt(P.h3, (fl && fl.nome) || (d && d.nome) || P.wf);
+
+  const job = d && d.job;
+  const p = progressoDossie(job);
+  const escrevendo = !!p;
+
+  /* ── o corpo ── */
+  P.corpo.innerHTML = "";
+  P.corpo.setAttribute("role", "status");
+  P.corpo.setAttribute("aria-live", "polite");
+
+  if (!d) {
+    /* TRÊS ESTADOS OUTRA VEZ, e este é o "ainda não sei": a resposta do servidor não
+       chegou. Dizer "acabou" aqui seria inventar um desfecho. */
+    P.corpo.append(paraProg("prog-porque", "Conferindo o estado desta escrita…"));
+  } else if (escrevendo) {
+    if (job.etapaI != null) P.corpo.append(etapasProg(job, p));
+    /* A LINHA VIVA vem do `diz` de dentro da escrita: é o único fato que se move
+       sozinho, e é o mesmo que o `title` do selo já carrega. */
+    const at = paraProg("prog-at", job.atividade || "…");
+    at.title = String(job.atividade || "");
+    P.corpo.append(at);
+
+    const bar = document.createElement("div");
+    bar.className = "pbar prog-bar" + (p.indeterminado ? " unknown" : (p.estourou ? " over" : ""));
+    const fill = document.createElement("div");
+    fill.className = "pfill";
+    /* A barra cresce por `transform`, nunca por `width`: ela atualiza a cada
+       segundo durante minutos, e animar largura recalcula layout a cada quadro.
+       No indeterminado o `scaleX` é do CSS (listra andando) e nada é escrito aqui —
+       um número inventado ali seria uma afirmação onde não há medida. */
+    if (!p.indeterminado) fill.style.transform = "scaleX(" + p.pct.toFixed(4) + ")";
+    bar.append(fill);
+    /* O QUE UM LEITOR DE TELA OUVE. Sem isto a barra é uma div vazia; com `role` e
+       os três valores, ela é a mesma informação sem depender de enxergar. No
+       indeterminado o `valuenow` é OMITIDO de propósito: é o que a norma reserva
+       para "andando, valor desconhecido". */
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", "100");
+    if (!p.indeterminado) bar.setAttribute("aria-valuenow", String(Math.round(p.pct * 100)));
+    bar.setAttribute("aria-label", "progresso da escrita do dossiê");
+    P.corpo.append(bar);
+
+    const nums = document.createElement("div");
+    nums.className = "prog-nums";
+    nums.append(paraProg("", "há " + dur(p.decorridoMs)));
+    if (p.rodadaTxt) nums.append(paraProg("", p.rodadaTxt));
+    const dir = paraProg("dir" + (p.estourou ? " over" : ""),
+      p.indeterminado ? "sem estimativa" : Math.round(p.pct * 100) + "%");
+    nums.append(dir);
+    P.corpo.append(nums);
+    P.corpo.append(paraProg("prog-porque", fraseProgresso(p)));
+  } else if (job) {
+    P.corpo.append(desfechoProg(job));
+  } else {
+    /* `job` NULO COM ESTADO PRESENTE: o servidor guarda uma escrita por vez, e o
+       registro é substituído pela próxima — de QUALQUER fluxo. Isso não é "não
+       aconteceu" e não é "falhou": é "não tenho mais o registro", e o que sobra de
+       verdadeiro é o semáforo, que continua medindo a divergência real. */
+    const s = seloDossie(d);
+    P.corpo.append(paraProg("prog-porque",
+      "O cockpit não tem mais o registro desta escrita — ele guarda uma por vez, e outra começou "
+      + "depois desta. O estado do dossiê agora é: " + s.txt + "."));
+  }
+
+  /* ── o rodapé ── */
+  P.ft.innerHTML = "";
+  if (escrevendo) {
+    const ul = document.createElement("ul");
+    /* TRÊS FATOS, E NENHUM INVENTADO. O primeiro responde "posso fechar?"; o segundo
+       responde "e como eu paro?", que é a pergunta que a ausência de um botão de
+       cancelar levanta; o terceiro é a fronteira que esta aba repete em toda tela,
+       porque ela escreve em dois lugares muito diferentes. */
+    for (const txt of [
+      "Fechar esta janela não para a escrita: ela roda no processo do cockpit, não nesta aba.",
+      "O que interrompe de verdade é fechar a JANELA DO COCKPIT — não existe cancelamento pela tela, e um botão que prometesse parar sem parar seria pior que nenhum.",
+      "Nada disto é escrito no n8n. O dossiê é um arquivo local."
+    ]) { const li = document.createElement("li"); li.textContent = txt; ul.append(li); }
+    P.ft.append(ul);
+  } else {
+    const ul = document.createElement("ul");
+    const li = document.createElement("li");
+    li.textContent = "Nada foi escrito no n8n. O dossiê é um arquivo local.";
+    ul.append(li);
+    P.ft.append(ul);
+  }
+  /* O RÓTULO DIZ O QUE O CLIQUE FAZ, que é a regra desta casa — e aqui ele muda com
+     o estado porque a consequência muda: com a escrita correndo, fechar é sair de
+     perto de algo que continua; com ela terminada, fechar é só fechar. */
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "x";
+  const xg = document.createElement("span");
+  xg.setAttribute("aria-hidden", "true"); xg.textContent = "✕";
+  x.append(xg, document.createTextNode(escrevendo ? "fechar (a escrita continua)" : "fechar"));
+  x.onclick = fecharProgressoDossie;
+  P.ft.append(x);
+  P.fechar = x;
+}
+
+/* Um `<div>` com classe e texto. Existe para o corpo ser montado por DOM e nunca
+   por `innerHTML`: a atividade e o motivo do erro vêm do servidor, ou seja de fora,
+   e `textContent` fecha essa porta sem depender de ninguém lembrar de escapar —
+   mesma razão pela qual `avisar()` e o visor são montados assim. */
+function paraProg(cls, txt) {
+  const el = document.createElement("div");
+  if (cls) el.className = cls;
+  el.textContent = String(txt == null ? "" : txt);
+  return el;
+}
+
+/* AS QUATRO ETAPAS. `etapaTotal` vem do `dossie.js` (`ETAPAS.length`) e é ele que
+   diz quantas linhas existem — nenhum 4 cravado aqui. O RÓTULO de cada uma sai da
+   ordem do `PROG_ETAPA`, que é a mesma lista fechada; a linha CORRENTE usa o
+   `faseTxt`, que é o nome medido que chegou, e é por isso que uma etapa que este
+   mapa não conhece aparece como o nome cru entre aspas em vez de virar outra.
+   A SEQUÊNCIA ANDA PARA TRÁS e a lista aguenta isso sem parecer quebrada: uma
+   rodada reprovada volta de `conferindo` para `escrevendo`, e as linhas depois da
+   corrente simplesmente voltam a ser pendentes. Quem avança é a rodada. */
+function etapasProg(job, p) {
+  const nomes = Object.keys(PROG_ETAPA);
+  const total = Math.max(1, Math.min(12, Number(job.etapaTotal) || nomes.length));
+  const i = Number(job.etapaI);
+  const box = document.createElement("div");
+  box.className = "prog-etapas";
+  for (let n = 1; n <= total; n++) {
+    const el = document.createElement("div");
+    el.className = "prog-et" + (n < i ? " feita" : n === i ? " agora" : "");
+    const num = document.createElement("span");
+    num.className = "n";
+    num.setAttribute("aria-hidden", "true");
+    num.textContent = n < i ? "✓" : n === i ? "▸" : "·";
+    const q = document.createElement("span");
+    q.className = "q";
+    q.textContent = (n === i && p.faseTxt) ? p.faseTxt : (PROG_ETAPA[nomes[n - 1]] || "etapa " + n);
+    el.append(num, q);
+    box.append(el);
+  }
+  return box;
+}
+
+/* O DESFECHO. Ele é a metade que este desenho promete nunca esconder, e por isso a
+   telinha não fecha sozinha quando `escrevendo` vira `false`.
+   O QUE ESTÁ AQUI VEM DO `job` E NADA É DERIVADO: `resultado` quando escreveu,
+   `erro` quando reprovou. As RECUSAS do portão NÃO viajam nesta rota — o
+   `dossieResumo()` do servidor não as inclui —, então esta tela não promete
+   mostrá-las: ela mostra o motivo, que é o que existe. Prometer uma lista que nunca
+   chega seria a mesma pasta inexistente que o `REGRAS.md` já prometeu uma vez. */
+function desfechoProg(job) {
+  const box = document.createElement("div");
+  const r = job.resultado;
+  if (r) {
+    box.className = "prog-res ok";
+    const b = document.createElement("b"); b.textContent = "✓ dossiê escrito";
+    const partes = [];
+    if (r.nos != null) partes.push(r.nos + " parágrafo(s) refeito(s)");
+    if (r.bytes != null) partes.push(kb(r.bytes) + " de prosa");
+    if (r.rodadas != null) partes.push(r.rodadas + " rodada(s)");
+    if (r.ms != null) partes.push(dur(r.ms));
+    /* O PREÇO SÓ SAI SE FOI MEDIDO. Uma rodada morta reporta `usd: 0`, e escrever
+       "US$0,00" afirmaria que saiu de graça uma escrita que pode ter sido a mais
+       cara da série — é a mesma lição do `usdDesconhecido`. */
+    if (r.usd) partes.push(usdTxt(r.usd));
+    box.append(b, document.createTextNode(partes.join(" · ")));
+    return box;
+  }
+  box.className = "prog-res mau";
+  const b = document.createElement("b"); b.textContent = "⊘ a escrita não terminou";
+  box.append(b, document.createTextNode(job.erro
+    ? String(job.erro)
+    : "a escrita parou e o servidor não registrou o motivo."));
+  const nota = document.createElement("div");
+  /* UMA TENTATIVA REPROVADA GASTOU COTA E NÃO PRODUZIU NADA, e é isso que separa
+     isto de "sem dossiê": o `.md` anterior continua onde estava, com a idade que
+     tinha. Voltar para "sem dossiê" calado seria apagar uma tentativa paga. */
+  nota.textContent = "O dossiê que já existia não foi tocado — a escrita só publica no fim. "
+    + "A cota gasta nesta tentativa não volta.";
+  box.append(nota);
+  return box;
+}
+
 /* Troca de tela mexendo na URL, não só no estado: assim o botão Voltar do
    browser funciona e a tela de um fluxo tem endereço para colar. `replaceState`
    não serviria — voltar da tela do fluxo para a vitrine é navegação de verdade. */
+/* ═════════════════════════ O SELETOR DE FLUXO ═══════════════════════════════
+ *
+ * O QUE ELE É: a telinha de escolher em qual fluxo mexer. Escolher ABRE o fluxo —
+ * não filtra a grade. A diferença com o `flows.html` é essa e ela é o desenho
+ * inteiro: lá a escolha recorta uma lista de execuções que continua na tela, aqui
+ * ela é navegação, porque "escolher qual fluxo eu quero mexer" É abrir. Filtrar a
+ * grade para um cartão só e exigir um segundo clique nele seria um clique a mais
+ * para chegar ao mesmo lugar.
+ *
+ * MODAL E NÃO POPOVER, pelo mesmo motivo de lá: um popover cairia por cima da
+ * grade, que é justamente o que se está lendo para escolher. E ele nasce em
+ * `document.body`, fora do `#app`, porque `render()` reescreve o `#app` inteiro —
+ * dentro dele o seletor sumiria no primeiro evento que repintasse a tela.
+ *
+ * A LISTA É UM RETRATO DO MOMENTO EM QUE ABRIU, e isso é herdado de lá com a mesma
+ * razão: repintar a lista sob o cursor moveria o item que está a um Enter de ser
+ * escolhido. Os SELOS, sim, atualizam no lugar (ver `pintarSelosSeletor`): mudam
+ * texto e cor de uma célula, nunca a ordem nem quantas linhas existem.
+ *
+ * O TECLADO NÃO TEM OUVINTE PRÓPRIO. Ele entra na cadeia de captura da página
+ * (`tecladoSeletor`), acima do `parar()` e abaixo do `.scrim`. Com um ouvinte só
+ * para ele, um Esc fecharia o seletor E pararia a rodada em curso — duas ações
+ * diferentes na mesma tecla, que é o defeito que a nota do `tecladoGaveta` já
+ * descreve por inteiro. */
+
+function abrirSeletor(origem) {
+  if (S.seletor) return;
+  const grupos = gruposDoSeletor(S.fluxos || []);
+  if (!grupos.length) return;
+
+  const scrim = document.createElement("div");
+  scrim.className = "fmod-scrim";
+  const cx = document.createElement("div");
+  cx.className = "fmod";
+  cx.setAttribute("role", "dialog");
+  cx.setAttribute("aria-modal", "true");
+  cx.setAttribute("aria-labelledby", "sel-tit");
+
+  const hd = document.createElement("div");
+  hd.className = "fmod-hd";
+  const ix = document.createElement("span"); ix.className = "idx"; ix.textContent = "[ FLUXO ]";
+  const h3 = document.createElement("h3"); h3.id = "sel-tit"; h3.textContent = "Em qual fluxo você quer mexer";
+  const x = document.createElement("button");
+  x.className = "x"; x.type = "button"; x.textContent = "✕"; x.setAttribute("aria-label", "Fechar");
+  hd.append(ix, h3, x);
+
+  const cxBusca = document.createElement("div");
+  cxBusca.className = "fmod-busca";
+  const bs = document.createElement("div"); bs.className = "fbusca";
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.placeholder = "nome do fluxo ou do projeto…";
+  inp.setAttribute("aria-label", "Buscar fluxo");
+  const kb = document.createElement("span"); kb.className = "kbd"; kb.textContent = "ESC";
+  bs.append(lupaSvg(), inp, kb);
+  cxBusca.append(bs);
+
+  const lista = document.createElement("div");
+  lista.className = "fmod-lista";
+  lista.setAttribute("role", "listbox");
+  const ft = document.createElement("div");
+  ft.className = "fmod-ft";
+
+  cx.append(hd, cxBusca, lista, ft);
+  scrim.append(cx);
+
+  const behind = [...document.body.children];
+  for (const n of behind) n.setAttribute("inert", "");
+  document.body.append(scrim);
+
+  S.seletor = { scrim, cx, inp, lista, ft, grupos, behind, origem: origem || null, cur: 0, itens: [] };
+  x.onclick = fecharSeletor;
+  /* Só o VÉU fecha, nunca um clique que nasceu dentro da caixa: sem o teste de
+     `target`, arrastar para selecionar o nome de um fluxo e soltar fora do texto
+     fecharia a telinha no meio da seleção. */
+  scrim.onclick = ev => { if (ev.target === scrim) fecharSeletor(); };
+  /* Digitar volta o cursor para o topo. Sem isso, filtrar com o cursor na quinta
+     linha e apertar Enter abriria um fluxo que não é o primeiro da lista que ele
+     está lendo — e a lista mudou justamente porque ele digitou. */
+  inp.oninput = () => { if (S.seletor) { S.seletor.cur = 0; pintarSeletor(); } };
+  pintarSeletor();
+  inp.focus();
+
+  /* OS SELOS DOS 64 DE FORA NÃO ESTÃO NA VARREDURA DE BOOT, que cobre só a vitrine.
+     Sem este pedido, aquelas linhas ficariam em "conferindo o dossiê…" para sempre —
+     e essa frase seria falsa, porque ninguém estaria conferindo. É a mesma regra de
+     três estados que este arquivo já escreveu sete vezes, e aqui a saída é fazer a
+     frase ficar VERDADEIRA em vez de inventar um quarto rótulo.
+     CUSTA QUASE NADA, e isto é medido: um fluxo sem `.md` é respondido cinza sem
+     nenhuma leitura do n8n (`estado(null, wf)`), e hoje 2 dos 75 têm `.md`. A rota
+     ainda tem cache de 15 min do lado do servidor.
+     `meta: false` porque `S.dossieVitMeta` alimenta a FRASE DA VITRINE, que fala dos
+     11 cartões: deixar uma varredura de 75 escrever ali faria aquela frase relatar
+     leituras de fluxos que não estão na grade. */
+  const semSelo = grupos.flatMap(g => g.fluxos).map(f => String(f.id)).filter(id => !S.dossieVit.has(id));
+  if (semSelo.length) varrerDossies(semSelo, { meta: false });
+}
+
+function fecharSeletor() {
+  const s = S.seletor;
+  if (!s) return;
+  S.seletor = null;
+  for (const n of s.behind) n.removeAttribute("inert");
+  s.scrim.remove();
+  /* O BOTÃO QUE ABRIU COSTUMA NÃO EXISTIR MAIS: `render()` reescreve o `#app`, e
+     entre abrir e fechar cabe a varredura dos selos, que termina chamando `render()`.
+     Então o foco volta pelo SELETOR (`[data-seletor]`) e não pela referência ao nó —
+     mesma lição do handoff do `flows.html`, onde o foco caía no body e o Tab
+     recomeçava do topo da página. */
+  const volta = (s.origem && document.contains(s.origem) && s.origem)
+    || document.querySelector("[data-seletor]") || app;
+  if (volta) { if (!volta.tabIndex || volta.tabIndex < 0) volta.tabIndex = -1; volta.focus(); }
+}
+
+/* O filtro casa por NOME e por PROJETO, e o projeto sai de `partesNome` — o mesmo
+   corte do cartão. Buscar "roberto" tem de achar `[ROBERTO] Cron — …` mesmo que a
+   palavra não esteja no nome visível do cartão. */
+function passaSeletor(f, q) {
+  if (!q) return true;
+  const p = partesNome(f.nome);
+  return (p.nome + " " + (p.proj || "") + " " + f.nome).toLowerCase().includes(q);
+}
+
+function pintarSeletor() {
+  const s = S.seletor;
+  if (!s) return;
+  const q = s.inp.value.trim().toLowerCase();
+  s.lista.innerHTML = "";
+  s.itens = [];
+  let vis = 0, total = 0;
+
+  /* "Voltar para a vitrine" só existe com um fluxo aberto. Na própria vitrine ela
+     seria uma linha que não faz nada — e a lição do `.fitem.todos` do `flows.html`
+     (tirar o filtro tem de custar o mesmo que pô-lo) aqui vira outra coisa: o que
+     custa é VOLTAR, e o botão "← vitrine" do cabeçalho já faz isso. Esta linha é o
+     mesmo caminho sem sair do teclado. */
+  if (S.sel) {
+    const b = document.createElement("button");
+    b.className = "fitem todos";
+    b.type = "button";
+    const d = document.createElement("span"); d.className = "dotst"; d.style.background = "var(--cold)";
+    const nm = document.createElement("span"); nm.className = "nm";
+    const n1 = document.createElement("span"); n1.className = "n1"; n1.textContent = "Voltar para a vitrine";
+    const n2 = document.createElement("span"); n2.className = "n2"; n2.textContent = "fechar este fluxo";
+    nm.append(n1, n2);
+    const num2 = document.createElement("span"); num2.className = "num";
+    const ex = document.createElement("span"); ex.className = "ex";
+    ex.textContent = String((s.grupos.find(g => g.chave === "vitrine") || { fluxos: [] }).fluxos.length);
+    const nos = document.createElement("span"); nos.className = "nos"; nos.textContent = "cartões";
+    num2.append(ex, nos);
+    b.append(d, nm, num2);
+    b.onclick = () => escolherNoSeletor(null);
+    s.lista.append(b);
+    s.itens.push(b);
+  }
+
+  for (const g of s.grupos) {
+    const doGrupo = g.fluxos.filter(f => passaSeletor(f, q));
+    total += g.fluxos.length;
+    if (!doGrupo.length) continue;
+    vis += doGrupo.length;
+
+    const cab = document.createElement("div");
+    cab.className = "fmod-grp";
+    const tt = document.createElement("b"); tt.textContent = SELETOR_GRUPO[g.chave].titulo;
+    const nt = document.createElement("span"); nt.className = "nt";
+    nt.textContent = SELETOR_GRUPO[g.chave].nota(g.fluxos.length);
+    cab.append(tt, nt);
+    s.lista.append(cab);
+
+    for (const f of doGrupo) s.itens.push(linhaSeletor(f, s));
+  }
+
+  if (!vis) {
+    const vazio = document.createElement("div");
+    vazio.className = "fmod-vazio";
+    vazio.textContent = "Nenhum fluxo desta instância tem esse nome.";
+    s.lista.append(vazio);
+  }
+
+  s.ft.innerHTML = "";
+  const k1 = document.createElement("span"); k1.className = "kbd"; k1.textContent = "↑↓";
+  const k2 = document.createElement("span"); k2.className = "kbd"; k2.textContent = "ENTER";
+  const k3 = document.createElement("span"); k3.className = "kbd"; k3.textContent = "ESC";
+  const tot = document.createElement("span"); tot.className = "tot";
+  tot.textContent = vis + " de " + total + " fluxos";
+  s.ft.append(k1, document.createTextNode("andar"), k2, document.createTextNode("abrir"),
+    k3, document.createTextNode("fechar"), tot);
+
+  s.cur = Math.max(0, Math.min(s.cur, s.itens.length - 1));
+  marcarSeletor();
+}
+
+function linhaSeletor(f, s) {
+  const b = document.createElement("button");
+  b.className = "fitem" + (String(f.id) === String(S.sel) ? " aqui" : "");
+  b.type = "button";
+  b.dataset.id = String(f.id);
+
+  /* O PONTO É A SAÚDE DE EXECUÇÃO, `pontoStatus`, o mesmo vocabulário do cartão.
+     Se aqui ele significasse "estado do dossiê", dois pontos vermelhos na mesma
+     tela quereriam dizer coisas diferentes — e o dossiê já tem a linha do selo. */
+  const d = document.createElement("span");
+  d.className = "dotst";
+  d.style.background = "var(--" + pontoStatus(f) + ")";
+
+  const nm = document.createElement("span"); nm.className = "nm";
+  const p = partesNome(f.nome);
+  const n1 = document.createElement("span"); n1.className = "n1"; n1.textContent = p.nome;
+  nm.append(n1);
+  /* Sem prefixo, o nome já é a identidade inteira: escrever "SEM PREFIXO" em quatro
+     linhas seguidas é ruído no lugar onde se procura um nome. Mesma decisão de lá. */
+  if (p.proj) {
+    const n2 = document.createElement("span"); n2.className = "n2"; n2.textContent = p.proj;
+    nm.append(n2);
+  }
+  const selo = document.createElement("span");
+  selo.className = "sel";
+  selo.dataset.selo = String(f.id);
+  nm.append(selo);
+
+  const num2 = document.createElement("span"); num2.className = "num";
+  const ex = document.createElement("span"); ex.className = "ex"; ex.textContent = num(f.exec24);
+  const nos = document.createElement("span"); nos.className = "nos"; nos.textContent = num(f.nos) + " nós";
+  num2.append(ex, nos);
+
+  b.append(d, nm, num2);
+  b.onclick = () => escolherNoSeletor(String(f.id));
+  s.lista.append(b);
+  pintarUmSelo(selo, f.id);
+  return b;
+}
+
+/* O SELO DE UMA LINHA. `seloDossie` é reusado INTEIRO — o mesmo glifo, o mesmo
+   texto e a mesma decisão de trava do cartão. Uma segunda redação de "sem dossiê ·
+   conversa travada" aqui divergiria da do cartão no primeiro ajuste, e as duas
+   telas passariam a discordar sobre qual fluxo aceita conversa. */
+function pintarUmSelo(cel, id) {
+  const s = seloDossie(S.dossieVit.get(String(id)));
+  cel.className = "sel " + s.cls;
+  cel.title = s.tit;
+  cel.innerHTML = "";
+  const g = document.createElement("span");
+  g.className = "g"; g.setAttribute("aria-hidden", "true"); g.textContent = s.glifo;
+  cel.append(g, document.createTextNode(s.txt));
+}
+
+/* Atualiza SÓ as células de selo, no lugar. Chamado no fim de `render()`, que é
+   por onde a varredura anuncia que chegou. Não reordena e não muda a quantidade de
+   linhas: o item que está a um Enter de ser escolhido não pode andar. */
+function pintarSelosSeletor() {
+  if (!S.seletor) return;
+  for (const cel of S.seletor.lista.querySelectorAll("[data-selo]")) {
+    pintarUmSelo(cel, cel.dataset.selo);
+  }
+}
+
+function marcarSeletor() {
+  const s = S.seletor;
+  if (!s) return;
+  s.itens.forEach((v, i) => v.classList.toggle("cur", i === s.cur));
+  if (s.itens[s.cur]) s.itens[s.cur].scrollIntoView({ block: "nearest" });
+}
+
+/* FECHA ANTES DE NAVEGAR. `irPara` chama `render()`, que reescreve o `#app`; com o
+   véu ainda de pé, o `inert` que ele pôs nos irmãos do body continuaria ali por um
+   instante e o foco voltaria para um nó já descartado. */
+function escolherNoSeletor(id) {
+  const mesmo = id && String(id) === String(S.sel);
+  fecharSeletor();
+  if (mesmo) return;   // escolher o fluxo aberto é só fechar: nada a recarregar
+  irPara(id);
+}
+
+function tecladoSeletor(e) {
+  const s = S.seletor;
+  if (!s) return false;
+  if (e.key === "Escape") { e.preventDefault(); fecharSeletor(); return true; }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!s.itens.length) return true;
+    e.preventDefault();
+    s.cur = Math.max(0, Math.min(s.cur + (e.key === "ArrowDown" ? 1 : -1), s.itens.length - 1));
+    marcarSeletor();
+    return true;
+  }
+  if (e.key === "Enter" && s.itens[s.cur]) { e.preventDefault(); s.itens[s.cur].click(); return true; }
+  /* Qualquer outra tecla é digitação no filtro, e o cursor volta para o topo: com
+     ele preso na quinta linha, um Enter depois de filtrar abriria um fluxo que não
+     é o primeiro da lista que ele está lendo. */
+  return false;
+}
+
+/* A lupa DESENHADA. `⌕` (U+2315) sai como um círculo vazio nesta fonte — medido na
+   captura do Tester, mesma armadilha de `📎` e `🗀`. */
+function lupaSvg() {
+  const ns = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(ns, "svg");
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("width", "14"); s.setAttribute("height", "14");
+  s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+  s.setAttribute("stroke-width", "1.9"); s.setAttribute("stroke-linecap", "round");
+  s.setAttribute("aria-hidden", "true");
+  s.style.flex = "0 0 auto"; s.style.color = "var(--txt-faint)";
+  const c = document.createElementNS(ns, "circle");
+  c.setAttribute("cx", "10.5"); c.setAttribute("cy", "10.5"); c.setAttribute("r", "6.5");
+  const l = document.createElementNS(ns, "path");
+  l.setAttribute("d", "M15.5 15.5 L20 20");
+  s.append(c, l);
+  return s;
+}
+
 function irPara(id) {
   S.sel = id || null;
   // Trocar de fluxo fecha a gaveta: ela lista as conversas DAQUELE fluxo, e deixá-la
@@ -6122,10 +7922,25 @@ function render() {
   /* O overlay é re-anexado como a gaveta, e pelo mesmo motivo: ele vive fora do
      `#app`, que acabou de ser reescrito inteiro. */
   pintarVerif();
+  /* O SELETOR não é re-anexado como a gaveta e o overlay: ele vive em
+     `document.body`, então `render()` não o alcança. O que ele precisa daqui é o
+     aviso de que os selos chegaram — a varredura termina chamando `render()`, e
+     esta linha atualiza só as células de selo, sem reordenar nada. */
+  pintarSelosSeletor();
+  /* A TELINHA DO DOSSIÊ, pelo mesmo motivo do seletor: ela vive em `document.body`,
+     então `render()` não a alcança. O que ela precisa daqui é o aviso de que a
+     leitura nova chegou — o poll termina chamando `render()`, e esta linha atualiza
+     o conteúdo dela sem recriar o nó (recriar mataria a transição da barra e o
+     foco de quem estiver nela). */
+  pintarProgresso();
   restaurarInputs(comp);
-  // A câmera depende do desenho já estar no DOM: ela lê o mundo do `data-vw/vh` e
-  // as posições dos nós acesos das próprias caixas que acabaram de ser pintadas.
-  if (f) { montarCamera(); rolarConversa(comp); }
+  /* O palco é re-anexado como a gaveta e o overlay, e pelo mesmo motivo — ver
+     `pintarPalco()`. Ele devolve se RECONSTRUIU o nó, e só nesse caso a câmera é
+     remontada: no nó preservado os listeners e o `ResizeObserver` continuam
+     vivos, e remontar os duplicaria.
+     A câmera depende do desenho já estar no DOM: ela lê o mundo do `data-vw/vh` e
+     as posições dos nós acesos das próprias caixas que acabaram de ser pintadas. */
+  if (f) { if (pintarPalco(f)) montarCamera(); rolarConversa(comp); }
 
   app.querySelectorAll(".vcard").forEach(b => {
     b.addEventListener("click", () => { irPara(b.getAttribute("data-id")); });
@@ -6150,6 +7965,17 @@ function render() {
      frase que ele estava montando. */
   const caixaIO = app.querySelector(".compositor");
   if (caixaIO) IO().ligarIO("up", caixaIO, cp, S.convId, () => render());
+  /* O × DOS CHIPS DA TIRA, ligado à parte — e isso não é esquecimento de passar
+     outra caixa para o `ligarIO`. Ele liga `[data-tirar]` DENTRO da caixa que
+     recebe, e essa caixa é também o alvo do arrastar (`.sobre`): passar um invólucro
+     que englobasse a tira moveria a borda de "solte aqui" para um lugar onde soltar
+     não é o gesto. Então a caixa continua sendo o `.compositor` e a tira ganha o
+     mesmo `tirarAnexo` do módulo — a função exportada, nunca uma segunda cópia dela.
+     E ela é ligada MESMO COM O COMPOSITOR TRAVADO: a tira sobrevive à trava, e um ×
+     que pinta e não faz nada é o defeito silencioso que esta página já pagou. */
+  for (const tb of app.querySelectorAll(".anxgav [data-tirar]")) {
+    tb.addEventListener("click", () => IO().tirarAnexo(tb.dataset.tirar, S.convId, () => render()));
+  }
   const bPara = document.getElementById("parar");
   if (bPara) bPara.addEventListener("click", parar);
   /* Os quatro botões do §4/§6 NÃO são registrados aqui — são delegados, uma vez
@@ -6213,7 +8039,14 @@ async function verDossie(id, forcar) {
  *
  * A FALHA DE UM LOTE marca só os ids DAQUELE lote, e marca com `erro`: cinza
  * significa "nunca foi escrito" e levaria à decisão oposta. */
-async function varrerDossies(ids) {
+async function varrerDossies(ids, opcoes) {
+  /* `meta: false` é o que o SELETOR pede, e a razão é uma frase que fica falsa de
+     graça: `S.dossieVitMeta` alimenta `resumoDossieVitrine(vivos)`, que fala dos
+     cartões da grade ("nenhum dossiê apodreceu", "N não deu para conferir"). Uma
+     varredura dos 75 escrevendo ali faria aquela frase contar leituras de fluxos
+     que não estão na tela — números certos sobre a pergunta errada. O DEFAULT é
+     `true`, então os dois chamadores antigos não mudam de comportamento. */
+  const comMeta = !opcoes || opcoes.meta !== false;
   const alvos = [...new Set((ids || []).map(String))];
   if (!alvos.length) return;
   const lotes = [];
@@ -6229,7 +8062,17 @@ async function varrerDossies(ids) {
       falhas += lote.length;
     }
   }
-  S.dossieVitMeta = { lidos, falhas, geradoEm: quando };
+  if (comMeta) S.dossieVitMeta = { lidos, falhas, geradoEm: quando };
+  /* UMA ESCRITA JÁ EM CURSO ENCONTRADA PELA VARREDURA COMEÇA A SER ACOMPANHADA
+     SOZINHA. É o caso do F5 no meio de uma escrita, e o do cockpit aberto noutra
+     aba: sem esta linha, a tira do topo e o selo do cartão nasceriam com a posição
+     do momento da varredura e ficariam PARADOS nela por 15 minutos — uma
+     porcentagem congelada é pior que nenhuma, porque parece que a escrita travou.
+     A escrita é uma por processo, então `find` basta e o poll é de um fluxo só;
+     `acompanharDossie` recusa reiniciar o que já está acompanhando o mesmo. */
+  for (const [id, d] of S.dossieVit) {
+    if (d && d.job && d.job.escrevendo) { acompanharDossie(id); break; }
+  }
   render();
 }
 
@@ -6264,17 +8107,36 @@ const DOSSIE_POLL_TETO = 300;      // ~25 min a 5s: o dobro do pior caso medido,
 
 function acompanharDossie(id) {
   const k = String(id);
+  /* JÁ ACOMPANHANDO ESTE MESMO FLUXO É NÃO FAZER NADA, e essa guarda é o que
+     permite chamar isto de vários lugares — o clique que começa a escrita, a
+     telinha ao abrir, a varredura da vitrine que descobre uma escrita já em curso.
+     Sem ela, cada chamada reiniciaria o intervalo E zeraria a janela de corrida:
+     um poll que nunca amadurece, batendo no servidor para sempre. */
+  if (S.dossiePoll && S.dossiePollDe === k) return;
   if (S.dossiePoll) { clearInterval(S.dossiePoll); S.dossiePoll = null; }
+  S.dossiePollDe = k;
   let volta = 0;
+  /* O TIMER É DA PÁGINA, NÃO DA TELA DO FLUXO, e isso é metade do pedido dele:
+     "se eu clicar voltar pra vitrine, ele precisa ficar realizando o dossiê mesmo
+     assim". A ESCRITA sempre sobreviveu à navegação (o `dossieJob` é singleton do
+     servidor); o que morria era a PERGUNTA, porque este laço só era iniciado de
+     dentro da tela do fluxo e nada o mantinha vivo depois. Ele vive em `S`, nenhum
+     caminho de navegação o limpa (conferido em `irPara` e em `render`), e o que o
+     encerra continua sendo o desfecho ou o teto. */
   S.dossiePoll = setInterval(async () => {
     volta++;
+    /* UM FLUXO, e é por isso que isto é barato o suficiente para rodar na vitrine:
+       é o mesmo GET da tela do fluxo, uma vez a cada 5s, não a varredura dos 75.
+       `verDossie` escreve nos DOIS mapas (`S.dossie` e `S.dossieVit`), senão o selo
+       do cartão envelheceria enquanto a tira do topo está fresca — duas caches, duas
+       idades, as duas telas discordando sobre o mesmo fato. */
     await verDossie(k, true);
     const at = S.dossie.get(k);
     const escrevendo = !!(at && at.job && at.job.escrevendo);
     const autoCorrendo = !!(at && at.auto && at.auto.ultimo && at.auto.ultimo.estado === "correndo");
     if (escrevendo || autoCorrendo) { if (volta < DOSSIE_POLL_TETO) return; }
     else if (volta <= DOSSIE_POLL_CORRIDA) return;
-    clearInterval(S.dossiePoll); S.dossiePoll = null;
+    clearInterval(S.dossiePoll); S.dossiePoll = null; S.dossiePollDe = null;
   }, DOSSIE_POLL_MS);
 }
 
@@ -6351,6 +8213,12 @@ async function escreverDossie(f) {
     await callApi("/api/upgrade/dossie/" + encodeURIComponent(f.id) + (parcial ? "?incremental=1" : ""), { method: "POST" });
     await verDossie(f.id, true);
     acompanharDossie(f.id);
+    /* A TELINHA ABRE SOZINHA NO CLIQUE — é literalmente o que ele pediu ("abre uma
+       telinha e fica mostrando o progresso"). DEPOIS do POST dar certo e nunca
+       antes: uma janela de progresso sobre uma escrita que o servidor recusou (409
+       de "já estou escrevendo o de X") mostraria progresso de coisa nenhuma, e o
+       `catch` logo abaixo é quem tem a frase certa para esse caso. */
+    abrirProgressoDossie(f.id);
   } catch (e) {
     /* `S.erro` + `.aviso-inline` é o caminho que esta página já tem. Não trago o
        `avisar()` do `tester.html` junto: seria uma quinta cópia de outro bloco,
@@ -6477,10 +8345,10 @@ recPaint();
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -6522,7 +8390,9 @@ recPaint();
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+       geometria por quadro, e cada uma força layout do documento inteiro. */
+    if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
   }
 
@@ -6577,14 +8447,27 @@ recPaint();
   try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
-  if (origem && !reduzir()) {
-    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
-    pintar(0);
-    lente.classList.add("varre");
-    acordar();
-  } else {
-    assentar();
+  /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
+     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
+     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
+     script corre em relação ao layout já estar limpo.
+     Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
+     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     posicionada, então o adiamento não vira flash no lugar errado. */
+  function partir() {
+    if (origem && !reduzir()) {
+      x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+      pintar(0);
+      lente.classList.add("varre");
+      acordar();
+    } else {
+      assentar();
+    }
+    lente.classList.add("pronta");
   }
+  requestAnimationFrame(function () { requestAnimationFrame(partir); });
   try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
 
   nav.addEventListener("pointerover", acordar);
@@ -6595,7 +8478,7 @@ recPaint();
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "123".indexOf(ev.key);
+    var i = "12345".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;

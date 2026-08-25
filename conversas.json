@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-20T18:48:20.033Z",
+  "savedAt": "2026-08-25T19:57:31.165Z",
   "conversas": [
     {
       "wfId": "azwM3PgGtSbGTCsn",
@@ -114,7 +114,7 @@
     {
       "wfId": "azwM3PgGtSbGTCsn",
       "convId": "umt1gehnn3q3v",
-      "em": "2026-08-20T11:50:31.931Z",
+      "em": "2026-08-21T12:10:15.085Z",
       "rodadas": 2,
       "pedidos": 0,
       "usd": 1.0128,
@@ -124,10 +124,50 @@
     {
       "wfId": "azwM3PgGtSbGTCsn",
       "convId": "umt1vili6rv8s",
-      "em": "2026-08-20T18:48:19.932Z",
-      "rodadas": 0,
+      "em": "2026-08-20T18:56:37.513Z",
+      "rodadas": 2,
+      "pedidos": 0,
+      "usd": 1.0387,
+      "usdDesconhecido": true,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "azwM3PgGtSbGTCsn",
+      "convId": "umt2vowymfkvt",
+      "em": "2026-08-21T11:51:25.307Z",
+      "rodadas": 6,
+      "pedidos": 3,
+      "usd": 0.9368,
+      "usdDesconhecido": false,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "convId": "umt7kj5cc69ib",
+      "em": "2026-08-24T18:57:47.015Z",
+      "rodadas": 1,
       "pedidos": 0,
       "usd": 0,
+      "usdDesconhecido": true,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "convId": "umt7lq0bqiqlo",
+      "em": "2026-08-24T19:00:50.609Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0,
+      "usdDesconhecido": true,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "convId": "umt8kyrkppgxn",
+      "em": "2026-08-25T11:27:54.509Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0.289,
       "usdDesconhecido": false,
       "teveAlvo": false
     }

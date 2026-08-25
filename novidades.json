@@ -1,6 +1,19 @@
 {
   "v": 1,
   "vistos": [
+    "https://github.com/n8n-io/n8n/pull/35347",
+    "https://github.com/n8n-io/n8n/pull/36316",
+    "https://github.com/n8n-io/n8n/pull/36111",
+    "https://github.com/n8n-io/n8n/pull/36069",
+    "https://github.com/n8n-io/n8n/pull/35945",
+    "https://github.com/n8n-io/n8n/pull/35935",
+    "https://github.com/n8n-io/n8n/pull/35771",
+    "https://github.com/n8n-io/n8n/pull/35626",
+    "https://github.com/n8n-io/n8n/pull/33486",
+    "https://github.com/n8n-io/n8n/pull/24822",
+    "https://github.com/n8n-io/n8n/pull/35640",
+    "https://github.com/n8n-io/n8n/pull/35638",
+    "https://github.com/n8n-io/n8n/pull/35431",
     "https://github.com/n8n-io/n8n/pull/35837",
     "https://github.com/n8n-io/n8n/pull/35727",
     "https://github.com/n8n-io/n8n/pull/35709",
@@ -50,10 +63,30 @@
     "https://github.com/n8n-io/n8n/pull/35018",
     "https://github.com/n8n-io/n8n/pull/34991"
   ],
-  "ultimaChecagem": "2026-08-19T23:00:26.697Z",
+  "ultimaChecagem": "2026-08-24T23:29:52.674Z",
   "ultimoErro": null,
-  "fila": 4,
+  "fila": 0,
   "historico": [
+    {
+      "em": "2026-08-21T23:00:50.411Z",
+      "ok": true,
+      "lidos": 1,
+      "escreveu": 0,
+      "versao": null,
+      "usd": 0.20117179999999998,
+      "usdDesconhecido": false,
+      "precisaEsquema": false
+    },
+    {
+      "em": "2026-08-20T23:00:49.416Z",
+      "ok": true,
+      "lidos": 12,
+      "escreveu": 7,
+      "versao": "v3.6",
+      "usd": 0.4107523,
+      "usdDesconhecido": false,
+      "precisaEsquema": true
+    },
     {
       "em": "2026-08-19T23:00:26.697Z",
       "ok": true,

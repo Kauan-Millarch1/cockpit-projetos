@@ -131,7 +131,84 @@ button{font:inherit;color:inherit}
 .novband .nv-l a{color:inherit}
 .novband .nv-esq{margin-top:7px;font-size:11.5px;color:var(--warn-txt)}
 .novband .nv-cod{font-family:var(--font-num);font-size:11px}
-/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
+/* ------------------------------------------------------- a logo da empresa
+   Vem ANTES da chama, com um `.sep` entre as duas, para a leitura ser
+   "empresa | produto": a Ecommerce Puro é dona do cockpit, o cockpit não é dono
+   dela. Leva `alt` de verdade, nunca `aria-hidden` — é a identidade da empresa,
+   não ornamento, e quem lê por leitor de tela tem que saber de quem é o painel.
+
+   ALTURA 32px, e o número foi MEDIDO, não escolhido. O arquivo é um lockup de
+   DUAS linhas — "ecommerce" cheio sobre "PURO" vazado, que sangra nos quatro
+   lados — então a linha "ecommerce" ocupa só ~25% da altura total (medido: a
+   faixa densa vai de y=156 a y=266 de 445). A 18px, que era o palpite inicial,
+   ela renderiza com 4,5px de altura: um borrão cinza, que é PIOR que logo
+   nenhuma, porque lê como bug de renderização e não como marca. Renderizado a
+   1:1 em 18, 24, 26, 28, 30, 32 e 34, 32px é onde as letras voltam a ser letras
+   — e cabe nos 58px de topbar com 13px de folga de cada lado.
+
+   O ARQUIVO É UM SÓ, E ISSO É MEDIÇÃO: 118.370 pixels visíveis, TODOS exatamente
+   255,255,255, zero pixel cromático. Por isso `invert(1)` resolve o tema claro
+   sem um segundo PNG — o filtro mexe no RGB e preserva o alpha, então o branco
+   vira preto E a borda antisserrilhada acompanha. Um segundo arquivo seria uma
+   segunda coisa para divergir na primeira troca de logo, e a que divergisse
+   seria justamente a que ninguém olhou.
+
+   Os três blocos de tema abaixo estão presos SÓ a `prefers-color-scheme` e a
+   `data-theme`, nunca a um token de cor, e aqui isso é obrigatório: o `:root` do
+   `cockpit.html` é CLARO por padrão e o das outras três é ESCURO, então qualquer
+   regra que dependesse do padrão do `:root` sairia invertida em uma das quatro
+   páginas. As quatro trocam tema pondo `data-theme` no `documentElement`, que é
+   o que faz o toggle ◐ continuar vencendo nas duas direções. */
+.eplogo { height: 32px; width: auto; flex: 0 0 auto; display: block; filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eplogo { filter: none; } }
+:root[data-theme="dark"] .eplogo { filter: none; }
+:root[data-theme="light"] .eplogo { filter: invert(1); }
+/* Abaixo de 620px a logo e o separador dela saem, no MESMO ponto em que a
+   cápsula de navegação recolhe os rótulos. A topbar já estoura em 390px — medido
+   e registrado no CLAUDE.md — e trocar identidade por conteúdo cortado seria o
+   pior dos dois defeitos: o wordmark "COCKPIT / <tela>" ao lado já diz de quem é
+   a tela, e a logo cortada não diria nada. */
+@media (max-width: 620px) { .eplogo, .eplogo-sep { display: none; } }
+
+/* ---------------------------------------- e o bloco de identidade não encolhe
+   MEDIDO, e é regressão que esta logo causaria se ficasse de fora. `.brand` é
+   item de flex com `flex-shrink: 1` e `min-width: auto`, então nasce podendo
+   encolher até o próprio min-content — e o `h1` dentro dele quebra em duas
+   linhas. Com a logo ocupando ~109px (72 da imagem + 18 + 1 + 18 dos
+   separadores), o "COCKPIT / fluxos n8n" passou a quebrar já em 1440px, que é a
+   largura em que este painel é lido.
+
+   E medir revelou que o defeito é ANTERIOR à logo: sem ela, `/` e `/upgrade` já
+   quebravam em 1280px. A logo não criou o problema, adiantou ele — e consertar é
+   a mesma decisão que a cápsula de navegação já tomou ao lado ("Nunca encolhe"),
+   pelo mesmo motivo: o que está aqui é identidade, e identidade cortada não
+   informa nada.
+
+   Quem cede no lugar é o ENDEREÇO DA INSTÂNCIA. A regra é a lição do
+   `min-width: 0` que o CLAUDE.md já registra: sem ela o `.meta` também tem piso
+   de min-content, se recusa a encolher, e a pressão volta para o `.brand`.
+   Trocar o piso por reticências é o certo aqui porque o endereço é a única coisa
+   do topbar que continua legível pela metade — o começo dele já identifica a
+   instância. O `tester.html` JÁ tinha estas quatro propriedades (declaradas
+   adiante no arquivo, com os mesmos valores); estão aqui de novo porque este
+   bloco é byte a byte igual nas quatro páginas, e essa igualdade vale mais que
+   evitar uma declaração repetida de valor idêntico. */
+/* O piso vale SÓ onde a logo existe, e este recorte foi pago com medição: a
+   primeira versão aplicou `flex: 0 0 auto` sem faixa e o estouro pré-existente
+   do `/disco` e do `/tester` em 390px CRESCEU de 133px para 181px e de 151px
+   para 202px — abaixo de 620px a logo já saiu, então travar o `.brand` ali é
+   pagar o preço sem receber nada em troca. 621px é o complemento exato do
+   `max-width: 620px` que a cápsula de navegação já usa: uma faixa só, não uma
+   segunda definição de "aqui é estreito". */
+@media (min-width: 621px) {
+  .brand { flex: 0 0 auto; }
+  .brand .wm { white-space: nowrap; }
+}
+/* Esta vale em qualquer largura: deixar o `.meta` encolher nunca aumenta o
+   estouro, só muda quem cede primeiro. */
+.topbar .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -172,7 +249,7 @@ button{font:inherit;color:inherit}
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1/2/3 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -195,7 +272,7 @@ button{font:inherit;color:inherit}
    A afinação do tema claro é a base e a do escuro sobrescreve: atrás do claro o
    fundo é quase branco e chapado, onde blur não produz efeito e brightness
    pioraria — ali o vidro se lê por contrast, aro nítido e sombra interna. */
-.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);
+.nvd .lente{position:absolute;top:3px;left:0;height:30px;width:var(--w,30px);opacity:0;
   transform:translateX(var(--x,0)) scale(var(--sx,1),var(--sy,1));
   transform-origin:var(--org,center);
   border-radius:999px;pointer-events:none;z-index:0;
@@ -236,6 +313,7 @@ button{font:inherit;color:inherit}
     inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent),
     inset 0 -2px 3px -1px rgba(0,0,0,.22),
     0 2px 9px -6px rgba(0,0,0,.55)}
+.nvd .lente.pronta{opacity:1}
 .nvd .lente::before{content:"";position:absolute;inset:0;border-radius:inherit;
   padding:3px;pointer-events:none;
   backdrop-filter:blur(2px) saturate(2.4);
@@ -1030,6 +1108,8 @@ details.jsonbox .inner{padding:0 13px 13px}
      wordmark e as três portas são idênticos; o que muda é o sufixo do wordmark
      e o que vive à direita (aqui: voltar, o título da corrida e o tema). -->
 <header class="topbar">
+  <img class="eplogo" src="/ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
   <div class="brand">
     <span class="flame" aria-hidden="true">
       <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
@@ -1047,6 +1127,7 @@ details.jsonbox .inner{padding:0 13px 13px}
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
     <a href="/upgrade" data-porta="upgrade"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
+      <a href="/conta" data-porta="conta"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.9a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 20.1a7.4 7.4 0 0 1 14.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Conta</span><kbd>alt 5</kbd></span></a>
   </nav>
   <!-- Volta para a abertura SEM matar a construção: a sessão mora no servidor
        e continua correndo; o card "em construção" na abertura é o caminho de
@@ -1216,6 +1297,19 @@ const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desen
   // pan/zoom do grafo e assinatura do fantasma: sem eles cada evento do SSE
   // resetaria a câmera e re-animaria a chegada da mensagem
   cam: null, fantasmaVisto: null,
+  /* O NÓ DO SVG DO DESENHO, preservado entre repaints. `pintar()` reescreve o
+     `#app` inteiro a cada evento do SSE, e reconstruir o desenho custava 652
+     elementos e 69 `getTotalLength()` (medido no agente de 65 nós) POR EVENTO —
+     de longe o maior desperdício desta página. Mesmo molde do `pintarPalco` do
+     upgrade.html.
+     `desenhoAjustar` é o closure do "ajustar": o `#fit` é filho do `#canvas` e
+     portanto recriado pelo innerHTML, então precisa ser religado — senão o botão
+     pinta e não faz nada, o defeito sem erro no console.
+     `desenhoRotulo` é o texto do `#corner`, recriado pelo mesmo innerHTML.
+     `desenhoMontando`/`desenhoGen` são da revelação: enquanto ela corre, o
+     contador "MONTANDO i / n" é dela, e o gen impede que a revelação de um
+     desenho já substituído continue escrevendo no `#corner` do novo. */
+  desenhoEl: null, desenhoAjustar: null, desenhoRotulo: null, desenhoMontando: false, desenhoGen: 0,
   /* A bandeja de anexos da tela de abertura: os arquivos já estão no servidor
      antes de a sessão existir, e `bandeja` é o recibo. `anexosPre` é o que
      desenhar; `anexoErro` é a última recusa, que tem que aparecer porque um
@@ -1473,6 +1567,13 @@ async function comecar() {
    razão pela qual o flows.html já tem esta flag. */
 const ESTATICO = new URLSearchParams(location.search).get("static") === "1";
 
+/* Espelho do teto do `diz()` no tester.js, que faz `shift()` acima de 400. Não é
+   juízo: é um fato do servidor que o handler de `log` precisa repetir para não
+   crescer sozinho entre dois eventos de outro tipo. Se o servidor mudar, mude
+   aqui — o snapshot corrige na próxima etapa de qualquer forma, então o pior
+   caso de divergir é memória, nunca uma linha errada na tela. */
+const LOG_TETO = 400;
+
 function ligar(id) {
   if (S.es) { S.es.close(); S.es = null; }
   clearInterval(S.pollTimer);                     // a corrida tem SSE; o poll é da abertura
@@ -1488,9 +1589,44 @@ function ligar(id) {
   // O snapshot inteiro vem primeiro e vem de novo a cada reconexão, então o
   // cliente nunca depende de ter visto os deltas anteriores.
   es.addEventListener("snapshot", ev => { S.snap = JSON.parse(ev.data); pintar(); });
-  for (const t of ["etapa", "entendi", "espera", "gates", "wf", "wfParcial", "sandbox", "fantasma", "custo", "ingredientes", "doc", "chat", "proposta", "fim", "log"]) {
+  /* `log` NÃO entra nesta lista, e essa ausência é a metade barata desta página.
+     `diz()` no tester.js emite UM evento `log` por linha do stream-json do CLI, e
+     cada item daqui custa um GET do snapshot INTEIRO — que num agente de 65 nós
+     são ~51KB de `wf` mais até 400 linhas de log — mais o `JSON.parse` e o
+     `app.innerHTML` da tela toda. Uma linha de terminal não pode custar isso.
+     `anexos` e `projeto` ENTRARAM: eles eram emitidos e ninguém escutava, então
+     só apareciam na tela de carona no refresh que a próxima linha de `log`
+     disparava. Tirar o `log` sem eles deixaria o chip de "a sessão abriu este
+     arquivo" mudo até a etapa seguinte. São raros — um punhado por corrida. */
+  for (const t of ["etapa", "entendi", "espera", "gates", "wf", "wfParcial", "sandbox", "fantasma", "custo", "ingredientes", "doc", "chat", "proposta", "anexos", "projeto", "fim"]) {
     es.addEventListener(t, () => refrescar(id));
   }
+  /* A linha nova é ANEXADA, no molde do `atividade` abaixo — sem GET e sem
+     repaint. MEDIDO: nada nesta página renderiza `s.log`. Não há terminal aqui
+     (o `.hoff-term` é do flows.html), então a linha não tem para onde ir na
+     tela; o que este handler faz é manter a cópia do cliente honesta, para que
+     quem desenhar esse terminal um dia não descubra do pior jeito que o array
+     estava velho. A última linha antes de a sessão morrer não se perde de
+     qualquer forma: todo `emit(s, "fim")` vem DEPOIS do último `diz()`, e o
+     `fim` continua na lista acima, então o snapshot final traz o log inteiro. */
+  es.addEventListener("log", ev => {
+    if (!S.snap) return;                    // o snapshot vem primeiro e já traz o log
+    let d = null;
+    try { d = JSON.parse(ev.data); } catch { return; }
+    if (!d || typeof d.texto !== "string") return;
+    const l = S.snap.log || (S.snap.log = []);
+    /* O SSE e o GET do `refrescar` correm soltos: uma linha pode chegar no
+       snapshot ANTES do seu próprio evento, e aí anexar duplicaria. O array
+       inteiro é varrido em vez de só o rabo porque 400 comparações de string
+       por linha são de graça ao lado do que este handler acabou de deixar de
+       gastar, e um teto de rabo seria uma constante a defender. O preço
+       declarado: duas linhas de verdade idênticas no MESMO milissegundo viram
+       uma — num array que ninguém desenha. */
+    if (!l.some(x => x && x.at === d.at && x.texto === d.texto && x.nivel === d.nivel)) l.push(d);
+    // O mesmo teto do `diz()` no servidor: numa etapa longa sem nenhum outro
+    // evento (o build do agente mediu 660s) isto cresceria sem limite.
+    while (l.length > LOG_TETO) l.shift();
+  });
   es.addEventListener("atividade", ev => {
     const d = JSON.parse(ev.data);
     if (S.snap) S.snap.atividade = d.atividade;
@@ -2060,13 +2196,81 @@ function canvas(s) {
  * O contador mostra a contagem final quando termina, e "MONTANDO i / n" durante
  * a revelação — ele revela um documento que já está pronto, e não afirma estar
  * escrevendo o terceiro nó enquanto os cinco já existem. */
+
+/* O que o desenho MOSTRA — e é isto, nunca a atividade, que decide reconstruir.
+ * Mora aqui e não no bloco de juízo pelo mesmo motivo do `palcoAssinatura` do
+ * upgrade.html: ela é o inventário do que a função ali embaixo desenha, e
+ * separá-las é como as duas divergem.
+ *
+ * Cada parte está aqui porque o desenho depende dela:
+ *   - `parcial` (rascunho contra validado) troca o rótulo do `#corner` — é a
+ *     transição de "[ RASCUNHO · N NOS · AINDA DESENHANDO ]" para
+ *     "[ N NOS · M CONEXOES ]", e sem ela o rótulo ficaria preso em rascunho.
+ *   - `name` desenha o rótulo e é a chave de tudo. Era a assinatura INTEIRA, e
+ *     bastava enquanto o svg era reconstruído a cada evento de qualquer forma:
+ *     com o nó preservado, uma troca de `type` com os mesmos nomes pararia de
+ *     aparecer na tela.
+ *   - `type` desenha o glifo, a linha de tipo e o `<title>`, e `typeVersion`
+ *     entra no `<title>`. Um `stickyNote` novo também cai aqui: ele não é
+ *     desenhado, mas é documento novo, e reconstruir uma vez é o lado certo de
+ *     errar.
+ *   - `connections` é a topologia: as arestas, quais nós vão para a segunda
+ *     trilha (portas `ai_*`), a largura e o `viewBox`. Vai inteira em vez de
+ *     destilada em pares porque destilar exigiria repetir aqui a varredura de
+ *     três níveis que a função faz — duas cópias que divergem na primeira
+ *     correção feita num lado só. O preço é declarado: um `index` mudando dentro
+ *     de `connections` reconstrói sem diferença visível. Assinatura estrita de
+ *     mais desperdiça um redesenho; solta de mais ESCONDE uma mudança, e esta
+ *     casa falha fechado.
+ *
+ * MEDIDO no agente de 65 nós (`.tester-runs/t74ee9813fa57`): 9.185 caracteres e
+ * 0,105 ms — contra 0,669 ms só do `JSON.parse` do `wf` que o refresh já paga, e
+ * contra os 652 elementos SVG e 69 `getTotalLength()` que ela substitui. */
+const desenhoAssinatura = s => {
+  const wf = s && (s.wf || s.wfParcial);
+  if (!wf) return null;
+  return JSON.stringify([
+    !(s.wf),
+    (wf.nodes || []).map(n => [n.name, n.type, n.typeVersion == null ? null : n.typeVersion]),
+    wf.connections || null
+  ]);
+};
+
+/* `#fit` e `#corner` são filhos do `#canvas`, então o `app.innerHTML` do
+   `pintar()` os recria a cada evento — INCLUSIVE quando o svg é preservado. O
+   `ajustar` é um closure sobre o escopo da construção, e sem religar ele o botão
+   pinta e não faz nada: erro nenhum no console, que é o defeito que este repo já
+   pagou duas vezes. */
+function religarCanvas() {
+  const fit = $("#fit");
+  if (fit && S.desenhoAjustar) fit.addEventListener("click", S.desenhoAjustar);
+  const corner = $("#corner");
+  // Enquanto a revelação corre, o contador é DELA: escrever o rótulo final aqui
+  // afirmaria a contagem antes de o último nó chegar.
+  if (corner && !S.desenhoMontando && S.desenhoRotulo) corner.textContent = S.desenhoRotulo;
+}
+
+/* Devolve se RECONSTRUIU. */
 function desenharSeNovo(s) {
   const host = $("#canvas");
   const wf = s.wf || s.wfParcial;
-  if (!host || !wf) return;
+  if (!host || !wf) return false;
   const parcial = !s.wf;
-  const assinatura = JSON.stringify(wf.nodes.map(n => n.name));
+  const assinatura = desenhoAssinatura(s);
   const jaEra = S.desenhado === assinatura;
+
+  /* O NÓ ATRAVESSA O REPAINT. Um `return` seco aqui não serviria: o `#canvas` é
+     um nó NOVO e VAZIO a cada evento, e a tela ficaria sem desenho. O que
+     acontece é o mesmo do `pintarPalco` do upgrade.html — o svg é segurado em
+     `S.desenhoEl` e RE-ANEXADO no hospedeiro novo, com a câmera, os seis
+     listeners de pan/zoom e a revelação em curso vivos dentro dele.
+     A trava tinha de subir para cá: ela existia, e era consultada 160 linhas
+     depois de o svg inteiro já ter sido construído e o antigo demolido. */
+  if (jaEra && S.desenhoEl) {
+    if (S.desenhoEl.parentNode !== host) host.appendChild(S.desenhoEl);
+    religarCanvas();
+    return false;
+  }
 
   const nodes = wf.nodes.filter(n => !/stickyNote/i.test(n.type));
   const W = 64, H = 48, GAP = 176, PAD = 44, LINHA = 66;
@@ -2169,7 +2373,10 @@ function desenharSeNovo(s) {
 
   host.querySelectorAll("svg").forEach(x => x.remove());
   host.appendChild(svg);
-  const corner = $("#corner");
+  /* O `#corner` é lido a cada escrita, nunca capturado: a revelação sobrevive ao
+     repaint agora, e o nó que ela tinha na mão no começo já foi jogado fora pelo
+     `innerHTML` — escrever nele seria escrever num órfão. */
+  const escreverCorner = txt => { const c = $("#corner"); if (c) c.textContent = txt; };
   // Rascunho é dito como rascunho: o desenho ao vivo vem do Write da sessão,
   // ANTES dos portões — afirmar contagem final aqui seria prometer cedo demais.
   const rotulo = parcial
@@ -2227,19 +2434,37 @@ function desenharSeNovo(s) {
   const fit = $("#fit");
   if (fit) fit.addEventListener("click", ajustar);
 
+  /* O desenho e o que o repaint precisa para religar em volta dele. `S.desenhado`
+     é atribuído AQUI, antes de qualquer `return`, e isso conserta um defeito
+     latente real: a ordem antiga era `if (jaEra || reduzido) { …; return; }` e só
+     depois `S.desenhado = assinatura`, então com `prefers-reduced-motion` a
+     atribuição nunca acontecia, `jaEra` era sempre falso e o desenho era
+     reconstruído inteiro a CADA evento do SSE, para sempre. Quem pediu menos
+     movimento pagava mais CPU. */
+  S.desenhoEl = svg;
+  S.desenhoAjustar = ajustar;
+  S.desenhoRotulo = rotulo;
+  S.desenhado = assinatura;
+  /* A revelação sobrevive ao repaint, então duas podem existir ao mesmo tempo —
+     a antiga rodando sobre um svg já substituído. Ela para de mexer no `#corner`
+     do desenho novo por causa deste selo, no molde do `alive()` do flows.html. */
+  const gen = S.desenhoGen = (S.desenhoGen || 0) + 1;
+  S.desenhoMontando = false;
+
   const reduzido = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (jaEra || reduzido) {
     gs.forEach(g => g.classList.add("built"));
     paths.forEach(p => p.classList.add("done"));
-    corner.textContent = rotulo;
-    return;
+    escreverCorner(rotulo);
+    return true;
   }
-  S.desenhado = assinatura;
+  S.desenhoMontando = true;
 
   // Nada re-anima numa atualização: a assinatura acima é o que impede o SSE de
   // redesenhar tudo a cada evento. Movimento sem informação nova vira ruído.
   (async () => {
     for (let i = 0; i < gs.length; i++) {
+      if (gen !== S.desenhoGen) return;        // outro desenho tomou o lugar deste
       if (i > 0 && paths[i - 1]) {
         paths[i - 1].classList.add("drawing");
         await esperar(400);
@@ -2247,14 +2472,17 @@ function desenharSeNovo(s) {
         paths[i - 1].classList.add("done");
       }
       gs[i].classList.add("writing");
-      corner.textContent = "[ MONTANDO " + (i + 1) + " / " + gs.length + " ]";
+      escreverCorner("[ MONTANDO " + (i + 1) + " / " + gs.length + " ]");
       await esperar(400);
       gs[i].classList.remove("writing"); gs[i].classList.add("built");
       await esperar(80);
     }
+    if (gen !== S.desenhoGen) return;
     paths.forEach(p => p.classList.add("done"));
-    corner.textContent = rotulo;
+    S.desenhoMontando = false;
+    escreverCorner(rotulo);
   })();
+  return true;
 }
 
 const esperar = ms => new Promise(r => setTimeout(r, ms));
@@ -3666,10 +3894,10 @@ $("#voltar").addEventListener("click", inicio);
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -3711,7 +3939,9 @@ $("#voltar").addEventListener("click", inicio);
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    if (h && h !== a) ax += (h.offsetLeft > a.offsetLeft ? 1 : -1) * 4;
+    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+       geometria por quadro, e cada uma força layout do documento inteiro. */
+    if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
   }
 
@@ -3766,14 +3996,27 @@ $("#voltar").addEventListener("click", inicio);
   try { de = sessionStorage.getItem(CHAVE); } catch (e) { de = null; }
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
-  if (origem && !reduzir()) {
-    x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
-    pintar(0);
-    lente.classList.add("varre");
-    acordar();
-  } else {
-    assentar();
+  /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
+     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
+     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
+     script corre em relação ao layout já estar limpo.
+     Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
+     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     posicionada, então o adiamento não vira flash no lugar errado. */
+  function partir() {
+    if (origem && !reduzir()) {
+      x = origem.offsetLeft; w = origem.offsetWidth; vx = 0; vw = 0;
+      pintar(0);
+      lente.classList.add("varre");
+      acordar();
+    } else {
+      assentar();
+    }
+    lente.classList.add("pronta");
   }
+  requestAnimationFrame(function () { requestAnimationFrame(partir); });
   try { if (aqui) sessionStorage.setItem(CHAVE, aqui); } catch (e) {}
 
   nav.addEventListener("pointerover", acordar);
@@ -3784,7 +4027,7 @@ $("#voltar").addEventListener("click", inicio);
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "123".indexOf(ev.key);
+    var i = "12345".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;

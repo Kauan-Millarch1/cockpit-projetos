@@ -123,8 +123,48 @@
 .anx .x:hover{color:var(--txt);background:var(--raised)}
 .anx.subindo{opacity:.6}
 .anx.ruim{border-color:var(--warn-line,var(--line));color:var(--warn-txt)}
-.anxnota{font-size:10.5px;color:var(--txt-faint);margin-top:6px;line-height:1.5}
+/* "--txt-dim" e nao "--txt-faint", e isto e ACHADO PRE-EXISTENTE, medido no DOM
+   vivo quando a conversa do /upgrade ganhou uma frase nova nesta classe: faint aqui
+   da 4,2105 no tema escuro, reprovacao de AA. Vale para as duas paginas servidas por
+   este arquivo, porque a nota "1 anexo(s) - a sessao le o que precisar" sempre usou
+   ela. E a regra que o CLAUDE.md ja escreve: um token de texto tem de passar em TODA
+   superficie em que cai, nunca na mais facil.
+   NADA DE BACKTICK NESTE BLOCO: ele vive dentro do template literal do CSS, e um
+   backtick aqui FECHA a literal. O erro sai como "Invalid left-hand side expression
+   in postfix operation" apontando para a linha do const CSS, que nao e onde o
+   problema esta - os outros comentarios daqui usam aspas pelo mesmo motivo. */
+.anxnota{font-size:10.5px;color:var(--txt-dim);margin-top:6px;line-height:1.5}
 .anxnota b{color:var(--txt-dim);font-weight:600}
+
+/* A TIRA RECOLHIDA. O anexo e da CONVERSA e nao da mensagem — ele volta no prompt
+   de toda rodada seguinte, e e isso que faz o print continuar valendo na segunda
+   frase. Entao o chip nao some depois de enviar: ele sai do compositor e vira esta
+   linha acima dele. O compositor fica limpo e o fato continua na tela a um clique.
+   Fechada e UMA linha: gatilho, contagem e, com um arquivo so, o nome dele. Aberta,
+   o corpo e o MESMO desenho de chip de sempre — nada aqui redesenha um chip.
+   O gatilho e "button" de verdade, com "aria-expanded", e nao "details" nativo: a
+   pagina repinta varias vezes por segundo por causa do SSE, e um "details" perderia
+   o aberto/fechado em cada repintura. O estado mora FORA, no parametro.
+   "--txt-dim" e nao "--txt-faint" em todo texto corrido daqui, pela mesma medicao
+   que a ".anxnota" carrega logo acima: faint reprova AA no tema escuro sobre estas
+   superficies. NADA DE BACKTICK NESTE BLOCO — ele vive dentro do template literal. */
+.anxgav{margin-top:9px}
+.anxgav-bt{display:flex;align-items:center;gap:7px;width:100%;text-align:left;
+  font:inherit;font-size:11px;line-height:1.35;color:var(--txt-dim);cursor:pointer;
+  border:1px solid var(--line);background:var(--surface-2);border-radius:8px;
+  padding:6px 9px;min-height:30px}
+.anxgav-bt:hover{color:var(--txt);border-color:var(--accent-line)}
+.anxgav-bt .tri{font-size:9px;line-height:1;flex:0 0 auto;opacity:.85}
+.anxgav-bt .rot{flex:0 0 auto}
+.anxgav-bt .sep{flex:0 0 auto;opacity:.55}
+/* O nome corta com reticencia em vez de quebrar a linha: fechada, a tira e UMA
+   linha, senao ela deixa de ser uma tira. "min-width:0" e o que desliga o piso de
+   min-content do item flex — sem ele o "text-overflow" nao acontece nunca. */
+.anxgav-bt .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.anxgav.aberta > .anxgav-bt{border-bottom-left-radius:0;border-bottom-right-radius:0;
+  border-bottom-color:transparent}
+.anxgav-corpo{border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px;
+  padding:1px 9px 9px}
 /* Recusa de anexo usa ".aviso.alerta" (ver o bloco AVISOS de cada página). Não
    há classe de erro própria aqui de propósito: era uma das quatro que o
    vocabulário único substituiu. */
@@ -197,6 +237,112 @@
     if (limpos) partes.push("em texto, " + limpos + " valor(es) com cara de token foram trocados por «segredo removido»");
     if (visuais) partes.push(visuais + " imagem/PDF não passa por essa limpeza — o cockpit não varre pixel");
     return '<div class="anxnota">' + partes.join(" · ") + "</div>";
+  }
+
+  /* ═════════════════════════════════════════════════ a tira recolhida ══
+   *
+   * O DEFEITO QUE ELA EXISTE PARA FECHAR: ele anexou uma imagem, mandou a
+   * mensagem, e o chip continuou colado no compositor — o que lê como "ainda não
+   * mandei". O arquivo tinha ido, a sessão tinha aberto, e a tela não dizia.
+   *
+   * A DECISÃO NÃO É SUMIR COM O CHIP. O arquivo é da CONVERSA e não da mensagem:
+   * ele fica no diretório da sessão e volta no prompt de TODA rodada seguinte, e é
+   * isso que faz o print continuar valendo quando ele escreve a segunda frase.
+   * Sumir seria mentir na direção oposta. Então o chip sai do compositor e vira
+   * esta tira acima dele: o compositor fica limpo, o fato continua na tela a um
+   * clique.
+   *
+   * O CORPO REUSA `chipsAnexos` E `notaAnexos` INTEIROS. Redesenhar o chip aqui
+   * seria uma segunda definição do mesmo desenho, e ela divergiria no primeiro
+   * conserto feito de um lado só — a mesma razão pela qual este arquivo existe.
+   *
+   * O ESTADO VEM DE FORA, e isso não é preferência de estilo. Um `<details>`
+   * nativo resolveria o desenho e perderia o aberto/fechado a cada repintura, e
+   * esta tela repinta várias vezes por segundo por causa do SSE: ele abriria a
+   * tira e ela fecharia sozinha no próximo evento. Então o `aberta` é parâmetro, e
+   * o clique só AVISA — por `data-anxgaveta`, no mesmo padrão do `data-tirar` que
+   * este módulo já usa — para a página guardar onde ela guarda o resto do estado.
+   *
+   * O RÓTULO NÃO MUDA ENTRE OS DOIS ESTADOS, de propósito. Um leitor de tela
+   * anuncia o nome do botão em toda repintura; trocar o nome ao abrir faria ele
+   * anunciar um botão diferente do que estava ali um instante antes. O que muda é
+   * o `aria-expanded`, que é exatamente o campo que existe para dizer isso.
+   *
+   * SEM `aria-controls`: ele exigiria um `id` global inventado por um módulo
+   * servido, e duas tiras no mesmo documento dariam dois nós com o mesmo `id` —
+   * defeito que esta base já pagou uma vez, e cujo sintoma é o pior possível (o
+   * `getElementById` acha o primeiro, o segundo pinta igual e o clique não faz
+   * nada, sem erro nenhum no console). O corpo vem logo depois do gatilho, que é
+   * o que o padrão de disclosure pede de fato. */
+
+  /* Singular e plural escritos, nunca derivados com um "s" no fim — a mesma lição
+     que `RECUSA_ROTULO` já carrega. */
+  const GAV_ROTULO = n => n === 1 ? "1 anexo nesta conversa" : n + " anexos nesta conversa";
+
+  /* AS DUAS COISAS QUE NINGUÉM ADIVINHA, e por isso elas são escritas e não
+     implícitas: (a) o arquivo é da conversa e volta no prompt de toda rodada, que
+     é o que responde "então por que o chip não sumiu?"; (b) o print aparece dentro
+     da mensagem que o levou, que é onde ele vai procurar a prova de que foi. */
+  const GAV_PORQUE =
+    "Estes arquivos são da conversa, não de uma mensagem: eles voltam no prompt de " +
+    "toda rodada seguinte — é isso que faz o print continuar valendo quando você " +
+    "escreve a segunda frase. O print também aparece dentro da mensagem que o levou.";
+
+  function gavetaAnexos(lista, lidos, podeRemover, opcoes) {
+    const arr = (lista || []).filter(Boolean);
+    if (!arr.length) return "";
+    const o = opcoes || {};
+    const aberta = !!o.aberta;
+    if (typeof o.aoAlternar === "function") ligarGaveta(o.aoAlternar);
+
+    /* Com um arquivo só o nome cabe e vale: é ele que responde "qual print?" sem
+       abrir nada. Com mais de um, nenhum nome — uma lista dentro do rótulo faria a
+       tira deixar de ser uma linha, que é a única coisa que ela promete ser.
+       O nome é `sens` pelo mesmo motivo de sempre: `clientes-2026.csv` identifica
+       um cliente, e o modo gravação existe para borrar isso. Tipo e tamanho ficam
+       legíveis — eles não identificam ninguém. */
+    const um = arr.length === 1 ? arr[0] : null;
+    const nomeDe = a => a.dePasta ? String(a.arquivo || "").replace(/^anexos\//, "") : a.nome;
+
+    return '<div class="anxgav' + (aberta ? " aberta" : "") + '">' +
+      '<button type="button" class="anxgav-bt" data-anxgaveta="1" aria-expanded="' + (aberta ? "true" : "false") + '"' +
+        ' title="' + (aberta ? "recolher os anexos desta conversa" : "ver os anexos desta conversa") + '">' +
+        '<span class="tri" aria-hidden="true">' + (aberta ? "▾" : "▸") + "</span>" +
+        '<span class="rot">' + GAV_ROTULO(arr.length) + "</span>" +
+        (um
+          ? '<span class="sep" aria-hidden="true">·</span><span class="nm sens">' + esc(nomeDe(um)) + "</span>"
+          : "") +
+      "</button>" +
+      (aberta
+        ? '<div class="anxgav-corpo">' +
+            chipsAnexos(arr, lidos, podeRemover) +
+            notaAnexos(arr) +
+            '<div class="anxnota">' + GAV_PORQUE + "</div>" +
+          "</div>"
+        : "") +
+      "</div>";
+  }
+
+  /* O ATALHO OPCIONAL. A página pode delegar o clique sozinha em `[data-anxgaveta]`
+     — é o contrato, e é o que o `data-tirar` já faz. `aoAlternar` existe para quem
+     não quer escrever esse listener: UM ouvinte por documento, registrado uma vez
+     só, guardando apenas o último callback. Registrar por repintura empilharia um
+     ouvinte por evento do SSE, e o clique passaria a alternar a tira N vezes — que
+     é o mesmo defeito que remontar a câmera do palco já produziu aqui.
+     O callback recebe o estado NOVO (o que o clique está pedindo), não o atual:
+     quem guarda o estado não deveria ter que reler o DOM para saber o que gravar. */
+  let alternarGaveta = null;
+  let gavetaLigada = false;
+  function ligarGaveta(fn) {
+    alternarGaveta = typeof fn === "function" ? fn : null;
+    if (!temDOM || gavetaLigada) return false;
+    gavetaLigada = true;
+    doc.addEventListener("click", ev => {
+      const alvo = ev.target && ev.target.closest ? ev.target.closest("[data-anxgaveta]") : null;
+      if (!alvo || !alternarGaveta) return;
+      alternarGaveta(alvo.getAttribute("aria-expanded") !== "true");
+    });
+    return true;
   }
 
   /* A fileira de botões. `pasta` é o mesmo `<input type=file>` com
@@ -549,6 +695,7 @@
     VOZ_OK, ICONE_ANEXO, RECUSA_ROTULO, MSG_SEGREDO_CURTA,
     kb, esc,
     chipsAnexos, notaAnexos, barraIO,
+    gavetaAnexos, ligarGaveta, GAV_ROTULO, GAV_PORQUE,
     agruparRecusas, textoAncorado, avisarRecusas,
     ligarVoz, ligarIO, subirArquivos, tirarAnexo, b64De, nomearPrint
   };

@@ -86,6 +86,29 @@ if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
+echo  pii: telefone nunca sai cru da fronteira
+echo ==============================================
+node pii-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  cofre: a chave do n8n cifrada pelo Windows
+echo ==============================================
+node cofre-test.js
+node cofre-n8n-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  integracoes: fato no modulo, juizo na tela
+echo ==============================================
+node integracoes-test.js
+node cabecalhos-api-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
 echo  voz e anexo: um arquivo servido, nenhuma copia
 echo ==============================================
 node entradas-test.js
@@ -116,6 +139,8 @@ echo.
 echo ==============================================
 echo  navegacao: um bloco so, nas tres paginas
 echo ==============================================
+node cofre-tela-test.js
+node perfil-test.js
 node nav-sync-test.js
 if errorlevel 1 set FALHOU=1
 
@@ -138,8 +163,18 @@ echo ==============================================
 echo  upgrade: a conversa que termina no alvo
 echo ==============================================
 node upgrade-test.js
+node regras-anexo-test.js
+node seletor-test.js
+node anexo-bolha-test.js
 node aplicar-test.js
 node remendo-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  teto da rodada: travou x demorou, e o esforco
+echo ==============================================
+node rodada-teto-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -162,6 +197,8 @@ echo  evidencia: ve valor sem ver contato, e nao escreve
 echo ==============================================
 node evidencia-test.js
 node preencher-test.js
+node rede-test.js
+node rede-fix-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -169,6 +206,13 @@ echo ==============================================
 echo  faixa do dossie: quatro estados, quatro frases
 echo ==============================================
 node dossie-tela-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  telinha de progresso: campo ausente nao e "sem regua"
+echo ==============================================
+node dossie-progresso-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -218,6 +262,22 @@ echo ==============================================
 echo  dono da escrita: os seis call sites do n8n
 echo ==============================================
 node dono-test.js
+node ambiente-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  qual IA roda a rodada, e a fiacao nos quatro spawns
+echo ==============================================
+node ia-test.js
+node ia-fiacao-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  leitura em rajada, e o fio sem campo orfao
+echo ==============================================
+node rajada-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -225,6 +285,73 @@ echo ==============================================
 echo  CSS: nenhuma regra aberta nas quatro paginas
 echo ==============================================
 node css-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  negociacao da resposta estatica: gzip, ETag, 304
+echo ==============================================
+node estatico-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  o ligamento no server.js: 304, edicao vale, SSE fora
+echo ==============================================
+node estatico-servidor-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  o palco preservado entre repaints (upgrade)
+echo ==============================================
+node palco-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  o desenho preservado, e o log que nao custa snapshot
+echo ==============================================
+node desenho-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  o tique vazio, os relogios, e a poda do S.details
+echo ==============================================
+node tique-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  /disco: o cache de rows e a busca sem perder o caret
+echo ==============================================
+node disco-test.js
+if errorlevel 1 set FALHOU=1
+
+REM Estes dois existiam e nunca estiveram aqui: rodavam so na mao, o que na
+REM pratica quer dizer que nao rodavam.
+echo.
+echo ==============================================
+echo  a bateria dos sete (upgrade): cinza nunca e verde
+echo ==============================================
+node bateria-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  regressao de caminho e de conteudo
+echo ==============================================
+node regressao-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  guarda na porta do agente (CORS, token, dono)
+echo ==============================================
+node guarda-test.js
+node pareamento-test.js
+node pareamento-tela-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.

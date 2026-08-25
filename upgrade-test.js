@@ -326,6 +326,117 @@ t("...e o campo está na tabela dos pedidos, senão ela não saberia que existe"
 t("REGRAS ensina `execIds` para pergunta sobre várias execuções",
   /execIds/.test(u.REGRAS) && /gastam o orçamento inteiro/.test(u.REGRAS));
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7b. O ANEXO NO INVENTÁRIO QUE A SESSÃO LÊ PRIMEIRO.
+
+   MEDIDO numa conversa real (`umt7kj5cc69ib`, 24/08, `Agente eContrate`): o print
+   chegou ao disco — `.upgrade-runs/umt7kj5cc69ib/anexos/print-182748.png`, 66KB,
+   adotado da bandeja, com `INDICE.md` escrito ao lado — e ainda assim o
+   `REGRAS.md` daquela pasta não continha a palavra "anexo". O prompt manda ler
+   esse arquivo ANTES DE QUALQUER COISA e a seção dele se chama "Os arquivos
+   aqui": um inventário que se apresenta como completo e omite o material do
+   pedido é prosa que o MODELO lê afirmando o que o código contradiz — a mesma
+   classe que este repositório já documentou em `REGRAS_MOLDE` ("nada do que você
+   escrever vai para o n8n") e no contrato morto `escreveNoN8n`. A direção do erro
+   é a pior possível: ensina a sessão a não procurar o que ele acabou de mandar.
+
+   O SEGUNDO DEFEITO ESTAVA NO MESMO PARÁGRAFO e é de sinal contrário: o molde
+   prometia `Glob` SEMPRE, e `ferramentasDaRodada` concede `Glob` só quando existe
+   anexo. Sem anexo, a sessão lia a promessa, chamava `Glob` e levava recusa — e
+   "uma ferramenta negada custa uma rodada, em silêncio" é lição paga aqui.
+
+   Cada caso abaixo recusa um desses defeitos por nome, nas DUAS direções: prometer
+   o que não existe é tão ruim quanto omitir o que existe. */
+console.log("\n7b. o anexo dentro do REGRAS.md, e a lista de ferramentas que não pode mentir");
+
+const R_SEM = u.regras(null, false);
+const R_ANX = u.regras(null, true);
+const R_ANX_DOS = u.regras({ usa: true }, true);
+const planar = txt => txt.replace(/\s+/g, " ");
+
+/* O defeito medido, em uma linha. */
+t("com anexo, o REGRAS.md NOMEIA `anexos/INDICE.md`", /anexos\/INDICE\.md/.test(R_ANX));
+t("...e diz que aquilo é o que o Kauan anexou nesta conversa",
+  /o que o Kauan anexou nesta conversa/.test(planar(R_ANX)));
+/* A direção oposta: um inventário que promete uma pasta que não existe faria a
+   sessão gastar uma leitura recusada procurando o que ninguém mandou. */
+t("SEM anexo, ele não promete pasta de anexo nenhuma", !/anexos\//.test(R_SEM));
+
+/* A ORDEM. `ARQ_COM_DOSSIE` diz "comece por aqui", e com anexo há duas
+   instruções de primeira leitura no mesmo arquivo. Contradição num prompt é
+   resolvida por quem lê — que é o modelo. O bloco do anexo tem de vir antes E
+   tem de dizer qual é qual. */
+t("com anexo E dossiê, o bloco do anexo vem ANTES do dossiê na lista",
+  R_ANX_DOS.indexOf("anexos/INDICE.md") < R_ANX_DOS.indexOf("`DOSSIE.md`"));
+t("...e a prosa resolve o «comece por aqui» do dossiê: anexo é o PEDIDO, dossiê é o FLUXO",
+  /este índice é o \*\*pedido\*\*, o dossiê é o \*\*fluxo\*\*/.test(planar(R_ANX_DOS)));
+
+/* O que o anexo serve para fazer, e a única razão de o arquivo viajar em disco em
+   vez de no prompt. */
+t("diz que imagem e PDF abrem com `Read`, nativamente",
+  /Imagem e PDF você abre com `Read`, nativamente/.test(planar(R_ANX)));
+t("repete «não leia tudo» — sem isso o modelo abre os 40 em ordem",
+  /\*\*Não leia tudo\*\*/.test(R_ANX));
+
+/* A FRASE DAS FERRAMENTAS É DERIVADA, e é isso que impede as duas listas de
+   divergirem no primeiro ajuste feito num lado só. Os dois casos abaixo medem a
+   frase contra a MESMA função que monta o spawn — não contra um literal. */
+const ferrDe = txt => (planar(txt).match(/Você tem ([^.]+)\./) || [null, ""])[1];
+for (const [rot, txt, temAnexo] of [["sem anexo", R_SEM, false], ["com anexo", R_ANX, true]]) {
+  const concedidas = u.ferramentasDaRodada({ anexos: temAnexo ? [1] : [] }).split(",");
+  const frase = ferrDe(txt);
+  t(rot + ": a frase cita exatamente as ferramentas concedidas",
+    concedidas.every(f => frase.includes("`" + f + "`"))
+    && (frase.match(/`/g) || []).length === concedidas.length * 2);
+}
+/* O defeito exato que existia: `Glob` prometido numa rodada que não o tem. */
+t("SEM anexo, a frase NÃO promete `Glob`", !/`Glob`/.test(ferrDe(R_SEM)));
+t("COM anexo, ela promete `Glob`", /`Glob`/.test(ferrDe(R_ANX)));
+
+/* Um molde com placeholder sobrando é um arquivo que a sessão lê com `{{...}}`
+   dentro, e nada estoura — ela simplesmente não sabe quais arquivos existem. */
+t("nenhum placeholder do molde fica sem substituir",
+  !/\{\{[A-Z_]+\}\}/.test(R_SEM) && !/\{\{[A-Z_]+\}\}/.test(R_ANX_DOS));
+
+/* O PROMPT tem a mesma contradição em miniatura: ele manda ler o dossiê PRIMEIRO.
+   Com anexo, a ressalva tem de estar lá; sem anexo, ela não pode aparecer — uma
+   frase sobre um arquivo ausente é a mesma promessa vazia de cima. */
+const promptCom = u.prompt({ wfNome: "X", nos: 3, chat: [{ de: "eu", texto: "olha o print" }],
+  dossie: { usa: true, cor: "verde" },
+  anexos: [{ arquivo: "anexos/p.png", nome: "p.png", tipo: "imagem", bytes: 100 }] });
+const promptSem = u.prompt({ wfNome: "X", nos: 3, chat: [{ de: "eu", texto: "oi" }],
+  dossie: { usa: true, cor: "verde" }, anexos: [] });
+t("no prompt COM anexo, o dossiê deixa de ser o primeiro a ler",
+  /ANTES dele, leia `anexos\/INDICE\.md`/.test(planar(promptCom)));
+t("no prompt SEM anexo, essa ressalva não aparece",
+  !/ANTES dele/.test(promptSem) && /LEIA ELE PRIMEIRO/.test(promptSem));
+
+/* OS CINCO PONTOS QUE REESCREVEM O ARQUIVO, lidos da FONTE.
+   `prepararDir` roda antes de a bandeja ser adotada — é ele que cria o diretório
+   onde o `rename` cai — então um `REGRAS.md` escrito só ali nunca poderia
+   mencionar o anexo, que é literalmente o defeito medido. Medido sobre a fonte SEM
+   COMENTÁRIO: um caso que casa dentro de um comentário aprova a ausência da
+   decisão, e este repositório já pagou isso no `dossie-tela-test.js`. */
+const fonteUp = require("fs").readFileSync(require("path").join(__dirname, "upgrade.js"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+t("`escreverRegras` é chamada nos CINCO pontos em que o inventário muda",
+  (fonteUp.match(/await escreverRegras\(s\)/g) || []).length === 5);
+/* UMA escrita, e ela mora dentro de `escreverRegras`. Uma segunda, solta em
+   qualquer outro lugar, seria a volta do defeito: o arquivo nasceria antes de a
+   bandeja ser adotada e ficaria sem o anexo — e quem colasse essa linha não teria
+   nada vermelho para avisá-lo. */
+t("...e existe UMA única escrita de REGRAS.md em todo o arquivo",
+  (fonteUp.match(/writeFile\([\s\S]{0,40}?"REGRAS\.md"/g) || []).length === 1);
+t("...e ela está dentro de `escreverRegras`",
+  /async function escreverRegras\(s\)[\s\S]{0,300}?writeFile\([\s\S]{0,40}?"REGRAS\.md"/.test(fonteUp));
+/* Desanexar entra pelos mesmos motivos dos outros e por um a mais: a lista pode
+   voltar a ZERO, e aí a frase das ferramentas tem de parar de prometer `Glob`. */
+t("desanexar também reescreve — a lista pode voltar a zero",
+  /async function desanexar[\s\S]{0,600}?await escreverRegras\(s\)/.test(fonteUp));
+t("adotar a bandeja reescreve — é o caminho da conversa que nasce com print",
+  /anexos\.adotar\([\s\S]{0,500}?await escreverRegras\(s\)/.test(fonteUp));
+
 console.log("\n8. a máquina não conhece caminho de escrita");
 const fonte = require("fs").readFileSync(require("path").join(__dirname, "upgrade.js"), "utf8");
 /* Procurar a PALAVRA falhava por causa do comentário no topo do arquivo, que
@@ -377,10 +488,36 @@ t("a bateria de sete é o `revalidar` que o approve recebe",
 /* `active` nunca sobe no corpo (§6.2): aplicar um upgrade não pode acordar fluxo
    dormente, e o corpo é montado campo por campo em vez de espalhado. */
 t("nenhuma escrita daqui manda `active`", !/\bactive\s*:/.test(fonte));
-t("a cerca da sessão está lá: --disallowedTools", /--disallowedTools/.test(fonte) || /"--disallowedTools"/.test(fonte));
-t("a cerca da sessão está lá: --setting-sources vazio", /"--setting-sources", ""/.test(fonte));
+/* AS TRÊS CERCAS, REESCRITAS — e a razão de reescrever em vez de apagar é a que
+   este repositório já pagou uma vez: o `escreveNoM8n === false` logo abaixo era um
+   caso que fixava um fato que deixou de ser verdade, e ele foi REESCRITO para
+   fixar o novo. Aqui é o mesmo: até a fiação do `ia.js`, estas quatro linhas
+   casavam o array de argumentos escrito à mão neste arquivo. Ele não existe mais —
+   as cercas viraram DADO na tabela de provedor do `ia.js`, e um provedor sem as
+   três é recusado por nome antes de virar spawn.
+
+   O que se fixa agora é o que passou a ser a garantia: a rodada monta pelo
+   adaptador, e não ao lado dele. Que as flags CHEGAM ao `spawn` é o
+   `ia-fiacao-test.js` que prova, por execução, com um dublê capturando os
+   argumentos — aqui é fonte, e fonte não sabe o que chegou. */
+t("a rodada monta os argumentos pelo adaptador (as cercas moram lá)",
+  /const\s+mont\s*=\s*ia\s*\.\s*argumentosDaRodada\s*\(/.test(fonte));
+t("...e o spawn recebe o array QUE ELE MONTOU, nunca um array local",
+  /spawn\(CLAUDE_BIN,\s*mont\.args/.test(fonte));
+t("...e a montagem recusada não vira spawn",
+  /if\s*\(\s*!mont\.ok\s*\)\s*\{[\s\S]{0,200}?resolve\(/.test(fonte));
+t("o ambiente do filho também sai do adaptador, com o carimbo desta aba",
+  /env:\s*ia\.ambienteDaRodada\(\s*\{[^}]*carimbo/.test(fonte));
 t("rede negada na lista", /WebFetch,WebSearch/.test(fonte));
 t("Bash negado na lista", /NEGADAS = "Bash/.test(fonte));
+/* O literal de `NEGADAS` ficou aqui de propósito (os dois casos acima o fixam), e
+   por isso ele é uma SEGUNDA definição da mesma lista. O `ia-fiacao-test.js` afere
+   que o valor que chega ao spawn é byte a byte o `ia.NEGADAS_SEM_REDE` — então o
+   dia em que as duas divergirem é vermelho, em vez de ser uma sessão com uma
+   cerca a menos que ninguém notou. */
+t("e a lista daqui é IDÊNTICA à do adaptador — uma cópia fixada, não uma cópia solta",
+  /const\s+NEGADAS\s*=\s*"([^"]+)"/.test(fonte)
+  && fonte.match(/const\s+NEGADAS\s*=\s*"([^"]+)"/)[1] === require("./ia.js").NEGADAS_SEM_REDE);
 t("stdin fechado no spawn", /stdio: \["ignore", "pipe", "pipe"\]/.test(fonte));
 /* TAMBÉM REESCRITO. Ele fixava `escreveNoN8n === false`, e isso era falso: esta
    aba escreve nos TRÊS lugares que os casos acima deste contam por regex. O campo

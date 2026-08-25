@@ -115,12 +115,6 @@
       "note": "Claude (cockpit) [upload_audio_storage]: upload_audio_storage recebe 400/Unauthorized do Supabase Storage (autorização, fora do fluxo); pus onError: continueRegularOutput para ele não matar mais a resposta ao lead."
     },
     {
-      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
-      "markedAt": "2026-08-13T11:47:39.771Z",
-      "maxExecIdAtFix": "181230",
-      "note": "Já exclui esse node"
-    },
-    {
       "key": "QryGcVbv7DoVCeRV|upload_audio_storage|NodeOperationError",
       "markedAt": "2026-08-13T11:47:52.970Z",
       "maxExecIdAtFix": "181228",
@@ -139,16 +133,28 @@
       "note": "Corrigido"
     },
     {
-      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
-      "markedAt": "2026-08-17T17:36:02.508Z",
-      "maxExecIdAtFix": "189916",
-      "note": "Corrigido"
-    },
-    {
       "key": "3pk6711IFuBuqjz6|buscar_linhas_do_estoque|NodeApiError",
       "markedAt": "2026-08-17T18:28:23.546Z",
       "maxExecIdAtFix": "189909",
       "note": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta."
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-21T14:57:52.757Z",
+      "maxExecIdAtFix": "198886",
+      "note": "Fluxo desligado"
+    },
+    {
+      "key": "d6j0bzfZwVJeCnMF|validar_campos_crm|Error",
+      "markedAt": "2026-08-21T15:00:30.305Z",
+      "maxExecIdAtFix": "198884",
+      "note": "Fluxo deletado"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-25T12:21:13.968Z",
+      "maxExecIdAtFix": "203591",
+      "note": "Feito"
     }
   ],
   "history": [
@@ -385,6 +391,31 @@
       "markedAt": "2026-08-17T18:28:23.546Z",
       "maxExecIdAtFix": "189909",
       "note": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta."
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-21T14:57:52.757Z",
+      "maxExecIdAtFix": "198886",
+      "note": "Fluxo desligado"
+    },
+    {
+      "key": "d6j0bzfZwVJeCnMF|validar_campos_crm|Error",
+      "markedAt": "2026-08-21T15:00:30.305Z",
+      "maxExecIdAtFix": "198884",
+      "note": "Fluxo deletado"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-24T18:54:51.146Z",
+      "maxExecIdAtFix": "203591",
+      "note": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock mandava $executionId cru ao Redis; agora o valor vai coagido a string com keyType fixo — é o que gerava o Invalid argument type.",
+      "undoneAt": "2026-08-25T12:08:50.130Z"
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-25T12:21:13.968Z",
+      "maxExecIdAtFix": "203591",
+      "note": "Feito"
     }
   ]
 }

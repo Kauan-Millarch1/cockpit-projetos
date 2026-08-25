@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-18T16:44:33.297Z",
+  "savedAt": "2026-08-25T11:34:56.100Z",
   "dossies": [
     {
       "wfId": "9dGEJcYa7LxTAwAs",
@@ -37,6 +37,20 @@
       "ms": 682346,
       "bytes": 56404,
       "usd": 4.1384
+    },
+    {
+      "wfId": "whj5x0keweg3Ffvo",
+      "nome": "[ECONTRATE] Tool - Agendamento Google Calendar",
+      "em": "2026-08-25T11:34:55.858Z",
+      "nos": 21,
+      "nosRegenerados": 21,
+      "nosHerdados": 0,
+      "modo": "inteiro",
+      "automatico": false,
+      "rodadas": 2,
+      "ms": 211491,
+      "bytes": 8779,
+      "usd": 0.6684
     }
   ]
 }

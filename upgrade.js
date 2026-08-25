@@ -54,6 +54,11 @@ const os = require("os");
 
 const n8n = require("./n8n.js");
 const fix = require("./claude-fix.js");
+/* QUAL IA roda a rodada, e COM QUAL CREDENCIAL. Ele monta os argumentos — com as
+   três cercas como DADO numa tabela em vez de um array escrito à mão aqui — e o
+   ambiente do filho, em cima da allowlist do `ambiente.js`, que continua sendo a
+   fonte e que este arquivo deixou de ler direto. */
+const ia = require("./ia.js");
 const dossie = require("./dossie.js");
 const evidencia = require("./evidencia.js");
 const conversas = require("./conversas.js");
@@ -72,14 +77,122 @@ const anexos = require("./anexos.js");
 const RAIZ = path.join(__dirname, ".upgrade-runs");
 const CLAUDE_BIN = fix.claudeBin;
 
+/* QUAL IA roda a rodada, e de quem é a conta. Hoje é o PADRÃO DECLARADO do
+   adaptador — `claude` + `plano`: o mesmo CLI e o mesmo login OAuth de sempre,
+   com a chave de API AUSENTE do ambiente do filho. Nada muda no comportamento de
+   hoje; a diferença só aparece no dia em que a pessoa escolher o modo `chave`. */
+/* A escolha de IA da rodada. FUNÇÃO, e não constante de módulo, e essa é a
+   correção de um defeito armado — não de estilo.
+ *
+ * Era `const escolhaDaRodada() = ia.escolher({})`, resolvida UMA VEZ no `require`. Como
+ * o padrão é `plano`, isso significa que a escolha de credencial de toda rodada
+ * de todo mundo é decidida no instante em que o processo sobe, antes de existir
+ * qualquer pessoa para escolher. Hoje o comportamento é o certo — é um dono, na
+ * máquina dele, gastando o plano dele — então nada muda agora, e há teste
+ * aferindo que os argumentos e o ambiente saem idênticos.
+ *
+ * O que muda é que ela deixa de ser IMPOSSÍVEL de variar. Uma escolha congelada
+ * no `require` não consegue seguir uma decisão por rodada, por pessoa ou por
+ * conta, e o sintoma disso não é um erro: é a conta de outra pessoa sendo
+ * gastada em silêncio, que é exatamente o que trocar o plano por chave de API
+ * existe para evitar.
+ *
+ * É a TERCEIRA ocorrência desta família num dia: `n8n.js` congelava `configured`
+ * e `instance` (o cofre nunca chegaria ao cabeçalho), `claude-fix.js` congelava
+ * uma cópia de `n8n.configured`, e esta. O padrão é sempre o mesmo — um valor
+ * lido no `require` para responder uma pergunta cuja resposta muda depois.
+ *
+ * `chave` continua NÃO sendo passada a `ambienteDaRodada`, e isso é deliberado
+ * enquanto o modo é `plano`: no modo plano a variável de chave tem de estar
+ * AUSENTE do ambiente, nunca vazia. Quando a escolha vier da pessoa, é aqui que
+ * ela entra — num sítio só, por arquivo, auditável. */
+function escolhaDaRodada() {
+  return ia.escolher({});
+}
+
 const MODELO = process.env.COCKPIT_UPGRADE_MODELO || "sonnet";
 
-/* Teto de uma rodada. A conversa não escreve documento — ela lê um índice e
- * responde uma frase ou uma lista de nós. Mesmo no Iago (179 nós, índice de
- * 13KB) isso é leitura curta, então o teto é bem menor que os 6/14 min do
- * Tester, que escreve 66KB. Um teto folgado aqui só faria você esperar por uma
- * sessão que já travou. */
-const RODADA_MS = Number(process.env.COCKPIT_UPGRADE_TIMEOUT_MS || 180000);
+/* O TETO DE UMA RODADA SÃO DOIS NÚMEROS, e a razão de serem dois é que os dois
+ * defeitos que eles pegam são diferentes — um relógio de parede só sabia pegar um.
+ *
+ * Aqui havia um número só, 180000, com um comentário afirmando que "a conversa lê
+ * um índice e responde uma frase, então isso é leitura curta". Esse número nunca
+ * foi medido e a frase que o justificava era falsa. Medido em 2026-08-20,
+ * reproduzindo a rodada que morreu de verdade (pedido: *tirar todo o ClickUp do
+ * Agente Iago Comercial*, 189 nós, `fluxo.json` de 364KB), com o MESMO prompt e o
+ * MESMO modelo:
+ *
+ *   | esforço do CLI     | parede    | US$    | nós certos no alvo |
+ *   |--------------------|-----------|--------|--------------------|
+ *   | padrão (sem flag)  | 250.461ms | 1,0418 | 5 de 7             |
+ *   | `--effort medium`  | 167.671ms | 0,9096 | 6 de 7             |
+ *   | `--effort low`     |  90.986ms | 0,7331 | 6 de 7             |
+ *
+ * Ou seja: a sessão NÃO tinha travado. Ela estava trabalhando e foi morta 70
+ * segundos antes de responder, e o Kauan pagou a rodada inteira para ver
+ * "tempo esgotado nesta rodada (180s)" na tela. Um teto de parede não consegue
+ * distinguir "está pensando há três minutos" de "morreu e não avisa".
+ *
+ * O que distingue é MEDIDO e vem de graça no stdout: o CLI emite
+ * `{"type":"system","subtype":"thinking_tokens"}` a cada poucos segundos ENQUANTO
+ * pensa. Nas três rodadas completas medidas acima o maior silêncio real do stdout
+ * foi de **14,2s** (e o arranque, até o `system/init`, 10,8s). Então:
+ *
+ *   - `SILENCIO_MS` (90s) é o detector de TRAVA. Seis vezes o pior silêncio
+ *     medido, e ele pega uma sessão morta em 90s em vez de esperar o teto inteiro.
+ *   - `RODADA_MS` (600s) é o teto DURO, para a sessão que continua dando sinal e
+ *     não termina nunca. 2,4× a pior rodada medida (250s).
+ *
+ * As duas mortes têm frases diferentes (`fraseMorte`), porque "travou" e "demorou
+ * demais" mandam procurar coisas diferentes. */
+const RODADA_MS = Number(process.env.COCKPIT_UPGRADE_TIMEOUT_MS || 600000);
+const SILENCIO_MS = Number(process.env.COCKPIT_UPGRADE_SILENCIO_MS || 90000);
+
+/* Por que a rodada morreu, em UMA frase por motivo, e elas têm de ser distintas.
+ * Mesma disciplina do `autoDossie()` e das quatro frases da banda do dossiê: duas
+ * mortes com a mesma frase ensinam a ignorar as duas. `travou` manda olhar se o
+ * CLI está vivo; `teto` manda estreitar o pedido. Pura de propósito — o teste
+ * afirma que as frases são diferentes sem spawnar nada. */
+function fraseMorte(motivo, ms) {
+  const s = Math.round((ms || 0) / 1000);
+  if (motivo === "travou") {
+    return "a sessão parou de dar qualquer sinal por " + Math.round(SILENCIO_MS / 1000)
+      + "s e foi morta como travada (ela estava rodando há " + s + "s) — nada foi escrito no n8n";
+  }
+  return "a rodada passou do teto de " + Math.round(RODADA_MS / 1000)
+    + "s e foi morta (" + s + "s) — ela continuava dando sinal, então o pedido é grande demais para uma"
+    + " rodada só: peça uma parte de cada vez. Nada foi escrito no n8n";
+}
+
+/* O ESFORÇO DE RACIOCÍNIO DO CLI, e ele é decidido por TIPO DE RODADA porque só
+ * um dos dois tipos foi medido.
+ *
+ * A tabela acima mede a rodada de CONVERSA (entender o pedido e apontar o alvo):
+ * `low` responde em 91s contra 250s do padrão, custa 30% menos, e devolveu 6 dos 7
+ * nós que de fato citam ClickUp — um a MAIS que o padrão devolveu. Velocidade que
+ * não foi comprada com resposta pior, então `low` é o padrão da conversa.
+ *
+ * A rodada do PATCH não foi medida, e ela é a que escreve num fluxo de produção.
+ * Baixar o esforço dela por analogia seria mudar o caminho mais perigoso do
+ * arquivo com base numa medição de outro caminho — então ela fica EXATAMENTE como
+ * estava: sem flag nenhuma, o padrão do CLI. Quando alguém medir, muda aqui.
+ *
+ * Um valor não reconhecido no ambiente cai no padrão daquele tipo de rodada e o
+ * valor cru viaja em `capacidades()` para a tela poder dizer que foi ignorado —
+ * passá-lo adiante mataria o spawn com um erro do commander que não nomeia nem a
+ * variável nem o valor. */
+const ESFORCOS = ["low", "medium", "high", "xhigh", "max"];
+const ESFORCO_CONVERSA_PADRAO = "low";
+const ESFORCO_PATCH_PADRAO = null;          // null = sem flag, o padrão do CLI
+
+function esforcoDaRodada(ehPatch, env) {
+  const e = env || process.env;
+  const cru = ehPatch ? e.COCKPIT_UPGRADE_ESFORCO_PATCH : e.COCKPIT_UPGRADE_ESFORCO;
+  const padrao = ehPatch ? ESFORCO_PATCH_PADRAO : ESFORCO_CONVERSA_PADRAO;
+  if (cru == null || cru === "") return padrao;
+  if (cru === "padrao") return null;        // "use o padrão do CLI", dito de propósito
+  return ESFORCOS.includes(cru) ? cru : padrao;
+}
 
 /* O teto do `texto` de uma resposta, e ele foi MEDIDO antes de ser escolhido.
  *
@@ -173,19 +286,16 @@ function ferramentasDaRodada(s) {
 
 /* Ambiente por ALLOWLIST, não por remoção: `ANTHROPIC_API_KEY` e os interruptores
  * de Bedrock/Vertex ficam AUSENTES em vez de apagados. Uma variável que não
- * existe não precisa ser lembrada, e o custo continua saindo do plano. */
-const ENV_ALLOW = [
-  "PATH", "Path", "PATHEXT", "SYSTEMROOT", "SystemRoot", "WINDIR", "COMSPEC",
-  "TEMP", "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "HOME",
-  "APPDATA", "LOCALAPPDATA", "PROGRAMFILES", "PROGRAMDATA",
-  "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE", "LANG", "LC_ALL"
-];
-function envLimpo() {
-  const out = {};
-  for (const k of ENV_ALLOW) if (process.env[k] != null) out[k] = process.env[k];
-  out.CLAUDE_CODE_ENTRYPOINT = "cockpit-upgrade";
-  return out;
-}
+ * existe não precisa ser lembrada, e o custo continua saindo do plano.
+ *
+ * A lista continua morando no `ambiente.js`; quem monta em cima dela agora é o
+ * `ia.js`, que é o único ponto do repositório autorizado a acrescentar uma chave
+ * de API a um ambiente headless — e só faz isso no modo `chave`, para o provedor
+ * que a pessoa escolheu, numa linha.
+ *
+ * O CARIMBO continua sendo desta aba porque ele identifica QUEM spawnou: um
+ * carimbo único faria as três abas virarem uma só no que quer que leia o campo. */
+const CARIMBO_IA = "cockpit-upgrade";
 
 /* ────────────────────────────────────────────────────────────── as sessões ── */
 
@@ -243,6 +353,22 @@ function guardar(s) {
 /* O que a sessão vê. Três arquivos, e o `fluxo.json` é o único grande — por isso
  * ele vai para DISCO e não para o prompt. O índice é 22× menor que o documento
  * (13KB contra 285KB medidos no Iago), e é ele que responde "onde mexer". */
+/* O `REGRAS.md` é REESCRITO sempre que o inventário do diretório muda, e não uma
+ * vez na abertura. `prepararDir` roda ANTES de a bandeja ser adotada — é ele que
+ * cria o diretório onde o `rename` vai cair — então um arquivo escrito só ali
+ * nunca poderia mencionar o anexo, que é exatamente o defeito medido. Os quatro
+ * momentos em que o inventário muda são: preparar o diretório, adotar a bandeja,
+ * anexar no meio da conversa e desanexar. Desanexar entra pelo mesmo motivo que os
+ * outros três e por um a mais: a lista pode voltar a ZERO, e aí a frase das
+ * ferramentas tem de deixar de prometer `Glob`.
+ *
+ * Custa um `writeFile` local de ~15KB, num caminho que já escreve 175KB de
+ * `fluxo.json` — grátis perto do que uma rodada custa. */
+async function escreverRegras(s) {
+  await fsp.writeFile(path.join(s.dir, "REGRAS.md"),
+    regras(s.dossie, ((s && s.anexos) || []).length > 0), "utf8");
+}
+
 async function prepararDir(s, raw) {
   await fsp.mkdir(s.dir, { recursive: true });
 
@@ -280,7 +406,7 @@ async function prepararDir(s, raw) {
     diz(s, "não consegui ler o dossiê (" + String(e && e.message || e).slice(0, 120) + ") — seguindo pelo índice", "warn");
   }
 
-  await fsp.writeFile(path.join(s.dir, "REGRAS.md"), regras(s.dossie), "utf8");
+  await escreverRegras(s);
 
   // Prova, não promessa: nenhum `credentials` no que foi escrito.
   const escrito = await fsp.readFile(path.join(s.dir, "fluxo.json"), "utf8");
@@ -298,7 +424,7 @@ está consertando um erro.
 
 ## Ferramentas
 
-Você tem \`Read\`, \`Write\`, \`Edit\`, \`Glob\`, \`Grep\`. Não tem Bash e não tem rede —
+{{FERRAMENTAS}} Não tem Bash e não tem rede —
 isso é a cerca, não esquecimento. Todas as chamadas ao n8n são feitas pelo
 cockpit; você nunca vê a chave da API e nunca vê credencial nenhuma.
 
@@ -587,12 +713,61 @@ const ARQ_COM_DOSSIE = `- \`DOSSIE.md\` — **comece por aqui**. Prosa descreven
   \`Grep\` no nó que você vai mexer. O dossiê substitui a EXPLORAÇÃO, nunca a
   leitura do nó que você decidiu tocar.`;
 
-function regras(d) {
-  return REGRAS_MOLDE.replace("{{ARQUIVOS}}", d && d.usa ? ARQ_COM_DOSSIE : ARQ_INDICE);
+/* O ANEXO NO INVENTÁRIO QUE A SESSÃO LÊ PRIMEIRO.
+ *
+ * O defeito que este bloco fecha foi medido numa conversa real (`umt7kj5cc69ib`,
+ * 24/08): o print chegou ao disco (`anexos/print-182748.png`, 66KB, adotado da
+ * bandeja) e entrou no prompt pelo `trechoAnexos`, e ainda assim o `REGRAS.md` —
+ * que o prompt manda ler **antes de qualquer coisa**, e cuja seção se chama
+ * literalmente "Os arquivos aqui" — listava dois arquivos e não mencionava o
+ * anexo. Um inventário que se apresenta como completo e omite o material do
+ * pedido é a mesma classe de defeito que este projeto já documentou duas vezes:
+ * prosa que o MODELO lê afirmando o que o código contradiz. E a direção do erro é
+ * a pior: ela ensina a sessão a não procurar o que ele acabou de mandar.
+ *
+ * ELE VEM ANTES DO DOSSIÊ na lista, e os dois "comece por aqui" NÃO se
+ * atropelam porque fazem trabalhos diferentes: o anexo é o PEDIDO (o formato real
+ * do destino, o nome verdadeiro da coluna, a mensagem que ele quer ver chegando —
+ * nada disso existe no `fluxo.json`), o dossiê é o FLUXO. A frase diz qual é qual.
+ *
+ * "Não leia tudo" é repetido aqui de propósito, mesmo já estando no `INDICE.md`:
+ * sem essa linha o modelo abre os 40 arquivos em ordem e chega na primeira
+ * pergunta com o contexto cheio de nada — medido no Tester, e é a razão de o
+ * índice existir em vez de o conteúdo viajar no prompt. */
+const ARQ_ANEXOS = `- \`anexos/INDICE.md\` — **o que o Kauan anexou nesta conversa**: print, PDF,
+  planilha, \`.md\`, ou uma pasta inteira. **Leia este índice primeiro** e abra o que
+  decide o pedido — é aqui que mora o que o fluxo não tem: o formato real do
+  destino, o nome verdadeiro de uma coluna, a mensagem que ele quer ver chegando.
+  Imagem e PDF você abre com \`Read\`, nativamente, sem ferramenta nenhuma a mais.
+  **Não leia tudo**: cada leitura gasta o contexto que devia ir para a decisão, e
+  numa pasta grande use \`Glob\`/\`Grep\` para achar o arquivo certo antes de abrir.
+  Se o índice disser que a lista foi cortada, ela está completa nesse arquivo.
+  A ORDEM, quando o \`DOSSIE.md\` também estiver aqui: este índice é o **pedido**, o
+  dossiê é o **fluxo**, e o pedido vem antes — de nada serve entender o fluxo para
+  então descobrir que o print pedia outra coisa.`;
+
+/* A FRASE DAS FERRAMENTAS SAI DA MESMA FUNÇÃO QUE MONTA O SPAWN, e isso é o
+ * conserto do segundo defeito do mesmo parágrafo: o molde prometia
+ * `Read, Write, Edit, Glob, Grep` **sempre**, e `ferramentasDaRodada` concede
+ * `Glob` só quando existe anexo. Uma rodada sem anexo lia a promessa, chamava
+ * `Glob` e levava recusa — e "uma ferramenta negada custa uma rodada, em
+ * silêncio" já é lição paga neste repositório. Duas listas divergem no primeiro
+ * ajuste feito num lado só; esta é derivada, então não pode divergir. */
+function fraseFerramentas(temAnexo) {
+  const t = ferramentasDaRodada({ anexos: temAnexo ? [1] : [] }).split(",").map(x => "`" + x + "`");
+  const ultima = t.pop();
+  return "Você tem " + t.join(", ") + " e " + ultima + ".";
 }
 
-/* Mantido para o teste e para quem só quer ver o molde sem dossiê. */
-const REGRAS = regras(null);
+function regras(d, temAnexo) {
+  const arquivos = (temAnexo ? ARQ_ANEXOS + "\n" : "") + (d && d.usa ? ARQ_COM_DOSSIE : ARQ_INDICE);
+  return REGRAS_MOLDE
+    .replace("{{FERRAMENTAS}}", fraseFerramentas(!!temAnexo))
+    .replace("{{ARQUIVOS}}", arquivos);
+}
+
+/* Mantido para o teste e para quem só quer ver o molde sem dossiê e sem anexo. */
+const REGRAS = regras(null, false);
 
 /* ────────────────────────────────────────────────────────────── o prompt ──── */
 
@@ -633,6 +808,14 @@ function prompt(s) {
       "Existe um `DOSSIE.md` neste diretório: prosa descrevendo o fluxo trecho por trecho, ",
       "escrita por um modelo a partir de uma versão anterior deste mesmo fluxo. LEIA ELE PRIMEIRO — ",
       "é para isso que ele existe, e ele te poupa de reler o `fluxo.json`.",
+      /* COM ANEXO, ele NÃO é o primeiro, e a ressalva mora aqui porque as duas
+         frases estão no mesmo prompt: "leia o dossiê primeiro" e o bloco de anexos
+         logo abaixo se contradiriam, e a contradição é resolvida por quem lê — que
+         é o modelo. O pedido vem antes do fluxo: entender 103 nós para então
+         descobrir que o print pedia outra coisa é a rodada paga duas vezes. */
+      (s.anexos || []).length
+        ? " ANTES dele, leia `anexos/INDICE.md`: o anexo é o PEDIDO, o dossiê é o FLUXO."
+        : "",
       s.dossie.cor === "laranja"
         ? " " + String(s.dossie.mudados) + " nó(s) mudaram depois que ele foi escrito e estão marcados "
           + "com `⚠` — nesses, confira o JSON real antes de confiar no parágrafo."
@@ -677,48 +860,86 @@ function prompt(s) {
 
 /* ──────────────────────────────────────────────────────── rodar uma rodada ── */
 
-function rodar(s, gen) {
+function rodar(s, gen, ehPatch) {
   return new Promise(resolve => {
     const p = prompt(s);
-    if (p.length > PROMPT_MAX) {
-      // Um teto que falha por NOME, antes do spawn. Sem ele o erro é
-      // `spawn ENAMETOOLONG`, que manda quem lê procurar caminho de arquivo.
-      resolve({ erro: "o prompt ficou com " + p.length + " caracteres e o teto aqui é " + PROMPT_MAX, usd: 0, ms: 0 });
+
+    /* OS ARGUMENTOS SAEM DO ADAPTADOR, e as três cercas com eles —
+       `--disallowedTools`, `--setting-sources ""` e `--strict-mcp-config` são
+       DADO na tabela do provedor no `ia.js`, e um provedor sem as três é recusado
+       por nome antes de virar spawn.
+
+       `NEGADAS` daqui continua sendo passado explicitamente em vez de deixar o
+       default: ele é byte a byte o `ia.NEGADAS_SEM_REDE`, e o `ia-fiacao-test.js`
+       afere essa igualdade sobre o valor que CHEGA ao spawn — então o dia em que
+       as duas divergirem é vermelho, em vez de ser uma sessão com uma cerca a
+       menos que ninguém notou.
+
+       O teto do prompt continua sendo o `PROMPT_MAX` desta aba (24000, medido
+       contra o pior prompt de ~16,4KB), e não o do Tester: as duas têm folgas
+       diferentes e escolher um só seria apertar uma ou afrouxar a outra sem
+       medir. A recusa por NOME antes do spawn é a mesma de antes — sem ela o erro
+       é `spawn ENAMETOOLONG`, que manda quem lê procurar caminho de arquivo. */
+    const mont = ia.argumentosDaRodada({
+      escolha: escolhaDaRodada(),
+      prompt: p,
+      ferramentas: ferramentasDaRodada(s),
+      negadas: NEGADAS,
+      modelo: MODELO,
+      esforco: esforcoDaRodada(ehPatch),
+      resumeId: s.sessionId,
+      tetoPrompt: PROMPT_MAX
+    });
+    if (!mont.ok) {
+      resolve({ erro: mont.erro, usd: 0, ms: 0 });
       return;
     }
+    /* A ORDEM DAS DUAS RECUSAS É A DE ANTES: prompt primeiro, CLI depois. Um
+       prompt estourado com o CLI ausente continua relatando o prompt — trocar a
+       ordem mandaria instalar um CLI para depois descobrir que o pedido é grande
+       demais. */
     if (!fix.claudeFound) {
       resolve({ erro: "Claude Code CLI não encontrado em " + CLAUDE_BIN + " — defina CLAUDE_BIN no .env", usd: 0, ms: 0 });
       return;
     }
 
-    const args = [
-      "-p", p,
-      "--output-format", "stream-json", "--verbose",
-      "--permission-mode", "acceptEdits",
-      "--allowedTools", ferramentasDaRodada(s),
-      "--disallowedTools", NEGADAS,
-      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
-      "--setting-sources", "",
-      "--model", MODELO
-    ];
-    if (s.sessionId) args.push("--resume", s.sessionId);
-
     const t0 = Date.now();
-    const child = spawn(CLAUDE_BIN, args, {
+    const child = spawn(CLAUDE_BIN, mont.args, {
       cwd: s.dir, windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],   // stdin fechado: senão o CLI espera 3s e avisa no stderr
-      env: envLimpo()
+      env: ia.ambienteDaRodada({ escolha: escolhaDaRodada(), carimbo: CARIMBO_IA })
     });
     s.filho = child;
 
     let buf = "", usd = 0, erro = null, morto = false;
-    const timer = setTimeout(() => {
+
+    /* O VIGIA, e ele mede DUAS coisas com um só relógio.
+     *
+     * `ultimoSinal` é qualquer byte vindo do filho — stdout ou stderr. O stderr
+     * conta de propósito: um CLI reencaixando uma chamada de API escreve lá, e
+     * isso é sinal de vida, não de trava. Se ele reencaixar para sempre, quem
+     * pega é o teto duro. */
+    let ultimoSinal = Date.now();
+    const sinal = () => { ultimoSinal = Date.now(); };
+    const morrer = motivo => {
+      if (morto) return;
       morto = true;
-      erro = "tempo esgotado nesta rodada (" + Math.round(RODADA_MS / 1000) + "s)";
+      erro = fraseMorte(motivo, Date.now() - t0);
       try { child.kill(); } catch { /* já morreu */ }
-    }, RODADA_MS);
+    };
+    /* 2s de passo: barato, e é a granularidade com que o `thinking_tokens` chega.
+     * `unref()` para que um vigia esquecido nunca segure o processo do cockpit
+     * vivo — o `close`/`error` limpa, mas um `clearInterval` que não roda por um
+     * caminho novo não pode virar um servidor que não desliga. */
+    const vigia = setInterval(() => {
+      const agora = Date.now();
+      if (agora - ultimoSinal >= SILENCIO_MS) morrer("travou");
+      else if (agora - t0 >= RODADA_MS) morrer("teto");
+    }, 2000);
+    if (typeof vigia.unref === "function") vigia.unref();
 
     child.stdout.on("data", chunk => {
+      sinal();
       buf += chunk.toString("utf8");
       let nl;
       while ((nl = buf.indexOf("\n")) >= 0) {
@@ -749,19 +970,31 @@ function rodar(s, gen) {
           if (typeof ev.total_cost_usd === "number") usd = ev.total_cost_usd;
           if (typeof ev.session_id === "string") s.sessionId = ev.session_id;
           if (ev.is_error) erro = erro || "a sessão terminou com erro";
-        } else if (ev.type === "system" && typeof ev.session_id === "string") {
-          s.sessionId = ev.session_id;
+        } else if (ev.type === "system") {
+          if (typeof ev.session_id === "string") s.sessionId = ev.session_id;
+          /* O BATIMENTO DO PENSAMENTO, e mostrá-lo não é enfeite: é o mesmo fato
+             em que o vigia se apoia para decidir que a sessão travou. Medido, a
+             rodada do ClickUp ficou 81s entre um `tool_use` e o próximo — a banda
+             de atividade congelava naquela linha e uma tela parada por 81s lê como
+             quebrada. Estes eventos chegam a cada poucos segundos ENQUANTO ela
+             pensa, então a banda passa a dizer o que está acontecendo. Falha
+             macio: um CLI que não emita `thinking_tokens` volta ao comportamento
+             de antes, que é a banda parada. */
+          if (ev.subtype === "thinking_tokens" && typeof ev.estimated_tokens === "number") {
+            atividade(s, "pensando… ~" + ev.estimated_tokens + " tokens");
+          }
         }
       }
     });
 
     child.stderr.on("data", d => {
+      sinal();
       const t = d.toString("utf8").trim();
       if (t) diz(s, "stderr: " + t.slice(0, 200), "warn");
     });
 
     child.on("error", e => {
-      clearTimeout(timer);
+      clearInterval(vigia);
       /* Só anula se ainda for ESTE filho. `mensagem()` mata o processo e começa a
          rodada nova na sequência; o `close` do morto chega depois, assíncrono, com
          `s.filho` já apontando para o novo. Anular ali cega o `cancelar()` e o
@@ -771,7 +1004,7 @@ function rodar(s, gen) {
     });
 
     child.on("close", code => {
-      clearTimeout(timer);
+      clearInterval(vigia);
       /* Só anula se ainda for ESTE filho. `mensagem()` mata o processo e começa a
          rodada nova na sequência; o `close` do morto chega depois, assíncrono, com
          `s.filho` já apontando para o novo. Anular ali cega o `cancelar()` e o
@@ -1232,7 +1465,11 @@ function validarResposta(bruto, nomesValidos, bases) {
 
 const MAX_CORRECOES = 2;
 
-async function umaRodada(s, gen, forcado, nomesAlvo) {
+/* `ehPatch` viaja EXPLÍCITO e não é derivado de `nomesAlvo`. Dava para inferir —
+   hoje só o `montarRemendo` passa nomes —, e é exatamente por isso que não: a
+   inferência fica certa até alguém passar nomes por outro motivo, e aí a rodada
+   que escreve em produção mudaria de esforço em silêncio. */
+async function umaRodada(s, gen, forcado, nomesAlvo, ehPatch) {
   s.status = "correndo";
   /* `forcado` é instrução que vem de FORA da rodada, e ela tem de sobreviver a
      esta linha. `s.correcoes` é estado interno do laço de correção — zerado a cada
@@ -1251,7 +1488,7 @@ async function umaRodada(s, gen, forcado, nomesAlvo) {
     const alvoArq = path.join(s.dir, "resposta.json");
     try { await fsp.unlink(alvoArq); } catch { /* não existia */ }
 
-    const r = await rodar(s, gen);
+    const r = await rodar(s, gen, ehPatch);
     if (!vivo(s, gen)) return null;
 
     if (r.erro) { diz(s, r.erro, "erro"); s.status = "falhou"; s.erro = r.erro; emit(s, "estado", enxuto(s)); guardar(s); return null; }
@@ -1794,7 +2031,7 @@ async function montarRemendo(s, gen) {
 
     let instrucao = instrucaoPatch(s, ctx);
     for (let volta = 0; volta <= MAX_CORRECOES; volta++) {
-      const v = await umaRodada(s, gen, instrucao, ctx.nomes);
+      const v = await umaRodada(s, gen, instrucao, ctx.nomes, true);
       if (!v || !vivo(s, gen)) return;
 
       /* Ela pode responder em vez de patchar, e isso é legítimo: o prompt manda
@@ -2417,6 +2654,7 @@ async function anexar(id, item) {
   if (!r.ok) throw Object.assign(new Error(r.motivo), { status: 400, categoria: r.categoria || null });
   s.anexos = [...(s.anexos || []), r.meta];
   await anexos.escreverIndice(s.dir, s.anexos);
+  await escreverRegras(s);
   diz(s, "anexo recebido: " + r.meta.nome);
   emit(s, "anexos", { anexos: enxuto(s).anexos, anexosResumo: anexos.resumo(s.anexos) });
   return enxuto(s);
@@ -2429,6 +2667,7 @@ async function desanexar(id, arquivo) {
   s.anexos = (s.anexos || []).filter(a => a.arquivo !== arquivo);
   s.anexosLidos = (s.anexosLidos || []).filter(x => x !== arquivo);
   await anexos.escreverIndice(s.dir, s.anexos);
+  await escreverRegras(s);
   emit(s, "anexos", { anexos: enxuto(s).anexos, anexosResumo: anexos.resumo(s.anexos) });
   return enxuto(s);
 }
@@ -2538,6 +2777,7 @@ async function iniciar({ wfId, bandeja }) {
       if (veio) {
         s.anexos = await anexos.inventario(s.dir);
         await anexos.escreverIndice(s.dir, s.anexos);
+        await escreverRegras(s);
         diz(s, "recebi " + s.anexos.length + " anexo(s) — vou olhar antes de responder");
       }
     } catch (err) {
@@ -2631,6 +2871,7 @@ async function retomar({ wfId, convId }) {
   s.anexosLidos = [];
   if (s.anexos.length) {
     await anexos.escreverIndice(s.dir, s.anexos);
+    await escreverRegras(s);
     diz(s, "os " + s.anexos.length + " anexo(s) desta conversa ainda estão no disco e voltam para o prompt.", "info");
   }
   diz(s, "conversa reaberta do disco: " + (s.chat || []).length + " mensagens, "
@@ -2695,6 +2936,30 @@ function esquecer(convId) {
   return true;
 }
 
+/* O QUE FOI COM ESTA MENSAGEM.
+ *
+ * O DEFEITO QUE ISTO FECHA foi ele quem viu, olhando a tela: manda um print, e a
+ * conversa desenha a mensagem como texto puro. O arquivo chegou ao disco, entrou no
+ * prompt e foi ABERTO pela sessão — medido, o `Read` volta com a imagem decodificada
+ * —, e ainda assim, para quem olha, "a imagem não foi". Pior: o chip continua no
+ * compositor depois do envio, o que lê como *ainda não mandei*. Um pipeline que
+ * funciona e uma tela que não mostra é indistinguível de um que não funciona.
+ *
+ * É UM RETRATO DO INSTANTE DO ENVIO, e é por isso que ele mora na mensagem em vez
+ * de a tela ler `s.anexos` na hora de desenhar: `s.anexos` é o estado ATUAL da pasta
+ * e cresce quando ele anexa mais um arquivo no meio da conversa. Lido na pintura,
+ * um print anexado hoje apareceria dentro da mensagem de ontem — a tela afirmando
+ * que uma rodada já paga viu algo que ela não tinha como ver.
+ *
+ * SÓ FORMA, nunca conteúdo: nome, caminho relativo, tipo e tamanho. O arquivo
+ * continua em disco e é servido por rota própria; copiá-lo para dentro do histórico
+ * transformaria um `.json` de conversa em 66KB de base64 por print. */
+function anexosDaMensagem(s) {
+  return ((s && s.anexos) || []).map(a => ({
+    arquivo: a.arquivo, nome: a.nome, tipo: a.tipo, bytes: a.bytes
+  }));
+}
+
 /* Uma mensagem dele. Sempre incrementa a geração: se havia rodada correndo, ela
  * morre e o que ela ainda fosse emitir cai no chão. Não existe "fila de
  * mensagens" — a última é a que vale, e enfileirar faria o modelo responder a uma
@@ -2711,7 +2976,7 @@ async function mensagem(id, texto) {
   s.status = "correndo";
   s.erro = null;
   s.alvo = null;
-  s.chat.push({ de: "eu", texto: t, em: new Date().toISOString() });
+  s.chat.push({ de: "eu", texto: t, em: new Date().toISOString(), anexos: anexosDaMensagem(s) });
   emit(s, "estado", enxuto(s));
   /* Antes da rodada, não depois: a primeira mensagem é o que dá TÍTULO à conversa,
      e é ela que faz a conversa existir na gaveta. Uma frase digitada e perdida
@@ -2768,7 +3033,23 @@ function capacidades() {
   return {
     cliAchado: !!fix.claudeFound, cliCaminho: CLAUDE_BIN,
     n8nConfigurado: !!n8n.configured, modelo: MODELO,
-    tetoRodadaMs: RODADA_MS,
+    /* DOIS tetos, e os dois viajam. `tetoRodadaMs` sozinho continuaria dizendo a
+     * verdade sobre o teto duro e MENTINDO por omissão: desde o vigia, a rodada
+     * pode morrer bem antes dele, por silêncio. Um contrato que declara um só
+     * limite quando existem dois é a mesma classe do `escreveNoN8n` logo abaixo. */
+    tetoRodadaMs: RODADA_MS, silencioMs: SILENCIO_MS,
+    /* O esforço EFETIVO por tipo de rodada, mais o valor cru do ambiente quando
+     * ele não foi reconhecido. `null` em `patch` não é ausência: é "sem flag, o
+     * padrão do CLI", que é o que essa rodada de fato usa. */
+    esforco: {
+      conversa: esforcoDaRodada(false),
+      patch: esforcoDaRodada(true),
+      ignorado: [
+        ["COCKPIT_UPGRADE_ESFORCO", process.env.COCKPIT_UPGRADE_ESFORCO],
+        ["COCKPIT_UPGRADE_ESFORCO_PATCH", process.env.COCKPIT_UPGRADE_ESFORCO_PATCH]
+      ].filter(([, v]) => v != null && v !== "" && v !== "padrao" && !ESFORCOS.includes(v))
+       .map(([k, v]) => k + "=" + v)
+    },
     /* O QUE ESTA ABA ESCREVE, E ONDE. Isto é valor, não comentário: é contrato
      * para quem consome a rota, e por isso tem de ser verdade.
      *
@@ -2814,16 +3095,34 @@ module.exports = {
   basesDaSessao, normalizarBase, procedenciaDe, PROC_FRASE, PROC_NIVEL, BASES_FIXAS,
   // exportado para teste: prova que o DOSSIE.md aterrissa na pasta da sessão
   prepararDir,
+  /* Exportada porque a FIAÇÃO é o que quase escapou: `regras()` pode estar
+     perfeita e `escreverRegras` passar `false` no lugar do inventário, e aí todo
+     caso sobre a prosa continua verde com o arquivo em disco sem o anexo. Ela só
+     escreve um `.md` local — nada de n8n, nada de CLI. */
+  escreverRegras,
   PROMPT_MAX, ORC_CONVERSA, MAX_PEDIDOS, TEXTO_MAX, MSG_SLICE,
+  /* O teto da rodada: as duas mortes e o esforço. `fraseMorte` e `esforcoDaRodada`
+     são puras — o teste prova as duas frases distintas e a escolha do esforço sem
+     spawnar CLI nenhum, mesma razão de `resolverAlvo` e `custoDaRodada` serem. */
+  RODADA_MS, SILENCIO_MS, ESFORCOS, ESFORCO_CONVERSA_PADRAO, ESFORCO_PATCH_PADRAO,
+  fraseMorte, esforcoDaRodada,
   /* Os anexos. `RUNS_DIR` sai porque a BANDEJA vive debaixo dele e é o servidor
      que a cria — deixar o caminho ser recomposto lá seria uma segunda definição
      de onde a conversa mora, e a que divergisse gravaria numa bandeja que a
      adoção nunca acharia. `trechoAnexos` e `ferramentasDaRodada` são puras:
      testáveis sem spawnar CLI e sem tocar em disco. */
   anexar, desanexar, registrarLeituraAnexo,
+  /* `anexosDaMensagem` é pura: o retrato que vai na mensagem é testável sem sessão,
+     sem disco e sem CLI — e o que ela NÃO carrega (conteúdo) é o caso que importa. */
+  anexosDaMensagem,
   RUNS_DIR: RAIZ, ORC_ANEXOS, trechoAnexos, ferramentasDaRodada,
   // §4.5 — em qual fluxo o alvo mora. `resolverAlvo` é pura: testável sem rede.
   resolverAlvo, fraseBloqueio, resolverAlvoNoN8n, ONDE,
+  /* Exportada só para o teste do VIGIA, que troca `child_process.spawn` por um
+     filho falso antes de exigir este módulo. Não spawna CLI e não fala com o n8n
+     — o que ela prova é o relógio: um vigia que não mata não FALHA, ele PARA, e
+     um teste pendurado lê como "rodando". Mesma lição do `mutex-test.js`. */
+  rodar,
   // §4.1/4.2/4.4 — o contrato do patch. `VERBOS_PATCH` sai para o teste poder
   // afirmar que o quarto verbo não nasceu de novo por descuido.
   VERBOS_PATCH, caminhoDeCredencial,
