@@ -45,6 +45,13 @@ preview/*.png
 # dado de cliente borrado, e sao a unica coisa do repositorio que alguem ve
 # antes de ler qualquer linha.
 !docs/img/*.png
+# Excecao: a logo da empresa. NAO e captura nem cache — e um ASSET SERVIDO, na
+# rota /ep-logo.png, que as quatro paginas pedem no topbar. A regra acima existe
+# para PNG regeneravel ("gerado ao iterar no design, da para gerar de novo");
+# este nao e regeneravel por comando nenhum, a fonte dele e o kit de marca. Sem
+# esta excecao um clone novo sobe com a rota em 404 e as quatro telas sem
+# identidade, e o sintoma (imagem quebrada) nao aponta para o .gitignore.
+!ep-logo.png
 
 # fixes.json and proposals.json are NOT caches — they are knowledge that exists
 # nowhere else and cannot be regenerated from the API, so they stay tracked.
@@ -55,6 +62,22 @@ proposals.json.tmp
 # gerou uma licao nao existe mais em lugar nenhum, e a curadoria do Kauan
 # (promovida / descartada) e decisao dele. Rastreado. So o temp sai.
 licoes.json.tmp
+
+# Os relatorios de auditoria de seguranca. NAO entram no git, e a razao nao e
+# vergonha: sao 8 arquivos, ~400KB, com ~50 achados NAO CORRIGIDOS sobre o codigo
+# que este mesmo commit publica — o `ref` do projeto Supabase cuja `service_role`
+# o proprio documento declara comprometida, os nomes das tabelas de lead, e os
+# passos de exploracao. Publicar o mapa ao lado da fechadura e uma exposicao
+# maior do que qualquer linha que eles descrevem. Ficam no disco, que e onde
+# servem. Reverter e apagar esta linha — depois que os CRITICOS estiverem
+# fechados e a `service_role` rotacionada.
+docs/seguranca/
+
+# Worktree de sessao. E um checkout git de verdade (tem .git dentro), entao um
+# `git add` tentaria gravar um gitlink apontando para um commit que so existe
+# nesta maquina — um clone novo pegaria um submodulo quebrado. 7,6MB de copia do
+# proprio repositorio. Nunca entra.
+.claude/worktrees/
 
 # Skill instalada localmente por `npx skills add`: 19MB e 201 arquivos, com
 # node_modules de terceiro dentro, num repositorio cuja regra e ter zero
@@ -87,3 +110,10 @@ licoes.json.tmp
 # alcança. `conversas-test.js` é o que prova que nada de texto chega lá.
 conversas/
 conversas.json.tmp
+
+# O pareamento do agente local: de quem ele e, quais origens hospedadas ele
+# aceita, e a chave PRIVADA dele. Nada disto e regeneravel a partir de API
+# nenhuma e nada disto pode ir para o git -- e a mesma razao do .env, com um
+# agravante: a lista de origens aqui decide QUEM pode mandar escrever num fluxo
+# de producao. Ver guarda.js.
+.agente/

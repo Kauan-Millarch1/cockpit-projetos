@@ -405,7 +405,7 @@ const CSS_NOVO = `
 .hfx .h-item i.bar { grid-row: auto; align-self: stretch; min-height: 17px; }
 /* "display: block" de volta: o corte de uma linha aqui e feito por
    "text-overflow", e o "-webkit-box" do clamp de duas linhas nao desenha reticencia
-   nenhuma — medido, "a Ana foi chamada..." saia como "a An" cortado seco,
+   nenhuma — medido, "a Ana foi chamada..." saia como "a Anll" cortado seco,
    que le como nome de lead e nao como texto cortado. O "min-width" e o piso: sem
    ele o estado e as marcas comem o titulo ate 8 caracteres. */
 .hfx .h-item .tt { display: block; white-space: nowrap; overflow: hidden;

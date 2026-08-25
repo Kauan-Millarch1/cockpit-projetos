@@ -69,6 +69,13 @@ COCKPIT_CLAUDE_MODEL=sonnet                     # padrão: o modelo padrão do C
 COCKPIT_SANDBOX_TEST=1                          # liga o teste numa cópia inativa (padrão: off)
 COCKPIT_DOSSIE_AUTO=incremental                 # dossiê em dia sozinho depois de aplicar:
                                                 #   off | incremental (padrão) | sempre
+
+# opcionais — o teto de uma rodada da aba Upgrade (todos MEDIDOS, ver a seção)
+COCKPIT_UPGRADE_ESFORCO=low                     # esforço da CONVERSA. padrão: low
+COCKPIT_UPGRADE_ESFORCO_PATCH=                  # esforço do PATCH. padrão: sem flag,
+                                                #   o padrão do CLI — não foi medido
+COCKPIT_UPGRADE_SILENCIO_MS=90000               # sem NENHUM sinal por tanto tempo = travada
+COCKPIT_UPGRADE_TIMEOUT_MS=600000               # teto duro, mesmo dando sinal
 ```
 
 Without it the server still boots and `/disco` works; the flow panel shows an honest error state.
@@ -111,11 +118,12 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `licoes-test.js` | 25 cases. The load-bearing one: **no parameter value ever reaches the file**, asserted against real-looking phones, channel ids and tokens — this file goes to git. `node licoes-test.js`. |
 | `aba.js` | **The notice that arrives when nobody is looking**: animated favicon (a flow — one node, two branches), blinking title, OS notification, plus the page's own `.aviso`. Served to all three pages as **one file**, not a fourth copied block. Holds the judgement of what deserves to interrupt someone; loads in Node so those decisions are testable without a browser. |
 | `aba-test.js` | 24 cases on the decisions — including the boundary that traps a bug the screen never showed. `node aba-test.js`. |
+| `ep-logo.png` | The Ecommerce Puro wordmark in the topbar of all four pages, served at `/ep-logo.png`. **Tracked in git via an explicit `!ep-logo.png` exception** — `*.png` is ignored there for regenerable design captures, and this one is regenerable by no command: its source is the brand kit, so without the exception a fresh clone serves a 404 and the symptom (a broken image) points nowhere near `.gitignore`. 1000×445 RGBA, and **every one of its 118.370 visible pixels is exactly `255,255,255`** — that measurement is what lets one file cover both themes through `filter: invert(1)` instead of a second, dark-ink copy. |
 | `preview/gen-aba-preview.js` | The favicon at 6×, all states, interactive. `aba.js` is **inlined at generation time**, never re-written. |
 | `docs/n8n-kb/` | The portable copy, for other projects. `SKILL.md` is already in Claude Code skill format; `extrair-esquema.js` is a **generated** copy of `esquema.js` (`node docs/n8n-kb/sync.js`), never hand-edited. |
 | `anexos.js` | What she attaches to the conversation — print, PDF, `.md`, spreadsheet, and a whole folder. **Facts only, and no parser of ours**: the CLI reads image and PDF natively, so this writes the file where the session can reach it and describes what is there. Owns the path guards, the whitelist, the caps, the secret scrub, and the tray that holds files before a session exists. |
 | `anexos-test.js` | 57 cases, each rejecting one named defect: traversal in a filename, `..` inside a folder path, `.docx` refused *with instructions*, two pasted prints not overwriting each other, a token in a `.md` scrubbed before it touches disk, the folder tree surviving, and `remover` never reaching outside `anexos/`. Free. `node anexos-test.js`. |
-| `entradas.js` | **The two inputs that are not the keyboard — voice and attachment — as one served file**, for `/tester` and `/upgrade` alike. It owns the drawing (the `⊕ anexar` / `⊞ pasta` row, the chips, the read mark, the batch-refusal grouping) and its **own CSS**, injected once per document. What it does not know is the route, how the page warns, and where the state lives: that arrives through `configurar()`. Loads in Node, so the refusal grouping is testable without a browser. |
+| `entradas.js` | **The two inputs that are not the keyboard — voice and attachment — as one served file**, for `/tester` and `/upgrade` alike. It owns the drawing (the `⊕ anexar` / `⊞ pasta` row, the chips, the read mark, the batch-refusal grouping) and its **own CSS**, injected once per document. What it does not know is the route, how the page warns, and where the state lives: that arrives through `configurar()`. Loads in Node, so the refusal grouping is testable without a browser. Since the composer stopped holding the chips it also owns `gavetaAnexos` — the collapsed strip that carries them **once the conversation exists**, so the field goes back to being empty. The chips did not move because they were noise: the file belongs to the **conversation**, not to the message, and returns in every later round's prompt, which is exactly why dropping it on send would be a lie in the other direction. |
 | `entradas-test.js` | 87 cases in six blocks. Block 1 is the one that keeps the file a file: it fails the day either page redeclares the block or the CSS, measured on **comment-stripped source** — `dossie-tela-test.js` already had two cases stay green because a comment carried the name they searched for. Block 6 drives the real `iniciar()` with the n8n client swapped in `require.cache`, so the tray adoption and *the inventory coming from disk* are proven with nothing called. Free. `node entradas-test.js`. |
 | `agentes-test.js` | Proves each agent gate rejects the specific defect it exists for, and that the doc parses. Free — no model, no cost. `node agentes-test.js`. |
 | `prompt-budget-test.js` | Builds the **worst case** of every prompt and proves it fits the command line. The prompt travels in `-p`; overflowing it fails as `spawn ENAMETOOLONG`, which names neither the prompt nor the size. `node prompt-budget-test.js`. |
@@ -124,14 +132,20 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `reexec-test.js` | 19 cases on the one path whose effect leaves the instance. The load-bearing ones: the target of a sub-workflow retry is the **parent**, the double click is refused (two clicks = two messages to the same lead), an in-flight attempt whose answer never came also refuses, the record is written **before** the call, and an unrecognised error classifies as ambiguous rather than clean. All three mutants were verified to fail it. Free — the n8n client is swapped in `require.cache`, nothing is called. Cleans only its own `rzztest*` rows out of `proposals.json`, never the whole file: the cockpit writes there all day. `node reexec-test.js`. |
 | `audio-test.js` | 26 cases on what the summary says when what travelled was not text. The two load-bearing ones: a TTS node **adjacent in execution order but outside the `src` chain** must not supply the text, and a chain with no TTS must produce no text at all. The judgement block is **extracted from `flows.html` at run time** between anchors — reimplementing it here would prove the copy — and the fixture is synthetic on purpose, because a real execution carries a lead's conversation and this file goes to git. Three mutants verified to fail it. Free. `node audio-test.js`. |
 | `caractere-test.js` | No control character in any served or prompt-injected file, reported with line and column. This file is what the note below about U+0000 in a cache key always claimed existed. `node caractere-test.js`. |
-| `upgrade.html` | The Upgrade tab, served at `/upgrade`. **Holds all judgement** for that page in one block. Today it is the showcase of live flows, the conversation, the patch and the apply — it no longer stops at the target, and **the footer is what decides whether the apply button exists**: it reads `podeAplicar` from the battery **and** `aplicavel` from the patch and demands both, recalculating neither, because a second definition of that rule would diverge on the first fix made to one side and the side that diverged would light a button that writes to production. **An absent field never lights it.** **The conversation has a prerequisite** — `podeConversar` decides whether the composer exists at all, and with no usable dossier there is no field to type in, because the session would not know the flow. Before a target is ever shown, `blocoResolucao()` states which workflow its nodes actually live in — including the fourth state, where the check never ran and the screen says so instead of implying the open flow. `?layout=duas\|pilha\|foco` swaps the three layouts that were compared in print; `?f=<id>` opens straight into one flow. The composer takes **dictation, files, pasted prints and whole folders** — drawn by the served `entradas.js`, and gone with the composer when the dossier locks it. |
-| `upgrade.js` | That tab's session machine — the conversation that ends in a confirmed target, the parent/child resolution (§4.5) that runs before the target is shown, and, since §5/§6, the patch and the apply. **Facts only.** The conversation half still writes nothing and the patch is applied to a **copy in memory**; the writes are three, each in a named place, and two of them are of a different nature than the third: `checagem7` creates/updates the inactive, credential-free `[SANDBOX upgrade]` copy (the only write that happens **before** he approves), `desfazer` restores a literal backup, and **`aplicar` — the one that writes the live flow — does not call `putWorkflow` at all**: it goes through `fix.escreverAprovado`, the single sequence whose *order* is the guarantee. `upgrade-test.js` **counts the direct writes by regex**, so a fourth pasted in by accident arrives red with the number, and asserts there is no loose `n8n.putWorkflow` inside `aplicar`. `resolverAlvo` is pure so its verdict is testable with no network. It also owns the conversation's attachments: the tray adopted when the session is born (inventory read from **disk**, never from what the page claimed), `trechoAnexos` with a budget of its own, and `ferramentasDaRodada` — pure, so the tool fence is testable without spawning a CLI. |
+| `upgrade.html` | The Upgrade tab, served at `/upgrade`. **Holds all judgement** for that page in one block. Today it is the showcase of live flows, the conversation, the patch and the apply — it no longer stops at the target, and **the footer is what decides whether the apply button exists**: it reads `podeAplicar` from the battery **and** `aplicavel` from the patch and demands both, recalculating neither, because a second definition of that rule would diverge on the first fix made to one side and the side that diverged would light a button that writes to production. **An absent field never lights it.** **The conversation has a prerequisite** — `podeConversar` decides whether the composer exists at all, and with no usable dossier there is no field to type in, because the session would not know the flow. Before a target is ever shown, `blocoResolucao()` states which workflow its nodes actually live in — including the fourth state, where the check never ran and the screen says so instead of implying the open flow. `?layout=duas\|pilha\|foco` swaps the three layouts that were compared in print; `?f=<id>` opens straight into one flow. The composer takes **dictation, files, pasted prints and whole folders** — drawn by the served `entradas.js`, and gone with the composer when the dossier locks it. The attachment chips leave the composer the moment a conversation exists and become the served `gavetaAnexos` strip above it — the composer complaint that produced this was *"mandei a mensagem e a imagem ficou colada ali"*, and a chip sitting under the field after the send reads as *ainda não mandei*. Clicking a print **opens it in the page** (`abrirVisor`) instead of in a new tab; the `href` stays, so ctrl/⌘/shift/middle-click still open the tab, which is three ways of opening that removing it would have destroyed. A dossier write opens `abrirProgressoDossie`, and that overlay is what makes closing it safe to say out loud. **The z-index layer is now declared in full and each floor is a decision**: 40 the verification overlay, 45 the flow picker, 46 the dossier progress, 47 the attachment viewer, 50 the `confirmar()` scrim — the confirmation dialog stays in front of everything because it is the one that decides a spend, and a progress overlay covering that button would hide the click that costs money. |
+| `upgrade.js` | That tab's session machine — the conversation that ends in a confirmed target, the parent/child resolution (§4.5) that runs before the target is shown, and, since §5/§6, the patch and the apply. **Facts only.** The conversation half still writes nothing and the patch is applied to a **copy in memory**; the writes are three, each in a named place, and two of them are of a different nature than the third: `checagem7` creates/updates the inactive, credential-free `[SANDBOX upgrade]` copy (the only write that happens **before** he approves), `desfazer` restores a literal backup, and **`aplicar` — the one that writes the live flow — does not call `putWorkflow` at all**: it goes through `fix.escreverAprovado`, the single sequence whose *order* is the guarantee. `upgrade-test.js` **counts the direct writes by regex**, so a fourth pasted in by accident arrives red with the number, and asserts there is no loose `n8n.putWorkflow` inside `aplicar`. `resolverAlvo` is pure so its verdict is testable with no network. It also owns the **round ceiling**: two numbers instead of one wall clock (a silence watchdog that reads the CLI's own thinking heartbeat, plus a hard ceiling), two distinct death sentences, and `--effort` chosen **per kind of round** — `low` for the conversation because it was measured, the CLI default for the patch because it was not. It also owns the conversation's attachments: the tray adopted when the session is born (inventory read from **disk**, never from what the page claimed), `trechoAnexos` with a budget of its own, and `ferramentasDaRodada` — pure, so the tool fence is testable without spawning a CLI. |
 | `upgrade-test.js` | 219 cases on the answer contract (`resposta` / `alvo`) and on §4.5's verdict, including the one the first real round produced: a **question hidden inside `nota`** is refused, because a pending decision that changes the patch must not ride inside a target the screen presents as ready to confirm. Free. `node upgrade-test.js`. |
+| `rodada-teto-test.js` | 46 cases on the round ceiling of the Upgrade tab, and the block that carries the file is the last one: it drives the **real** watchdog with a fake `child_process.spawn` and **races a clock**, because a watchdog that does not kill does not fail — it *stops*, and a hanging test reads as "running" (the `mutex-test.js` lesson). It pins the two deaths as distinct sentences, that a mute child dies by silence and a child that only *thinks* does not, that stderr counts as life, and that the patch round does **not** inherit the conversation's measured `--effort low`. 14 mutants verified red. Free — no CLI is spawned, nothing reaches n8n, nothing is written to `conversas.json`. `node rodada-teto-test.js`. |
+| `anexo-bolha-test.js` | 63 cases on the print appearing **inside the message that carried it**, and on the route that serves it. The three that carry the file: the snapshot glued to the message is **shape only** (asserted against a `b64` planted on the input — a 66KB print as base64 would land in a history file read whole on every drawer open); the path guard refuses to leave `anexos/`, **including the credential-bearing backup in the neighbouring directory**, which a route existing to show an image must never serve; and the 404 is a **fact about the disk**, not a refusal — `.upgrade-runs/` is scratch, so the body says so in JSON and the screen writes a sentence instead of showing a broken image. The route block is **extracted from `server.js` between delimiters** and driven with a fake `req`/`res` (that file is not requireable — it `listen()`s on 4317, Kauan's real terminal), and the bubble renderer is extracted from `upgrade.html` at run time. **23 mutants verified red**, two of them only after a case stopped being loose: a regex that matched "ends in null" stayed green with `[]`, and asserting only the 400 let the route's own gatekeeper be deleted (`caminhoDeAnexo` already refused, so the case now pins **which layer** speaks). Free — no model, no network, no n8n; writes only in a temp dir. `node anexo-bolha-test.js`. |
+| `seletor-test.js` | 59 cases on the flow picker of the Upgrade tab, with the judgement **extracted from `upgrade.html` at run time** and every wiring check measured over **comment-stripped source**. Three carry the file: the picker has **no keyboard listener of its own** (one would make a single Esc close it *and* call `parar()`, killing a paid model round) and its place in the page's capture chain is asserted — below the `.scrim`, above `parar()`; the row's dot is `pontoStatus` and its seal is `seloDossie`, **reused whole**, so no second wording of *"sem dossiê · conversa travada"* can drift from the card's; and the partition is **total** — every flow lands in exactly one group, because a flow in neither would be unreachable again with nothing on screen saying so. **26 mutants verified red**, including one that only died after the case stopped asserting that a call *exists* and started asserting its guard: `if (false) varrerDossies(…)` was green. Free — no browser, no network, no model. `node seletor-test.js`. |
+| `regras-anexo-test.js` | 10 cases on the one file the session is ordered to read **before anything else**, measured from disk rather than from the pure function. The defect it exists for was measured in a real conversation (`umt7kj5cc69ib`, 2026-08-20+, `Agente eContrate`): the print reached the directory (`anexos/print-182748.png`, 66KB, adopted from the tray, `INDICE.md` written beside it) and `REGRAS.md` did not contain the word *anexo*. It lives apart from `upgrade-test.js` because that file is entirely synchronous and measures the **prose**; this one measures the **wiring**, which is the half that almost escaped: `regras()` can be perfect while `escreverRegras` passes `false` where it should read the inventory, and then every prose case stays green with the file on disk missing the attachment. That is the one mutant of the eight that only this file catches. Both directions are pinned: omitting what exists, and promising a folder (or a `Glob`) that this round does not have. Free — no model, no spawn, no n8n, nothing written to the repo, only a `.md` in a temp dir removed in a `finally`. `node regras-anexo-test.js`. |
 | `preencher.js` | **The `[PREENCHER]` gate** (§4.3). Decides whether a patch is allowed to write a placeholder into a live flow — the answer is never. Scans only the parameters the patch **touches**, because a production flow already carries markers from old Tester builds. Owns the `<...>` calibration and declares its own two blind spots. Facts only: it names the node and the key path, and the retry loop is what acts on that. |
 | `preencher-test.js` | 61 cases, and the group that matters is the one listing what the gate must **not** catch — HTML in a `jsCode`, an SSML tag quoted in a system prompt, an instruction template. Each of those is a correct patch that the first version rejected. 13 mutants verified. Free. `node preencher-test.js`. |
-| `dossie.js` | The flow's dossier: prose describing what each stretch does, so a session understands a 179-node flow without re-reading 291KB of JSON. **It replaces exploration, never editing.** Owns the per-node fingerprint, the divergence semaphore, the gate that keeps parameter values out of the `.md`, and the `dossies.json` ledger. Writes nothing to n8n. It no longer *never* regenerates on its own: since Kauan's explicit decision it owns the **verdict** for the automatic write after an apply (`modoAuto` / `decidirAuto`, both pure, and `COCKPIT_DOSSIE_AUTO`) — the trigger itself lives in `server.js`. Since the incremental slice it also owns the **split fingerprint** (`settingsFp` / `conexoesPorNo` / `conexoesFp`, with the legacy `global` preserved byte for byte), the **admission rule** for inheriting a paragraph, and the **three locks**. `node dossie.js --construir <id\|nome> [--incremental]`, `--estado`, `--ver`. |
+| `dossie.js` | The flow's dossier: prose describing what each stretch does, so a session understands a 179-node flow without re-reading 291KB of JSON. **It replaces exploration, never editing.** Owns the per-node fingerprint, the divergence semaphore, the gate that keeps parameter values out of the `.md`, and the `dossies.json` ledger. Writes nothing to n8n. It no longer *never* regenerates on its own: since Kauan's explicit decision it owns the **verdict** for the automatic write after an apply (`modoAuto` / `decidirAuto`, both pure, and `COCKPIT_DOSSIE_AUTO`) — the trigger itself lives in `server.js`. Since the incremental slice it also owns the **split fingerprint** (`settingsFp` / `conexoesPorNo` / `conexoesFp`, with the legacy `global` preserved byte for byte), the **admission rule** for inheriting a paragraph, and the **three locks**. `node dossie.js --construir <id\|nome> [--incremental]`, `--estado`, `--ver`. Since the progress overlay it also emits **position** and a **ruler**: `ETAPAS` (a closed list — `preparando`, `escrevendo`, `conferindo`, `publicando`) fed to an `aoEtapa` callback, and `duracao(modo)`, the median `ms` of past writes **of that mode**, `null` under two samples. And it owns `recusaLimpa` — one definition of how a gate refusal is stripped of the snippet it quotes, used by all three destinations that are not the session's scratch dir. |
 | `dossie-test.js` | 188 cases. The three load-bearing ones: a **`rewire` between existing nodes** changes no byte of any node and must still invalidate (a hash of the node alone misses it), and **no parameter value reaches the `.md`** — asserted against real-looking phones, e-mails, JWTs, table ids and expressions. and **the legacy `global` hash did not move when the fingerprint was split** — `6126ecf1ce3d81f1` plus five per-node hashes are pinned as literals, read out of the pre-split `dossie.js`, because that pin is what keeps the two dossiers on disk valid instead of costing ~US$6,20 to rebuild. Group 5 is the opposite list: what the gate must **not** reject, because each of those would refuse a correct dossier. Free. `node dossie-test.js`. |
-| `dossie-tela-test.js` | 103 cases on the Upgrade tab's dossier band and on the **lock that decides whether the composer exists**. The judgement blocks and both input functions are **extracted from the page at run time** — reimplementing them here would prove the copy. Two groups are load-bearing: the four band sentences must stay distinct (one sentence for grey and red teaches you to ignore both), and the `enviar()` guard must not fail open. Block 6 covers the attachment row inside the composer: present and enabled when the composer is, present and **disabled** while the dossier state is in flight, and gone when the lock rises — with the block saying it kept the files. Free. `node dossie-tela-test.js`. |
+| `dossie-tela-test.js` | 118 cases on the Upgrade tab's dossier band and on the **lock that decides whether the composer exists**. The judgement blocks and both input functions are **extracted from the page at run time** — reimplementing them here would prove the copy. Two groups are load-bearing: the four band sentences must stay distinct (one sentence for grey and red teaches you to ignore both), and the `enviar()` guard must not fail open. Block 6 covers the attachment row inside the composer: present and enabled when the composer is, present and **disabled** while the dossier state is in flight, and gone when the lock rises — with the block saying it kept the files. Free. `node dossie-tela-test.js`. |
+| `dossie-progresso-test.js` | 39 cases on the progress the dossier write reports, with `progressoDossie` and the phrases **extracted from `upgrade.html` at run time** and every wiring check measured over **comment-stripped source**. The load-bearing one is the eighth telling of this file's oldest lesson: `duracao` **absent** means the answering cockpit booted before this version of `server.js` (Node does not reload it) and must resolve to `campoAusente`, **never** `semRegua` — one says *reopen the window*, the other says *this is the write that creates the ruler*, and they are opposite instructions. Also pinned: the three indeterminate sentences are textually distinct; `semRegua` quotes no minute at all (it is where **every** incremental write lands today, measured: 0 samples); the bar caps at 0,97 even at ten times the median; an unknown stage comes back raw in quotes instead of falling into the first label; and `etapaI` walking **backwards** — which is what a refused round does — does not make the bar retreat, because the bar is time, not stages completed. That last one has never been seen in a real write and the case says so. 14 mutants verified red. Free. `node dossie-progresso-test.js`. |
+| `pii-test.js` | The mask on the `n8n.js` boundary, and — since 2026-08-25 — `recusaLimpa`. 27 cases. The block that earned its keep on the day it was written: a dossier gate refusal **quotes the value that leaked**, on purpose, because it goes back to the model literally and that is how it knows which sentence to delete. That is right inside the session's scratch dir and wrong in all three real destinations, and one of them **was already live** — `anotarAuto` kept refusals with `String(x).slice(0, 160)` and `autoUltimo` is served by `GET /api/upgrade/dossie/:id`, so an automatic write that failed the leak gate published the leaked phone to the flow's screen. The cases point in both directions, because only asserting the phone is gone would pass a function that returns an empty string, and a screen saying *"reprovou"* without saying **in what** decides nothing. One case exists solely to pin that **the `slice(0, 120)` is not the protection** — 160 characters preserve a whole phone number — so nobody loosens it believing it is layout. 4 mutants verified red, and one of them is the code that was shipping. Free. `node pii-test.js`. |
 | `dossie-incremental-test.js` | 189 cases on the partial write and the three locks. What each block exists to prove, in one line: inheritance is admitted **only** from green or orange **with the `gateV` seal current** (an unknown colour refuses); colour alone is not enough, so the one-hop flag must not stack and `g >= MAX_GERACOES` is not inheritable; the two gates are separate (`validar` over the new text in round format, `vazou` over the composed document); and **the three locks keep their order**. Every lock block races a clock, which is the `mutex-test.js` lesson: a deadlock does not fail, it *stops*, and a hanging test reads as "running". `construir()` is never called — it bills the plan, takes 11 measured minutes and writes — so everything is proven through the pure functions and a `require.cache` swap of the n8n client. `dossies.json` is saved and restored byte for byte. Free. `node dossie-incremental-test.js`. |
 | `dossie-vitrine-test.js` | 136 cases on the dossier seal on the vitrine card and on the receipt's offer, with the judgement block and both render functions **extracted from the page at run time** and the wiring checks measured over **comment-stripped source**. Three load-bearing ones: the card's `travado` comes out of `podeConversar` for every present state (a second definition of "you cannot talk to this flow" would have the card inviting a click the next screen refuses); the receipt's button carries the **written** flow in `data-wf`, because §4.5 means the patch may have landed in a sub-flow and the delegation used to read the open one; and the offer quotes **the mode the click will actually use**, never the full rewrite's price next to a promise of a partial repair. 16 mutants verified. Free. `node dossie-vitrine-test.js`. |
 | `auto-dossie-test.js` | 125 cases on the automatic write after applying an upgrade — Kauan's explicit relaxation of §2.8. Two defects carry the file and they point in opposite directions: **surprise spend** (the default never falls back to the US$4,14 full rewrite; an absent key and an unrecognised value both land on the cheap branch, and green and grey are skipped in every mode) and a **silent ending** (all eight screen sentences are asserted distinct, and the red-skipped one must tie the skip to the locked conversation in a single sentence). The verdict is pure so it is provable with no network; the screen judgement is **extracted from `upgrade.html` at run time**, and the server wiring is read from source **comment-stripped** — the lesson `dossie-tela-test.js` paid, and it earned its keep again here: one mutant turned a guard into `if (false)` and two cases stayed green off the literal in the untouched text. `construir()` is never called. **19 mutants verified red.** Free. `node auto-dossie-test.js`. |
@@ -141,7 +155,7 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `escrever-test.js` | 55 cases on `escreverAprovado()`, and what they prove is the **order**: gates before the backup, backup before the `PUT`, and nothing written when any earlier step refuses. Five mutants verified to fail it, including *backup before the gates* and *`PUT` before the backup* — both of which leave the screen claiming something exists to undo. The n8n client is swapped in `require.cache`, so nothing talks to the instance. `node escrever-test.js`. |
 | `ledger-kind-test.js` | 45 cases on `proposals.json` holding two kinds of row. The load-bearing one: **60 upgrades must not evict the fix history** — the cap used to be global and `writeStore` trims without telling anyone. Five mutants verified to fail it. Writes nothing to the ledger (the cockpit writes there all day), so the cap is proven through pure functions and the disk is only read. `node ledger-kind-test.js`. |
 | `dono-test.js` | 57 cases proving every write path names **who** is writing — the six call sites read from the real source, so a seventh cannot be pasted in silently. Etapa 0 of four; the queue itself is etapa 3. Free, and fenced so it can never grow into something that writes to the live instance. `node dono-test.js`. |
-| `testar.cmd` | Double-click: runs every test that costs nothing — **33 files** today. `tester-smoke.js` is deliberately left out — it bills the plan. |
+| `testar.cmd` | Double-click: runs every test that costs nothing — **61 invocations** today, **60 of them `*-test.js`**, plus `simulate.js`, which is run as a demonstration and not as a test. Re-counted from the file (`grep -c "^node "`), never incremented — this row had already drifted twice. Re-measured 2026-08-25: the 60 are exactly the `*-test.js` files on disk, so nothing is sitting outside the double-click. `tester-smoke.js` is deliberately left out — it bills the plan. **Measured 2026-08-25: 25 of those 60 test files are UNTRACKED in git**, so a `git clean` erases a quarter of the suite with no copy anywhere — same shape as the `dossies.json` row above, and recorded here rather than fixed because committing is Kauan's call. |
 | `catalog.js` | What this instance actually accepts, distilled from the live workflows — **the cache on disk read 73 of them, on 2026-08-16, and the instance has 75 today**, so it is a floor and a `node catalog.js --refresh` is what moves it. **Only sanitized parameter shapes reach disk — never values.** Since 2026-08-10 it also carries `credenciaisConhecidas`: credential **type, id and name** referenced by his flows. The secret is not there and never can be — the public API does not return credential values. Cache is versioned (`CACHE_V`); bump it on any shape change. |
 | `credenciais-test.js` | The per-node checklist and the auto-attach rule, plus one boundary test: no credential name may reach the catalogue slice the build session reads. Free. `node credenciais-test.js`. |
 | `lixeira-test.js` | Delete moves, restore returns whole, permanent delete ends it. Runs against the real `projetos/` — that is the directory the functions know — with a `zz-teste-lixeira-*` fixture cleaned up in a `finally`. Free. `node lixeira-test.js`. |
@@ -179,7 +193,15 @@ exists at all** (see the dossier-lock section below; `podeConversar` is pure so 
 testable with no browser, same reason as `resolverAlvo` and `custoDaRodada`) — plus
 `anexosAgora`/`lidosAgora`, **which of the two sources the chips come from**: the tray before the
 first message, the snapshot after it. The drawing of those chips is not judgement and lives in the
-served `entradas.js`.
+served `entradas.js`. And `partesNome`/`SELETOR_GRUPO`/`gruposDoSeletor`/`passaSeletor` — **which of
+the two groups a flow falls in, in which order, and what the group says about itself** (see the flow
+picker below; `gruposDoSeletor` is pure, so both orders and the partition are testable with no
+browser, same reason as `podeConversar` and `resolverAlvo`).
+And `PROG_ETAPA`/`PROG_INDET`/`progressoDossie`/`fraseProgresso` — **what a progress bar is
+allowed to assert about a write nobody can see**. `progressoDossie` is pure for the same reason as
+the three above, and it is where this file's oldest lesson gets its eighth telling: `duracao`
+absent, `duracao` null, and `duracao` with no median are three different sentences, and the absent
+one means the answering cockpit is older than the route — never *"there is no history"*.
 
 Keep it that way. The definition of "healthy" is the part Kauan tunes most often, and splitting it
 across the server would mean every tweak requires a restart and a cache bust.
@@ -258,9 +280,10 @@ output. `claude-fix.js` is what keeps that honest, in three layers:
 | `POST /api/novidades/verificar` | Runs the daily round now — same gates, nothing skipped. |
 | `POST /api/upgrade/anexo` | One attachment per request, base64, **before the conversation exists** — here the session is only born on the first message, so this is the tray. Returns `{bandeja, anexos, resumo}`; the tray id is the receipt. Refusal is a normal `400` carrying the sentence the screen shows plus its `categoria`, which is what lets a batch become one grouped notice. |
 | `POST /api/upgrade/anexo/remover` | Takes one chip off the tray. Only reaches inside its `anexos/`. |
+| `GET /api/upgrade/arquivo/:convId?nome=` | The bytes of one attachment, so the conversation can **draw the print inside the message that carried it**. Addressed by `convId` and not by a live session: a conversation reopened from disk has none, and that is exactly where seeing the print again matters. Three guards, and the middle one stops the worst: the id's format, `anexos.caminhoDeAnexo` (which proves twice that the target is under `anexos/` — without it a `?nome=../_private/<id>.json` would serve the backup **with credentials**), and the extension against `anexos.TIPOS`, the same list that accepted the file on the way in. It deliberately does **not** go through `serveFile`: `estatico.negociar` caches the raw buffer by mtime, which is right for four served files and wrong for an attachment folder that grows. 404 is a fact about the disk, not a refusal, and says so. |
 | `POST /api/upgrade/sessao/:id/anexo` | Same, with the conversation already open — straight into the run directory, no tray. Fires no round: the next message is what makes the session look. |
 | `POST /api/upgrade/sessao/:id/desanexar` | Removes one attachment from a live conversation, and the read mark with it. |
-| `GET /api/upgrade/dossie/:id` | One flow's dossier state: colour, motive, counts, the date of the flow version it describes, the size of the redacted flow it saves reading, the last ledger row, **the price of each write mode**, and `incremental: {admitido, porque, regenerar, herdar, umHop, visao, preco}`. Facts only — whether the offer appears and which price it may show is decided in `upgrade.html`. |
+| `GET /api/upgrade/dossie/:id` | One flow's dossier state: colour, motive, counts, the date of the flow version it describes, the size of the redacted flow it saves reading, the last ledger row, **the price of each write mode**, and `incremental: {admitido, porque, regenerar, herdar, umHop, visao, preco}`. Facts only — whether the offer appears and which price it may show is decided in `upgrade.html`. Since the progress overlay, `job` also carries the **position** and the **ruler**: `comecouEm`, `etapa`/`etapaI`/`etapaTotal`, `rodada`/`rodadas`, `duracao`, and the gate `recusas` — already stripped of the snippet they quote. Same fields in the vitrine scan, deliberately: a second name for the same fact would let the card and the overlay disagree about the same write. No percentage crosses — a denominator computed here would be a second ruler beside the one the screen draws. |
 | `POST /api/upgrade/dossie/:id` | Starts one dossier write → `202 {job}`. One at a time (409). `?incremental=1` asks for the **partial** write, and the route re-checks the admission locally before spawning: **if it no longer holds it refuses with 409 instead of dropping to a full rewrite**, because consent was given over the partial quote. **This writes nothing to n8n** — the dossier is a local file. |
 | `GET /api/upgrade/dossies?ids=` | The vitrine scan: one seal per flow, at most 40 ids per call, cached 15 min, plus `lidos`/`falhas`/`geradoEm`. A flow that failed to read comes back as `{id, erro}` — **never grey**, which means *never written* and leads to the opposite decision. |
 
@@ -2450,6 +2473,401 @@ mean a third-party key inside this process, which is what this project has avoid
 where `SpeechRecognition` is absent the button does not render. And the glyphs are `⊕` / `⊞`: `📎` and
 `🗀` render as an empty box in this font, measured.
 
+### The print was going and being read, and the screen never said so
+
+Kauan reported it as *"when I send a print in /upgrade it doesn't send my image"*. Two measurements, in this
+order, and the first one contradicted the report.
+
+**The image reaches the model.** Spawning the CLI with the **production arguments** — built by
+`ia.argumentosDaRodada`, not by hand, so the fence is the real one: `--disallowedTools`,
+`--setting-sources ""`, `--strict-mcp-config`, no Bash, no network — in a directory holding a PNG:
+
+```
+[tool] Read → anexos/print.png
+[resultado] forma=image/image/png     ← the CLI decoded it; the model is seeing the image
+```
+
+and the answer quoted **two strings that only exist inside the picture**. So the claim this file makes in two
+places — *"the CLI reads image and PDF natively with `Read`"* — is now measured under this fence, not assumed.
+
+**And it happens in the real round too.** Same measurement in production shape: the prompt built by
+`upgrade.prompt(s)`, the `REGRAS.md` written by `upgrade.escreverRegras(s)`, and his actual print competing
+with `DOSSIE.md`, `nodes-index.md` and a 175KB `fluxo.json`:
+
+```
+[5.1s] Read REGRAS.md → [5.9s] Read anexos/INDICE.md → [7.9s] Read anexos/print-182748.png
+   ↓ image decoded → [10.0s] Read DOSSIE.md → [31.8s] Write resposta.json      35,8s · US$0,1825
+```
+
+The answer was **entirely about the content of the print**, with three questions grounded in what the
+screenshot asked for.
+
+**So the defect was never the pipeline — it was that the screen showed none of it.** `blocosConversa()` drew
+his message as `esc(m.texto)` and nothing else, and the chip stayed in the composer after sending. Read
+together, those two say *the file is still waiting to go*. **A pipeline that works and a screen that does not
+show it is indistinguishable from one that does not work**, and of the two readings the second is the one that
+makes someone attach the file again.
+
+**What was missing was a record, and it is a SNAPSHOT of the moment of sending.** The message now carries
+`anexos: [{arquivo, nome, tipo, bytes}]`. It lives on the message and not read from `s.anexos` at paint time
+for a reason: `s.anexos` is the folder's **current** state and grows when he attaches something mid-conversation
+— read at paint, a print attached today would appear inside yesterday's message, the screen claiming an
+already-paid round saw something it had no way to see. Only shape travels; the file stays on disk.
+
+**The history persists it, the tracked ledger does not.** `conversas/` is gitignored and already holds his text
+verbatim, so nothing new crosses; what goes to git is `conversas.json`, a name whitelist with no text. Without
+persisting, a reopened conversation would show that message as plain text — the live list dies with the process.
+Absent and `[]` **read the same**, because conversations written before this version have no field at all.
+
+**`GET /api/upgrade/arquivo/:convId?nome=` serves the bytes** — see the API table for its three guards and why
+it deliberately avoids `serveFile`. Base64 in the snapshot was the alternative and it is 66KB per print inside
+an object that travels on **every** SSE event, several times a second during a round.
+
+**Image becomes an image; everything else becomes a chip with its name.** The thumbnail is `sens` — it is
+customer data, and recording mode has to blur it before anything else on this screen — and it is wrapped in an
+`<a>` to the file, because seeing the print full size is what decides whether he sent the right one. The
+missing-file branch is **one capture-phase listener**, not an inline `onerror`: a handler written inside an HTML
+string needs three levels of quoting and is where a forgotten `esc()` becomes execution, and there would be as
+many copies of it as attachments on screen. Capture is not a preference — an `<img>`'s `error` event does not
+bubble, so a listener on the document would never fire.
+
+**The chip staying in the composer is CORRECT, and now it says why.** The attachment belongs to the
+**conversation**, not to the message: the file stays in the session directory and goes back into the prompt of
+**every** later round — that is what keeps the print valid when he writes the second sentence. The sentence
+under the chips says exactly that, and points at where the print appears.
+
+**And there are TWO sentences, because the doubt arrives before the send.** The first version gated that
+sentence on `S.convId`, so it only existed once a conversation did — and Kauan's next question was *"is it
+supposed to look like this?"*, sent with a screenshot of exactly the state it did not cover: chip in the tray,
+empty field, nothing sent. **The moment of doubt is before sending**, and that was the one moment the screen
+said nothing. The two states get two distinct sentences because they lead to different readings — in the tray
+the print is still *going*; with the conversation open it already *went* and *stays*. One sentence for both
+would teach him not to believe it, which is this file's standing rule. Verified in the browser by driving the
+real `<input type=file>`, so the tray POST is exercised too, not just the sentence.
+
+**Three AA failures the measurement found, one of them pre-existing and shared.** `--txt-faint` on the chip's
+meta line measured **4,2513** in dark (the background is `--surface-2` composited inside an `--accent-soft`
+bubble); `--cold-txt` on the missing-file line failed in **both** themes (4,4237 / 4,1293) and now uses the
+documented `color-mix(… 72%, var(--txt))` recipe; and **`.anxnota` in `entradas.js` measured 4,2105 in dark** —
+that one is older than this slice and shared with `/tester`, since the *"1 anexo(s) — a sessão lê o que
+precisar"* line always used it. Fixed in the served file, so both pages get it. After: **8 of 8 measurements
+pass, worst case 6,0849.**
+
+**One trap paid on the way, worth writing down: no backtick inside `entradas.js`'s CSS.** That block is a
+template literal, so a backtick in a comment **closes it** — and the error Node prints is
+`SyntaxError: Invalid left-hand side expression in postfix operation` pointing at the `const CSS =` line, which
+is nowhere near the problem. The other comments in that block use quotes for exactly this reason; mine now says
+so out loud.
+
+**And the failure sentence does not accuse the disk.** From the browser all that is known is that the image did
+not load, and there are **two** causes with opposite decisions: the scratch was cleaned (a fact about the disk,
+expected), or the cockpit answering booted before this version and has no such route — Node does not reload
+`server.js`. Asserting the first would send him looking for a file that is sitting right there, which is exactly
+what the `Response.json()`-on-a-404-body defect did when it blamed his Claude install for a stale process. The
+line reads *"não consegui abrir este anexo"* and both causes live in the `title`, neither claimed as the one.
+
+**Verified in a real browser** (Playwright, own static server on a separate port, all `/api/**` intercepted —
+the file route answering with real PNG bytes and a deliberate 404 for the third state): **22 checks**, including
+`naturalWidth > 0` on the thumbnail (source tests prove the page emits `<img src=…>`; only the browser says that
+`src` loaded), the 404 becoming the sentence with no broken image left on screen, recording mode blurring both
+the thumbnail and the filename, and the contrast sweep above.
+
+### The flow picker: the grid shows 11 of 75, and the other 64 needed an id to reach
+
+The vitrine already **is** a picker — 11 cards, all of them on one screen. Filtering 11 items you are looking
+at does not earn a modal. What earns it is what the grid does **not** show: `/api/upgrade/vitrine` returns all
+**75** workflows of the instance and `naPorta` leaves 11 on screen, so 64 flows were reachable only by pasting
+`?f=<id>` into the URL — which requires knowing the id. That is the whole reason this exists, and it is why
+the button says **"todos os fluxos"** rather than "filtrar".
+
+**Choosing OPENS the flow; it does not filter the grid.** That is the one place it deliberately diverges from
+the picker in `flows.html`, where the choice narrows a list of executions that stays on screen. Here
+*"escolher qual fluxo eu quero mexer"* **is** opening — filtering the grid down to one card and then demanding
+a second click on that card is one more click to reach the same place.
+
+**Opening a flow from outside the door works and is not an accident.** `render()` finds the flow in the whole
+of `S.fluxos`, not in the vitrine's slice, and `irPara(id)` already asks for `pesar([id])` and `verDossie(id)`
+on demand — weight, drawing and dossier arrive after the click, exactly as they would through `?f=`. Verified
+in the browser: opening a flow the grid never listed fires both requests.
+
+**Two groups, and the second one is the point.** One flat list would lie by omission in both directions: a flow
+with 731 executions and a `My workflow 3` would read as equals, and the question *"why isn't this one on the
+grid?"* — which is what someone asks the moment they see the name there — would have no answer anywhere. The
+group note **is** that answer. Each group's order is its own decision: the top one uses `ordem`, the same as
+the grid (by execution, because where it runs most is where an upgrade pays, and two orders for one list would
+have the picker disagreeing with the screen behind it); the bottom one by **name**, because those are flows
+with zero executions and ordering a 64-way tie by execution orders nothing — there, whoever is looking is
+looking by name.
+
+**Every row carries the dossier seal, and that is what makes the picker worth something before the click.**
+With the composer lock in place, grey and red mean *"you cannot talk to this flow"* — and today that is **73 of
+75**. A picker that did not say so would send him into a locked screen 73 times out of 75, which is exactly the
+defect `seloDossie` on the card already exists to prevent. So `seloDossie` is **reused whole**: same glyph, same
+text, same `travado` decision. A second wording of *"sem dossiê · conversa travada"* here would diverge from the
+card's on the first fix made to one side, and the two screens would start disagreeing about which flow accepts a
+conversation. The row's **dot** stays `pontoStatus` — execution health, the card's vocabulary; if it meant
+"dossier state" there would be two red dots on one screen meaning different things.
+
+**The 64 rows outside the grid are not in the boot scan, so opening the picker asks for them** — and that is a
+three-state decision, not an optimisation. Without the request those rows would sit at *"conferindo o
+dossiê…"* forever, and that sentence would be **false**, because nobody would be checking. Saying *"sem
+dossiê"* instead would be worse: it is the opposite decision. So the fix is to make the sentence **true**
+rather than to invent a fourth label. It is nearly free, and that is measured: a flow with no `.md` is answered
+grey with **no n8n read at all** (`estado(null, wf)`), and 2 of the 75 have one; the route is cached 15 minutes.
+It asks with **`meta: false`**, because `S.dossieVitMeta` feeds `resumoDossieVitrine(vivos)`, the sentence about
+the **cards** — letting a 75-flow scan write there would have that sentence counting reads of flows that are not
+on screen. Right number, wrong question.
+
+**The seals update in place; the list never moves.** The list is a snapshot of the moment it opened — inherited
+from `flows.html` for the same reason (repainting under the cursor moves the item that is one Enter from being
+chosen) — but the seal cells swap text and colour without reordering or changing how many rows exist. Verified:
+the row order string is byte-identical before and after the scan lands.
+
+**The keyboard has one owner.** The picker registers **no listener of its own**; `tecladoSeletor(e)` slots into
+the page's existing capture chain, below the `.scrim` of `confirmar()` and above `parar()`. With its own
+listener a single Esc would close the picker **and** stop a running round — two different actions on one key,
+which is the defect the long note in `tecladoGaveta` already describes, measured in a browser.
+
+**The shell was already here, and it was dead CSS.** `.fmod*` and `.fitem*` came from `flows.html` when this
+page was composed and **nothing used them** — measured by grep, the only occurrences were the rules themselves.
+The picker lights them up instead of becoming a fifth hand-copied block. What is new is only what this picker
+has and that one does not: the group header, the seal line, the node count. Its `z-index` went from the
+inherited **92 to 45**, so this page's declared layering (40 gaveta, 45 picker, 50 the `confirmar()` scrim)
+makes the sentence *"the `.scrim` is in front of everything"* literally true rather than true by luck.
+
+**Two defects the measurement found, neither of them guessed.** The group title broke across **three lines** in
+the left gutter, because a flex item is born with `min-width: auto` and the title yielded before the long note
+(`nowrap` + `flex: 0 0 auto` on the title, `min-width: 0` on the note — the lesson `.tela-hd` already paid on
+this page). And `--txt-faint` on the node-count and project lines measured **4,1797** in dark theme over the
+cursor row's composited `--accent-soft`: an AA failure, and the exact rule this file states — *a text token must
+clear every surface it lands on, not the easiest one*. Both faint lines rise one step to `--txt-dim` under
+hover and cursor. After: **32 of 32 measurements pass, worst case 4,5742.**
+
+**Verified in a real browser** (Playwright, a static server of its own on a separate port, **every** `/api/**`
+route intercepted with fixtures — nothing reached n8n and nothing was paid; an unrecognised path answers 500 so
+it cannot leak to the instance): **44 checks**, including the two groups, the 20-of-20 footer, focus landing in
+the search field, `inert` on the rest of the page, the seal going from *conferindo* to its real text with the
+order unchanged, search matching by project (`roberto` → the two `[ROBERTO]`), ↑↓ moving a cursor that opens
+nothing, Esc closing and returning focus to the button that opened it, a flow from outside the door opening with
+its weight and dossier requested on the click, and the contrast sweep above in both themes. The harness lives
+outside the repo on purpose: it needs Playwright, and `testar.cmd` stays zero-dependency.
+
+### The attachment arrived and the file the session reads first did not mention it
+
+Measured 2026-08-24, from a real conversation. Kauan attached a print in the `/upgrade` composer, typed
+*"Veja esse pedido para implementarmos na Gabi"*, and the session behaved as if there were no print.
+Everything the attachment path promises had actually worked: the tray was adopted (`rename`), the file was
+on disk at `.upgrade-runs/umt7kj5cc69ib/anexos/print-182748.png` (66KB) with `INDICE.md` written beside it,
+and `trechoAnexos` put that index in the prompt. **`grep -i anexo REGRAS.md` in that directory returned
+nothing.**
+
+**That file is the one the prompt orders read before anything else** — *"Leia `REGRAS.md` no diretório
+atual antes de qualquer coisa: ele diz o que você está fazendo, quais arquivos existem"* — and the section
+inside it is literally called **"Os arquivos aqui"**. An inventory that presents itself as complete and
+omits the material of the request is the same class this file already documents twice: **prose the model
+reads asserting what the code contradicts** (`REGRAS_MOLDE` claiming nothing written there goes to n8n; the
+dead `escreveNoN8n` contract). And the direction is the worst available: it teaches the session not to look
+for what he just sent.
+
+**The cause is mechanical, and it is an ORDER.** `prepararDir` writes `REGRAS.md`, and it runs *before* the
+tray is adopted — it is what creates the directory the `rename` lands in. So a file written only there could
+never mention the attachment, no matter what `regras()` said. `escreverRegras(s)` is now called at the
+**five** moments the directory's inventory changes: preparing the directory, adopting the tray, attaching
+mid-conversation, detaching, and reopening from disk. It costs one local ~15KB `writeFile` on a path that
+already writes 175KB of `fluxo.json`.
+
+**The same paragraph carried a second defect, pointing the other way.** The template promised
+`Read, Write, Edit, Glob, Grep` **always**, while `ferramentasDaRodada` grants `Glob` **only when there is an
+attachment**. A round with no attachment read the promise, called `Glob`, and was refused — and *"a denied
+tool costs a round, quietly"* is a lesson already paid here. The sentence is now **derived from the same
+function that builds the spawn**, so the two lists cannot diverge on the first fix made to one side.
+
+**The attachment block goes BEFORE the dossier, and the ordering sentence is not decoration.**
+`ARQ_COM_DOSSIE` says *"comece por aqui"*, so with an attachment there were two first-read instructions in
+one file, and a contradiction in a prompt is resolved by whoever reads it — which is the model. The block
+says which is which: **the attachment is the REQUEST, the dossier is the FLOW, and the request comes
+first** — understanding 103 nodes and only then discovering the print asked for something else is the round
+paid twice. The same qualifier goes into `prompt()`, whose dossier line says `LEIA ELE PRIMEIRO`, and it is
+**conditional**: with no attachment that sentence must not appear, because a sentence about an absent file is
+the same empty promise as the folder that does not exist.
+
+**What this does not claim.** It does not prove the session opened the print — that is what
+`registrarLeituraAnexo` observes off the `tool_use` stream, and it stays an observation rather than a
+promise. In the measured conversation nothing was observed because the round was **cancelled at 16.8s**
+(`status: "cancelada"`, cost recorded blind, `usdDesconhecido: true`), so this fix removes the reason the
+session had to ignore the file — it does not retroactively make that round read it.
+
+Pinned by 19 cases in `upgrade-test.js` §7b (the prose, pure) and 10 in `regras-anexo-test.js` (the wiring,
+from disk). **8 mutants verified red**, and one of them — `escreverRegras` passing `false` instead of the
+inventory — is caught **only** by the second file, which is why it exists.
+
+### The print opens in the page, and the three other ways of opening it survived
+
+Reported with a screenshot: clicking the print he had sent in the `/upgrade` conversation **opened
+another browser tab** with the raw image on a black ground. The bubble drew the thumbnail as an
+`<a href … target="_blank">`, which was the cheapest thing that could possibly work and is the wrong
+place to send someone — checking whether he attached the right file is a glance, and a glance should
+not cost the tab he was reading.
+
+`abrirVisor` is the page's own viewer, and it is a real dialog for the same reason every other
+overlay here is: `role="dialog"`, `aria-modal`, `inert` on the rest of the body, Esc, scrim, focus
+back to the `<a>` that opened it — **falling back to `document.body` when the SSE repaint has already
+destroyed that node**, which on this screen is the normal case rather than the exception.
+
+**The `href` was NOT removed, and that is the decision worth writing down.** Removing it would have
+been simpler and would have destroyed three ways of opening that already worked: ctrl/⌘+click,
+middle-click, and *open in new tab* from the context menu. So the interception is narrow —
+`ev.button === 0` and no modifier — and everything else falls through untouched. A `.banx-chip`
+(PDF, CSV, `.md`) still goes to the tab on purpose: a viewer that shows a file icon where the file
+should be is worse than the tab that renders it.
+
+**The viewer's box does not follow the theme.** It is a fixed `#101018` in both, because a lightbox
+whose frame changes colour changes the apparent frame of the customer's screenshot. The consequence
+is that the theme tokens do not apply inside it, so every colour there is a literal measured against
+that ground — 16,07 for the filename, 8,56 for the meta line, 8,36 for the link. `--txt-faint` in
+light measured **3,4553** there and `--accent` in dark **4,1420**; both were refused.
+
+The image keeps `class="sens"`, so recording mode blurs it inside the viewer too — and that was
+checked rather than assumed, because `data-rec` lives on `documentElement` and the viewer is
+appended to `body`.
+
+**The missing-file branch is shared, not duplicated.** `.upgrade-runs/` is scratch, so the file can
+be gone while the history still holds its name; the capture-phase `error` listener that already
+existed was extended rather than copied. What differs is the target: in the bubble the whole
+`.banx-img` is replaced, in the viewer only the `<img>` — replacing the box would take the footer
+and the close button with it. The sentence still refuses to accuse the disk: the scratch may have
+been cleaned, or the answering cockpit may predate the route, and those two lead to opposite
+decisions.
+
+### The chip left the composer, and the file did not leave the conversation
+
+Same report, second half: *"coloquei a foto e enviei a mensagem, mas a imagem ainda ficou colada ali
+no espaço de mandar mensagem"*. This file used to argue the opposite — that the chip staying is
+**correct**, and that a sentence under it is what prevents the wrong reading. The argument was right
+about the fact and wrong about the furniture: the file really does belong to the conversation and
+really does return in every later round's prompt, and a sentence is still a weaker instrument than a
+control. Someone reading a chip parked under the field after sending concludes *ainda não mandei*,
+and no amount of explanatory text under it wins that argument.
+
+So the chip **moves** instead of disappearing. `gavetaAnexos` in the served `entradas.js` is a
+collapsed strip above the composer — `▸ 1 anexo nesta conversa · print-112004.png` — and its body,
+when opened, is `chipsAnexos` and `notaAnexos` reused whole plus the sentence that used to live in
+the page. Dropping the chip on send would have been the lie in the other direction: the print would
+still be in every prompt with nothing on screen saying so.
+
+**The tray keeps the old drawing, and that asymmetry is the point.** Before a conversation exists the
+print is still *going*, and *going* and *went and stays* are two readings that must not share a
+sentence — the same rule that gave the four dossier band states four distinct sentences.
+
+**The strip survives the dossier lock.** When the composer is dropped, the locked block used to
+*assert* that the attachments were kept; the strip **shows** them, and showing beats asserting — the
+rule the draft (`S.rascunho`) already established on this screen.
+
+**`S.gavetaAnexos` lives in `S`, not in the DOM, and it is not a `<details>`.** This screen repaints
+several times a second during a round, and a native disclosure would collapse under the person
+reading it. Same reason the camera lives in `S.cam` and the draft in `S.rascunho`.
+
+**Two test cases changed shape rather than being deleted**, which is the only honest way to retire a
+guarantee. `anexo-bolha-test.js`'s block 8 was called *"o chip que fica no compositor depois do envio
+é EXPLICADO"* and its premise died; it is now eleven cases asserting **both directions** — the tray
+sentence still exists, the composer no longer carries the post-send explanation, and the strip is
+emitted in its place, born collapsed. Asserting the absence is what stops the redundancy from
+growing back by accident.
+
+### The dossier write has a screen now, and the bar refuses to guess
+
+Third half of the same report: *"essa parte de dossiê precisa ser igual quando enviamos o claude
+arrumar o fluxo, que abre uma telinha e fica mostrando o progresso … e se eu clicar voltar pra
+vitrine, ele precisa ficar realizando o dossiê mesmo assim, e mostrar no card do fluxo a porcentagem"*.
+
+**Half of that was already true and nobody could tell.** `dossieJob` is a singleton in `server.js`,
+so the write has always survived navigation — what died on leaving the flow screen was the *asking*,
+because `acompanharDossie` was only ever called from inside it. The poll now lives at page level and
+is not cleared by `irPara`; on the vitrine it asks about **one** flow and writes the answer into both
+`S.dossie` and `S.dossieVit`, because two maps ageing separately is the same defect `server.js`
+already comments on the cache: the card saying one thing while the band says another, on the same
+question, with the band being the one that locks the conversation.
+
+**The percentage is elapsed against a measured median, and where there is no median there is no
+number.** `dossie.duracao(modo)` reads `dossies.json` filtered **by mode**, because the two modes are
+two rulers — dividing a partial write by the whole-rewrite ruler is a defect this file already
+records having fixed once. Measured on this machine: `inteiro` is `{medianaMs: 520149, amostras: 4}`
+and `incremental` is `{medianaMs: null, amostras: 0}`. So **every incremental write lands in the
+striped indeterminate bar today**, and that is the design working, not a gap.
+
+**`duracao` has three states and they are three sentences**, which is the eighth time this file
+writes that rule and the first where the negative branch would be a lie about the person's own
+history: absent means the answering cockpit booted before this version of `server.js` (Node does not
+reload it) and the sentence says to reopen the window; `null` means the server is still reading the
+ledger; a median of `null` means it measured and there is no ruler yet — *this write is the one that
+creates it*. Falling from the first into the third would blame an empty history for a stale process.
+
+**The ruler charges the rounds that FAILED, and the price does not.** A refused round spent the same
+quota, and the bar measures a write whose outcome nobody knows while it runs — a ruler that only
+knows success runs short exactly on the round that is going badly, which is when a full bar is most
+misleading. `preco()` keeps excluding them for the opposite and equally mechanical reason: a refused
+round regenerates zero paragraphs, so it has no denominator.
+
+**Nothing about the bar is decided on the server.** `etapa`/`etapaI`/`etapaTotal`, `rodada`/`rodadas`
+and `duracao` are what was measured; what that is worth as a percentage, a colour or a sentence is
+`progressoDossie` in the page. A denominator computed in `server.js` would be a second ruler beside
+the one the screen draws.
+
+**The stage sequence is NOT monotonic and the screen has to survive it.** A refused round walks back
+from `conferindo` to `escrevendo` and `etapaI` decreases; what advances is `rodada`. The bar does not
+retreat because the bar is time, not stages completed — and that case is pinned in a test whose
+comment says plainly that **this has never been seen in a real write**, so it exists by design rather
+than by observation.
+
+**There is no cancel button, and the footer says why.** `dossie.js` has no cancellation path, and a
+button promising to stop something it cannot stop is worse than its absence — the same rule that
+keeps the fix path from animating an application that has not happened. The close button reads
+`✕ fechar (a escrita continua)`, and the footer names the one thing that does stop it: closing the
+cockpit window, because the process is what writes.
+
+**It does not close itself when the write ends.** It swaps to the outcome — wrote, or failed with the
+reason and the gate refusals — and only then offers a plain close. Closing on completion would hide
+exactly the half this design promises never to hide, and the outcome arrives minutes after anyone
+stopped watching.
+
+**Reopening from the vitrine needed a band, not a button.** The card is already a `<button>` and
+nesting one inside it is invalid; a strip above the grid (`✎ escrevendo o dossiê de X · 41% — ver
+progresso`) exists only while a write runs. On the card itself the seal **keeps its literal** —
+`escrevendo o dossiê…` — and only appends `· 41%` or `· rodada 1/2`, which is what let
+`dossie-vitrine-test.js` and `seletor-test.js` keep proving the decision instead of being weakened to
+accommodate it.
+
+**It lit dead CSS instead of adding a family.** `.pbar`/`.pfill`, with their `unknown` and `over`
+states, had been sitting in `upgrade.html` with **no consumer at all** since the handoff block was
+copied in — the same thing the flow picker did with `.fmod*`. No new colour pair, so no new
+measurement promised.
+
+### A gate refusal quotes the value that leaked, and one of its three destinations was the screen
+
+Found on 2026-08-25 while wiring the outcome into the overlay, and **it was already live**. `vazou()`
+returns `{tipo, trecho}` where `trecho` is up to 60 characters of the parameter value that appeared
+in the prose — on this instance a lead's phone, a session key built from it, a slice of a customer's
+conversation. It quotes it **on purpose**: the refusal goes back to the model literally, and that is
+how it knows which sentence to delete. True inside the session's scratch dir. False everywhere else.
+
+There are three destinations and all three are outside that dir: `dossies.json` (tracked in git), the
+progress overlay, and the automatic write's outcome line. `dossies.json` was already stripping the
+snippet with a `replace` written inline; `anotarAuto` was not — it kept `String(x).slice(0, 160)`,
+and `autoUltimo` is served by `GET /api/upgrade/dossie/:id`. **So an automatic dossier write that
+failed the leak gate published the leaked phone number to the flow's screen**, which is the exact
+value that gate exists to keep from leaving.
+
+`dossie.recusaLimpa` is now the single definition, used by all three. **The `slice(0, 120)` in it is
+not the protection, and the code says so out loud** — 160 characters preserve a whole phone number
+with room to spare, so the cut is hygiene and the `replace` is the gate. Without that sentence the
+next person reads the `slice` as layout and loosens it.
+
+**The cases point in both directions**, because only asserting that the phone is gone would pass a
+function returning an empty string, and a screen that says *"reprovou"* without saying **in what**
+decides nothing: a leaked value means fix the prose, a missing section means write it again. So the
+type of the finding and where it was survive, and the quoted value does not. Eight cases in
+`pii-test.js`, **4 mutants verified red — and one of them is the code that was shipping.**
+
 ### The `[PREENCHER]` gate is new, and its calibration is the whole story (§4.3)
 
 `preencher.js` + `preencher-test.js`. **This is a gate that did not exist**, and the plan's first
@@ -2593,6 +3011,83 @@ now. Five mutants verified to fail it. One detail was paid for on the way: the R
 the prose with **whitespace normalised**, because it is wrapped at 80 columns and the old sentence
 existed in **two** paragraphs — in one of them `escrever / aqui` fell across a line break, so the old
 regex caught one of the two and the same lie stayed green three paragraphs away.
+
+### The round ceiling was a guess, and it killed a round that was working
+
+Measured 2026-08-20, from a real failure. `conversas.json` recorded
+`status: "falhou"`, `erro: "tempo esgotado nesta rodada (180s)"` on the second round of a
+conversation about `Agente Iago Comercial`, and the ledger recorded that round **blind** —
+`usdDesconhecido: true`, because `total_cost_usd` rides on the CLI's last line and a killed process
+never gets there. So the screen said the round timed out and could not say what it cost.
+
+**The session had not hung. It was working, and it was killed 70 seconds before it would have
+answered.** `RODADA_MS` was 180000 and the comment above it justified the number by asserting that
+*"the conversation reads an index and answers one sentence, so this is short reading"*. That
+sentence was never measured, and it is false for the request that produced the failure — *take
+everything ClickUp out of the flow*, which is a sweep over 189 nodes and a 364KB `fluxo.json`.
+Re-running the identical prompt against the identical directory, same model, three complete runs:
+
+| effort passed to the CLI | wall clock | US$ | of the 7 nodes that really mention ClickUp |
+|---|---|---|---|
+| none (the CLI default) | **250.461ms** | 1,0418 | 5 |
+| `--effort medium` | 167.671ms | 0,9096 | 6 |
+| `--effort low` | **90.986ms** | 0,7331 | 6 |
+
+Two separate defects fall out of that table, and they needed two separate fixes.
+
+**One: a wall clock cannot tell "thinking" from "dead".** It kills both at the same second, and it
+kills the healthy one *later* than it needs to kill the hung one. What tells them apart is already
+on stdout and was being thrown away: the CLI emits
+`{"type":"system","subtype":"thinking_tokens"}` every few seconds **while it thinks**. Across the
+three full runs above the longest real stdout silence was **14,2s** (and boot, up to `system/init`,
+10,8s). So there are now two numbers instead of one — `SILENCIO_MS` (90s, six times the worst
+measured silence) is the hang detector, and `RODADA_MS` (600s, 2,4× the worst measured round) is the
+hard ceiling for a session that keeps talking and never finishes. `fraseMorte` gives them **two
+distinct sentences**, because *"it stopped answering"* sends you to look at the CLI and *"it is
+still going after ten minutes"* sends you to narrow the request. Both say nothing was written to
+n8n.
+
+**Two: the model was thinking at the CLI's default effort, and nobody had chosen it.** `--effort` was
+never passed. `low` answers in 91s against 250s, costs 30% less, and on this task returned **one more
+correct node than the default did** — speed that was not bought with a worse answer. So the
+conversation round is `low` by measurement.
+
+**The patch round keeps the CLI default, and that asymmetry is the point.** Only the conversation was
+measured. The patch round is the one that ends in a write to a live, trafficked workflow, and
+lowering its effort by analogy would be changing the most dangerous path in the file on the strength
+of a measurement of another path. `esforcoDaRodada(ehPatch)` is pure so both defaults are testable
+with no CLI, and `ehPatch` travels **explicitly** rather than being inferred from `nomesAlvo` — the
+inference is correct today and would silently change the production round's effort the first time
+someone passes node names for another reason. Both are overridable
+(`COCKPIT_UPGRADE_ESFORCO`, `COCKPIT_UPGRADE_ESFORCO_PATCH`); an unrecognised value falls into that
+round's default and **the raw value travels in `capacidades()`** so the screen can say it was
+ignored — passing it through would kill the spawn with an error that names neither the variable nor
+the value.
+
+**The thinking heartbeat is now on screen, and showing it is not decoration.** It is the same fact
+the watchdog decides on. Measured in the killed round: 81 seconds between one `tool_use` and the
+next, with the activity band frozen on the previous line the whole time — and a screen that has not
+moved in 81 seconds reads as broken. The band now says `pensando… ~N tokens`. It fails soft: a CLI
+that does not emit those events goes back to the old frozen band.
+
+**`capacidades()` carries both ceilings.** Leaving `tetoRodadaMs` alone would have kept it *true* and
+made it *misleading*: it would declare one limit while the round can now die well before it, by
+silence. That is the same class as the dead `escreveNoN8n` contract documented above — a claim that
+is not false enough for anyone to catch.
+
+**Verified end to end**, through the real `rodar()` with the real CLI, in the real run directory of
+the conversation that died, with `conversas.js` swapped in `require.cache` so nothing reached the
+history: **68.748ms, no error, US$0,5627, 23 heartbeats in the activity band, and a valid `alvo`
+naming five nodes** — a round that used to be killed at 180s now finishes inside the ceiling it used
+to blow.
+
+**One environment trap found on the way, and it is not a defect of this code.** Running the same
+session from a path containing a Windows 8.3 short name (`C:\Users\KAUAN~1.MIL\…`) makes the CLI
+refuse its own `Write` with *"contains a suspicious Windows path pattern that requires manual
+approval"*, and the round ends with `resposta.json` absent and the model saying it is waiting for
+approval that in headless mode never comes. `.upgrade-runs/` has no `~` in it, so production is not
+affected — but any test harness that copies a run directory into a `~1` path will reproduce a
+failure that has nothing to do with what it is testing.
 
 ## Reexecution: fixing the node does not answer the lead
 
@@ -2859,8 +3354,7 @@ glyph, 103 of 103 node-list icons still drawn after the glyph refactor, the tran
 "transcreveu áudio", recording mode blurring the transcription (it is a customer's conversation),
 no page error. The text-only path was verified unchanged against execution `#183861`.
 
-The lead's *name* is not masked: it is what makes the summary usable ("Ana Palma Rodrigues
-Pimenta · k****@hotmail.com"), and it is Kauan's own CRM data on his own machine. Contact details
+The lead's *name* is not masked: it is what makes the summary usable ("Ana Carolina Ribeiro Souza · k****@hotmail.com"), and it is Kauan's own CRM data on his own machine. Contact details
 are what stay covered, because a screen left open all day should not publish a way to reach someone.
 
 **Person names and thing names are the same word.** Taking any `name` made the summary call the lead
@@ -3143,6 +3637,150 @@ half-finished sequence cannot keep writing into a removed DOM.
 When it trips, `errorsTruncated` propagates and the error board states the signatures are a floor.
 The "Falhas 24h" KPI is unaffected — it counts execution rows, which are never capped.
 
+## A varredura de segurança de 2026-08-25, e as duas coisas que ela não pode fechar
+
+Cinco agentes adversariais sobre a superfície inteira, com a metodologia do
+`anthropics/claude-code-security-review` (o prompt de auditoria dele, não a Action —
+ela é um workflow de PR que pede chave de API; o que vale é o método e o filtro de
+falso positivo). Nada foi medido lendo comentário: os portões foram `require`ados e
+dirigidos com entrada hostil, a rota de anexo foi extraída entre delimitadores e
+dirigida com `req`/`res` falsos, e as migrations foram lidas como SQL. **O servidor
+nunca subiu e nenhuma chamada chegou ao n8n nem ao Supabase de produção.**
+
+Ela é a segunda: `docs/seguranca/` (24–25/08, oito relatórios) é a primeira, e o
+veredito dela era **"o repositório saiu limpo, os dois CRÍTICOS estão fora dele"**.
+Continuava verdadeiro para o repositório. Deixou de ser para o que entrou depois.
+
+**`docs/seguranca/` agora é gitignorado, e a razão não é vergonha.** São ~400KB com
+~50 achados **não corrigidos** sobre o código que o mesmo commit publica, mais o
+`ref` do projeto Supabase cuja `service_role` o próprio documento declara
+comprometida, os nomes das tabelas de lead e os passos de exploração. Publicar o mapa
+ao lado da fechadura é exposição maior do que qualquer linha que eles descrevem. Ficam
+no disco, que é onde servem. Reverter é apagar uma linha — depois que os CRÍTICOS
+estiverem fechados e a chave rotacionada.
+
+### O que foi corrigido aqui
+
+- **[ALTO] XSS ARMAZENADO de primeira parte, em `GET /api/upgrade/arquivo/`.**
+  `anexos.TIPOS` aceita `.html` — corretamente, porque a **sessão** lê o arquivo com
+  `Read` e ler é inofensivo. **Servir** era outra coisa: o cabeçalho saía com
+  `content-type: estatico.tipoDe(ext)`, e `tipoDe(".html")` é `text/html`, mais
+  `content-disposition: inline`. Um clique no chip abria o arquivo **do cliente** como
+  documento de primeira parte em `localhost:4317`, com o cookie `cockpit_sessao` junto
+  e o guarda dizendo `propria` — e dali `/api/claude/run/:id/approve` (escreve em
+  fluxo de produção) e `/retry` (mensagem real para um lead, sem desfazer). O vetor é
+  a rotina que este arquivo documenta: *"arraste a pasta descompactada"*, com um
+  `index.html` dentro. `nosniff` não ajuda quando o tipo **declarado** já é
+  executável, e o CSP de `estatico.SEGURANCA` só tem `frame-ancestors`, que não
+  governa o topo.
+  A correção é uma lista fechada de **renderizável** (imagem e PDF, que é exatamente o
+  que a bolha desenha); todo o resto desce `application/octet-stream` + `attachment`,
+  com o CSP **sobrescrito** para `default-src 'none'; sandbox`. Não depender de
+  `estatico.tipoDe` é deliberado: hoje `.htm` escapa por **acidente** (está fora do
+  `estatico.TIPOS`), e segurança que depende de uma ausência quebra no dia em que
+  alguém completa a tabela. Oito casos em `anexo-bolha-test.js`, **5 mutantes
+  vermelhos** — e o quinto aponta para o outro lado: a imagem que deixa de ser
+  renderizável esvazia a bolha, que é o defeito que aquele arquivo existe para não ter.
+
+- **[MÉDIO] `quemEsta()` falhava ABERTO com `admin: true`.** `perfil.chamar()` tem
+  `try/finally` **sem** `catch`, então qualquer rejeição de `fetch` ou o
+  `AbortController` de 15s chegava ao `catch` de `quemEsta`, que devolvia
+  `aprovado: true, admin: true`. Esse objeto é o **único** portão de `POST /api/cofre`
+  (sobrescreve a chave do n8n) e de `GET /api/integracoes`. Uma queda do Supabase — ou
+  só o timeout sob carga — promovia todo portador de sessão, inclusive conta
+  `pendente`. **A assimetria é a correção: DISPONIBILIDADE erra para o lado aberto,
+  PRIVILÉGIO erra para o lado fechado.** `semResposta` viaja e os dois consumidores
+  respondem **503 nomeando a queda**, nunca 403 — *"não consegui conferir quem você é"*
+  e *"você não é admin"* mandam a pessoa para lugares opostos.
+
+- **[ALTO] As quatro rotas de `/api/pareamento` não exigiam nada.** Zero chamadas de
+  `quemEsta` no bloco, contra as duas de `/api/cofre` e `/api/integracoes`. A página
+  `/integracoes` já exigia admin; o **motor** dela não. Quem não podia abrir a tela
+  dirigia a API. Portão de admin no `p.startsWith("/api/pareamento")`, cumulativo com a
+  cerimônia — a confirmação humana no console segue sendo a camada que separa *"a
+  pessoa quis"* de *"algo na máquina dela quis"*; esta fecha o degrau anterior, quem
+  consegue **abrir** uma cerimônia.
+
+- **[ALTO] `/api/reveal` aceitava um ARQUIVO, e `explorer.exe` executa o que recebe.**
+  `explorer.exe <arquivo>` não abre a pasta do arquivo: abre o arquivo, com o programa
+  associado — um `.bat`, um `.ps1`, um `.lnk`, um `.hta`. A guarda provava que o
+  caminho estava dentro de `ROOT`, e `ROOT` é a pasta de projetos, ou seja exatamente
+  onde qualquer coisa clonada pode ter deixado um executável. **"Dentro da raiz" nunca
+  quis dizer "inofensivo" — quis dizer "não é travessia".** Um `isDirectory()` fecha.
+  A metade CSRF já tinha fechado com o `guarda`; o que sobrava era um cliente local — e
+  um cliente local é precisamente no que um XSS de primeira parte se transforma, que é
+  por que estes dois achados são um só.
+
+- **[ALTO, latente] O ramo offline do `guarda.js` devolvia `ok: true` sobre um payload
+  NÃO VERIFICADO** — sem assinatura, sem `exp`, sem `iss` e sem
+  `sub === pareamento.dono`. Inalcançável hoje (`decidirSemJwks` lança e o `server.js`
+  responde 503), mas **duas das três políticas que o próprio docblock recomenda
+  devolvem `permite: true`**, então quem escrevesse o TODO embarcava o bypass. Agora há
+  **uma** definição da lista de claims (`conferirClaims`), chamada pelos dois ramos —
+  enquanto eram duas listas, uma delas era vazia e nada no arquivo dizia isso.
+  Junto: `aud` **ausente** era aceito (o erro do campo ausente caindo no galho
+  negativo, pela sétima vez neste arquivo), `nbf` nunca era conferido, e a seleção de
+  chave caía em `chaves[0]` quando nenhum `kid` casava — uma rotina de escolha de
+  chave não pode adivinhar. **8 mutantes vermelhos.**
+
+- **`semAssinatura` não tinha consumidor nenhum** — medido por grep em todo `.js` e
+  `.html`. No dia em que a política offline for escrita, uma requisição aceita **sem a
+  assinatura ter sido conferida** chegaria indistinguível de uma inteiramente
+  verificada, e escreveria em produção pela mesma porta. O campo existe porque quem o
+  escreveu sabia que a diferença importa, e ela morria no chamador. Agora recusa toda
+  mutante com 503 e deixa leitura passar — **por método, não por rota**, para que rota
+  nova nasça coberta, mesma razão de o bloco do guarda ser agnóstico de caminho.
+
+- **[CRÍTICO] Qualquer pessoa virava super admin sabendo um endereço de e-mail.**
+  `private.ao_criar_usuario` dispara `after insert on auth.users` e casava o convite
+  por `new.email` **sozinho** — sem `email_confirmed_at`, sem provedor, sem
+  `usado_em is null`. E `config.toml` trazia `enable_confirmations = false` com
+  `enable_signup = true` e senha mínima de 6. **O ataque não precisa de nenhuma falha
+  de lógica SQL:** um POST em `/auth/v1/signup` com o e-mail do dono — que está em
+  texto puro na migration do bootstrap, neste repositório — e seis caracteres. O GoTrue
+  insere e devolve `access_token` na mesma resposta; o perfil nascia
+  `aprovado, super_admin = true`. Painel inteiro, todas as organizações. O mesmo vale
+  para **qualquer** convite que um admin criar: registrar o e-mail do colega primeiro
+  entra no inquilino dele.
+  É exatamente a corrida que o `CONTRATO-PERFIL.md` §6 diz ter recusado, reintroduzida
+  pelo bootstrap por convite e estreitada a um endereço — publicado.
+  `20260825190000_fechar_a_porta_do_convite.sql` fecha isso e mais cinco: a vaga
+  queimada sem linha (`cobrar_teto_vagas` era `BEFORE INSERT` e o
+  `on conflict do nothing` do PostgREST comitava o contador e descartava a linha, **e o
+  contador é monotônico por desenho**), o convite reexecutável, o casamento sensível a
+  caixa (que esgotava o teto de 3 por erro de digitação), a autoria falsificável, o
+  `with check` mais fraco que o `using`, e o `execute to public` que o Postgres dá de
+  graça a toda função nova.
+  **A virada em `config.toml` é carregada, não preferência:** com confirmação
+  desligada o GoTrue carimba `email_confirmed_at` no próprio INSERT e a checagem SQL
+  não checa nada.
+
+O que **estava certo** e vale dizer, para o resto ficar em proporção: RLS ligado nas
+três tabelas, `set search_path = ''` nas oito funções `security definer`, nenhuma
+política com `using (true)`, todo predicado de inquilino comparando contra o chamador,
+`super_admin` fora de todo `grant` de coluna — **não há leitura cruzada entre
+organizações neste esquema**. A escalada estava na porta de entrada, não na camada de
+política. E a fence de subprocesso agora é **tabela** e não cópia: os quatro `spawn` da
+CLI passam por `ia.argumentosDaRodada`, que **recusa pelo nome, antes do spawn**, um
+provedor sem qualquer uma das três flags.
+
+### As duas que não são minhas para fechar
+
+1. **Rotacionar as chaves.** A `service_role` do Supabase e a chave do n8n estavam em
+   texto puro em 77 arquivos do perfil (`~/.claude/`) — 257 regras de `permissions.allow`
+   carregando o valor literal, mais o `CLAUDE.md` global, que é injetado no contexto de
+   **toda** sessão de **todo** projeto desta máquina. Os arquivos ativos foram limpos
+   (0 ocorrências, JSON validado, backup em `*.bak-seg-*`), **mas limpar não desfaz**:
+   40 transcripts e 28 snapshots de `file-history` continuam com o valor, a
+   `service_role` vale até 2036 e a do n8n **não tem `exp`**. Tratar as duas como
+   comprometidas é o único pressuposto defensável, e girar a chave é ato de painel.
+   Apagar os `*.bak-seg-*` depois de conferir — eles são cópias novas do segredo.
+2. **Aplicar a migration.** `supabase db push` é escrita em banco de produção e precisa
+   de autorização por ato, com o diff na frente — a regra desta casa. Enquanto ela não
+   rodar, **o CRÍTICO segue aberto no banco hospedado**, e a virada de
+   `enable_confirmations` precisa ser repetida no painel (Auth → Providers → Email):
+   `config.toml` governa o Supabase local, não o hospedado.
+
 ## Locked decisions
 
 - **Hosting:** localhost first. Deploy target undecided — keep the build portable. No host-locked
@@ -3313,6 +3951,86 @@ names (`--ink`, `--ink-2`, `--muted`, `--accent-dim`, `--ok-bg`…) became point
 new names; the aliases exist for the legacy, not for growth. `BANDS.fg` moved to the `-txt` tokens
 (pill text over soft backgrounds — the same fill-vs-text split flows.html documents), and the page
 gained the same ◐ theme toggle as the others.
+
+### The company logo is one white PNG that inverts, and the height was measured
+
+The topbar carried the flame and `COCKPIT / <screen>` and never said **whose** panel this is. The
+Ecommerce Puro wordmark now sits first, left of the flame with a `.sep` between them, so the line
+reads **company | product**: the company owns the cockpit, not the other way round. It carries a real
+`alt`, never `aria-hidden` — it is identity, not ornament.
+
+**One file, served at `/ep-logo.png`, never base64.** Inlining is ~43KB of base64 × 4 pages ≈ 173KB
+added to the HTML, and the fluidity pass had just finished measuring bytes on the wire and cutting
+35% off `/api/n8n/overview` for having no consumer. As a route it is one file, fetched once, and a
+few-hundred-byte `304` from then on. It needed **nothing** in `estatico.js`: `serveFile` already
+takes the MIME from `estatico.tipoDe(ext)`, which knows `.png`, and `image/png` is deliberately
+outside `COMPRIMIVEL` — verified on the live route, `Accept-Encoding: gzip` comes back with no
+`content-encoding` and bytes identical to disk.
+
+**`.gitignore` needed an exception, and skipping it would have been a silent 404 on a fresh clone.**
+`*.png` is ignored there — the rule exists for regenerable design screenshots. This one is
+regenerable by no command: its source is the brand kit. `!ep-logo.png` is the second exception in
+that file, next to `!docs/img/*.png`.
+
+**The light theme is `filter: invert(1)`, and that is safe because it was measured, not assumed.**
+The PNG is 1000×445 RGBA with **118.370 visible pixels, every one of them exactly `255,255,255`, zero
+chromatic pixels** — so the filter only ever turns white into black, and because it operates on the
+un-premultiplied channels the antialiased edge follows. A second, dark-ink PNG was refused: it would
+be a second thing to diverge at the first logo change, and the one that diverged would be the one
+nobody looked at.
+
+**The theme rules are keyed to `prefers-color-scheme` + `data-theme` and never to a colour token, and
+that is mandatory rather than tidy.** `cockpit.html`'s `:root` is **light** by default while the other
+three are **dark** — so any rule leaning on the `:root` default would come out inverted on exactly one
+of the four pages. Verified by clicking the real ◐ on all four, under both OS preferences, across all
+three states (auto / explicit dark / explicit light): 24 of 24 coherent with the actual body
+background.
+
+**The height is 32px because 18px was measured and rejected.** The file is a **two-line lockup** —
+solid "ecommerce" over outlined "PURO", which bleeds off all four edges — so the "ecommerce" line is
+only ~25% of the total height (the dense band runs y=156→266 of 445). At the initially specified 18px
+that line renders **4,5px tall**: a grey smudge, which is *worse* than no logo, because it reads as a
+rendering bug rather than as a brand. Rendered at 1:1 at 18, 24, 26, 28, 30, 32 and 34, **32px is
+where the letters become letters again** — 72px wide, inside a 58px topbar with 13px of air either
+side. Contrast measured on rendered pixels, not tokens: **20,2190:1** white on `#06060B` dark,
+**20,1070:1** black on `#FAFAF9` light.
+
+**Below 620px the logo and its `.sep` leave**, the same point at which the navigation capsule collapses
+its labels. The topbar already overflows at 390px and trading identity for clipped content would be
+the worse defect — the `COCKPIT / <screen>` wordmark beside it already says which screen you are on.
+
+**Adding it exposed a latent wrap bug, and fixing that is most of this change.** `.brand` is a flex
+item, so it is born with `flex-shrink: 1` and `min-width: auto` — a floor at its own min-content, past
+which the `h1` inside wraps. With the logo taking ~109px, `COCKPIT / fluxos n8n` started wrapping to
+two lines at **1440px**, which is the width this panel is read at. Measuring showed the defect predates
+the logo: without it, `/` and `/upgrade` already wrapped at **1280px** and hit three lines at 1100px.
+The fix is the decision the capsule next door already took ("Nunca encolhe"): `.brand` does not shrink
+and `.brand .wm` is `nowrap`. What yields instead is the **instance address**, via the `min-width: 0`
+lesson this file already records — `tester.html` already had those four properties on `.topbar .meta`
+and `flows.html`/`upgrade.html` did not, which is precisely why those two were the pages that wrapped.
+After: one line (22px) on all four pages from 1920px down to 760px.
+
+**That no-shrink rule is scoped to `min-width: 621px`, and the scope was paid for with a measurement.**
+The first version applied it unconditionally and the **pre-existing** 390px overflow on `/disco` and
+`/tester` grew from 133px to 181px and from 151px to 202px — below 620px the logo is already gone, so
+pinning `.brand` there pays the cost and buys nothing. Scoped, those numbers return to exactly the
+baseline. Proven rather than reasoned: with the two logo nodes removed from the live DOM at 390px and
+360px, `scrollWidth`, the topbar overflow and the topbar height are **identical** on all four pages —
+so below 620px the logo contributes zero and the overflow that remains is not this change's.
+
+**Two findings that came along and were NOT fixed**, because both are out of this change's scope and
+each is a decision rather than a repair:
+
+- **`testar.cmd` has LF-only line endings, in `HEAD` too, so double-clicking it is broken today.**
+  `cmd.exe` mis-parses the file and reports **"Node nao encontrado no PATH"** with Node 22.18.0
+  installed and on the PATH — a false accusation pointing at the wrong thing, the exact class of
+  defect this file documents elsewhere. The 44 test files were driven directly with `node` instead.
+- **`rajada-test.js` is flaky, and its own comment says why.** The failing case is
+  `msRajada < 500`, a bare wall-clock threshold; the authoritative assertion beside it
+  (`conta.wf.max === TETO`) passed every time. Measured over 8 clean runs with the server down:
+  **369, 406, 447, 482, 485, 487, 510, 511 ms** — two over the line and three within 3% of it. It
+  reads only `n8n.js`, never `server.js`, so it cannot be affected by the route added here. The
+  threshold needs recalibrating or the timing case needs dropping; both are Kauan's call.
 
 ### The three doors are one capsule with a glass lens that travels
 
@@ -3548,6 +4266,192 @@ Three CSS facts that each cost a verification cycle — do not re-derive them:
   are one decision: `flex: 0 0 auto` is what stops `⤢ Caminho` breaking under its own icon at
   1440px, and it is also what overflowed the page at 390px until `flex-wrap: wrap` was added there.
   Change one and you must change the other.
+
+## Making it flow: what was measured, and what the measurement contradicted
+
+Every number below was measured on this machine against this instance — in the browser over CDP, or
+in-process. **Three of them contradicted the obvious fix**, which is the reason this section exists:
+the intuitive optimization here was wrong three times out of the box.
+
+### The three that came out backwards
+
+- **Compressing per request is a LOSS on loopback.** The loopback does 97 MB/s with a fixed overhead
+  of 3,76 ms, so `/upgrade` went from 7,6 ms to **24,0 ms** at gzip-6. What pays is compressing
+  **once per mtime and serving the buffer**: 4,95 ms and 267KB off the wire. Brotli is out entirely —
+  quality 11 on `/upgrade` measured **1.422 ms**. `estatico.js` is built that way, and if anyone
+  "optimizes" it into per-request compression they will make the panel slower while believing the
+  opposite.
+- **Parse and compile of a 387KB single file is cheap.** `ParseHTML` + `EvaluateScript` +
+  `V8.CompileCode` on `/upgrade` = **~101 ms** total. **Layout is what dominates**: 691 ms in `/`
+  across 81 passes in 4 s. Splitting the pages into modules would have bought almost nothing; the
+  file-per-page rule survives on evidence, not preference.
+- **The DOM does not leak.** 15 samples over 150 s on all four pages: `/` sat at **2766 nodes and
+  never varied by one**. The "it gets heavy over time" hypothesis is dead — `renderAll` destroys and
+  recreates, and the balance closes at zero. What was actually growing was `S.details` in memory
+  (~26MB/day), not the DOM.
+
+### A 7×7 pixel dot was the biggest permanent cost in the product
+
+`.livedot.on i` pulsed by animating **`box-shadow`**, which is not compositable: every frame needs a
+style recalc and a repaint on the main thread, forever, with the page idle and nobody looking.
+Measured A/B/A/B on the same page:
+
+| ring | CPU | style recalc/s | main-thread ms/s |
+|---|---|---|---|
+| `box-shadow` (old) | **19,14%** | 60,0 | 152–230 |
+| `transform`/`opacity` (now) | **2,67%** | **0,0** | 14,6 |
+| no ring at all | 1,85% | 0,3 | 18,5 |
+
+**~7× less CPU, landing essentially on the floor.** The ring is now a pseudo-element that scales;
+the factor 3,3 is derived, not chosen — the old spread went to 8px on a 7px dot, so the radius went
+3,5 → 11,5. `z-index: -1` puts it behind the dot, which requires `i` to keep `z-index: auto`: an
+explicit z-index there would create a stacking context and the negative child would paint **over**
+the dot's own background. Verified by pixel, not by opinion: the colour 6px from the centre changes
+across the animation and the dot stays `--ok`.
+
+**The general rule this bought:** in this codebase, a permanent animation may only touch `transform`
+and `opacity`. `.gbeam`, which animates `transform`, already cost ~0 and is the model. Anything that
+animates a paint property (`box-shadow`, `background`, `filter`, `width`) must be transient.
+
+### One `offsetLeft` was blocking the boot of two screens
+
+The nav lens read `offsetLeft` during script execution. That **brings the document's first layout
+forward and makes it synchronous**: **209 ms of blocked thread on `/disco`**, 126 ms on `/tester` —
+the number-one JS cost in the boot of both. `/upgrade`, with twice the CSS, cost **0 ms at the same
+point**, and that comparison is the whole diagnosis: the difference is *when* the script runs
+relative to the layout already being clean, not how much CSS there is.
+
+Two `requestAnimationFrame` move the read after the first paint. Measured after: **0,1 ms**. The lens
+is born `opacity: 0` and gets `pronta` once positioned, so deferring does not trade 209 ms of
+blocking for a frame of lens in the wrong place — verified, `desalinho=0px` on all four screens.
+
+And the magnet line read `a.offsetLeft` again when `ax` already was it: 4 geometry reads per frame,
+each forcing a full-document layout. Hover went from ~17 fps (8,7 on `/`) to **55–65 fps**.
+
+**`preview/aplicar-nav.js` is a one-way migration** — `transformar()` throws "a cápsula já está neste
+texto". So the shared block cannot be regenerated: the only safe way to change it is the same
+byte-for-byte replacement applied to the four pages **and** to the generator. `nav-sync-test.js` §9
+now fails if the generator diverges, because a future regeneration would silently undo the fix.
+
+### Every repaint lock in this codebase avoided the animation, not the recreation
+
+That sentence is the whole client-side story. `seenCardIds`, `seenErrKeys`, `S.fantasmaVisto`,
+`S.desenhado` — all of them stopped the entrance animation from replaying and none of them stopped
+the nodes from being destroyed and rebuilt. `upgrade.html` already had the right pattern in two
+places (`pintarGaveta`, `pintarVerif`): build the node once, keep it in `S`, re-attach it after
+`render()`. It is now applied to the two expensive drawings as well.
+
+- **The `upgrade.html` stage.** 184 nodes and 220 edges = 97KB of string and **1.140 SVG elements**,
+  rebuilt on every `atividade` event — which arrives **several times per second** during a round.
+  Now: 300 activity events produce **zero** rebuilds. What decides a rebuild is what the drawing
+  *shows* (lit target, failed nodes, graph identity), never activity. Graph identity is compared
+  **separately from the counts**, because two different graphs can have the same node and edge count
+  and the signature alone would say nothing changed.
+- **`montarCamera()` only runs when the node is new.** On a preserved node the seven SVG listeners
+  and the `ResizeObserver` survive in it; remounting would **duplicate** them and a drag would move
+  twice as far. The framing is not lost by skipping it: it lives in `S.cam` and is already applied to
+  the `viewBox` of the node that stayed.
+- **`.palco-host` is `display: contents`, and that is not cosmetic.** `.palco-box` is
+  `flex: 1 1 auto` inside a flex-column; a normal wrapper would become the flex item and the box
+  would collapse to content height — the drawing would vanish.
+- **The `tester.html` drawing.** The lock was computed on line 2069, the SVG was demolished on 2170,
+  and the lock was consulted on 2231 — 160 lines after the demolition. **And with
+  `prefers-reduced-motion` active, `S.desenhado` was assigned *after* the early return, so it was
+  never assigned at all**: whoever asked for less movement paid a full rebuild on every SSE event,
+  forever. Both fixed; 652 elements and 69 `getTotalLength()` per event became zero.
+- **`"log"` was in the list of SSE events that re-fetch the whole snapshot.** The snapshot carries
+  `wf` (66KB on a 65-node agent) and `log` (up to 160KB), and the CLI emits one `log` per line of
+  `stream-json` — so **every line the model wrote cost a ~200KB GET plus a full-screen rebuild**. It
+  has its own handler now, deduplicated against the snapshot that arrives on reconnect.
+
+### The empty tick, which is most of them
+
+`server.js` emits `delta` every `POLL_MS` even when nothing ran — deliberately, because the browser
+needs the stamp to prove the data is fresh. Measured on the live stream: **9 deltas in 184 s, all
+with `executions: []` and `errors: []`**, because this instance does 0,22 executions per tick. And
+`renderAll()` ran on every one of them: ~2.400 elements plus 42 HTML parses, four times a minute.
+
+The cheap way out is not "don't draw" — it is **draw only what aged**. On an empty tick the only
+things that changed in the world are the freshness stamp and the relative clocks, so every clock now
+marks itself with `data-desde` and `tocarRelogios()` rewrites ~34 texts instead. `renderFeed` and
+`renderRail` are excluded at zero risk: the rail has no clock and the feed uses `hhmm()`, which is
+wall time and does not age.
+
+**The instant is set through `dataset`, never interpolated into `innerHTML`.** It comes from the n8n
+payload, `flows.html` has no `esc()`, and payload from n8n is hostile — that is a standing rule here,
+not a precaution for this one field.
+
+Two more from the same pass. `S.details` had three `set` and **zero `delete`**: `loadExec` keeps the
+detail of every execution that passes the stage, 34KB median, ~26MB in a day on the busiest flow. It
+is pruned now — **success only**, never an error detail (the error board is built from them) and never
+the one on the stage (the replay would lose the open tape). And the node list inside the `<details>`
+was 158 rows with **158 SVG parses** built on every `loadExec`, behind an arrow nobody clicked; it is
+built on the first `toggle`, and the mount is idempotent because open/close/open fires `toggle` three
+times.
+
+### Concurrency: the budget existed and was being thrown away
+
+`MAX_INFLIGHT = 4` has a gate in `request()` and **three loops never used it**, each doing
+`await request(...)` inside a `for` so `inFlight` never passed 1.
+
+| loop | before | after |
+|---|---|---|
+| `callers()`, 75 workflows | **18,6 s** | **4,7 s** (3,9×) |
+| 40 error details in `overview()` | 9,6 s | **2,9 s** (3,3×) |
+| `/api/upgrade/peso`, 13 flows | 6,7 s | **2,5 s** |
+
+The comment on `ERROR_DETAIL_CAP` claimed this was "serialized behind MAX_INFLIGHT" and **that was
+false**; it says what was false and why now. `MAX_INFLIGHT` was **not raised** — 4→8 nearly doubles
+again and the instance declares no rate-limit header at all, so the number is a decision for Kauan,
+not a side effect of a performance pass.
+
+**`getRawWorkflow` and `getGraph` hit the same URL** (`api()` is `request("GET", …)` with empty
+params), so `/api/upgrade/peso` fetched the same document twice per flow — 26 GETs for 13 flows, and
+the largest is 291KB. `getRawEGrafo` does one GET, returns both, and seeds the graph cache on the way:
+**2.055 ms → 1.230 ms**. It lives in `n8n.js` on purpose — deriving the graph from raw payload is
+deriving a fact, and that decision belongs inside the whitelist, not in `server.js`.
+
+### 43% of `/api/n8n/overview` had no consumer at all
+
+Measured 213.978 bytes, of which `executions` were 91,4%. Six fields were grepped across the four
+served pages **plus** eight modules and had **zero** consumers: `stoppedAt`, `retryOf`, `waiting`,
+`wf.triggers`, `wf.createdAt` — and `mode`, which has exactly one (a hover `title`) and was therefore
+**kept**. Result: **213.978 → 139.317 bytes, −35%**, with no client change.
+
+**`stoppedAt` is the trap in that list.** It has no consumer on the wire and a load-bearing one
+**inside** the process: `poll()` compares `prev.stoppedAt !== r.stoppedAt` to detect an execution
+that finished. So `extractExecRow` still produces it and a second pass (`paraOFio`) strips it at the
+door, as a **shallow copy** — mutating would delete it from `state.execs` and kill delta detection in
+silence. Comparing `ms` instead was rejected: it is a derived field, and swapping a fact for an
+arithmetic coincidence inside a change detector is exactly the silent defect this whole boundary
+exists to prevent.
+
+`paraOFio` is a name whitelist and that is acceptable **only** because it runs on an object that
+already came out of `extract*`: there is no new field for it to let through, so it can only narrow.
+Do not copy that pattern into the `extract*` functions themselves.
+
+### What the browser says is already healthy
+
+Worth writing down so nobody optimizes it: **screen switching is 104–184 ms** (warm), zero geometry
+reads during normal operation on all four pages, zero long tasks across seven SSE deltas, and the
+repaint of `renderAll` is 63 ms every ~20 s — a 0,3% duty cycle. The remaining boot cost is the cold
+first visit (305–508 ms), dominated by layout.
+
+Two perception gaps stay open, and they are honesty problems rather than speed ones: `/upgrade` shows
+"lendo a instância…" in ~15px of grey on an empty screen for its first ~500 ms, and `/tester` shows a
+topbar over nothing for 240 ms with no loading indicator at all. `/` has the best loading state of the
+four and the worst time to real data (700–1000 ms), so its skeleton sits there longest.
+
+### The tests that hold all of this
+
+`estatico-test.js` (36), `palco-test.js` (20), `tique-test.js` (26), `disco-test.js` (14),
+`desenho-test.js` (46), `rajada-test.js` (78), `estatico-servidor-test.js` (35), plus §9 of
+`nav-sync-test.js`. All free — no model, no network, no server, nothing written to the repo. Every one
+extracts the real functions from the page or module **at run time**, because reimplementing a decision
+in the test proves the copy and not the page.
+
+**Six test files were not in `testar.cmd`**, including two (`bateria-test.js`, `regressao-test.js`)
+that predate this work. A test that only runs by hand does not run. All 43 are in the double-click now.
 
 ## Data
 
