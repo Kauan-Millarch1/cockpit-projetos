@@ -1,0 +1,335 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c;
+      --brand:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+      --accent-txt:#606CF5; --brand-txt:#FF5A1F;
+      --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+
+    x-dc { display:block; }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+
+    /* ── button — the panel's two-layer bevel. white-space and flex-basis live in
+       this single rule: a control never shrinks and its label never wraps. */
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+      flex:0 0 auto; border:1px solid transparent;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+      transition: background .16s, box-shadow .18s, transform .09s, color .16s; }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    .btn.ico { width:32px; padding:0; justify-content:center; }
+
+    /* ── state tag */
+    .tag { font-family:var(--font-num); font-size:10.5px; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+    .tag.cold { color:color-mix(in srgb,var(--cold-txt) 72%,var(--txt)); background:var(--cold-soft); }
+
+    /* ── eyebrow */
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); margin:0; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    /* ── the Ecommerce Puro logo, transcribed from upgrade.html line 216.
+       The art is white, so the DARK artboard drops the invert. */
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:invert(1); }
+    .eplogo { filter:none; }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none; } }
+
+    /* ── topbar — 58px, the cockpit's own chrome.
+       NO four-door capsule here, and that is the point of the screen: the panel
+       is not on this machine yet, so there is nothing behind those doors. The
+       meta says when they appear instead of letting the gap read as a bug. */
+    .topbar { position:relative; z-index:2; display:flex; align-items:center; gap:18px;
+      padding:0 22px; height:58px; background:color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter:blur(14px) saturate(1.2); border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em;
+      flex:0 0 auto; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; white-space:nowrap; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .topbar .sep { width:1px; height:20px; background:var(--line); flex:0 0 auto; }
+    .topbar .spacer { flex:1 1 auto; }
+    .topbar .meta { font-family:var(--font-num); font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; }
+
+    /* ── artboard frame — fixed canvas, clipped, never scrolled */
+    .frame { width:1280px; height:860px; overflow:hidden; position:relative;
+      background:
+        repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 56px),
+        repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 56px),
+        var(--bg); }
+    .tela { height:802px; padding:0 30px; display:flex; flex-direction:column;
+      justify-content:center; gap:30px; }
+
+    code { font-family:var(--font-num); font-size:11.5px; color:var(--txt);
+      background:var(--surface-2); border:1px solid var(--line-soft);
+      padding:1px 5px; border-radius:5px; }
+
+    /* ── head */
+    .cabeca { display:flex; flex-direction:column; gap:11px; }
+    .cabeca h2 { margin:0; font-size:30px; font-weight:700; letter-spacing:-.025em;
+      line-height:1.16; }
+    .cabeca .sub { margin:0; font-size:13.5px; line-height:1.55; color:var(--txt-dim);
+      max-width:820px; }
+    .cabeca .sub b { color:var(--txt); font-weight:600; }
+
+    /* ═══ the three steps.
+       Numbered because this is a SEQUENCE a person walks, not a feature list —
+       and the number is the cockpit's own bracket vocabulary, not a bullet. */
+    .passos { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:18px; }
+    .passo { position:relative; background:var(--surface); border:1px solid var(--line);
+      border-radius:var(--r); box-shadow:var(--shadow); padding:18px 20px 19px;
+      display:flex; flex-direction:column; gap:13px; min-width:0; }
+    .passo .top { display:flex; align-items:center; gap:10px; min-width:0; }
+    .passo .n { flex:0 0 auto; font-family:var(--font-num); font-size:10.5px;
+      letter-spacing:.16em; color:var(--brand-txt); }
+    .passo h3 { margin:0; font-size:13.5px; font-weight:600; letter-spacing:-.01em;
+      line-height:1.35; min-width:0; }
+    .passo p { margin:0; font-size:12.5px; line-height:1.6; color:var(--txt-dim); }
+    .passo p b { color:var(--txt); font-weight:600; }
+
+    /* ═══ the drawn strip — file, folder, shortcut.
+       Every glyph is the nav dialect (viewBox 24, stroke 1.9, round caps) and no
+       screenshot is used: an OS window drawn here would age the moment Windows
+       changes, and it would claim to be a photograph of something we did not
+       photograph. Only the tile the person CLICKS carries --accent, because
+       accent means movement and the other tiles are objects, not actions. */
+    .tira { display:flex; align-items:flex-start; gap:10px; }
+    .tt { display:flex; flex-direction:column; align-items:center; gap:6px; flex:0 0 auto; }
+    .tile { width:44px; height:44px; border-radius:11px; display:grid; place-items:center;
+      border:1px solid var(--line); background:var(--raised); color:var(--txt-dim); }
+    .tile.dest { border:1px dashed var(--line); background:transparent; color:var(--txt-faint); }
+    .tile.acao { border-color:var(--accent-line); background:var(--accent-soft); color:var(--accent-txt); }
+    .tt .lb { font-family:var(--font-num); font-size:9.5px; letter-spacing:.11em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; }
+    .seta { flex:0 0 auto; margin-top:14px; color:var(--txt-faint); display:grid; place-items:center; }
+    .mais { flex:0 0 auto; margin-top:15px; line-height:1; font-family:var(--font-num);
+      font-size:13px; color:var(--txt-faint); }
+
+    /* ═══ the prerequisite band.
+       It is a BAND and not a footnote because it is the only thing on this screen
+       that the package does not deliver — burying it in 11px is the dark pattern
+       the brief names by hand. It points FORWARD instead of repeating the
+       instructions: the panel already says this on first open, and two copies of
+       one sentence diverge on the first fix made to one of them. */
+    .req { background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r);
+      display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); }
+    .req .lado { padding:17px 20px 18px; min-width:0; }
+    .req .lado + .lado { border-left:1px solid var(--line-soft); }
+    .req .lb { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); }
+    .req .itens { display:flex; flex-direction:column; gap:10px; margin-top:11px; }
+    .req .it { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+    .req .it .g { flex:0 0 auto; margin-top:1px; color:var(--txt-faint); display:grid; place-items:center; }
+    .req .it p { margin:0; font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .req .it p b { color:var(--txt); font-weight:600; }
+    .req .aponta { display:flex; align-items:center; gap:9px; margin-top:11px; }
+    .req .aponta .k { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); }
+    .req .diz { margin:9px 0 0; font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .req .diz b { color:var(--txt); font-weight:600; }
+
+    /* ═══ footer — the platform limit, stated where it cannot be missed and in
+         full words, because "só Windows" alone reads as "por enquanto" and this
+         one has no other build to wait for on the download page. */
+    .rodape { display:flex; align-items:center; gap:12px; }
+    .rodape .push { flex:1 1 auto; }
+    .rodape .mono { font-family:var(--font-num); font-size:10.5px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; }
+    .rodape .nota { font-size:12px; color:var(--txt-faint); line-height:1.45;
+      max-width:720px; text-align:right; }
+    .rodape .nota b { color:var(--txt-dim); font-weight:600; }
+  </style>
+</helmet>
+
+<div class="frame">
+
+  <header class="topbar">
+    <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+    <div class="sep eplogo-sep"></div>
+    <div class="brand">
+      <span class="flame" aria-hidden="true">
+        <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+      </span>
+      <h1 class="wm"><b>COCKPIT</b> <span>/ depois de baixar</span></h1>
+    </div>
+    <div class="sep"></div>
+    <span class="meta">as portas do painel abrem depois do passo 3</span>
+    <span class="spacer"></span>
+    <button class="btn ghost ico" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
+  </header>
+
+  <main class="tela">
+
+    <div class="cabeca">
+      <p class="eyebrow">
+        <span class="idx">[ DEPOIS DE BAIXAR ]</span>
+        <span>o arquivo já está na sua pasta de downloads</span>
+        <span class="rule"></span>
+        <span>[ 3 passos ]</span>
+      </p>
+      <h2>Descompacte a pasta e abra o atalho.</h2>
+      <p class="sub">Nada aqui instala programa no Windows: <b>o painel roda de dentro da própria pasta</b>. Os três passos abaixo são tudo — o que vem depois deles já é o painel aberto, dizendo o que ainda falta.</p>
+    </div>
+
+    <div class="passos">
+
+      <!-- 1. onde a pasta fica, e que mover depois não quebra nada. Esta é a
+           dúvida que trava a pessoa antes de qualquer outra, então é o passo 1. -->
+      <section class="passo">
+        <div class="top">
+          <span class="n">[ 01 ]</span>
+          <h3>Descompacte, onde você quiser</h3>
+        </div>
+        <div class="tira">
+          <span class="tt">
+            <span class="tile" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 3.2H7a2 2 0 0 0-2 2v13.6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.6l-5.4-5.4z"/><path d="M13.4 3.4v5.2h5.2"/><path d="M9.4 6.4h.01"/><path d="M9.4 9.4h.01"/><path d="M9.4 12.4h.01"/></svg>
+            </span>
+            <span class="lb">o .zip</span>
+          </span>
+          <span class="seta" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 12h14.6"/><path d="M13.8 6.8L19 12l-5.2 5.2"/></svg>
+          </span>
+          <span class="tt">
+            <span class="tile dest" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 18.4V6.6a1.6 1.6 0 0 1 1.6-1.6h3.6l2 2.6h7.6a1.6 1.6 0 0 1 1.6 1.6v9.2a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg>
+            </span>
+            <span class="lb">a pasta</span>
+          </span>
+        </div>
+        <p>Botão direito no <code>cockpit-[VERSÃO].zip</code> e <b>Extrair tudo</b>. A pasta pode ficar na Área de Trabalho, em Documentos, num pen drive — tanto faz. <b>Mover ela depois também dá certo</b>: o painel acha a própria pasta, e não há caminho fixo escrito em lugar nenhum.</p>
+      </section>
+
+      <!-- 2. o Node. Esta é a frase que decide se uma pessoa não-técnica
+           continua ou desiste: "você precisa de Node" é onde ela para. -->
+      <section class="passo">
+        <div class="top">
+          <span class="n">[ 02 ]</span>
+          <h3>Dentro tem o painel e o Node</h3>
+        </div>
+        <div class="tira">
+          <span class="tt">
+            <span class="tile" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 18.4V6.6a1.6 1.6 0 0 1 1.6-1.6h3.6l2 2.6h7.6a1.6 1.6 0 0 1 1.6 1.6v9.2a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg>
+            </span>
+            <span class="lb">a pasta</span>
+          </span>
+          <span class="seta" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 12h14.6"/><path d="M13.8 6.8L19 12l-5.2 5.2"/></svg>
+          </span>
+          <span class="tt">
+            <span class="tile" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 5.8h16.8v12.4H3.6z"/><path d="M3.6 9.4h16.8"/><path d="M6.6 7.6h.01"/><path d="M9 7.6h.01"/></svg>
+            </span>
+            <span class="lb">o painel</span>
+          </span>
+          <span class="mais" aria-hidden="true">+</span>
+          <span class="tt">
+            <span class="tile" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4l7.4 4.3v8.6L12 20.6l-7.4-4.3V7.7L12 3.4z"/><path d="M4.8 7.8L12 12l7.2-4.2"/><path d="M12 12v8.4"/></svg>
+            </span>
+            <span class="lb">o Node</span>
+          </span>
+        </div>
+        <p><b>Você não instala Node</b>, e não precisa ouvir a palavra PATH. O Node que o painel usa vem dentro da pasta, e só esse é usado — se você já tem um Node no computador, ele não é tocado. Descompactada, a pasta ocupa <code>[TAMANHO]</code>.</p>
+      </section>
+
+      <!-- 3. o atalho, com nome REAL: `start-cockpit.cmd` é o arquivo que existe.
+           Inventar um nome bonito aqui é a pessoa procurando um arquivo que não
+           está na pasta. A janela que fica aberta é dita porque fechá-la fecha o
+           painel, e sem essa frase isso parece um defeito. -->
+      <section class="passo">
+        <div class="top">
+          <span class="n">[ 03 ]</span>
+          <h3>Dois cliques em <code>start-cockpit.cmd</code></h3>
+        </div>
+        <div class="tira">
+          <span class="tt">
+            <span class="tile acao" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 5.4h16.8v13.2H3.6z"/><path d="M7.2 10l2.8 2.4-2.8 2.4"/><path d="M12.4 15h4.2"/></svg>
+            </span>
+            <span class="lb">o atalho</span>
+          </span>
+          <span class="seta" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 12h14.6"/><path d="M13.8 6.8L19 12l-5.2 5.2"/></svg>
+          </span>
+          <span class="tt">
+            <span class="tile" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z"/><path d="M3.6 9.6h16.8"/><path d="M3.6 14.4h16.8"/><path d="M11.6 3.5c-3.4 4.9-3.4 12.1 0 17"/></svg>
+            </span>
+            <span class="lb">o navegador</span>
+          </span>
+        </div>
+        <p>É o atalho na raiz da pasta. Ele abre uma janela preta que <b>fica aberta enquanto o painel roda</b> — fechar essa janela fecha o painel — e o navegador em <code>localhost:4317</code>. <b>Nada é publicado na internet</b>: o servidor escuta só em <code>127.0.0.1</code>.</p>
+      </section>
+
+    </div>
+
+    <div class="req">
+      <div class="lado">
+        <div class="lb">o que não vem no pacote</div>
+        <div class="itens">
+          <div class="it">
+            <span class="g" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 5.6L15.8 12l-6.4 6.4"/></svg>
+            </span>
+            <p><b>Uma assinatura Claude</b> — Pro, Max, Team ou Enterprise. É o plano dela que paga as ações do painel; não existe cartão nosso no meio.</p>
+          </div>
+          <div class="it">
+            <span class="g" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 5.6L15.8 12l-6.4 6.4"/></svg>
+            </span>
+            <p><b>O Claude Code instalado, e um <code>claude login</code></b> — uma vez só. <b>Instalada e logada são dois fatos</b>, e o painel confere os dois separado.</p>
+          </div>
+        </div>
+      </div>
+      <div class="lado">
+        <div class="lb">se faltar, você descobre na primeira abertura</div>
+        <div class="aponta">
+          <span class="k">a linha do Claude vai aparecer assim</span>
+          <span class="tag cold">SEM LOGIN</span>
+        </div>
+        <p class="diz">O painel abre do mesmo jeito, e essa linha traz <b>o comando escrito na tela</b>. <b>Nada quebrou</b> — ela nunca esteve conectada por este caminho.</p>
+      </div>
+    </div>
+
+    <div class="rodape">
+      <span class="mono">hoje só Windows</span>
+      <span class="push"></span>
+      <span class="nota">O atalho é um <code>.cmd</code> e o Node que vem dentro é o build de Windows. <b>Não existe pacote de macOS nem de Linux para baixar</b> — e a página de download não oferece um, em vez de oferecer e falhar aqui.</span>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+</body>
+</html>

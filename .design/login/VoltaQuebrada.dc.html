@@ -1,0 +1,412 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens — bloco 1 do BRIEF, byte a byte. Artboard escuro de propósito. */
+    :root {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c;
+      --brand:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+      --accent-txt:#606CF5; --brand-txt:#FF5A1F;
+      --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+    x-dc { display:block; }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+
+    /* artboard root — fixed frame, clipped, never scrolled */
+    .art { width:1280px; height:860px; overflow:hidden; position:relative; background:var(--bg); }
+
+    /* blueprint backdrop — 56px é a célula do .backdrop do app. Sem aura de
+       accent: accent significa movimento, e aqui nada está andando. */
+    .back { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+    .back::before { content:""; position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size:56px 56px; }
+
+    /* topbar — 58px, o chrome do cockpit */
+    .topbar { position:relative; z-index:2; display:flex; align-items:center; gap:18px;
+      padding:0 22px; height:58px; background:color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter:blur(14px) saturate(1.2); border-bottom:1px solid var(--line); }
+    .topbar .sep { width:1px; height:20px; background:var(--line); flex:0 0 auto; }
+    .topbar .spacer { flex:1 1 auto; }
+    .brand { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; letter-spacing:-.02em; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .meta { font-family:var(--font-num); font-size:11px; color:var(--txt-faint); flex:0 0 auto;
+      font-variant-numeric:tabular-nums; }
+
+    /* logo da Ecommerce Puro — transcrita do upgrade.html linha 216.
+       A arte é branca, então no artboard ESCURO o filtro sai. */
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:none; }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none } }
+
+    /* Cápsula DESTRAVADA — ela não é usuária nova. As quatro portas levam a
+       algum lugar; as que dependem do n8n sobem com estado honesto de erro, e
+       apagá-las aqui diria "você ainda não fez", que é o insulto desta tela. */
+    .nvd { position:relative; display:flex; align-items:center; gap:3px; padding:3px;
+      border-radius:999px; flex:0 0 auto; background:var(--surface-2);
+      box-shadow:inset 0 0 0 1px var(--line-soft); }
+    .nvd a { position:relative; z-index:1; display:flex; align-items:center; height:30px;
+      padding:0 9px; border-radius:999px; color:var(--txt-dim); gap:7px; }
+    .nvd a.on { color:var(--txt); }
+    .nvd a.on .ic { color:var(--accent-txt); }
+    .nvd .lente { position:absolute; z-index:0; border-radius:999px;
+      background:color-mix(in srgb, var(--accent) 15%, transparent);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.13), inset 0 0 0 1px var(--accent-line); }
+    .nvd .lb { font-size:12.5px; font-weight:500; white-space:nowrap; }
+    .nvd .ic { display:grid; place-items:center; }
+
+    /* botão — bevel de duas camadas. white-space e flex-basis na regra única:
+       rótulo de controle não quebra e controle não encolhe. */
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+      flex:0 0 auto; border:1px solid transparent; font-family:var(--font);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+      transition: background .16s, box-shadow .18s, transform .09s, color .16s; }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    /* A ação é `prime` (accent = movimento, ação primária), NUNCA vermelha: o
+       único botão vermelho deste código é reservado para o que apaga. */
+    .btn.prime { color:#fff; border-color:transparent; font-weight:600;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+      box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
+    .btn.ico { width:32px; padding:0; justify-content:center; }
+
+    .panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+      box-shadow:var(--shadow); position:relative; }
+
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); margin:0; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    .tag { font-family:var(--font-num); font-size:10.5px; padding:2px 7px; border-radius:6px;
+      white-space:nowrap; letter-spacing:.02em; }
+    .tag.ok   { color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt));   background:var(--ok-soft); }
+    .tag.warn { color:color-mix(in srgb,var(--warn-txt) 72%,var(--txt)); background:var(--warn-soft); }
+    .tag.risk { color:color-mix(in srgb,var(--risk-txt) 72%,var(--txt)); background:var(--risk-soft); }
+    .tag.cold { color:color-mix(in srgb,var(--cold-txt) 72%,var(--txt)); background:var(--cold-soft); }
+
+    /* ─────────────────────────────────────────────────────────────────────
+       O cartão da quebra. `quebrou` leva `risk` e não `warn`: o que parou de
+       funcionar está de fato quebrado, e nesta mesma tela `warn` já significa
+       "leitura incompleta / piso" — se os dois fossem âmbar, a chave revogada
+       leria igual à consequência dela.
+       A silhueta é o elo partido: `ok` é o tique, `conferindo` é o círculo
+       tracejado, `nunca` é o círculo vazio. Quatro formas, quatro estados, e
+       nenhuma delas depende de cor para se separar em cinza.
+       ───────────────────────────────────────────────────────────────────── */
+    .quebra { display:flex; align-items:flex-start; gap:15px; padding:17px 19px 17px 22px;
+      overflow:hidden; background:color-mix(in srgb, var(--risk) 6%, var(--surface));
+      border-color:color-mix(in srgb, var(--risk) 26%, var(--line)); }
+    .quebra::before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:2px;
+      border-radius:2px; background:var(--risk); }
+    .quebra .gl { flex:0 0 auto; width:34px; height:34px; border-radius:10px; display:grid;
+      place-items:center; background:var(--risk-soft);
+      color:color-mix(in srgb,var(--risk-txt) 78%,var(--txt)); margin-top:2px; }
+    .quebra .corpo { flex:1 1 auto; min-width:0; }
+    .quebra .hd { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .quebra h2 { margin:0; font-size:20px; font-weight:650; letter-spacing:-.02em; line-height:1.24; }
+    .quebra .prova { margin:8px 0 0; font-size:12.8px; line-height:1.6; color:var(--txt-dim); }
+    .quebra .prova code { font-family:var(--font-num); font-size:12px; color:var(--txt); }
+    .quebra .prova b { color:var(--txt); font-weight:600; }
+    /* a distinção que manda a pessoa para lugares diferentes: a instância
+       respondeu, e a resposta foi uma recusa.
+       A cor NÃO é --txt-faint: medido sobre o fundo tintado deste cartão
+       (color-mix(risk 6%, surface) ≈ #1D131E) ele dá 4,47 e reprova AA a
+       12,5px. Este mix mantém o degrau abaixo de .prova e mede ~7,6. */
+    .quebra .dist { margin:7px 0 0; font-size:12.5px; line-height:1.55;
+      color:color-mix(in srgb, var(--txt-dim) 82%, var(--txt-faint)); }
+    .quebra .dist b { color:var(--txt-dim); font-weight:600; }
+    .quebra .lado { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:11px;
+      padding-left:19px; border-left:1px solid var(--line-soft); padding-top:1px; }
+    .quebra .desde { text-align:right; }
+    .quebra .desde .lbl { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:color-mix(in srgb, var(--txt-dim) 82%, var(--txt-faint)); }
+    .quebra .desde .val { font-family:var(--font-num); font-variant-numeric:tabular-nums;
+      font-size:20px; font-weight:600; letter-spacing:-.02em; margin-top:5px; line-height:1.05; }
+    /* mesmo motivo da .dist: --txt-faint reprova sobre o fundo tintado */
+    .quebra .desde .sb { font-family:var(--font-num); font-variant-numeric:tabular-nums;
+      font-size:10.5px; color:color-mix(in srgb, var(--txt-dim) 82%, var(--txt-faint));
+      margin-top:5px; }
+    .quebra .acao { display:flex; align-items:center; gap:9px; }
+
+    /* As duas colunas: o que parou e o que continua. Esta é a metade que
+       costuma faltar — o app degrada com honestidade, e a IA é independente. */
+    .duas { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+    .col { display:flex; flex-direction:column; }
+    .col .chd { display:flex; align-items:center; gap:9px; padding:11px 15px;
+      border-bottom:1px solid var(--line-soft); }
+    .col .chd .g { display:grid; place-items:center; flex:0 0 auto; }
+    .col .chd .k { font-size:13.5px; font-weight:600; letter-spacing:-.01em; }
+    .col .chd .push { flex:1 1 auto; }
+    /* a contagem é texto mono, NÃO uma .tag colorida: cor de status diz estado,
+       e "5 coisas" é um número. O glifo do cabeçalho já carrega o estado. Mesma
+       forma que a coluna pode/não pode da tela da IA. */
+    .col .chd .qt { font-family:var(--font-num); font-size:10.5px; letter-spacing:.02em;
+      color:var(--txt-faint); }
+    .col.parou .chd .g { color:color-mix(in srgb,var(--risk-txt) 78%,var(--txt)); }
+    .col.segue .chd .g { color:color-mix(in srgb,var(--ok-txt) 78%,var(--txt)); }
+    .it { display:flex; align-items:flex-start; gap:10px; padding:9px 15px;
+      border-top:1px solid var(--line-soft); }
+    .it:first-of-type { border-top:0; }
+    .it .g { flex:0 0 auto; display:grid; place-items:center; color:var(--txt-faint); margin-top:1px; }
+    .it p { margin:0; font-size:12px; line-height:1.5; color:var(--txt-dim); }
+    .it p b { color:var(--txt); font-weight:600; }
+    .it p code { font-family:var(--font-num); font-size:11.5px; color:var(--txt-dim); }
+    .col .rodape { margin-top:auto; padding:10px 15px; border-top:1px solid var(--line-soft);
+      background:var(--surface-2); }
+    .col .rodape p { margin:0; font-size:12px; line-height:1.5; color:var(--txt-faint); }
+    .col .rodape b { color:var(--txt-dim); font-weight:600; }
+
+    /* Piso, não total — âmbar, e é aqui que âmbar mora nesta tela. */
+    .piso { display:flex; align-items:flex-start; gap:12px; padding:12px 15px;
+      border:1px solid var(--line); border-radius:10px; background:var(--warn-soft); }
+    .piso .g { flex:0 0 auto; color:var(--warn); display:grid; place-items:center; margin-top:1px; }
+    .piso p { margin:0; font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .piso b { color:var(--txt); font-weight:600; }
+    .piso code { font-family:var(--font-num); font-variant-numeric:tabular-nums; font-size:11.5px;
+      color:var(--txt); }
+    .piso .push { flex:1 1 auto; }
+  </style>
+</helmet>
+
+<div class="art">
+  <div class="back"></div>
+
+  <header class="topbar">
+    <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+    <div class="sep eplogo-sep"></div>
+    <div class="brand">
+      <span class="flame" aria-hidden="true">
+        <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+      </span>
+      <h1 class="wm"><b>COCKPIT</b> <span>/ fluxos</span></h1>
+    </div>
+    <div class="sep"></div>
+    <nav class="nvd" aria-label="telas do cockpit">
+      <span class="lente" style="left:3px; top:3px; width:88px; height:30px"></span>
+      <a class="on" href="#"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb">Fluxos</span></a>
+      <a href="#" title="Disco — a carteira de projetos em disco, não depende do n8n"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a href="#" title="Tester — sobe com estado honesto de erro enquanto o n8n não responde"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a href="#" title="Upgrade — sobe com estado honesto de erro enquanto o n8n não responde"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    </nav>
+    <div class="sep"></div>
+    <span class="tag risk">N8N SEM RESPOSTA</span>
+    <span class="spacer"></span>
+    <span class="meta">kauan@ecommercepuro.com.br</span>
+    <button class="btn ghost ico" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
+    <button class="btn ghost" type="button">Sair</button>
+  </header>
+
+  <main style="position:relative; z-index:1; height:802px; padding:22px 34px 62px;
+    display:flex; flex-direction:column; justify-content:center; gap:13px">
+
+    <!-- Sem denominador, sem sequência, sem saudação: ela usa isto há um ano.
+         O eyebrow diz DESDE QUANDO, que é o oposto de "passo 02 de 03". -->
+    <p class="eyebrow">
+      <span class="idx">[ CONEXÃO ]</span>
+      <span>algo que funcionava parou</span>
+      <span class="rule"></span>
+      <span>há 21 dias</span>
+    </p>
+
+    <section class="panel quebra">
+      <span class="gl" aria-hidden="true">
+        <!-- elo partido: a silhueta de `quebrou`. Não é o triângulo de alerta,
+             que nesta tela pertence ao piso, e não é o círculo tracejado de
+             `conferindo`. -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M10.4 6.2l1.9-1.9a4.1 4.1 0 0 1 5.8 5.8l-1.9 1.9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.6 17.8l-1.9 1.9a4.1 4.1 0 0 1-5.8-5.8l1.9-1.9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14.6 9.4l-1.5 1.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.9 13.1l-1.5 1.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+
+      <div class="corpo">
+        <div class="hd">
+          <h2>A sua chave de API do n8n foi revogada.</h2>
+          <span class="tag risk">PAROU DE FUNCIONAR</span>
+        </div>
+        <p class="prova">
+          <code>ecommercepuro.app.n8n.cloud</code> respondeu
+          <b><code>401 unauthorized</code></b> — <code>&quot;X-N8N-API-KEY is invalid&quot;</code> —
+          na primeira tentativa de <b>31/07 às 09:41</b> e em <b>todas</b> desde então.
+        </p>
+        <p class="dist">
+          <b>A instância está no ar.</b> Ela respondeu, e a resposta foi uma recusa — não é
+          &laquo;não consegui falar com o n8n&raquo;, é &laquo;a chave não vale mais&raquo;. As duas mandam
+          você para lugares diferentes, e esta manda para as chaves de API da sua conta n8n.
+        </p>
+      </div>
+
+      <div class="lado">
+        <div class="desde">
+          <div class="lbl">funcionou até</div>
+          <div class="val">31/07 09:12</div>
+          <div class="sb">última leitura completa · 2026</div>
+        </div>
+        <div class="acao">
+          <button class="btn prime" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14.6 4.6a4.6 4.6 0 0 1 4.8 7.5l-7.3 7.3a4.6 4.6 0 0 1-6.5-6.5l2.6-2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.6 12.2l4.8-4.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Colar a chave nova
+          </button>
+          <button class="btn ghost" type="button">Onde gerar ↗</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="duas">
+
+      <!-- O QUE PAROU. Nada aqui mostra zero: o painel diz que não tem dado,
+           que é uma frase diferente de "nenhuma falha". -->
+      <section class="panel col parou">
+        <div class="chd">
+          <span class="g" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <span class="k">O que parou enquanto isso</span>
+          <span class="push"></span>
+          <span class="qt">5 coisas</span>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <p><b>A lista de fluxos.</b> O painel não tem fluxo nenhum para mostrar, e é isso que ele
+            escreve — <b>não um zero com cara de saudável</b>.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <p><b>Execuções e quadro de falhas.</b> A janela de 24 h vem da instância. Sem leitura não
+            existe feed nem agrupamento de erro.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <p><b>O replay no grafo.</b> O grafo do fluxo é lido na hora; ele não fica guardado aqui.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <p><b>Aplicar um diff e reexecutar.</b> A escrita relê o fluxo antes de escrever. Sem
+            leitura não há o que aprovar — e é assim que tem de ser.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.9"/><path d="M6.1 17.9L17.9 6.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </span>
+          <p><b>A conversa da aba Upgrade.</b> Ela exige o dossiê, e o dossiê se mede contra o fluxo
+            vivo. Sem o fluxo, o compositor nem aparece.</p>
+        </div>
+        <div class="rodape">
+          <p>As portas continuam abertas na cápsula. Elas <b>sobem e dizem o que falta</b> — travar
+            uma porta diria &laquo;você ainda não fez&raquo;, e você já fez.</p>
+        </div>
+      </section>
+
+      <!-- O QUE CONTINUA. A IA é independente e pode estar perfeita — dizer que
+           tudo caiu junto seria a mentira fácil desta tela. -->
+      <section class="panel col segue">
+        <div class="chd">
+          <span class="g" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4.6 12.6l4.6 4.5L19.6 6.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="k">O que continua inteiro</span>
+          <span class="push"></span>
+          <span class="qt">4 coisas</span>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4.6 12.6l4.6 4.5L19.6 6.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <p><b>Claude Code — conectada e respondendo.</b> Ela é local e não passa pelo n8n:
+            conferida às <code>14:53:12</code>, na sua assinatura, sem cartão.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4.6 12.6l4.6 4.5L19.6 6.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <p><b>Os dossiês e as notas de correção.</b> São arquivos daqui e continuam legíveis — e
+            continuam <b>datados de 31/07</b>, porque descrevem o fluxo daquele dia.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4.6 12.6l4.6 4.5L19.6 6.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <p><b>O Disco.</b> A varredura da carteira de projetos lê a sua pasta, não a instância.
+            Aquela porta funciona igual a ontem.</p>
+        </div>
+        <div class="it">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4.6 12.6l4.6 4.5L19.6 6.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <p><b>A sua conta.</b> A entrada não tem relação com isto. <b>Não é o seu login</b> — é uma
+            chave de terceiro que a sua conta n8n deixou de aceitar.</p>
+        </div>
+        <div class="rodape">
+          <p><b>A IA está inteira e está ociosa.</b> Sem fluxo para ler, não há o que corrigir. Ela
+            não quebrou — ficou sem trabalho, e volta a ter no clique acima.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="piso">
+      <span class="g" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 4.4l8.4 14.6H3.6L12 4.4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 10v3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 16.4h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <p><b>Não sei se algum fluxo está falhando agora, e não vou fingir que sei.</b>
+        Isto não é &laquo;não achei falha&raquo; — é <b>&laquo;não consegui olhar&raquo;</b>, e são duas frases
+        diferentes. O último número que eu li foi <code>11 falhas em 3 fluxos</code>, de
+        <code>31/07 09:12</code>: trate como <b>piso, não como total</b>. A chave nova é o que
+        devolve a pergunta.</p>
+      <span class="push"></span>
+      <button class="btn ghost" type="button">Tentar ler de novo</button>
+    </div>
+
+  </main>
+
+  <footer style="position:absolute; left:0; right:0; bottom:0; padding:14px 34px;
+    border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:14px">
+    <span style="font-family:var(--font-num); font-size:9.5px; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--txt-faint)">[ COCKPIT · 127.0.0.1:4317 · NODE 22 · ZERO DEPENDÊNCIA ]</span>
+    <span style="flex:1; height:1px; background:var(--line-soft)"></span>
+    <span style="font-family:var(--font-num); font-size:9.5px; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--txt-faint)">a chave nova vai para [ONDE A CHAVE FICA GUARDADA]</span>
+  </footer>
+</div>
+</x-dc>
+</body>
+</html>

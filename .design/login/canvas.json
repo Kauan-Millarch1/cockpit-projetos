@@ -1,0 +1,65 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Primeira entrada" },
+    { "id": "page-2", "name": "Permanente" }
+  ],
+  "artboards": [
+    { "file": "Entrar.dc.html",      "page": "page-1", "x": 0,    "y": 0,    "w": 1280, "h": 860, "title": "01 · Entrar (escuro)" },
+    { "file": "EntrarClaro.dc.html", "page": "page-1", "x": 1360, "y": 0,    "w": 1280, "h": 860, "title": "01 · Entrar (claro)" },
+    { "file": "Main.dc.html",        "page": "page-1", "x": 2720, "y": 0,    "w": 1280, "h": 860, "title": "Hub · o que falta" },
+
+    { "file": "ConectarN8n.dc.html", "page": "page-1", "x": 0,    "y": 980,  "w": 1280, "h": 860, "title": "02 · Conectar o n8n" },
+    { "file": "N8nPuxado.dc.html",   "page": "page-1", "x": 1360, "y": 980,  "w": 1280, "h": 860, "title": "02 · Fluxos puxados" },
+
+    { "file": "ConectarIA.dc.html",  "page": "page-1", "x": 0,    "y": 1960, "w": 1280, "h": 860, "title": "03 · Conectar a IA" },
+    { "file": "IAConectada.dc.html", "page": "page-1", "x": 1360, "y": 1960, "w": 1280, "h": 860, "title": "03 · IA conectada" },
+
+    { "file": "VoltaConectado.dc.html", "page": "page-2", "x": 0,    "y": 0,   "w": 1280, "h": 860, "title": "Volta · nada é pedido" },
+    { "file": "VoltaQuebrada.dc.html",  "page": "page-2", "x": 1360, "y": 0,   "w": 1280, "h": 860, "title": "Volta · algo parou" },
+    { "file": "Integracoes.dc.html",    "page": "page-2", "x": 0,    "y": 980, "w": 1280, "h": 860, "title": "Integrações · os quatro estados" },
+    { "file": "IAsDuas.dc.html",        "page": "page-2", "x": 1360, "y": 980, "w": 1280, "h": 860, "title": "Duas IAs · quem faz qual trabalho" }
+  ],
+  "annotations": [
+    {
+      "id": "duas-caras",
+      "page": "page-2", "x": 2720, "y": 0, "w": 430,
+      "text": "POR QUE DUAS PÁGINAS\n\nPágina 1 é a sequência: existe uma vez, tem denominador (02 de 03), empurra para frente. Página 2 é o que fica para sempre: sem sequência, sem denominador, tudo alcançável a qualquer dia.\n\nSão duas caras da mesma integração, e a pior coisa que dá para fazer aqui é entregar a mesma tela com outro título — quem volta depois de um ano e recebe \"passo 02 de 03\" é insultado pelo produto."
+    },
+    {
+      "id": "quatro-estados",
+      "page": "page-2", "x": 3190, "y": 0, "w": 430,
+      "text": "OS QUATRO ESTADOS\n\nnunca · conferindo · ok · quebrou.\n\nO quarto é o que aparece meses depois e é o que um sistema \"inteligente\" não pode confundir com o primeiro: `nunca` é \"você ainda não fez\", `quebrou` é \"aquilo que funcionava parou\" — e o segundo é urgente.\n\n`conferindo` e `nunca` são os dois cinza, então esses dois não podem depender de cor nenhuma para se distinguir. Forma resolve, cor não."
+    },
+    {
+      "id": "decisao-duas-ias",
+      "page": "page-2", "x": 2720, "y": 980, "w": 430,
+      "text": "DECISÃO QUE EU TOMEI — vetável\n\n\"Usar as duas IAs\" tem três leituras. Desenhei (1) como o arranjo em vigor: UMA IA POR TIPO DE TRABALHO. Motivo: é a forma que o app já tem — cada tarefa é um spawn próprio e já existe configuração por tarefa (modelo da construção, esforço da conversa, esforço do patch).\n\n(2) reserva por cota e (3) as duas no mesmo trabalho, uma criticando a outra, entram como chaves que ligam.\n\nSe o que você queria era (3) como principal, é outra tela."
+    },
+    {
+      "id": "sem-medidor-de-cota",
+      "page": "page-2", "x": 3190, "y": 980, "w": 430,
+      "text": "O QUE NÃO ENTRA EM NENHUMA TELA\n\nMedidor de cota. Nada de \"restam 38% do plano\", barra, anel ou previsão.\n\nNão existe fonte medida para isso, e inventar um número na tela que existe para ser confiável é a pior mentira disponível aqui. Onde a ausência importa, a tela diz que não sabe.\n\nMesma regra do resto do painel: número na tela é medido ou é exemplo declarado."
+    },
+    {
+      "id": "logo-medida",
+      "page": "page-1", "x": 4080, "y": 0, "w": 430,
+      "text": "A LOGO, MEDIDA\n\nA arte é branca. Sobre o fundo claro (#FAFAF9) sem filtro ela mede 1,0444 de contraste — invisível, medido por pixel, não suposto. Com o `filter:invert(1)` do app ela vira preta e mede 20,1070.\n\nPor isso o artboard claro mantém o invert e os escuros usam `filter:none`. É a mesma regra do `.eplogo` do upgrade.html, linha 216 — copiada, não recalculada.\n\nA 32px o contorno do \"PURO\" cai abaixo de 1px de traço e vira borrão. Isso já é assim no app hoje. Uma variante sólida leria melhor nesse tamanho — decisão de marca."
+    },
+    {
+      "id": "decisao-quem-entra",
+      "page": "page-1", "x": 4080, "y": 980, "w": 430,
+      "text": "DECISÃO ABERTA — quem entra\n\nO pedido diz \"o n8n DELA\" e \"a IA DELE\", então desenhei para terceiros entrarem. Isso torna o cockpit multi-inquilino, e é a pergunta 4 de \"Open questions\" no CLAUDE.md: hoje a chave do n8n nunca sai da sua máquina. Hospedado, alguém passa a guardar a chave de cada pessoa."
+    },
+    {
+      "id": "decisao-guarda-chave",
+      "page": "page-1", "x": 4080, "y": 1960, "w": 430,
+      "text": "DECISÃO ABERTA — onde a chave fica\n\n[ONDE A CHAVE FICA GUARDADA] aparece na tela 02 de propósito. Inventar \"criptografada no nosso banco\" seria promessa que ninguém autorizou.\n\nTrês saídas reais: fica na máquina de quem roda (mantém a propriedade atual e mata o hospedado); fica no servidor cifrada por conta; ou a pessoa cola a cada sessão e nada é guardado."
+    },
+    {
+      "id": "achado-contraste",
+      "page": "page-1", "x": 2720, "y": 2940, "w": 430,
+      "text": "ACHADO NO CSS REAL, não no mockup\n\n.btn.prime mede 3,3581:1 no tema ESCURO no topo do próprio gradiente (rótulo #fff sobre a mistura de 82% de branco). O pé passa em 4,5703. Reprova AA a 13px/600 na metade de cima do botão mais importante da tela.\n\nEsse botão é o do painel inteiro, não desta tela. Não mexi: recalibrar o --accent que o Kauan calibrou não é fatia de mockup.\n\nO placeholder de campo focado mede 4,1837 no escuro; sem foco passa em 4,6581. Uma linha de CSS resolve (--txt-dim no placeholder focado) e vale para o .fbusca do painel."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-2" }
+}

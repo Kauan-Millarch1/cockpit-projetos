@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* TOKENS:INICIO */
+    :root {
+      --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005; --raised:#FFFFFF;
+      --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+      --grid:rgba(10,10,20,.045); --grid-bold:rgba(10,10,20,.08);
+      --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+      --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055;
+      --brand:#FF5A1F;
+      --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+      --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --risk-soft:#DC2B3A14; --cold-soft:#8B90A014;
+      --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+      --accent-txt:#3B48E0; --brand-txt:#D04919;
+      --shadow:0 1px 2px rgba(10,10,20,.04), 0 12px 28px -22px rgba(10,10,20,.28);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+    /* TOKENS:FIM */
+
+    x-dc { display:block; width:1280px; height:860px; overflow:hidden; position:relative; background:var(--bg); }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+    h1, h2, p { margin:0; }
+
+    /* blueprint backdrop — the panel's own atmosphere, at the app's own opacity.
+       The grid is masked from the top so it fades out instead of tiling the
+       whole plate; the accent wash is the app's `.backdrop::after`, unchanged. */
+    .backdrop { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .backdrop::before {
+      content:""; position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size:56px 56px;
+      mask-image:radial-gradient(ellipse 120% 80% at 50% 0%, #000 30%, transparent 78%);
+    }
+    .backdrop::after {
+      content:""; position:absolute; inset:0;
+      background:radial-gradient(ellipse 70% 45% at 50% -12%, var(--accent-soft), transparent 70%);
+    }
+
+    /* topbar — 58px, padding 0 22px, gap 18px, exactly the app's chrome.
+       The four-door nav capsule is absent on purpose: nobody is signed in. */
+    .topbar { position:relative; z-index:2; display:flex; align-items:center; gap:18px;
+      padding:0 22px; height:58px;
+      background:color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter:blur(14px) saturate(1.2);
+      border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; font-weight:700; line-height:1.45; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .topbar .sep { width:1px; height:20px; background:var(--line); flex:0 0 auto; }
+    .topbar .spacer { flex:1 1 auto; }
+
+    /* logo da Ecommerce Puro — transcrita do upgrade.html linha 216.
+       A arte é branca, então no artboard CLARO o invert(1) da regra do app fica:
+       sem ele a logo desaparece no #FAFAF9. Medido, não suposto. */
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:invert(1); }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none } }
+
+    /* button — two-layer bevel, height 32, radius 8, font 13 */
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; border:1px solid transparent;
+      font-family:var(--font);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+      transition: background .16s, box-shadow .18s, transform .09s, color .16s; }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    .btn.prime { color:#fff; border-color:transparent; font-weight:600;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+      box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
+    .btn.wide { width:100%; justify-content:center; }
+
+    /* field — the panel's `.fbusca`. `.foco` carries the exact declarations of
+       `:focus-within`, so the focused state is visible in a still capture. */
+    .fld { display:flex; align-items:center; gap:8px; min-width:0; background:var(--surface-2);
+      border:1px solid var(--line); border-radius:10px; padding:7px 11px; }
+    .fld:focus-within, .fld.foco { border-color:var(--accent-line); background:var(--accent-soft); }
+    .fld input { flex:1; min-width:0; border:0; background:transparent; outline:none;
+      font-family:var(--font); font-size:13px; color:var(--txt); padding:1px 0; }
+    .fld input::placeholder { color:var(--txt-faint); }
+    .fld .ic { color:var(--txt-faint); display:grid; place-items:center; flex:0 0 auto; }
+    .fld.foco .ic { color:var(--accent-txt); }
+    .caret { width:1px; height:15px; background:var(--accent); flex:0 0 auto; }
+
+    /* panel */
+    .panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+      box-shadow:var(--shadow); position:relative; }
+
+    /* eyebrow — the bracket annotation, the panel's visual signature */
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-variant-numeric:tabular-nums;
+      font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); margin:0 0 12px; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    .lbl { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); }
+    .num { font-family:var(--font-num); font-variant-numeric:tabular-nums; }
+
+    /* the hairline that carries the word "ou" */
+    .ou { display:flex; align-items:center; gap:12px; height:34px; }
+    .ou i { flex:1; height:1px; background:var(--line-soft); }
+    .ou span { font-family:var(--font-num); font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); }
+
+    .say { font-size:12.5px; line-height:1.6; color:var(--txt-dim); }
+  </style>
+</helmet>
+
+<div class="backdrop"></div>
+
+<header class="topbar">
+  <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
+  <div class="brand">
+    <span class="flame" aria-hidden="true">
+      <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+    </span>
+    <h1 class="wm"><b>COCKPIT</b> <span>/ entrar</span></h1>
+  </div>
+  <div class="sep"></div>
+  <div class="lbl">ninguém conectado</div>
+  <div class="spacer"></div>
+  <button class="btn ghost" type="button"><span aria-hidden="true">◐</span> Tema</button>
+</header>
+
+<!-- content plate: the card holds the left column; the credential block sits in
+     the right one, bottom-aligned to the card so the two share a real edge
+     instead of floating. The void it leaves is the upper right, under the
+     accent wash, which is the cheapest place on this screen to leave empty. -->
+<div style="position:relative; z-index:1; display:grid; grid-template-columns:568px 352px;
+            gap:80px; padding:84px 0 0 128px;">
+
+  <section class="panel" style="padding:30px 32px 28px;">
+    <div class="eyebrow">
+      <span class="idx">[ 01 ]</span>
+      <span>Entrar</span>
+      <i class="rule"></i>
+      <span class="num">01 / 03</span>
+    </div>
+
+    <h2 style="font-size:26px; line-height:1.34; font-weight:600; letter-spacing:-.015em;
+               color:var(--txt); margin-bottom:8px;">
+      O painel que olha os seus fluxos do n8n, diz qual quebrou e em que nó, e conserta
+      com uma sessão de IA local — depois que você aprovar o diff na tela.
+    </h2>
+
+    <div style="display:flex; flex-direction:column; gap:18px; margin-top:22px;">
+
+      <div style="display:flex; flex-direction:column; gap:7px;">
+        <label class="lbl" for="mail">Seu e-mail</label>
+        <div class="fld foco">
+          <span class="ic" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.4" width="18" height="13.2" rx="2.2"/><path d="M3.7 7.3 12 13l8.3-5.7"/></svg>
+          </span>
+          <i class="caret" aria-hidden="true"></i>
+          <input id="mail" type="email" placeholder="voce@empresa.com">
+        </div>
+      </div>
+
+      <button class="btn prime wide" type="button">Enviar link de entrada</button>
+
+      <p class="say">
+        Sem senha para lembrar. O link serve uma vez só e expira em
+        <span class="num" style="color:var(--txt);">[N minutos]</span>.
+      </p>
+
+      <div class="ou"><i></i><span>ou</span><i></i></div>
+
+      <button class="btn wide" type="button">
+        <span aria-hidden="true" style="display:grid; place-items:center; color:var(--txt-dim);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 12h-5.6"/><path d="M20.2 12a8.2 8.2 0 1 1-2.9-6.3"/></svg>
+        </span>
+        Continuar com Google
+      </button>
+
+      <p class="say">
+        Entrar não conecta nada. Faltam o seu n8n e a sua IA — dois passos, nesta ordem.
+        Sem o n8n o painel abre e diz que não leu nenhum fluxo; sem a IA ele volta pro
+        handoff por área de transferência e diz por quê.
+      </p>
+
+    </div>
+  </section>
+
+  <aside style="align-self:end; padding-bottom:2px; display:flex; flex-direction:column; gap:14px;">
+    <div class="eyebrow" style="margin:0 0 2px;">
+      <span>o que o painel faz com as suas chaves</span>
+      <i class="rule"></i>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:11px;">
+      <span aria-hidden="true" style="color:var(--txt-faint); display:grid; place-items:center; flex:0 0 auto; margin-top:2px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.6" cy="8.4" r="3.6"/><path d="M13.1 10.9 4.6 19.4"/><path d="M7.4 16.6l2.1 2.1"/></svg>
+      </span>
+      <p class="say">A chave do n8n lê os fluxos e escreve só o diff que você aprovou na tela.</p>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:11px;">
+      <span aria-hidden="true" style="color:var(--txt-faint); display:grid; place-items:center; flex:0 0 auto; margin-top:2px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M3.6 12h16.8"/><path d="M12 3.6c2.4 2.6 2.4 14.2 0 16.8"/><path d="M5.6 5.6 18.4 18.4"/></svg>
+      </span>
+      <p class="say">A sessão de IA roda sem rede, na sua máquina, e nunca vê credencial.</p>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:11px;">
+      <span aria-hidden="true" style="color:var(--txt-faint); display:grid; place-items:center; flex:0 0 auto; margin-top:2px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4l7 2.6v5.4c0 4.2-2.9 7.4-7 9.2-4.1-1.8-7-5-7-9.2V6z"/><path d="M8.9 12.1l2.3 2.3 4-4.4"/></svg>
+      </span>
+      <p class="say">Nada é apagado sem uma confirmação sua, e o backup fica para desfazer.</p>
+    </div>
+  </aside>
+
+</div>
+
+<div class="num" style="position:absolute; left:128px; bottom:34px; z-index:1;
+     font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint);">
+  [ COCKPIT · 127.0.0.1:4317 · NODE 22 · ZERO DEPENDÊNCIA ]
+</div>
+
+</x-dc>
+</body>
+</html>

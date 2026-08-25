@@ -1,0 +1,257 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* Tokens — copiados byte a byte do :root de upgrade.html (tema escuro, a
+       face padrão do cockpit). O artboard não troca de tema conforme o SO do
+       espectador de propósito: o PNG de revisão precisa ser previsível. */
+    :root {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c;
+      --brand:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+      --accent-txt:#606CF5; --brand-txt:#FF5A1F;
+      --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+    x-dc { display:block; }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; border:1px solid transparent;
+      font-family:var(--font);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18); }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    .btn.prime { color:#fff; font-weight:600;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+      box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
+    .btn[disabled] { opacity:.55; cursor:default; }
+
+    .tag { font-family:var(--font-num); font-size:10.5px; padding:2px 7px; border-radius:6px;
+      white-space:nowrap; letter-spacing:.02em; }
+    .tag.ok   { color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt));   background:var(--ok-soft); }
+    .tag.cold { color:color-mix(in srgb,var(--cold-txt) 72%,var(--txt)); background:var(--cold-soft); }
+
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); margin:0; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    /* Fundo de blueprint — identidade do painel, na opacidade dele. Atmosfera,
+       nunca gradiente colorido. */
+    .backdrop { position:absolute; inset:0; pointer-events:none;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size:56px 56px; }   /* 56px e a celula do .backdrop do app, levantada de upgrade.html — nao um numero escolhido */
+
+    /* A linha de etapa. A barra da esquerda é o mesmo vocabulário do .card do
+       painel: 2px, e a cor dela É o estado — nunca enfeite. */
+    .step { position:relative; display:flex; align-items:flex-start; gap:16px;
+      background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+      box-shadow:var(--shadow); padding:16px 18px 16px 22px; overflow:hidden; }
+    .step::before { content:""; position:absolute; left:0; top:13px; bottom:13px; width:2px;
+      border-radius:2px; background:var(--cold); }
+    .step.s-ok::before { background:var(--ok); }
+    .step.s-cold::before { background:var(--cold); }
+    /* O terceiro estado. Tracejado porque a diferença entre "não tem" e "ainda
+       não sei" não pode depender só de cor: as duas seriam cinza. */
+    .step.s-voo::before { background:linear-gradient(var(--cold) 0 42%, transparent 42% 58%, var(--cold) 58%); }
+    .step .num { font-family:var(--font-num); font-size:10.5px; letter-spacing:.14em;
+      color:var(--txt-faint); flex:0 0 auto; padding-top:3px; width:52px;
+      white-space:nowrap; }
+    .step .body { flex:1; min-width:0; }
+    .step .hd { display:flex; align-items:center; gap:9px; margin-bottom:5px; flex-wrap:wrap; }
+    .step h3 { margin:0; font-size:13.5px; font-weight:600; letter-spacing:-.01em; }
+    .step .diag { margin:0; font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .step .meta { font-family:var(--font-num); font-size:11px; color:var(--txt-faint);
+      font-variant-numeric:tabular-nums; margin-top:7px; }
+    .step .act { flex:0 0 auto; display:flex; align-items:center; gap:8px; padding-top:1px; }
+
+    .topbar { position:relative; z-index:2; display:flex; align-items:center; gap:18px;
+      padding:0 22px; height:58px; background:color-mix(in srgb, var(--bg) 82%, transparent);
+      border-bottom:1px solid var(--line); }
+    .topbar .sep { width:1px; height:20px; background:var(--line); flex:0 0 auto; }
+    .topbar .spacer { flex:1; }
+
+    /* logo da Ecommerce Puro — transcrita do upgrade.html linha 216.
+       A arte é branca, então no artboard ESCURO o filtro sai (o invert(1) da regra
+       do app existe para o chrome claro). Branco sobre fundo escuro já é o certo. */
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:none; }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none } }
+
+    .brand { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; letter-spacing:-.02em; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .meta { font-family:var(--font-num); font-size:11px; color:var(--txt-faint); flex:0 0 auto; }
+
+    /* Cápsula de navegação — a lente do ativo é um elemento que viaja no app;
+       aqui ela está parada, no lugar da porta ativa. */
+    .nvd { position:relative; display:flex; align-items:center; gap:3px; padding:3px;
+      border-radius:999px; flex:0 0 auto; background:var(--surface-2);
+      box-shadow:inset 0 0 0 1px var(--line-soft); }
+    .nvd a { position:relative; z-index:1; display:flex; align-items:center; height:30px;
+      padding:0 9px; border-radius:999px; color:var(--txt-faint); gap:7px; }
+    .nvd a.on { color:var(--txt); }
+    .nvd a.on .ic { color:var(--accent-txt); }
+    .nvd .lente { position:absolute; z-index:0; border-radius:999px;
+      background:color-mix(in srgb, var(--accent) 15%, transparent);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.13), inset 0 0 0 1px var(--accent-line); }
+    .nvd .lb { font-size:12.5px; font-weight:500; white-space:nowrap; }
+    .nvd .ic { display:grid; }
+    /* Porta apagada: existe, e não leva a nada ainda. HOJE é só opacidade, e
+       isso é fraco: um item apenas apagado lê como "o hover ainda não chegou".
+       O que sustenta a diferença por enquanto é o `title` de cada porta. Um
+       cadeado desenhado resolveria, e é decisão do Kauan — não invento aqui. */
+    .nvd a.trav { opacity:.42; }
+  </style>
+</helmet>
+
+<div style="position:relative; width:1280px; height:860px; overflow:hidden; background:var(--bg)">
+  <div class="backdrop"></div>
+
+  <header class="topbar">
+    <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+    <div class="sep eplogo-sep"></div>
+    <div class="brand">
+      <span class="flame" aria-hidden="true">
+        <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+      </span>
+      <h1 class="wm"><b>COCKPIT</b> <span>/ entrada</span></h1>
+    </div>
+    <div class="sep"></div>
+    <nav class="nvd" aria-label="telas do cockpit">
+      <span class="lente" style="left:3px; top:3px; width:96px; height:30px"></span>
+      <a class="on" href="#"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb">Entrada</span></a>
+      <a class="trav" href="#" title="precisa do n8n conectado"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a class="trav" href="#" title="precisa do n8n conectado"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a class="trav" href="#" title="precisa do n8n conectado"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    </nav>
+    <div class="sep"></div>
+    <div class="meta">3 portas travadas</div>
+    <div class="spacer"></div>
+    <div class="meta">kauan@ecommercepuro.com.br</div>
+    <button class="btn ghost" type="button" title="Alternar tema">◐</button>
+    <button class="btn ghost" type="button">Sair</button>
+  </header>
+
+  <main style="position:relative; z-index:1; height:802px; padding:26px 34px 64px;
+    display:flex; flex-direction:column; justify-content:center; gap:22px">
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <p class="eyebrow"><span class="idx">[ ENTRADA ]</span><span>o que falta</span><span class="rule"></span><span>2 de 3</span></p>
+      <div style="display:flex; align-items:flex-end; gap:24px; flex-wrap:wrap">
+        <h2 style="margin:0; font-size:26px; font-weight:650; letter-spacing:-.022em; line-height:1.28; max-width:640px">
+          Você entrou. O painel ainda não tem o que olhar nem com que consertar.
+        </h2>
+        <p style="margin:0; font-size:12.8px; line-height:1.6; color:var(--txt-dim); max-width:330px">
+          Faltam duas conexões, e elas são independentes: uma dá ao painel o que
+          ler, a outra dá com que corrigir. Nenhuma das duas escreve nada sem
+          você aprovar na tela.
+        </p>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px">
+
+      <!-- [ 01 ] verde: feito -->
+      <div class="step s-ok">
+        <span class="num">[ 01 ]</span>
+        <div class="body">
+          <div class="hd">
+            <h3>Sua conta</h3>
+            <span class="tag ok">✓ pronto</span>
+          </div>
+          <p class="diag">Link de entrada confirmado. É por este endereço que o painel avisa quando um fluxo quebra fora do horário.</p>
+          <p class="meta">kauan@ecommercepuro.com.br · entrou agora</p>
+        </div>
+        <div class="act"><button class="btn ghost" type="button">Trocar</button></div>
+      </div>
+
+      <!-- [ 02 ] cinza: nunca conectado -->
+      <div class="step s-cold">
+        <span class="num">[ 02 ]</span>
+        <div class="body">
+          <div class="hd">
+            <h3>Seu n8n</h3>
+            <span class="tag cold">nunca conectado</span>
+          </div>
+          <p class="diag">Sem isto o painel não tem fluxo nenhum para mostrar — as três telas de dentro sobem com estado de erro honesto, não vazias. Conectar lê a instância e traz os fluxos, as execuções das últimas 24h e as falhas.</p>
+          <p class="meta">endereço da instância + chave de API · leitura imediata, escrita só depois de um diff aprovado</p>
+        </div>
+        <div class="act"><button class="btn prime" type="button">Conectar o n8n</button></div>
+      </div>
+
+      <!-- [ 03 ] o terceiro estado: a resposta ainda não chegou.
+           "não conectado" e "ainda não sei" levam a decisões opostas e nunca
+           podem ler igual — é a regra que este codebase já pagou sete vezes. -->
+      <div class="step s-voo">
+        <span class="num">[ 03 ]</span>
+        <div class="body">
+          <div class="hd">
+            <h3>Sua IA</h3>
+            <span class="tag cold">conferindo nesta máquina…</span>
+          </div>
+          <p class="diag">Estou vendo se já existe um Claude ou um Codex autenticado aqui. Se existir, não há nada a fazer nesta etapa. <b style="color:var(--txt-dim); font-weight:600">Isto ainda não é um "não"</b> — é uma resposta que não chegou.</p>
+          <p class="meta">sem IA o painel continua servindo: ele copia o briefing e diz por que não rodou sozinho</p>
+        </div>
+        <div class="act"><button class="btn" type="button" disabled>Aguarde</button></div>
+      </div>
+
+    </div>
+
+    <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px">
+      <div style="background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px">
+        <p class="eyebrow" style="margin-bottom:9px"><span class="idx">[ SEM O N8N ]</span><span class="rule"></span></p>
+        <p style="margin:0; font-size:12.5px; line-height:1.6; color:var(--txt-dim)">
+          O painel sobe e as telas dizem que não têm dados — nunca um zero que
+          parece saudável. Uma leitura parcial é reportada como <b style="color:var(--txt); font-weight:600">piso, não total</b>.
+        </p>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px">
+        <p class="eyebrow" style="margin-bottom:9px"><span class="idx">[ SEM A IA ]</span><span class="rule"></span></p>
+        <p style="margin:0; font-size:12.5px; line-height:1.6; color:var(--txt-dim)">
+          Tudo funciona menos a correção automática: o botão copia o briefing
+          para você levar a uma sessão sua, e diz o motivo. Ele nunca finge que
+          uma sessão rodou.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer style="position:absolute; left:0; right:0; bottom:0; padding:14px 34px;
+    border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:14px">
+    <span style="font-family:var(--font-num); font-size:9.5px; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--txt-faint)">[ COCKPIT · 127.0.0.1:4317 · NODE 22 · ZERO DEPENDÊNCIA ]</span>
+    <span class="rule" style="flex:1; height:1px; background:var(--line-soft)"></span>
+    <span style="font-family:var(--font-num); font-size:9.5px; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--txt-faint)">nenhuma chave sai desta máquina</span>
+  </footer>
+</div>
+</x-dc>
+</body>
+</html>

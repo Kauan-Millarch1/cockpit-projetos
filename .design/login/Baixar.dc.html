@@ -1,0 +1,348 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    /* TOKENS:INICIO */
+    :root {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c;
+      --brand:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+      --accent-txt:#606CF5; --brand-txt:#FF5A1F;
+      --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+    /* TOKENS:FIM */
+
+    x-dc { display:block; width:1280px; height:860px; overflow:hidden; position:relative;
+      background:var(--bg); }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+    h1, h2, h3, p, ul, li { margin:0; }
+    ul { list-style:none; padding:0; }
+
+    /* blueprint backdrop — the panel's own atmosphere. This is the one screen of
+       the set that is NOT the panel, so the grid is what carries the family
+       resemblance across the empty areas. Same tokens and same mask as Entrar. */
+    .backdrop { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .backdrop::before {
+      content:""; position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size:56px 56px;
+      mask-image:radial-gradient(ellipse 120% 80% at 50% 0%, #000 30%, transparent 80%);
+    }
+    .backdrop::after {
+      content:""; position:absolute; inset:0;
+      background:radial-gradient(ellipse 70% 45% at 50% -12%, var(--accent-soft), transparent 70%);
+    }
+
+    /* topbar — 58px, padding 0 22px, gap 18px, the app's own chrome. No nav
+       capsule: this page is the door, and none of the four doors exists yet. */
+    .topbar { position:relative; z-index:2; display:flex; align-items:center; gap:18px;
+      padding:0 22px; height:58px;
+      background:color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter:blur(14px) saturate(1.2);
+      border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em;
+      flex:0 0 auto; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; font-weight:700; line-height:1.45; white-space:nowrap; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .topbar .sep { width:1px; height:20px; background:var(--line); flex:0 0 auto; }
+    .topbar .spacer { flex:1 1 auto; }
+    .topbar .meta { font-family:var(--font-num); font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; }
+
+    /* the Ecommerce Puro logo — base rule transcribed from upgrade.html line 216 */
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:invert(1); }
+    /* DARK artboard: the art is already white, so the invert comes off. */
+    .eplogo { filter:none; }
+    /* The one measurement changed here, and it is the explicit permission of 14:
+       on the SITE page the logo may be larger. The three panel screens stay at 32. */
+    .topbar .eplogo { height:40px; }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none; } }
+
+    /* button — two-layer bevel, height 32, radius 8, font 13. white-space and flex
+       live in this single rule: a control that shrinks until its label wraps is a
+       broken control, and a second .btn block would be one more thing to diverge. */
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+      flex:0 0 auto; border:1px solid transparent; font-family:var(--font);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+      transition: background .16s, box-shadow .18s, transform .09s, color .16s; }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    .btn.prime { color:#fff; border-color:transparent; font-weight:600;
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+      box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
+    .btn.ico { width:32px; padding:0; justify-content:center; }
+    /* The only control on this page is the download, and it is the gesture of the
+       whole screen: 40px tall instead of 32. Same button otherwise — the bevel,
+       the radius and the family do not change, only the target grows. */
+    .btn.grande { height:40px; padding:0 18px; font-size:14px; border-radius:9px; }
+
+    .panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+      box-shadow:var(--shadow); position:relative; }
+
+    /* eyebrow — the bracket annotation. Here it is a SECTION label: the site page
+       is not a step of anything, so there is no denominator. */
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-variant-numeric:tabular-nums; font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); margin:0; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    .num { font-family:var(--font-num); font-variant-numeric:tabular-nums; }
+    .mono { font-family:var(--font-num); font-size:10.5px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; }
+    code { font-family:var(--font-num); font-size:11.5px; color:var(--txt);
+      background:var(--surface-2); border:1px solid var(--line-soft);
+      padding:1px 5px; border-radius:5px; }
+
+    /* body copy — 12.8/1.6, the panel's own dialog-body measure */
+    .corpo { font-size:12.8px; line-height:1.6; color:var(--txt-dim); }
+    .corpo b { color:var(--txt); font-weight:600; }
+    /* accent-txt as running text measures 4.27 over a card head and 4.84 over the
+       card body — one fail and one pass by a hair. Both take the house recipe,
+       which keeps the indigo reading as a link and lands at 6.5+. */
+    .lk { color:color-mix(in srgb, var(--accent-txt) 72%, var(--txt)); font-size:12.5px;
+      white-space:nowrap; }
+
+    /* the quiet mono strip at the foot of a card — the panel's own component */
+    .pe { padding:10px 18px 11px; border-top:1px solid var(--line-soft);
+      background:var(--surface-2); font-family:var(--font-num); font-size:11px;
+      line-height:1.55; color:var(--txt-faint); }
+    .pe b { color:var(--txt-dim); font-weight:400; }
+
+    /* page */
+    .pagina { position:relative; z-index:1; padding:36px 96px 0;
+      display:flex; flex-direction:column; gap:24px; }
+
+    .hero { display:flex; flex-direction:column; gap:12px; }
+    .hero h2 { font-size:26px; line-height:1.34; font-weight:600; letter-spacing:-.015em;
+      color:var(--txt); max-width:960px; }
+    .hero p { font-size:14px; line-height:1.6; color:var(--txt-dim); max-width:860px; }
+
+    /* The two cards share a bottom edge: they are stretched and each pushes its
+       own `.pe` strip down with margin-top:auto. Two cards ending 20px apart is
+       the kind of near-alignment that reads as a mistake rather than as rhythm. */
+    .colunas { display:grid; grid-template-columns:672px 416px; gap:32px; align-items:stretch; }
+    .colunas > .panel { display:flex; flex-direction:column; }
+    .colunas > .panel > .pe { margin-top:auto; }
+    /* The slack the shorter card gets is split between its two rows instead of
+       piling up as one gap above the foot strip — a single 50px void above a
+       hairline reads as something missing. */
+    .colunas > .panel > .req { flex:1 1 auto; }
+
+    /* the prerequisite. It comes BEFORE the button because she has to be able to
+       give up before downloading — hiding it until after is the dirty pattern
+       this screen exists not to repeat. */
+    .req { display:flex; align-items:flex-start; gap:13px; padding:14px 18px; }
+    .req + .req { border-top:1px solid var(--line-soft); }
+    .req .gl { flex:0 0 auto; width:34px; height:34px; border-radius:9px; display:grid;
+      place-items:center; border:1px solid var(--line); background:var(--raised);
+      color:var(--txt-dim); }
+    .req .txt { min-width:0; display:flex; flex-direction:column; gap:5px; }
+    .req .nm { font-size:13.5px; font-weight:600; letter-spacing:-.01em; color:var(--txt);
+      display:flex; align-items:center; gap:9px; }
+    .req .say { font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .req .say b { color:var(--txt); font-weight:600; }
+
+    .cabeca { display:flex; align-items:center; gap:12px; padding:12px 18px 11px;
+      border-bottom:1px solid var(--line-soft); }
+
+    /* the measured rounds. NOT a price table, and the card says so twice: in the
+       label at the top and in the strip at the foot. Numeral in --font-num,
+       tabular, so the four right edges line up. */
+    .rod { display:flex; align-items:baseline; gap:12px; padding:8px 18px; }
+    .rod + .rod { border-top:1px solid var(--line-soft); }
+    .rod .oq { font-size:12.5px; color:var(--txt-dim); flex:1 1 auto; min-width:0; }
+    .rod .usd { font-family:var(--font-num); font-variant-numeric:tabular-nums;
+      font-size:14px; font-weight:600; color:var(--txt); flex:0 0 auto; }
+
+    /* the decision strip: the reason on the left, the button on the right. Reading
+       order is the requirement — the why comes before the click. */
+    .decisao { display:grid; grid-template-columns:1fr 348px; gap:0; padding:16px 20px 17px;
+      align-items:stretch; }
+    .decisao .lado { border-left:1px solid var(--line-soft); padding-left:28px; margin-left:28px;
+      display:flex; flex-direction:column; gap:9px; align-items:flex-start; }
+    .decisao .sob { font-size:12px; line-height:1.55; color:var(--txt-dim); }
+    .decisao .sob b { color:var(--txt); font-weight:600; }
+    /* The footer stamp lives INSIDE this strip, pinned to the bottom of the left
+       column. Floated over the plate it landed on top of the panel; and the void
+       under the paragraph was the one place on the page with nothing to say. */
+    .decisao .carimbo { margin-top:auto; padding-top:14px; font-family:var(--font-num);
+      font-variant-numeric:tabular-nums; font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); }
+  </style>
+</helmet>
+
+<div class="backdrop"></div>
+
+<header class="topbar">
+  <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+  <div class="sep eplogo-sep"></div>
+  <div class="brand">
+    <span class="flame" aria-hidden="true">
+      <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+    </span>
+    <h1 class="wm"><b>COCKPIT</b> <span>/ painel de fluxos n8n</span></h1>
+  </div>
+  <div class="sep"></div>
+  <span class="meta">roda na sua máquina</span>
+  <span class="spacer"></span>
+  <span class="meta">[SEU DOMÍNIO]</span>
+  <button class="btn ghost ico" type="button" title="Alternar tema" aria-label="Alternar tema">◐</button>
+</header>
+
+<main class="pagina">
+
+  <section class="hero">
+    <p class="eyebrow">
+      <span class="idx">[ COCKPIT ]</span>
+      <span>painel local &middot; node embutido &middot; zero dependência</span>
+      <span class="rule"></span>
+      <span>windows</span>
+    </p>
+    <h2>
+      Ele olha os seus fluxos do n8n, diz qual quebrou e em que nó, e conserta com uma
+      sessão de IA — depois que você aprovar o diff na tela.
+    </h2>
+    <p>
+      O painel abre em <span class="num" style="color:var(--txt);">127.0.0.1</span>, na sua
+      máquina. Fluxo, execução e conversa de lead são lidos aí e não sobem para servidor
+      nenhum nosso — não existe conta lá onde guardar isso.
+    </p>
+  </section>
+
+  <div class="colunas">
+
+    <!-- the prerequisite, before the button. Two things we do not supply, each with
+         the way out sitting on the same line as its name. -->
+    <section class="panel">
+      <div class="cabeca">
+        <p class="eyebrow">
+          <span class="idx">[ ANTES DE BAIXAR ]</span>
+          <span>duas coisas que a gente não entrega</span>
+        </p>
+      </div>
+
+      <div class="req">
+        <span class="gl" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.4" width="18" height="13.2" rx="2.2"/><path d="M3 9.9h18"/><path d="M6.6 14.4h4.2"/></svg>
+        </span>
+        <span class="txt">
+          <span class="nm">Uma assinatura Claude <a class="lk" href="#">ver os planos ↗</a></span>
+          <span class="say">
+            Pro, Max, Team ou Enterprise. É ela que paga as ações de IA do painel, e sai da
+            <b>mesma cota de 5 h / 7 dias</b> da sua sessão normal do Claude — o painel não
+            põe cartão nenhum no meio.
+          </span>
+        </span>
+      </div>
+
+      <div class="req">
+        <span class="gl" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.4" width="18" height="15.2" rx="2.2"/><path d="M7.4 9.4 10.3 12l-2.9 2.6"/><path d="M12.8 15h3.8"/></svg>
+        </span>
+        <span class="txt">
+          <span class="nm">O Claude Code instalado, e um login feito <a class="lk" href="#">como instalar ↗</a></span>
+          <span class="say">
+            Uma vez só, no terminal: <code>claude login</code>. <b>Instalado e logado são dois
+            fatos diferentes</b> — sem o login o painel abre e lê o n8n normalmente, e diz que
+            a IA está sem login em vez de fingir que uma sessão rodou.
+          </span>
+        </span>
+      </div>
+
+      <div class="pe">sem uma das duas o painel <b>abre assim mesmo</b>. o que não roda é a ação que gasta modelo — e a tela nomeia qual das duas está faltando, com o comando para resolver.</div>
+    </section>
+
+    <!-- the four measured numbers. This card answers "what does it cost me to use",
+         and it answers with rounds that already happened. -->
+    <section class="panel">
+      <div class="cabeca">
+        <p class="eyebrow">
+          <span class="idx">[ RODADAS ]</span>
+          <span>que já aconteceram aqui</span>
+        </p>
+      </div>
+
+      <p class="corpo" style="padding:12px 18px 11px;">
+        <b>Ler o painel não gasta nada.</b> O que gasta é uma ação de IA, e ela sai da sua
+        assinatura. Estas quatro já rodaram de verdade nesta máquina:
+      </p>
+
+      <ul style="display:flex; flex-direction:column; border-top:1px solid var(--line-soft);">
+        <li class="rod"><span class="oq">corrigir uma falha</span><span class="usd">US$ 1,16</span></li>
+        <li class="rod"><span class="oq">conversar um upgrade</span><span class="usd">US$ 0,73</span></li>
+        <li class="rod"><span class="oq">construir um fluxo do zero</span><span class="usd">US$ 3,19</span></li>
+        <li class="rod"><span class="oq">escrever o dossiê de um fluxo</span><span class="usd">US$ 4,14</span></li>
+      </ul>
+
+      <div class="pe">quatro rodadas medidas, <b>não uma tabela de preço</b>: a sua varia com o tamanho do fluxo — e ninguém cobra isso de você, é consumo do plano que você já assina.</div>
+    </section>
+
+  </div>
+
+  <!-- the reason for the download, and only then the button. Side by side in one
+       strip, the reason first in reading order, framed by what she keeps. -->
+  <section class="panel decisao">
+    <div style="display:flex; flex-direction:column; gap:10px; min-width:0;">
+      <p class="eyebrow">
+        <span class="idx">[ POR QUE É UM DOWNLOAD ]</span>
+        <span class="rule"></span>
+      </p>
+      <p class="corpo" style="max-width:680px;">
+        <b>Você continua no plano que já paga.</b> O Claude só gasta a sua assinatura onde
+        você está logada, e isso é o seu computador. Num servidor nosso seria cartão: a
+        Anthropic não permite que produto hospedado de terceiro rode requisição na assinatura
+        de quem usa. Por isso o painel vai até você, em vez de você ir até ele.
+      </p>
+      <p class="carimbo">[ COCKPIT &middot; 127.0.0.1:4317 &middot; A CHAVE DO N8N FICA NO SEU DISCO ]</p>
+    </div>
+
+    <div class="lado">
+      <button class="btn prime grande" type="button">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.8v10.9"/><path d="M7.5 10.4 12 14.9l4.5-4.5"/><path d="M4.6 19.6h14.8"/></svg>
+        Baixar para Windows
+      </button>
+      <span class="mono">.zip &middot; [TAMANHO]</span>
+      <p class="sob">
+        Windows 10 e 11. <b>Mac e Linux ainda não</b> — o pacote não abre lá, e é melhor saber
+        agora do que depois de baixar.
+      </p>
+      <p class="sob">
+        Dentro vêm o painel e o <b>Node 22 embutido</b>: você não instala Node e não ouve a
+        palavra «PATH».
+      </p>
+    </div>
+  </section>
+
+</main>
+
+</x-dc>
+</body>
+</html>

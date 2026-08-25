@@ -1,0 +1,456 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root {
+      --bg:#06060B; --bg-deep:#040408; --surface:#0E0F1A; --surface-2:#14162454; --raised:#171A2B;
+      --line:rgba(255,255,255,.09); --line-soft:rgba(255,255,255,.05);
+      --grid:rgba(255,255,255,.028); --grid-bold:rgba(255,255,255,.055);
+      --txt:#E9EBF5; --txt-dim:#AAAFC2; --txt-faint:#777D92;
+      --accent:#5865F5; --accent-soft:#5865F51f; --accent-line:#5865F55c;
+      --brand:#FF5A1F;
+      --ok:#2FD48F; --warn:#F5A524; --risk:#FF4F5E; --cold:#59617D;
+      --ok-soft:#2FD48F1a; --warn-soft:#F5A5241a; --risk-soft:#FF4F5E1a; --cold-soft:#59617D1a;
+      --ok-txt:#2FD48F; --warn-txt:#F5A524; --risk-txt:#FF4F5E; --cold-txt:#798096;
+      --accent-txt:#606CF5; --brand-txt:#FF5A1F;
+      --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+      --r:12px;
+    }
+
+    x-dc { display:block; }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:var(--font);
+      -webkit-font-smoothing:antialiased; }
+    a { color:var(--accent-txt); text-decoration:none; }
+    a:hover { color:var(--txt); }
+
+    /* button — two-layer bevel, height 32, radius 8, font 13 */
+    .btn { height:32px; padding:0 13px; border-radius:8px; cursor:pointer; color:var(--txt);
+      font-size:13px; display:inline-flex; align-items:center; gap:7px; border:1px solid transparent;
+      white-space:nowrap;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 4%, var(--raised)), var(--raised)) padding-box,
+        linear-gradient(180deg, color-mix(in srgb, var(--txt) 14%, transparent), var(--line)) border-box;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 7%, transparent), 0 1px 2px rgba(0,0,0,.18);
+      transition: background .16s, box-shadow .18s, transform .09s, color .16s; }
+    .btn.ghost { background: transparent padding-box,
+      linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
+    .btn.sm { height:28px; padding:0 11px; font-size:12px; border-radius:7px; }
+
+    .panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+      box-shadow:var(--shadow); position:relative; }
+
+    .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
+      font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); margin:0; }
+    .eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+    .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    .tag { font-family:var(--font-num); font-size:10.5px; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+    .tag.ok { color:color-mix(in srgb,var(--ok-txt) 72%,var(--txt)); background:var(--ok-soft); }
+
+    /* topbar — 58px, the cockpit's own chrome */
+    .topbar { display:flex; align-items:center; gap:18px; padding:0 22px; height:58px;
+      background:color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter:blur(14px) saturate(1.2); border-bottom:1px solid var(--line); }
+    .eplogo { height:32px; width:auto; flex:0 0 auto; display:block; filter:invert(1); }
+    .eplogo { filter:none; }
+    @media (max-width:620px){ .eplogo, .eplogo-sep { display:none } }
+    .brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:-.02em; }
+    .brand .flame { color:var(--brand); display:grid; place-items:center; }
+    .brand .wm { font-size:15px; margin:0; font-weight:700; line-height:1.45; }
+    .brand .wm b { color:var(--txt); }
+    .brand .wm span { color:var(--txt-faint); font-weight:500; }
+    .nvd { position:relative; display:flex; align-items:center; gap:3px; padding:3px;
+      border-radius:999px; flex:0 0 auto; background:var(--surface-2);
+      box-shadow:inset 0 0 0 1px var(--line-soft); }
+    .nvd a { position:relative; z-index:1; display:flex; align-items:center; height:30px;
+      padding:0 9px; border-radius:999px; color:var(--txt-dim); gap:7px; }
+    .nvd a.on { color:var(--txt); }
+    .nvd a.on .ic { color:var(--accent-txt); }
+    .nvd .lente { position:absolute; z-index:0; border-radius:999px;
+      background:color-mix(in srgb, var(--accent) 15%, transparent);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.13), inset 0 0 0 1px var(--accent-line); }
+    .nvd .lb { font-size:12.5px; font-weight:500; white-space:nowrap; }
+    .nvd .ic { display:grid; place-items:center; }
+    .topbar .sep { width:1px; height:20px; background:var(--line); }
+    .topbar .spacer { flex:1 1 auto; }
+    .meta { font-family:var(--font-num); font-size:11px; color:var(--txt-faint);
+      letter-spacing:.06em; white-space:nowrap; }
+
+    /* the nav capsule — present and reachable; no door is this screen */
+
+    .frame { width:1280px; height:860px; overflow:hidden; position:relative;
+      background:
+        repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 56px),
+        repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 56px),
+        var(--bg); }
+    .body { padding:11px 26px 9px; display:flex; flex-direction:column; gap:8px; }
+
+    code { font-family:var(--font-num); font-size:11px; color:var(--txt-dim);
+      background:var(--surface-2); border:1px solid var(--line-soft);
+      padding:0 4px; border-radius:5px; }
+
+    /* the two connected AIs — one panel, two halves, identical anatomy */
+    .duas { display:grid; grid-template-columns:1fr 1fr; }
+    .ia { padding:11px 15px 10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+    .ia + .ia { border-left:1px solid var(--line-soft); }
+    .ia .top { display:flex; align-items:center; gap:11px; min-width:0; }
+    .ia .gl { flex:0 0 auto; width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
+      background:var(--raised); border:1px solid var(--line); color:var(--txt-dim); }
+    .ia .nm { font-size:13.5px; font-weight:600; line-height:1.3; min-width:0; }
+    .ia .nm span { display:block; font-family:var(--font-num); font-size:10.5px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); font-weight:400; margin-top:4px; }
+    .ia .sp { flex:1 1 auto; }
+    .ia .btns { display:flex; align-items:center; gap:7px; flex:0 0 auto; }
+    .ia .onde { font-family:var(--font-num); font-size:11px; color:var(--txt-faint);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* arrangement label — mono, and only (1) is marked as in force */
+    .arr { display:flex; align-items:center; gap:9px; font-family:var(--font-num); font-size:10.5px;
+      letter-spacing:.16em; text-transform:uppercase; color:var(--txt-faint); }
+    .arr .vig { color:var(--accent-txt); display:flex; align-items:center; gap:5px; }
+    .arr .rule { flex:1; height:1px; background:var(--line-soft); }
+
+    /* arrangement 1 — the job table. The panel in force carries the accent border,
+       which is this set's existing vocabulary for "selected", never a status colour. */
+    .vigor { border-color:var(--accent-line); background:color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+    .cab, .jr { display:grid; grid-template-columns:minmax(0,1fr) 178px 214px; gap:16px; align-items:center; }
+    .cab { padding:6px 16px; border-bottom:1px solid var(--line-soft); }
+    .cab .c { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); }
+    .jr { padding:7px 16px; border-bottom:1px solid var(--line-soft); }
+    .jr .jn { font-size:13px; font-weight:600; line-height:1.3; }
+    .jr .jd { margin:4px 0 0; font-size:12px; line-height:1.45; color:var(--txt-dim); }
+    .jr .jx { margin:5px 0 0; font-family:var(--font-num); font-size:10.5px; line-height:1.45;
+      color:var(--txt-faint); }
+    .pick { display:flex; align-items:center; gap:8px; width:100%; height:30px; padding:0 9px;
+      border-radius:8px; cursor:pointer; color:var(--txt); font-size:12.5px; font-family:var(--font);
+      background:var(--raised); border:1px solid var(--line); white-space:nowrap; }
+    .pick .g { display:grid; place-items:center; color:var(--txt-dim); flex:0 0 auto; }
+    .pick .nome { flex:1 1 auto; text-align:left; overflow:hidden; text-overflow:ellipsis; }
+    .pick .cv { display:grid; place-items:center; color:var(--txt-faint); flex:0 0 auto; }
+    .med { text-align:right; }
+    .med .v { font-family:var(--font-num); font-variant-numeric:tabular-nums; font-size:15px;
+      font-weight:600; letter-spacing:-.01em; color:var(--txt); }
+    .med .s { font-family:var(--font-num); font-variant-numeric:tabular-nums; font-size:10.5px;
+      color:var(--txt-faint); margin-top:3px; }
+    .rodape { display:flex; gap:13px; align-items:flex-start; padding:9px 16px 10px;
+      border-top:1px solid var(--line); }
+    .rodape .mk { font-family:var(--font-num); font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; padding-top:2px; }
+    .rodape p { margin:0; font-size:12.5px; line-height:1.55; color:var(--txt-dim); }
+    .rodape p b { color:var(--txt); font-weight:600; }
+
+    /* arrangements 2 and 3 — optional, and the switch differs in FORM */
+    .opts { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:stretch; }
+    .opt { background:var(--surface-2); border:1px solid var(--line-soft); border-radius:var(--r);
+      padding:11px 14px 10px; display:flex; flex-direction:column; gap:8px; }
+    .opt .oh { display:flex; align-items:center; gap:9px; }
+    .opt .oh .g { display:grid; place-items:center; color:var(--txt-faint); flex:0 0 auto; }
+    .opt .oh h3 { margin:0; font-size:12.8px; font-weight:600; letter-spacing:-.01em; }
+    .opt .oh .sp { flex:1 1 auto; }
+    .opt p { margin:0; font-size:12px; line-height:1.55; color:var(--txt-dim); }
+    .opt p b { color:var(--txt); font-weight:600; }
+    .opt .nao { display:flex; gap:8px; align-items:flex-start; margin-top:auto; padding-top:8px;
+      border-top:1px solid var(--line-soft); font-family:var(--font-num); font-size:10.5px;
+      line-height:1.5; color:var(--txt-faint); }
+    .opt .nao .k { color:var(--txt-dim); white-space:nowrap; }
+
+    /* switch — OFF is a dashed track with a hollow knob at the LEFT; ON is a filled
+       track with a solid knob at the RIGHT. Position and fill carry it in greyscale;
+       the mono word repeats it in text. */
+    .opt .oh .opc { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
+      text-transform:uppercase; color:var(--txt-faint); flex:0 0 auto; }
+    .swb { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+    .sw { position:relative; width:44px; height:24px; border-radius:999px; flex:0 0 auto; }
+    .sw.off { border:1px dashed var(--line); background:var(--bg-deep); }
+    .sw.on { border:1px solid var(--accent-line);
+      background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.2); }
+    .sw .kn { position:absolute; top:3px; width:16px; height:16px; border-radius:999px; }
+    .sw.off .kn { left:3px; border:1.5px solid var(--txt-faint); }
+    .sw.on .kn { right:3px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.4); }
+    .swb .w { font-family:var(--font-num); font-size:10.5px; letter-spacing:.13em;
+      text-transform:uppercase; white-space:nowrap; }
+    .swb .w.on { color:var(--accent-txt); }
+    .swb .w.off { color:var(--txt-faint); }
+
+    /* what this screen cannot know */
+    .cego { display:flex; gap:13px; align-items:flex-start; border:1px dashed var(--line);
+      border-radius:var(--r); background:
+        repeating-linear-gradient(135deg, var(--grid) 0 1px, transparent 1px 8px) padding-box,
+        var(--bg-deep); padding:11px 15px; }
+    .cego .mk { font-family:var(--font-num); font-size:10.5px; letter-spacing:.16em;
+      text-transform:uppercase; color:var(--txt-faint); white-space:nowrap; padding-top:1px; }
+    .cego .lst { display:flex; flex-direction:column; gap:5px; }
+    .cego p { margin:0; font-size:12px; line-height:1.5; color:var(--txt-dim); }
+    .cego p b { color:var(--txt); font-weight:600; }
+  </style>
+</helmet>
+
+<div class="frame">
+
+  <header class="topbar">
+    <img class="eplogo" src="ep-logo.png" alt="Ecommerce Puro" width="1000" height="445">
+    <div class="sep eplogo-sep"></div>
+    <div class="brand">
+      <span class="flame" aria-hidden="true">
+        <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M8 0c1 3.4-.6 4.8-2.2 6.4C4 8.2 2 10 2 12.6A6 6 0 0 0 14 13c0-3-1.6-4.4-3-6-.6 1.2-1.4 1.8-2.2 2 .8-2.4 1-6-.8-9Z"/></svg>
+      </span>
+      <h1 class="wm"><b>COCKPIT</b> <span>/ integrações</span></h1>
+    </div>
+    <div class="sep"></div>
+    <nav class="nvd" aria-label="telas do cockpit">
+      <a href="#"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h4.2v4.2H3.5z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.3 14.3h4.2v4.2h-4.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.7 7.6h3.6a2.2 2.2 0 0 1 2.2 2.2v4.6a2.2 2.2 0 0 0 2.2 2.2h.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb">Fluxos</span></a>
+      <a href="#" title="Disco — a carteira de projetos em disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a href="#" title="Tester — construir um fluxo novo"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <a href="#" title="Upgrade — conversar sobre um fluxo que existe"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="meta">Claude Code · Codex CLI conectados</div>
+    <button class="btn ghost" type="button" title="Alternar tema">◐</button>
+  </header>
+
+  <div class="body">
+
+    <div class="eyebrow">
+      <span class="idx">[ INTEGRAÇÕES · IA ]</span>
+      <span>as duas conectadas</span>
+      <span class="rule"></span>
+      <span>tela permanente — sem etapa e sem denominador</span>
+    </div>
+
+    <div class="panel duas">
+      <div class="ia">
+        <div class="top">
+          <span class="gl" aria-hidden="true">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="14.8" rx="2.4"/><path d="M7.2 10.2l2.5 2.3-2.5 2.3"/><path d="M12.6 14.8h4.3"/></svg>
+          </span>
+          <div class="nm">Claude Code<span>CLI local · assinatura autorizada</span></div>
+          <span class="tag ok">CONECTADA</span>
+          <span class="sp"></span>
+          <div class="btns">
+            <button class="btn ghost sm" type="button">Trocar</button>
+            <button class="btn ghost sm" type="button">Desconectar</button>
+          </div>
+        </div>
+        <div class="onde">[CAMINHO DA CLI] · respondeu na conferência de [QUANDO CONFERI]</div>
+      </div>
+      <div class="ia">
+        <div class="top">
+          <span class="gl" aria-hidden="true">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5.4" y="5.4" width="13.2" height="13.2" rx="2.2"/><rect x="9.6" y="9.6" width="4.8" height="4.8" rx="1"/><path d="M9.4 2.8v2.6"/><path d="M14.6 2.8v2.6"/><path d="M9.4 18.6v2.6"/><path d="M14.6 18.6v2.6"/></svg>
+          </span>
+          <div class="nm">Codex CLI<span>CLI local · assinatura autorizada</span></div>
+          <span class="tag ok">CONECTADA</span>
+          <span class="sp"></span>
+          <div class="btns">
+            <button class="btn ghost sm" type="button">Trocar</button>
+            <button class="btn ghost sm" type="button">Desconectar</button>
+          </div>
+        </div>
+        <div class="onde">[CAMINHO DA CLI DO CODEX] · respondeu na conferência de [QUANDO CONFERI]</div>
+      </div>
+    </div>
+
+    <div class="arr">
+      <span>arranjo 1 · uma IA por tipo de trabalho</span>
+      <span class="vig">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 12.6l4.6 4.5L19.6 6.6"/></svg>
+        em vigor
+      </span>
+      <span class="rule"></span>
+      <span>cada trabalho é um spawn próprio · troque qualquer linha</span>
+    </div>
+
+    <div class="panel vigor">
+      <div class="cab">
+        <span class="c">o trabalho</span>
+        <span class="c">qual IA roda esta linha</span>
+        <span class="c" style="text-align:right;">uma rodada medida aqui</span>
+      </div>
+
+      <div class="jr">
+        <div>
+          <div class="jn">Corrigir uma falha num fluxo</div>
+          <p class="jd">Ela lê o nó que quebrou e escreve um patch; os portões julgam antes de o diff chegar na tela.</p>
+        </div>
+        <button class="pick" type="button">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="14.8" rx="2.4"/><path d="M7.2 10.2l2.5 2.3-2.5 2.3"/><path d="M12.6 14.8h4.3"/></svg>
+          </span>
+          <span class="nome">Claude Code</span>
+          <span class="cv" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.8L12 15.2l5.4-5.4"/></svg>
+          </span>
+        </button>
+        <div class="med">
+          <div class="v">US$ 1,16</div>
+          <div class="s">176 s · 33 nós · 1 rodada</div>
+        </div>
+      </div>
+
+      <div class="jr">
+        <div>
+          <div class="jn">Construir um fluxo novo</div>
+          <p class="jd">O Tester: a entrevista, o desenho, o JSON inteiro e os portões antes de você importar na mão.</p>
+        </div>
+        <button class="pick" type="button">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="14.8" rx="2.4"/><path d="M7.2 10.2l2.5 2.3-2.5 2.3"/><path d="M12.6 14.8h4.3"/></svg>
+          </span>
+          <span class="nome">Claude Code</span>
+          <span class="cv" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.8L12 15.2l5.4-5.4"/></svg>
+          </span>
+        </button>
+        <div class="med">
+          <div class="v">US$ 3,19</div>
+          <div class="s">13,6 min · 65 nós · agente</div>
+        </div>
+      </div>
+
+      <div class="jr">
+        <div>
+          <div class="jn">Conversar sobre um upgrade</div>
+          <p class="jd">A conversa que termina num alvo confirmado, antes de existir patch nenhum.</p>
+          <p class="jx">medida com <code>--effort low</code> · o esforço do patch é outro de propósito, e esse nunca foi medido</p>
+        </div>
+        <button class="pick" type="button">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5.4" y="5.4" width="13.2" height="13.2" rx="2.2"/><rect x="9.6" y="9.6" width="4.8" height="4.8" rx="1"/><path d="M9.4 2.8v2.6"/><path d="M14.6 2.8v2.6"/><path d="M9.4 18.6v2.6"/><path d="M14.6 18.6v2.6"/></svg>
+          </span>
+          <span class="nome">Codex CLI</span>
+          <span class="cv" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.8L12 15.2l5.4-5.4"/></svg>
+          </span>
+        </button>
+        <div class="med">
+          <div class="v">US$ 0,73</div>
+          <div class="s">91 s · varredura em 189 nós</div>
+        </div>
+      </div>
+
+      <div class="jr">
+        <div>
+          <div class="jn">Escrever o dossiê de um fluxo</div>
+          <p class="jd">A prosa que descreve cada trecho, para a conversa entender o fluxo sem reler o JSON inteiro.</p>
+        </div>
+        <button class="pick" type="button">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="14.8" rx="2.4"/><path d="M7.2 10.2l2.5 2.3-2.5 2.3"/><path d="M12.6 14.8h4.3"/></svg>
+          </span>
+          <span class="nome">Claude Code</span>
+          <span class="cv" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.8L12 15.2l5.4-5.4"/></svg>
+          </span>
+        </button>
+        <div class="med">
+          <div class="v">US$ 4,14</div>
+          <div class="s">682 s · 179 nós · inteiro</div>
+        </div>
+      </div>
+
+      <div class="jr">
+        <div>
+          <div class="jn">Ler o changelog do n8n</div>
+          <p class="jd">A rodada diária que julga o que a n8n mudou: isto altera como a gente monta um fluxo?</p>
+        </div>
+        <button class="pick" type="button">
+          <span class="g" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5.4" y="5.4" width="13.2" height="13.2" rx="2.2"/><rect x="9.6" y="9.6" width="4.8" height="4.8" rx="1"/><path d="M9.4 2.8v2.6"/><path d="M14.6 2.8v2.6"/><path d="M9.4 18.6v2.6"/><path d="M14.6 18.6v2.6"/></svg>
+          </span>
+          <span class="nome">Codex CLI</span>
+          <span class="cv" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.8L12 15.2l5.4-5.4"/></svg>
+          </span>
+        </button>
+        <div class="med">
+          <div class="v">US$ 0,385</div>
+          <div class="s">79 s · 12 itens julgados</div>
+        </div>
+      </div>
+
+      <div class="rodape">
+        <span class="mk">[ exemplos medidos ]</span>
+        <p><b>A coluna da direita não é tabela de preço e não é previsão.</b> São cinco rodadas que já
+          rodaram nesta máquina, todas com o Claude Code — trocar a IA de uma linha <b>não transporta
+          o número</b> para a outra. O seu custo depende do tamanho do fluxo e de quantas rodadas o
+          portão exigir; rodada que morre no meio entra como <b>não medida</b>, nunca como zero.</p>
+      </div>
+    </div>
+
+    <div class="opts">
+
+      <div class="opt">
+        <div class="oh">
+          <span class="g" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.6h11.6"/><path d="M12.6 5.6l3 3-3 3"/><path d="M20 15.4H8.4"/><path d="M11.4 18.4l-3-3 3-3"/></svg>
+          </span>
+          <h3>Arranjo 2 · reserva por cota</h3>
+          <span class="sp"></span>
+          <span class="opc">opcional</span>
+          <span class="swb">
+            <span class="sw on" role="img" aria-label="ligada"><span class="kn"></span></span>
+            <span class="w on">ligada</span>
+          </span>
+        </div>
+        <p>Cota de assinatura é 5h/7d, e estourar no meio de uma construção de 13 minutos é falha real.
+          Se a primeira for recusada por cota, <b>a segunda assume aquela rodada</b> — e a tela nomeia
+          o motivo da troca, porque «estourou a cota» e «quebrou» mandam você para lugares diferentes.</p>
+        <div class="nao">
+          <span class="k">não faz:</span>
+          <span>não avisa antes. Ela descobre o estouro quando a rodada é recusada — ligada por você
+            em [QUANDO VOCÊ LIGOU].</span>
+        </div>
+      </div>
+
+      <div class="opt">
+        <div class="oh">
+          <span class="g" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 3.6H7A2 2 0 0 0 5 5.6v12.8a2 2 0 0 0 2 2h4.4"/><path d="M13.4 3.6l5 5v2.2"/><circle cx="16.6" cy="16.4" r="3.3"/><path d="M19 18.8l2.2 2.2"/></svg>
+          </span>
+          <h3>Arranjo 3 · uma critica a outra</h3>
+          <span class="sp"></span>
+          <span class="opc">opcional</span>
+          <span class="swb">
+            <span class="sw off" role="img" aria-label="desligada"><span class="kn"></span></span>
+            <span class="w off">desligada</span>
+          </span>
+        </div>
+        <p>Uma escreve o patch, a outra <b>revisa antes de o diff chegar na tela</b>. As duas trabalham
+          na mesma rodada, então aquela rodada paga as duas: <b>≈ o dobro do custo</b> dessa linha.</p>
+        <div class="nao">
+          <span class="k">escopo:</span>
+          <span>só o caminho que escreve em fluxo de produção — corrigir uma falha e aplicar um
+            upgrade. Nunca foi ligada.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="cego">
+      <span class="mk">[ o que esta tela não sabe ]</span>
+      <div class="lst">
+        <p><b>Quanto resta da sua cota.</b> Não tem medidor aqui e não vai ter: nenhuma fonte medida
+          dentro do cockpit devolve saldo de plano, e inventar esse número na tela que existe para ser
+          confiável seria a pior mentira disponível.</p>
+        <p><b>As duas nunca rodam juntas de graça.</b> No arranjo 1 cada trabalho é um spawn só; no 2
+          a segunda <b>assume</b>, não acompanha; e no 3 elas trabalham juntas porque você ligou —
+          e aquela rodada paga as duas.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

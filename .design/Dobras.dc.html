@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root{
+      --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005;
+      --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+      --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+      --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055;
+      --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+      --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --cold-soft:#8B90A014;
+      --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+      --accent-txt:#3B48E0; --brand-txt:#D04919;
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px}
+    a{color:var(--accent-txt)} a:hover{color:#2A36C4}
+    .ix{font-family:var(--font-num);font-size:10px;letter-spacing:.1em;color:var(--txt-faint)}
+    .mono{font-family:var(--font-num)}
+    .dobra{border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:hidden}
+    .dcab{display:flex;align-items:center;gap:9px;padding:10px 12px;cursor:pointer}
+  </style>
+</helmet>
+
+<div style="width:1280px;height:880px;display:flex;flex-direction:column;background:var(--bg)">
+
+  <div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--surface)">
+    <span class="ix" style="color:var(--brand-txt)">[ UPGRADE ]</span>
+    <strong style="font-size:14px">Agente Iago Comercial</strong>
+    <span class="mono" style="font-size:10px;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--txt-faint)">189 nós</span>
+    <span style="flex-grow:1"></span>
+    <span class="mono" style="font-size:10px;padding:4px 9px;border:1px solid var(--line);border-radius:6px;color:var(--txt-dim)">abrir no n8n ↗</span>
+  </div>
+
+  <div style="display:flex;flex-grow:1;min-height:0">
+
+    <!-- coluna da conversa, um pouco mais larga que hoje -->
+    <div style="width:560px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--surface);min-height:0">
+
+      <div style="flex-grow:1;min-height:0;overflow:hidden;padding:14px;display:flex;flex-direction:column;gap:10px">
+
+        <div style="align-self:flex-end;max-width:84%;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:12px 12px 3px 12px;padding:9px 12px;line-height:1.5;font-size:12.5px">
+          Corrige a regra 5 pra reprovar qualquer bolha que cite R$0,00.
+        </div>
+
+        <div style="display:flex;align-items:center;gap:9px;margin-top:2px">
+          <span class="ix" style="color:var(--accent-txt)">[ REVISÃO ]</span>
+          <strong style="font-size:12.5px">O que ele quer escrever</strong>
+          <span class="mono" style="font-size:10px;color:var(--txt-faint);margin-left:auto">1 alterado</span>
+        </div>
+
+        <div style="line-height:1.55;font-size:12.5px;color:var(--txt-dim)">
+          <span class="mono" style="font-size:12px;color:var(--txt)">verificacao_tecnica</span> passa a reprovar qualquer bolha que cite <strong style="color:var(--txt)">R$0,00</strong>, incondicionalmente.
+        </div>
+
+        <!-- dobra 1: bateria, resumida e fechada -->
+        <div class="dobra">
+          <div class="dcab">
+            <span class="mono" style="font-size:11px;color:var(--txt-faint)">▸</span>
+            <strong style="font-size:12px">Verificação</strong>
+            <span style="flex-grow:1"></span>
+            <span class="mono" style="font-size:9.5px;padding:3px 8px;border-radius:999px;background:var(--ok-soft);color:var(--ok-txt);border:1px solid rgba(14,159,110,.28)">✓ 4</span>
+            <span class="mono" style="font-size:9.5px;padding:3px 8px;border-radius:999px;background:var(--cold-soft);color:var(--cold-txt);border:1px solid rgba(139,144,160,.28)">◇ 4</span>
+          </div>
+        </div>
+
+        <!-- dobra 2: diff, ABERTA — é o que decide o clique -->
+        <div class="dobra" style="flex-grow:1;min-height:0;display:flex;flex-direction:column">
+          <div class="dcab" style="border-bottom:1px solid var(--line-soft)">
+            <span class="mono" style="font-size:11px;color:var(--txt-faint)">▾</span>
+            <strong style="font-size:12px">O diff</strong>
+            <span class="mono" style="font-size:9px;letter-spacing:.09em;padding:2px 7px;border-radius:5px;background:var(--warn-soft);color:var(--warn-txt);border:1px solid rgba(183,121,31,.3);margin-left:4px">ALTERADO</span>
+            <span class="mono" style="font-size:11.5px;color:var(--txt-dim)">verificacao_tecnica</span>
+          </div>
+          <div class="mono" style="font-size:11.5px;line-height:1.8;padding:9px 0;overflow:hidden;flex-grow:1;min-height:0">
+            <div style="padding:0 12px;color:var(--txt-faint)">&nbsp;&nbsp;"parameters": {</div>
+            <div style="padding:0 12px;background:#DC2B3A14;color:var(--risk-txt)">−&nbsp;&nbsp;"jsCode": "// reprova erro objetivo…</div>
+            <div style="padding:0 12px;background:#0E9F6E14;color:var(--ok-txt)">+&nbsp;&nbsp;"jsCode": "// reprova qualquer R$0,00…</div>
+            <div style="padding:0 12px;color:var(--txt-faint)">&nbsp;&nbsp;},</div>
+            <div style="padding:6px 12px 0;color:var(--txt-faint);opacity:.7">⋯ 5 linhas sem mudança</div>
+          </div>
+        </div>
+
+        <!-- dobra 3: portões, fechada -->
+        <div class="dobra">
+          <div class="dcab">
+            <span class="mono" style="font-size:11px;color:var(--txt-faint)">▸</span>
+            <strong style="font-size:12px;color:var(--txt-dim)">Os 10 portões estruturais</strong>
+            <span style="flex-grow:1"></span>
+            <span class="mono" style="font-size:9.5px;color:var(--ok-txt)">todos verdes</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARRA DE AÇÃO grudada no fim da coluna -->
+      <div style="border-top:1px solid var(--line);background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:9px;box-shadow:0 -8px 24px -20px rgba(10,10,20,.4)">
+        <div style="font-size:12px;line-height:1.45">
+          <strong>A bateria passou.</strong> <span style="color:var(--txt-faint)">Aplicar escreve este diff em <span class="mono">Agente Iago Comercial</span>. Backup antes, ↺ desfazer depois.</span>
+        </div>
+        <div style="display:flex;gap:9px;align-items:center">
+          <span style="flex-grow:1;text-align:center;font-size:13px;font-weight:650;padding:11px 18px;border-radius:9px;color:#fff;background:var(--accent);border:1px solid #2A36C4;box-shadow:0 1px 2px rgba(10,10,20,.14), 0 10px 22px -14px rgba(59,72,224,.7)">✓ aplicar no n8n</span>
+          <span class="mono" style="font-size:11px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;color:var(--txt-dim)">↺ montar de novo</span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line-soft);padding:11px 14px;background:var(--surface)">
+        <div style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--txt-faint);background:var(--surface);font-size:12.5px">descreve o upgrade que você quer…</div>
+      </div>
+    </div>
+
+    <!-- desenho continua ocupando o resto -->
+    <div style="flex-grow:1;min-width:0;background:var(--bg-deep);position:relative;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(10,10,20,.055) 1px, transparent 1px);background-size:22px 22px"></div>
+      <div style="position:relative;display:flex;align-items:center;gap:26px">
+        <div style="width:84px;height:84px;border-radius:12px;background:var(--surface);border:1px solid rgba(10,10,20,.16);box-shadow:var(--shadow,0 1px 2px rgba(10,10,20,.06))"></div>
+        <div style="width:56px;height:1.5px;background:#A8AEC0"></div>
+        <div style="width:84px;height:84px;border-radius:12px;background:var(--surface);border:2px solid var(--accent);box-shadow:0 0 0 5px var(--accent-soft)"></div>
+        <div style="width:56px;height:1.5px;background:#A8AEC0"></div>
+        <div style="width:84px;height:84px;border-radius:12px;background:var(--surface);border:1px solid rgba(10,10,20,.16)"></div>
+      </div>
+      <div class="mono" style="position:absolute;bottom:16px;left:16px;font-size:10px;color:var(--txt-faint)">o alvo, aceso no fluxo</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

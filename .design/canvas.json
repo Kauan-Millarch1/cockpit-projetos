@@ -1,0 +1,45 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "A · Revisão na coluna larga", "x": 0, "y": 0, "w": 1280, "h": 880 },
+    { "file": "Overlay.dc.html", "title": "B · Overlay de verificação", "x": 1400, "y": 0, "w": 1280, "h": 880 },
+    { "file": "Dobras.dc.html", "title": "C · Dobras + barra grudada", "x": 2800, "y": 0, "w": 1280, "h": 880 }
+  ],
+  "annotations": [
+    {
+      "id": "diagnostico",
+      "x": 0,
+      "y": -210,
+      "w": 620,
+      "text": "O QUE ESTÁ ERRADO HOJE\n\n1. Metade da tela está vazia. A coluna do desenho ocupa o lado direito inteiro enquanto revisão, bateria, 12 pílulas de portão, diff e compositor se espremem em ~470px.\n\n2. O «✓ aplicar» é um .btn comum no fim de uma frase — mesmo peso visual do «não, é em outro lugar». O clique mais consequente da aba parece o menos importante.\n\n3. As 12 pílulas de portão repetem o que a linha 1 da bateria já diz, e empurram o diff para fora da vista."
+    },
+    {
+      "id": "opcao-a",
+      "x": 0,
+      "y": 920,
+      "w": 620,
+      "text": "A · REVISÃO NA COLUNA LARGA\n\nCom um patch na tela, a revisão toma o espaço que o desenho não estava usando: bateria à esquerda em 340px, diff com largura de verdade à direita, e barra de ação fixa no rodapé.\n\nA favor: o diff finalmente é legível, e o botão de aplicar é impossível de perder.\n\nContra: o desenho some enquanto se revisa — e o alvo aceso no fluxo era parte do que fazia entender o patch."
+    },
+    {
+      "id": "opcao-b",
+      "x": 1400,
+      "y": 920,
+      "w": 620,
+      "text": "B · OVERLAY DE VERIFICAÇÃO\n\nÉ o que você pediu: a mesma anatomia do handoff do flows.html. Confirmar o alvo abre o overlay, as sete linhas acendem uma a uma, e o diff cresce ao lado.\n\nNote o rodapé: enquanto corre, NÃO existe botão de aplicar. Ele nasce quando a bateria termina sem vermelho — a espera vira parte do desenho em vez de um botão cinza esperando.\n\nA favor: o momento mais tenso da aba ganha tela inteira e foco. Contra: é mais uma camada, e a conversa fica atrás do blur."
+    },
+    {
+      "id": "opcao-c",
+      "x": 2800,
+      "y": 920,
+      "w": 620,
+      "text": "C · DOBRAS + BARRA GRUDADA\n\nA menor mudança das três. A coluna vai de 470 para 560px, a revisão vira três dobras (Verificação fechada, Diff aberto, Portões fechados) e a barra de ação gruda no fim da coluna, acima do compositor.\n\nA favor: o desenho continua visível, e é a que dá menos trabalho. Contra: o diff continua estreito — o problema que mais incomoda no seu print só melhora um pouco."
+    },
+    {
+      "id": "regras",
+      "x": 1400,
+      "y": -210,
+      "w": 620,
+      "text": "O QUE AS TRÊS RESPEITAM\n\n· Movimento é --accent, nunca --warn. Laranja aqui significa «passou, mas você precisa saber disso» — gastar em «ainda conferindo» mata o papel.\n\n· Cinza carrega o motivo escrito, na tela, nunca num title. «Não conferi» e «conferi e passou» levam a decisões opostas.\n\n· Vermelho tira o botão da tela em vez de deixá-lo cinza ao lado da recusa.\n\n· Zero fonte nova, zero cor nova: tudo sai dos tokens que o painel já tem."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

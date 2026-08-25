@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    :root{
+      --bg:#FAFAF9; --bg-deep:#F4F4F2; --surface:#FFFFFF; --surface-2:#00000005;
+      --line:rgba(10,10,20,.11); --line-soft:rgba(10,10,20,.06);
+      --txt:#14151C; --txt-dim:#3F424D; --txt-faint:#666973;
+      --accent:#3B48E0; --accent-soft:#3B48E014; --accent-line:#3B48E055;
+      --ok:#0E9F6E; --warn:#B7791F; --risk:#DC2B3A; --cold:#8B90A0;
+      --ok-soft:#0E9F6E14; --warn-soft:#B7791F14; --cold-soft:#8B90A014;
+      --ok-txt:#0B8159; --warn-txt:#9A661A; --risk-txt:#D02937; --cold-txt:#6D717E;
+      --accent-txt:#3B48E0; --brand-txt:#D04919;
+      --font:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+      --font-num:"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",ui-monospace,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--font);background:var(--bg);color:var(--txt);font-size:13px}
+    a{color:var(--accent-txt)} a:hover{color:#2A36C4}
+    .ix{font-family:var(--font-num);font-size:10px;letter-spacing:.1em;color:var(--txt-faint)}
+    .mono{font-family:var(--font-num)}
+  </style>
+</helmet>
+
+<div style="width:1280px;height:880px;position:relative;background:var(--bg);overflow:hidden">
+
+  <!-- página atrás, desfocada -->
+  <div style="position:absolute;inset:0;filter:blur(9px);opacity:.55">
+    <div style="height:44px;border-bottom:1px solid var(--line);background:var(--surface)"></div>
+    <div style="display:flex;height:836px">
+      <div style="width:392px;border-right:1px solid var(--line);background:var(--surface)"></div>
+      <div style="flex-grow:1;background:var(--bg-deep)"></div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(244,244,242,.72)"></div>
+
+  <!-- o overlay -->
+  <div style="position:absolute;left:150px;top:52px;width:980px;height:776px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 40px 90px -40px rgba(10,10,20,.5);display:flex;flex-direction:column;overflow:hidden">
+
+    <div style="display:flex;align-items:center;gap:10px;padding:13px 20px;border-bottom:1px solid var(--line)">
+      <span class="ix" style="color:var(--accent-txt)">[ VERIFICANDO UPGRADE ]</span>
+      <strong class="mono" style="font-size:12.5px">Agente Iago Comercial</strong>
+      <span style="flex-grow:1"></span>
+      <span class="mono" style="font-size:10px;color:var(--txt-faint)">04 / 08</span>
+      <span class="mono" style="font-size:11px;padding:4px 10px;border:1px solid var(--line);border-radius:7px;color:var(--txt-dim)">fechar</span>
+    </div>
+
+    <div style="flex-grow:1;min-height:0;display:grid;grid-template-columns:352px minmax(0,1fr)">
+
+      <!-- etapas acendendo, como no handoff -->
+      <div style="border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:3px;background:var(--surface-2)">
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px">
+          <span class="mono" style="color:var(--ok);font-size:12px;width:14px">✓</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Estrutura</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">os 10 portões</div></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px">
+          <span class="mono" style="color:var(--ok);font-size:12px;width:14px">✓</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Esquema do nó</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">810 tipos conhecidos</div></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px">
+          <span class="mono" style="color:var(--ok);font-size:12px;width:14px">✓</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Gramática</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">n8n-gramatica.md</div></div>
+        </div>
+
+        <!-- a que está correndo AGORA: accent, nunca warn -->
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--accent-line)">
+          <span class="mono" style="color:var(--accent);font-size:12px;width:14px">◐</span>
+          <div style="min-width:0"><strong style="font-size:12.5px;color:var(--accent-txt)">Credencial</strong><div class="mono" style="color:var(--txt-dim);font-size:10.5px;margin-top:2px">lendo o catálogo…</div></div>
+        </div>
+
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px;opacity:.42">
+          <span class="mono" style="color:var(--txt-faint);font-size:12px;width:14px">○</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Regressão de caminho</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">runData da janela</div></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px;opacity:.42">
+          <span class="mono" style="color:var(--txt-faint);font-size:12px;width:14px">○</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Regressão de conteúdo</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">o fantasma</div></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px;opacity:.42">
+          <span class="mono" style="color:var(--txt-faint);font-size:12px;width:14px">○</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Impacto medido</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">execuções nos nós tocados</div></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:8px;opacity:.42">
+          <span class="mono" style="color:var(--txt-faint);font-size:12px;width:14px">○</span>
+          <div style="min-width:0"><strong style="font-size:12.5px">Aceite do n8n</strong><div class="mono" style="color:var(--txt-faint);font-size:10.5px;margin-top:2px">PUT na cópia inativa</div></div>
+        </div>
+
+        <span style="flex-grow:1"></span>
+        <div style="height:3px;border-radius:2px;background:var(--surface-2);overflow:hidden">
+          <div style="width:44%;height:100%;background:var(--accent)"></div>
+        </div>
+        <div class="mono" style="font-size:10px;color:var(--txt-faint);margin-top:6px">nada foi escrito no n8n ainda</div>
+      </div>
+
+      <!-- o que ele vai escrever, com espaço -->
+      <div style="min-width:0;display:flex;flex-direction:column;padding:16px 18px;gap:11px">
+        <div>
+          <span class="ix">O QUE ELE QUER ESCREVER</span>
+          <div style="margin-top:6px;line-height:1.55;font-size:13px">
+            <span class="mono" style="font-size:12px">verificacao_tecnica</span> passa a reprovar qualquer bolha que cite <strong>R$0,00</strong>, incondicionalmente.
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="mono" style="font-size:9px;letter-spacing:.09em;padding:2px 7px;border-radius:5px;background:var(--warn-soft);color:var(--warn-txt);border:1px solid rgba(183,121,31,.3)">ALTERADO</span>
+          <strong class="mono" style="font-size:12px">verificacao_tecnica</strong>
+        </div>
+
+        <div style="border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-grow:1;min-height:0;background:var(--surface)">
+          <div class="mono" style="font-size:11.5px;line-height:1.8;padding:10px 0">
+            <div style="padding:0 12px;color:var(--txt-faint)">&nbsp;&nbsp;"parameters": {</div>
+            <div style="padding:0 12px;background:#DC2B3A14;color:var(--risk-txt)">−&nbsp;&nbsp;"jsCode": "// reprova erro objetivo…</div>
+            <div style="padding:0 12px;background:#0E9F6E14;color:var(--ok-txt)">+&nbsp;&nbsp;"jsCode": "// reprova qualquer R$0,00…</div>
+            <div style="padding:0 12px;color:var(--txt-faint)">&nbsp;&nbsp;},</div>
+            <div style="padding:6px 12px 0;color:var(--txt-faint);opacity:.7">⋯ 5 linhas sem mudança</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- rodapé: enquanto corre, o botão NÃO existe -->
+    <div style="border-top:1px solid var(--line);padding:13px 20px;display:flex;align-items:center;gap:13px;background:var(--surface-2)">
+      <span class="mono" style="width:11px;height:11px;border-radius:50%;border:2px solid var(--accent-line);border-top-color:var(--accent);display:inline-block"></span>
+      <div style="flex-grow:1">
+        <strong style="font-size:12.5px">Ainda conferindo</strong>
+        <span style="color:var(--txt-faint);font-size:12px"> — o botão de aplicar aparece quando a bateria terminar e não houver vermelho.</span>
+      </div>
+      <span class="mono" style="font-size:11px;padding:8px 13px;border:1px solid var(--line);border-radius:8px;color:var(--txt-dim)">cancelar</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
