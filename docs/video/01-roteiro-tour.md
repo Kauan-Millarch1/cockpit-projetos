@@ -64,9 +64,25 @@ tinha certeza, a cena não entrou.
 linha `Todos os fluxos`. Fluxo sem execução não tem o que filtrar — é desenho, não falta.
 
 > **Nota:** este ato foi reescrito. A primeira versão misturava duas telas numa cena só: a coluna
-> `tela` dizia `Ao vivo` (o `flows.html`) e a ação e a fala eram do `/upgrade` — `todos os
-> fluxos ▾` só existe lá (medido: 1 ocorrência no `upgrade.html`, 0 no `flows.html`), e "peso,
-> desenho e dossiê" é conceito daquela página. Os "75 fluxos, 64 pelo id" foram para o Ato 11, que
+> `tela` dizia `Ao vivo` (o `flows.html`) e a fala era do `/upgrade` — "peso, desenho e dossiê" é
+> conceito daquela página, e os grupos `na vitrine`/`fora da porta` são o `SELETOR_GRUPO` de lá.
+>
+> **A primeira versão desta nota trazia uma medição ERRADA, e ela é a lição mais útil deste ato.**
+> Eu havia escrito que `todos os fluxos ▾` "só existe no `upgrade.html`, medido: 1 ocorrência lá, 0
+> no `flows.html`". **Falso.** O `flows.html` TEM esse controle — é o terceiro `.fchip` da barra do
+> ao vivo, e as cenas 3.2–3.4 clicam nele. O grep não o achou porque o rótulo é montado em
+> `flows.html:4768` por `el("span", "nm", S.feedFilter.wf ? … : "todos os fluxos")` e o `▾` é outro
+> elemento: grepar `todos os fluxos` dá **2 e 2**, não 0 e 1.
+>
+> E o erro foi pior que um grep ruim. **O inventário de tela já havia dito que o `flows.html` tinha
+> aquele controle, e eu descartei essa observação por causa da minha medição.** Troquei o que foi
+> visto na tela pelo que o texto do arquivo dizia — exatamente ao contrário da disciplina desta
+> casa, que extrai da página em tempo de execução em vez de reimplementar. Grep mede o TEXTO do
+> arquivo; rótulo montado por `el()` com ternário é invisível para ele. **Quem decide é o DOM.**
+>
+> Nada disso muda o ato: o assunto novo, a coluna `tela` e a ação estão certos, e os "75 fluxos, 64
+> pelo id" continuam no Ato 11 porque o seletor do `flows.html` lista só quem executou — ele não
+> tem 75 linhas nem dois grupos. Achado pela sessão que grava, medindo o DOM. Os "75 fluxos, 64 pelo id" foram para o Ato 11, que
 > é onde o `/upgrade` já estava. Achado pela sessão que grava, olhando o quadro renderizado — não
 > pelo fonte.
 
