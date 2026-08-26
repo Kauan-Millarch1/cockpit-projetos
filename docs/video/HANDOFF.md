@@ -63,10 +63,26 @@ mandar cortar, os atos 6, 9 e 11 têm 8, 9 e 8 falas e aguentam 5, 6 e 6 sem per
 
 ## O próximo passo, concreto
 
-1. **Verifique os fixtures.** O subagente escreveu `fixtures.js` (88KB) e `gravar-lib.js` (20KB) e
-   nunca reportou. Antes de gravar, cheque que `interceptar()` **falha alto** em qualquer `/api/**`
-   não mapeado (responder 500 nomeando o path). Fallthrough silencioso para o servidor real põe dado
-   de cliente na gravação — é o único defeito inaceitável aqui.
+1. **Os fixtures existem e a guarda crítica está lá — conferido em 26/08 às 11:19.** O subagente que
+   os escreveu rodou 48min, gastou 462k tokens e **foi morto por mim** já na cauda longa (a última
+   linha dele foi "vou fechar a única forma que eu inferi em vez de ler — `/api/novidades`"). Antes de
+   matar eu confirmei o que importa:
+   - os dois arquivos **carregam** sem erro;
+   - `fixtures.js` (95KB) exporta `api`, `apiPadroes`, `sse`, `roteiros`, `fitaClaude`,
+     `fitaTesterAbertura`, `fitaTesterConstrucao`, mais os ids e o lead inventado;
+   - `gravar-lib.js` (21KB) exporta `interceptar`, `instalarSSE`, `resolverApi`, `PAGINAS`, `ESTATICOS`;
+   - **20 rotas cobertas**, incluindo `/api/n8n/overview`, `/api/n8n/callers`, `/api/claude/fix`,
+     `/api/claude/run/`, `/api/tester/session/`, `/api/upgrade/vitrine`, `/api/upgrade/dossies`,
+     `/api/projects`;
+   - **a guarda de fallthrough EXISTE**: rota não casada devolve **500 nomeando o caminho**, com o
+     motivo escrito no arquivo ("o risco real aqui é publicar dado de cliente num vídeo").
+   
+   O que ficou **sem cobertura conhecida**: `/api/novidades` era a última coisa que ele estava
+   montando quando morreu — confira essa e qualquer rota que a página peça e não esteja na lista.
+   Como a guarda é fail-loud, uma rota faltando aparece como **500 nomeado**, não como dado real
+   vazando. Então o modo de descobrir é rodar e ler o erro, não auditar o arquivo inteiro.
+   
+   `footage/` está **vazia** — nada foi gravado.
 2. **O login barra o Playwright.** Contexto limpo leva 302 para `/conta?volta=/`. Peça ao Kauan para
    subir o cockpit com `COCKPIT_LOGIN=0`, ou confirme se a interceptação sozinha resolve.
 3. **Grave cena por cena**, seguindo a coluna `ação` do roteiro. Depois monte casando `NN-N.N.mp3`
