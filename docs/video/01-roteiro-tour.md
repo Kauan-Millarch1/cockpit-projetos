@@ -204,7 +204,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 |---|---|---|---|---|
 | 10.1 | voltar ao início, zoom em `[ SEUS PROJETOS ]` | clicar `← Voltar para o início` | "E o que você constrói fica guardado." | 2,6 |
 | 10.2 | clicar num projeto salvo | clicar num cartão | "Abro um que já existe, e ele **replica a conversa inteira** que construiu aquele fluxo." | 6,3 |
-| 10.3 | rolar a conversa replicada | rolar devagar | "O que eu pedi, o que ele perguntou, o que eu respondi. Seis meses depois, o motivo de cada nó ainda está aqui." | 8,0 |
+| 10.3 | rolar a conversa replicada | rolar devagar | "O que eu pedi, o que ele entendeu, e o que eu escolhi. Seis meses depois, o motivo de cada nó ainda está aqui." | 8,0 |
 | 10.4 | zoom out para o fluxo desenhado | zoom out | "E o fluxo desenhado, do jeito que ele saiu, com o JSON pronto para copiar." | 5,4 |
 
 **Fixture:** um projeto salvo com `chat` e `respostas` preenchidos, mais o `wf` de 4 nós.
