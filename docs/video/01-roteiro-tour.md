@@ -51,7 +51,7 @@ tinha certeza, a cena não entrou.
 
 ---
 
-## ATO 3 — O filtro do ao vivo (0:51 – 1:14)
+## ATO 3 — O filtro do ao vivo (0:51 – 1:15)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -88,7 +88,7 @@ linha `Todos os fluxos`. Fluxo sem execução não tem o que filtrar — é dese
 
 ---
 
-## ATO 4 — Uma execução que deu certo (1:14 – 1:43)
+## ATO 4 — Uma execução que deu certo (1:15 – 1:43)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@ contato, mensagem recebida e mensagem enviada.
 
 ---
 
-## ATO 6 — Clico no cartão e mando pro Claude (2:35 – 3:46)
+## ATO 6 — Clico no cartão e mando pro Claude (2:35 – 3:47)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -152,7 +152,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 7 — Passo de volta pelos fluxos (3:46 – 3:58)
+## ATO 7 — Passo de volta pelos fluxos (3:47 – 3:59)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -163,7 +163,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 8 — O Disco (3:58 – 4:37)
+## ATO 8 — O Disco (3:59 – 4:38)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -179,7 +179,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 9 — O Tester: eu só descrevo (4:37 – 5:40)
+## ATO 9 — O Tester: eu só descrevo (4:38 – 5:49)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -191,14 +191,14 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 | 9.6 | clicar 2 chips e enviar | `Enviar respostas →` | "Escolho as respostas —" | 1,6 |
 | 9.7 | etapas 04–05, canvas desenhando | acelerar; o canvas desenha ao vivo | "— e ele desenha. Nó por nó, na tela, enquanto escreve o arquivo." | 4,6 |
 | 9.8 | `[ 06 ] O QUE ISTO PRODUZIRIA` | zoom na bolha do Slack | "E antes de entregar, mostra **o que isso produziria**, desenhado como Slack. Não é ele dizendo que funciona: é o fluxo resolvendo as próprias expressões." | 11,1 |
-| 9.9 | zoom no rodapé | zoom | "E o rodapé, o tempo todo: nada foi criado no n8n. Você importa quando quiser." | 5,6 |
+| 9.9 | zoom no rodapé | zoom | "E olha o rodapé: a única coisa criada no n8n é uma cópia inativa e sem credencial, só para provar que a sua instância aceita o schema. O seu fluxo original, intocado." | 12,0 |
 
 **Fixture:** `GET /api/tester/status` + stream de um build **curto** (4 nós, Slack), parando na etapa
 01 com 3 perguntas, depois correndo até a 07.
 
 ---
 
-## ATO 10 — Um que já foi construído (5:40 – 6:06)
+## ATO 10 — Um que já foi construído (5:49 – 6:16)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -215,7 +215,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 11 — O Upgrade: mexer num fluxo que já roda (6:06 – 7:21)
+## ATO 11 — O Upgrade: mexer num fluxo que já roda (6:16 – 7:31)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -238,7 +238,7 @@ comportamento real), a resposta de alvo, e a bateria com as 8 linhas passando.
 
 ---
 
-## ATO 12 — Fecho (7:21 – 7:30)
+## ATO 12 — Fecho (7:31 – 7:40)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -255,31 +255,31 @@ tempo de cada ato e esta tabela. Ver o cabeçalho deste script para o defeito qu
 |---|---|
 | atos | 12 |
 | falas | 55 |
-| caracteres falados | 5231 |
-| narração estimada | **379s** (6:19) |
-| duração alvo | **450s** (7:30) |
+| caracteres falados | 5320 |
+| narração estimada | **386s** (6:26) |
+| duração alvo | **460s** (7:40) |
 | fala / silêncio | 84% / 16% |
 
 | ato | fala | janela |
 |---|---|---|
 | 1 | 16s em 2 falas | 0:00 – 0:19 |
 | 2 | 27s em 3 falas | 0:19 – 0:51 |
-| 3 | 20s em 4 falas | 0:51 – 1:14 |
-| 4 | 24s em 4 falas | 1:14 – 1:43 |
+| 3 | 20s em 4 falas | 0:51 – 1:15 |
+| 4 | 24s em 4 falas | 1:15 – 1:43 |
 | 5 | 44s em 6 falas | 1:43 – 2:35 |
-| 6 | 60s em 8 falas | 2:35 – 3:46 |
-| 7 | 10s em 1 falas | 3:46 – 3:58 |
-| 8 | 32s em 4 falas | 3:58 – 4:37 |
-| 9 | 53s em 9 falas | 4:37 – 5:40 |
-| 10 | 22s em 4 falas | 5:40 – 6:06 |
-| 11 | 63s em 9 falas | 6:06 – 7:21 |
-| 12 | 8s em 1 falas | 7:21 – 7:30 |
+| 6 | 60s em 8 falas | 2:35 – 3:47 |
+| 7 | 10s em 1 falas | 3:47 – 3:59 |
+| 8 | 32s em 4 falas | 3:59 – 4:38 |
+| 9 | 60s em 9 falas | 4:38 – 5:49 |
+| 10 | 22s em 4 falas | 5:49 – 6:16 |
+| 11 | 63s em 9 falas | 6:16 – 7:31 |
+| 12 | 8s em 1 falas | 7:31 – 7:40 |
 
 **Densidade em 84%, acima do limite.** Acima de 80% cansa. Corte narração ou
 aumente o alvo — mas o alvo veio de um pedido ("não pode demorar tanto"), então cortar é a
 saída certa.
 
-**Cota do ElevenLabs:** 5231 caracteres por geração completa do roteiro. Reserve 3×
+**Cota do ElevenLabs:** 5320 caracteres por geração completa do roteiro. Reserve 3×
 para regeração — e note que esta chave **não tem** `user_read`, então não há como consultar o
 saldo: o primeiro sinal de cota esgotada é um HTTP de erro numa fala qualquer.
 
