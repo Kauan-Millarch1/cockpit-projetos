@@ -37,7 +37,7 @@ tinha certeza, a cena não entrou.
 
 ---
 
-## ATO 2 — Os fluxos que estão de pé (0:19 – 0:52)
+## ATO 2 — Os fluxos que estão de pé (0:19 – 0:51)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -51,7 +51,7 @@ tinha certeza, a cena não entrou.
 
 ---
 
-## ATO 3 — O filtro do ao vivo (0:52 – 1:15)
+## ATO 3 — O filtro do ao vivo (0:51 – 1:14)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -88,7 +88,7 @@ linha `Todos os fluxos`. Fluxo sem execução não tem o que filtrar — é dese
 
 ---
 
-## ATO 4 — Uma execução que deu certo (1:15 – 1:44)
+## ATO 4 — Uma execução que deu certo (1:14 – 1:43)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -102,7 +102,7 @@ contato, mensagem recebida e mensagem enviada.
 
 ---
 
-## ATO 5 — Uma que deu errado (1:44 – 2:37)
+## ATO 5 — Uma que deu errado (1:43 – 2:35)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@ contato, mensagem recebida e mensagem enviada.
 
 ---
 
-## ATO 6 — Clico no cartão e mando pro Claude (2:37 – 3:43)
+## ATO 6 — Clico no cartão e mando pro Claude (2:35 – 3:46)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -126,9 +126,9 @@ contato, mensagem recebida e mensagem enviada.
 | 6.2 | overlay `[ HANDOFF ]` abre com morph | segurar; o mini grafo se desenha | "Ele abre o Claude Code **na sua máquina**. Sem rede, sem shell, sem ver credencial nenhuma." | 6,6 |
 | 6.3 | etapas 1–5 correndo | acelerar 2× na montagem | "Lê a assinatura, o desenho do fluxo, localiza o nó, relê a execução que quebrou." | 5,8 |
 | 6.4 | etapa 6, banda de atividade | segurar; mostrar `Read`/`Write` | "E agora ele corrige. Você vê o que ele está lendo, arquivo por arquivo. Sem barra de progresso fingindo trabalho." | 8,2 |
-| 6.5 | etapa 7, portões acendendo | zoom nas pílulas | "Aí vem a parte que eu mais gosto. Onze portões conferem a proposta: nenhum nó removido, nenhuma credencial tocada, nenhum segredo no parâmetro." | 10,4 |
-| 6.6 | um portão reprova, volta pro Claude | segurar | "Se um reprovar, volta pro Claude com o motivo. Uma proposta que não passa **nunca vira botão de aprovar**." | 7,7 |
-| 6.7 | `[ REVISÃO ]` com o diff | rolar o diff devagar | "Passou. E o que chega pra você é isto: o diff, nó por nó, do que ele quer mudar." | 5,8 |
+| 6.5 | o portão que reprova, na banda de atividade | segurar; a linha do portão no log | "Aí vem a parte que eu mais gosto: onze portões conferem a proposta antes de você ver qualquer coisa. E esse aqui reprovou." | 8,8 |
+| 6.6 | a rodada volta pro Claude | segurar; `rodada 2` na banda | "Ele tinha desligado um nó em vez de consertar. Volta pra ele com o motivo — e uma proposta que não passa **nunca vira botão de aprovar**." | 9,9 |
+| 6.7 | `[ REVISÃO ]`, as pílulas e o diff | zoom nas pílulas, depois rolar o diff | "Na segunda tentativa passou. Nenhum nó removido, nenhuma credencial tocada, nenhum segredo no parâmetro. E o que chega pra você é o diff, nó por nó." | 10,7 |
 | 6.8 | zoom no rodapé `HANDOFF_TRUTH` | zoom | "E o cockpit diz com todas as letras: nada disso está no n8n ainda. Ele propõe, **você** aplica." | 6,9 |
 
 **Fixture:** `POST /api/claude/fix` + stream: 8 etapas, `tool_use` plausível, **uma rodada reprovada
@@ -136,10 +136,23 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 > **Nota:** medido no produto, uma rodada é ~176s e ~US$1,16. Comprimir para ~35s de tela é honesto
 > desde que a narração não diga "em segundos" — e ela não diz.
+>
+> **As cenas 6.5–6.7 foram reordenadas para seguir a FITA, e a razão é uma medição.** As pílulas de
+> portão não acendem uma a uma: `.gate` é **zero** durante as duas passagens pelos portões e **13**
+> só na banda de revisão. A versão anterior filmava a 6.5 na banda (onde as pílulas existem) e a
+> 6.6 num instante ANTERIOR da fita — o espectador veria verde, reprovação, verde de novo, e
+> concluiria que a reprovação veio depois da aprovação. Agora a reprovação é narrada onde ela
+> acontece e os vereditos onde eles existem.
+>
+> **E a fita não tinha rodada reprovada nenhuma até 26/08.** A nota de fixture acima pedia
+> explicitamente "uma rodada reprovada antes de passar" e ninguém tinha conferido que a fita
+> cumpria — zero portão com `ok: false` em qualquer quadro. **Nota de fixture é especificação, e
+> especificação sem aferição é desejo**: a cena 6.6 teria sido gravada sobre um instante que não
+> existia. Achado pela sessão que grava, medindo a fita antes de mapeá-la.
 
 ---
 
-## ATO 7 — Passo de volta pelos fluxos (3:43 – 3:55)
+## ATO 7 — Passo de volta pelos fluxos (3:46 – 3:58)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -150,7 +163,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 8 — O Disco (3:55 – 4:34)
+## ATO 8 — O Disco (3:58 – 4:37)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -166,7 +179,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 9 — O Tester: eu só descrevo (4:34 – 5:38)
+## ATO 9 — O Tester: eu só descrevo (4:37 – 5:40)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -185,7 +198,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 10 — Um que já foi construído (5:38 – 6:05)
+## ATO 10 — Um que já foi construído (5:40 – 6:06)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -202,7 +215,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 11 — O Upgrade: mexer num fluxo que já roda (6:05 – 7:21)
+## ATO 11 — O Upgrade: mexer num fluxo que já roda (6:06 – 7:21)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -242,31 +255,31 @@ tempo de cada ato e esta tabela. Ver o cabeçalho deste script para o defeito qu
 |---|---|
 | atos | 12 |
 | falas | 55 |
-| caracteres falados | 5153 |
-| narração estimada | **373s** (6:13) |
+| caracteres falados | 5231 |
+| narração estimada | **379s** (6:19) |
 | duração alvo | **450s** (7:30) |
-| fala / silêncio | 83% / 17% |
+| fala / silêncio | 84% / 16% |
 
 | ato | fala | janela |
 |---|---|---|
 | 1 | 16s em 2 falas | 0:00 – 0:19 |
-| 2 | 27s em 3 falas | 0:19 – 0:52 |
-| 3 | 20s em 4 falas | 0:52 – 1:15 |
-| 4 | 24s em 4 falas | 1:15 – 1:44 |
-| 5 | 44s em 6 falas | 1:44 – 2:37 |
-| 6 | 55s em 8 falas | 2:37 – 3:43 |
-| 7 | 10s em 1 falas | 3:43 – 3:55 |
-| 8 | 32s em 4 falas | 3:55 – 4:34 |
-| 9 | 53s em 9 falas | 4:34 – 5:38 |
-| 10 | 22s em 4 falas | 5:38 – 6:05 |
-| 11 | 63s em 9 falas | 6:05 – 7:21 |
+| 2 | 27s em 3 falas | 0:19 – 0:51 |
+| 3 | 20s em 4 falas | 0:51 – 1:14 |
+| 4 | 24s em 4 falas | 1:14 – 1:43 |
+| 5 | 44s em 6 falas | 1:43 – 2:35 |
+| 6 | 60s em 8 falas | 2:35 – 3:46 |
+| 7 | 10s em 1 falas | 3:46 – 3:58 |
+| 8 | 32s em 4 falas | 3:58 – 4:37 |
+| 9 | 53s em 9 falas | 4:37 – 5:40 |
+| 10 | 22s em 4 falas | 5:40 – 6:06 |
+| 11 | 63s em 9 falas | 6:06 – 7:21 |
 | 12 | 8s em 1 falas | 7:21 – 7:30 |
 
-**Densidade em 83%, acima do limite.** Acima de 80% cansa. Corte narração ou
+**Densidade em 84%, acima do limite.** Acima de 80% cansa. Corte narração ou
 aumente o alvo — mas o alvo veio de um pedido ("não pode demorar tanto"), então cortar é a
 saída certa.
 
-**Cota do ElevenLabs:** 5153 caracteres por geração completa do roteiro. Reserve 3×
+**Cota do ElevenLabs:** 5231 caracteres por geração completa do roteiro. Reserve 3×
 para regeração — e note que esta chave **não tem** `user_read`, então não há como consultar o
 saldo: o primeiro sinal de cota esgotada é um HTTP de erro numa fala qualquer.
 
