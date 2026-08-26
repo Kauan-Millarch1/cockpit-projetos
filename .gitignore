@@ -73,6 +73,12 @@ licoes.json.tmp
 # fechados e a `service_role` rotacionada.
 docs/seguranca/
 
+# Os entregaveis do video tutorial: audio do ElevenLabs, footage do Playwright e
+# os MP4 montados. Binario grande e regeneravel a partir do roteiro, que E
+# versionado. O audio ainda custa caractere de cota a cada regeneracao, entao
+# guarde os MP3 finais fora daqui antes de um `git clean`.
+.video/
+
 # Worktree de sessao. E um checkout git de verdade (tem .git dentro), entao um
 # `git add` tentaria gravar um gitlink apontando para um commit que so existe
 # nesta maquina — um clone novo pegaria um submodulo quebrado. 7,6MB de copia do

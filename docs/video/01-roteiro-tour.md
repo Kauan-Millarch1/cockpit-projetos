@@ -1,0 +1,259 @@
+# Roteiro — Tour do Cockpit
+
+**Voz:** `kPzsL2i3teMYv0FxEYQ6`, style 0.55, stability 0.40
+**Régua:** 14,8 car/s (faixa medida 14,1–15,4). A coluna `≈s` é **derivada** de `voz.duracao()` por
+`docs/video/contar.js`, nunca digitada — a primeira versão trazia a coluna à mão e a soma estava 31%
+otimista. Ver o cabeçalho de `.video/voz.js`.
+
+**Gravação:** fixture. Todo `/api/**` interceptado, nada chega ao n8n, nada gasta cota de modelo.
+
+**Ordem:** a que o Kauan pediu em 26/08, substituindo a primeira. A mudança de peso: o Disco saiu do
+fim e ganhou corpo, o seletor de fluxos ganhou cena própria, e o Tester e o Upgrade dobraram —
+"mostrar um projeto já criado e como foi a criação" e "mandar um upgrade num nó" são duas cenas que a
+versão anterior não tinha. A v1 está em `.01-roteiro-v1.md.bak` para comparar.
+
+## O que este roteiro não faz, de propósito
+
+Toda tela, rótulo e botão citados aqui **existem** e foram lidos no fonte, verbatim. Onde eu não
+tinha certeza, a cena não entrou.
+
+- **Não clica em `✓ Aprovar e aplicar`** nem em `✓ aplicar` no Upgrade. Os dois escrevem em fluxo de
+  produção. As cenas param no diff, que é onde o produto para — é o argumento, não uma limitação.
+- **Não clica em `▷ Reexecutar a execução`.** Manda mensagem real para lead real, sem desfazer.
+- **`⏺ Gravar` fica desligado.** O que responde ao seu "escondendo se tiver alguma coisa que não pode
+  mostrar" é o **fixture**, não a tarja: nome de projeto no Disco e nome de lead nos fluxos são
+  inventados. Tarja em quadro faz o espectador achar que o produto esconde coisa dele.
+
+---
+
+## ATO 1 — A aba de fluxos (0:00 – 0:19)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 1.1 | `/` recém-carregada | segurar. **Carga limpa** — o contador que sobe e os cartões que entram animam **uma vez só** | "Um fluxo parou, alguém reclamou, e você tem quinze abas abertas tentando achar onde. Esse é o Cockpit, e essa é a aba de fluxos." | 9,3 |
+| 1.2 | zoom na tira de KPIs | zoom suave | "Novecentas execuções em vinte e quatro horas. Onze falhas. E, o que importa: **quais** onze." | 6,7 |
+
+**Fixture:** `GET /api/n8n/overview` — 8 fluxos, ~900 execuções, 3 com erro → 2 assinaturas.
+
+---
+
+## ATO 2 — Os fluxos que estão de pé (0:19 – 0:52)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 2.1 | rolar até `[ 05 / 05 ] Fluxos com atividade` | rolar devagar | "Aqui embaixo, os fluxos que estão de pé. E «de pé» tem regra: rodou na janela, ou está ativo, ou é chamado por um fluxo vivo." | 9,1 |
+| 2.2 | zoom num cartão de fluxo | zoom | "Cada cartão diz numa frase o que está acontecendo com aquele fluxo. Não é nota de saúde: é frase que você consegue agir sobre." | 9,1 |
+| 2.3 | apontar um cartão `CHAMADO POR` | segurar | "E esse não tem gatilho próprio. Quem dispara é o fluxo que chama ele — o cockpit sabe disso e te manda olhar lá primeiro." | 8,8 |
+
+> **Nota:** um sub-fluxo **nunca** pode estar `active` no n8n. Qualquer painel que filtre por "ativo
+> ou rodou" esconde justamente os quietos, e 14 de 68 fluxos estavam nessa forma quando isso foi
+> medido. A fala 2.3 existe porque é uma diferença que ninguém nota até perder uma tarde.
+
+---
+
+## ATO 3 — Todos os fluxos, e o filtro (0:52 – 1:20)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 3.1 | `[ 02 / 05 ] Ao vivo`, zoom no chip | zoom no `todos os fluxos ▾` | "Esse botão é o que abre a instância inteira." | 3,2 |
+| 3.2 | clicar; o modal abre, a página desfoca | clicar **`todos os fluxos ▾`** | "Setenta e cinco fluxos. A grade mostra os onze que estão de pé, e os outros sessenta e quatro só eram alcançáveis colando o id na URL." | 9,7 |
+| 3.3 | digitar no campo de busca | digitar `roberto` | "Busco por nome, ou por projeto." | 2,2 |
+| 3.4 | ↓ ↓ Enter | escolher pelo teclado | "Escolho, e ele abre. Peso, desenho e dossiê são pedidos no clique, não ficam pesando a tela toda hora." | 7,4 |
+
+**Fixture:** o seletor com os dois grupos — `na vitrine` e `fora da porta`.
+
+---
+
+## ATO 4 — Uma execução que deu certo (1:20 – 1:48)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 4.1 | clicar no chip `deu certo` | clicar | "No ao vivo eu filtro só o que deu certo." | 2,9 |
+| 4.2 | clicar numa linha verde; a seção 01 desenha | clicar | "Clico numa execução e o fluxo aparece desenhado, do jeito que existe no n8n. Mesmos ícones, mesmas portas." | 7,7 |
+| 4.3 | zoom no bloco `O que aconteceu` | zoom | "E embaixo, em português: quem escreveu, o que mandou, o que o fluxo respondeu. Não é «rodou com sucesso». É **o que ele fez**." | 9,1 |
+| 4.4 | apontar a lista de nós fechada | segurar | "E a prova fica aqui, nó por nó, se você quiser conferir." | 4,1 |
+
+**Fixture:** `GET /api/n8n/graph/:id` (12–20 nós, uma sticky note) e `GET /api/n8n/execution/:id` com
+contato, mensagem recebida e mensagem enviada.
+
+---
+
+## ATO 5 — Uma que deu errado (1:48 – 2:24)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 5.1 | clicar no chip `deu erro` | clicar | "Agora o outro lado. Filtro só o que deu errado —" | 3,5 |
+| 5.2 | a lista filtra, banda `NO PALCO` acende | segurar 1s | "— que, sejamos honestos, é a única coisa que você quer ver numa segunda-feira." | 5,7 |
+| 5.3 | rolar até `[ 03 / 05 ] Erros agrupados` | rolar | "As falhas vêm agrupadas por assinatura. O mesmo erro em dois fluxos é **um** defeito, não dois." | 6,9 |
+| 5.4 | zoom no chip `⤷` do sub-fluxo | zoom | "E olha isso. O n8n reporta a falha no fluxo pai, num nó que **não existe** nele. Isso já custou tarde de gente boa." | 8,3 |
+| 5.5 | apontar a frase do cartão | segurar | "O cockpit abre os sub-fluxos, acha onde o nó mora, e te diz: é aqui." | 4,9 |
+
+**Fixture:** a assinatura de sub-fluxo — o pai reporta um nó que só existe no filho.
+`GET /api/n8n/locate/:id?node=` e `GET /api/n8n/callers`.
+
+---
+
+## ATO 6 — Clico no cartão e mando pro Claude (2:24 – 3:31)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 6.1 | cartão de erro | clicar **`⧉ Mandar pro Claude`** | "E aqui o cockpit deixa de ser painel. Um clique." | 3,5 |
+| 6.2 | overlay `[ HANDOFF ]` abre com morph | segurar; o mini grafo se desenha | "Ele abre o Claude Code **na sua máquina**. Sem rede, sem shell, sem ver credencial nenhuma." | 6,6 |
+| 6.3 | etapas 1–5 correndo | acelerar 2× na montagem | "Lê a assinatura, o desenho do fluxo, localiza o nó, relê a execução que quebrou." | 5,8 |
+| 6.4 | etapa 6, banda de atividade | segurar; mostrar `Read`/`Write` | "E agora ele corrige. Você vê o que ele está lendo, arquivo por arquivo. Sem barra de progresso fingindo trabalho." | 8,2 |
+| 6.5 | etapa 7, portões acendendo | zoom nas pílulas | "Aí vem a parte que eu mais gosto. Onze portões conferem a proposta: nenhum nó removido, nenhuma credencial tocada, nenhum segredo no parâmetro." | 10,4 |
+| 6.6 | um portão reprova, volta pro Claude | segurar | "Se um reprovar, volta pro Claude com o motivo. Uma proposta que não passa **nunca vira botão de aprovar**." | 7,7 |
+| 6.7 | `[ REVISÃO ]` com o diff | rolar o diff devagar | "Passou. E o que chega pra você é isto: o diff, nó por nó, do que ele quer mudar." | 5,8 |
+| 6.8 | zoom no rodapé `HANDOFF_TRUTH` | zoom | "E o cockpit diz com todas as letras: nada disso está no n8n ainda. Ele propõe, **você** aplica." | 6,9 |
+
+**Fixture:** `POST /api/claude/fix` + stream: 8 etapas, `tool_use` plausível, **uma rodada reprovada
+antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó.
+
+> **Nota:** medido no produto, uma rodada é ~176s e ~US$1,16. Comprimir para ~35s de tela é honesto
+> desde que a narração não diga "em segundos" — e ela não diz.
+
+---
+
+## ATO 7 — Passo de volta pelos fluxos (3:31 – 3:43)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 7.1 | fechar o overlay, voltar a `/` | clicar `✕ Fechar` | "Fecho, e o painel continua onde estava. A falha segue no quadro: ela sai quando parar de acontecer, não quando alguém disser que resolveu." | 10,0 |
+
+> **Nota:** literal no produto. Marcar uma correção guarda o maior id de execução daquele momento, e
+> a assinatura **reabre sozinha** se aparecer uma execução com id maior.
+
+---
+
+## ATO 8 — O Disco (3:43 – 4:22)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 8.1 | navegar para `/disco` | clicar na porta `Disco` (a lente viaja) | "Segunda porta: o Disco. É onde ficam os seus projetos de verdade, os da pasta." | 5,7 |
+| 8.2 | zoom na barra de distribuição | zoom nas quatro faixas | "Ele varre a pasta e separa em quatro: ativo, atenção, parado e frio. Clico numa faixa e filtro." | 6,9 |
+| 8.3 | zoom num cartão com diagnóstico | zoom | "E cada projeto vem com uma frase. «Fora do git, nenhuma alteração é reversível». «Sem CLAUDE.md nem README — um agente abre isso sem contexto nenhum»." | 10,9 |
+| 8.4 | clicar num cartão, abrir o detalhe | clicar | "Abro e vejo os pontos a verificar, o git, onde está o peso do projeto, os TODOs. Tudo derivado da varredura. Nada digitado." | 8,9 |
+
+**Fixture:** `GET /api/projects` — ~10 projetos inventados, nas quatro faixas.
+
+> **Nota:** os nomes vêm do fixture, então não há o que esconder. Na máquina de verdade essa tela
+> mostra nome de cliente, e é por isso que ela não é filmada ao vivo.
+
+---
+
+## ATO 9 — O Tester: eu só descrevo (4:22 – 5:27)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 9.1 | navegar para `/tester` | clicar na porta `Tester` | "Terceira porta, e essa não conserta fluxo. Ela **constrói**." | 4,3 |
+| 9.2 | zoom no campo e nos chips de nível | zoom em `nunca mexi` / `sei o básico` / `sou técnico` | "Repara no que ele pergunta primeiro: o seu nível. Porque não é você que precisa saber n8n." | 6,5 |
+| 9.3 | digitar no campo | digitar de verdade | "Eu escrevo do meu jeito, em português, do jeito que eu explicaria pra um colega." | 5,8 |
+| 9.4 | campo preenchido | clicar `Começar →` | "«avisar no Slack quando cair pedido novo». É isso. Nenhum nó, nenhum JSON, nenhuma documentação aberta." | 7,5 |
+| 9.5 | etapa 01, perguntas | segurar nas perguntas | "E ele **pergunta o que falta**, em vez de adivinhar. Qual canal, o que vai na mensagem." | 6,3 |
+| 9.6 | clicar 2 chips e enviar | `Enviar respostas →` | "Escolho as respostas —" | 1,6 |
+| 9.7 | etapas 04–05, canvas desenhando | acelerar; o canvas desenha ao vivo | "— e ele desenha. Nó por nó, na tela, enquanto escreve o arquivo." | 4,6 |
+| 9.8 | `[ 06 ] O QUE ISTO PRODUZIRIA` | zoom na bolha do Slack | "E antes de entregar, mostra **o que isso produziria**, desenhado como Slack. Não é ele dizendo que funciona: é o fluxo resolvendo as próprias expressões." | 11,1 |
+| 9.9 | zoom no rodapé | zoom | "E o rodapé, o tempo todo: nada foi criado no n8n. Você importa quando quiser." | 5,6 |
+
+**Fixture:** `GET /api/tester/status` + stream de um build **curto** (4 nós, Slack), parando na etapa
+01 com 3 perguntas, depois correndo até a 07.
+
+---
+
+## ATO 10 — Um que já foi construído (5:27 – 5:54)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 10.1 | voltar ao início, zoom em `[ SEUS PROJETOS ]` | clicar `← Voltar para o início` | "E o que você constrói fica guardado." | 2,6 |
+| 10.2 | clicar num projeto salvo | clicar num cartão | "Abro um que já existe, e ele **replica a conversa inteira** que construiu aquele fluxo." | 6,3 |
+| 10.3 | rolar a conversa replicada | rolar devagar | "O que eu pedi, o que ele perguntou, o que eu respondi. Seis meses depois, o motivo de cada nó ainda está aqui." | 8,0 |
+| 10.4 | zoom out para o fluxo desenhado | zoom out | "E o fluxo desenhado, do jeito que ele saiu, com o JSON pronto para copiar." | 5,4 |
+
+**Fixture:** um projeto salvo com `chat` e `respostas` preenchidos, mais o `wf` de 4 nós.
+
+> **Nota:** projeto salvo antes dessa funcionalidade existir não tem histórico, e a tela **diz isso**
+> em vez de fingir que a linha da ideia foi a conversa. O fixture usa um com histórico, que é o caso
+> que vale filmar.
+
+---
+
+## ATO 11 — O Upgrade: mexer num fluxo que já roda (5:54 – 6:51)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 11.1 | navegar para `/upgrade` | clicar na porta `Upgrade` | "Quarta porta. Essa é para quando o fluxo **já funciona** e você quer que funcione melhor." | 6,4 |
+| 11.2 | zoom na vitrine | zoom na grade | "Os fluxos que estão de pé, com o peso de cada um e quanto custa conversar sobre ele." | 6,1 |
+| 11.3 | clicar num cartão | clicar | "Escolho um." | 0,8 |
+| 11.4 | tela do fluxo | zoom no desenho | "Ele abre o fluxo desenhado, e a conversa do lado." | 3,6 |
+| 11.5 | digitar o pedido | digitar de verdade | "E eu peço em português: «no nó que manda a mensagem, corta o texto em quatro mil e quinhentos caracteres, e avisa quando cortar»." | 9,3 |
+| 11.6 | ele responde com o alvo | segurar | "Ele não sai remendando. Primeiro volta dizendo **qual nó** vai mexer e o que vai fazer. E eu confirmo." | 7,4 |
+| 11.7 | clicar `✓ é isso`; a bateria acende | clicar | "Confirmo, e vem a bateria: oito checagens, da estrutura até o aceite do próprio n8n." | 6,1 |
+| 11.8 | zoom no diff | rolar o diff | "E de novo termina aqui. O diff do que ele quer escrever, e o botão de aplicar do seu lado da mesa." | 7,1 |
+
+**Fixture:** vitrine com 8 fluxos, **dossiê verde** num deles (sem dossiê o compositor nasce travado —
+comportamento real), a resposta de alvo, e a bateria com as 8 linhas passando.
+
+> **Atenção:** ao vivo, `✓ é isso` **escreve** uma cópia inativa na instância antes de qualquer
+> aprovação, e aplicar dispara uma escrita de dossiê paga sozinha minutos depois. Com fixture nada
+> disso acontece — é a razão principal de o Upgrade não ser filmado ao vivo.
+
+---
+
+## ATO 12 — Fecho (6:51 – 7:00)
+
+| # | tela | ação | fala | ≈s |
+|---|---|---|---|---|
+| 12.1 | volta para `/`, zoom out até a tela cheia | zoom out lento | "Quatro portas. Uma pergunta: o que está vivo, o que apodreceu, e o que fazer sobre isso. Sem quinze abas." | 7,6 |
+
+---
+
+## Contas
+
+**Derivado, nunca digitado.** `node docs/video/contar.js` recalcula a coluna `≈s`, as marcas de
+tempo de cada ato e esta tabela. Ver o cabeçalho deste script para o defeito que o criou.
+
+| | |
+|---|---|
+| atos | 12 |
+| falas | 53 |
+| caracteres falados | 4769 |
+| narração estimada | **346s** (5:46) |
+| duração alvo | **420s** (7:00) |
+| fala / silêncio | 82% / 18% |
+
+| ato | fala | janela |
+|---|---|---|
+| 1 | 16s em 2 falas | 0:00 – 0:19 |
+| 2 | 27s em 3 falas | 0:19 – 0:52 |
+| 3 | 23s em 4 falas | 0:52 – 1:20 |
+| 4 | 24s em 4 falas | 1:20 – 1:48 |
+| 5 | 29s em 5 falas | 1:48 – 2:24 |
+| 6 | 55s em 8 falas | 2:24 – 3:31 |
+| 7 | 10s em 1 falas | 3:31 – 3:43 |
+| 8 | 32s em 4 falas | 3:43 – 4:22 |
+| 9 | 53s em 9 falas | 4:22 – 5:27 |
+| 10 | 22s em 4 falas | 5:27 – 5:54 |
+| 11 | 47s em 8 falas | 5:54 – 6:51 |
+| 12 | 8s em 1 falas | 6:51 – 7:00 |
+
+**Densidade em 82%, acima do limite.** Acima de 80% cansa. Corte narração ou
+aumente o alvo — mas o alvo veio de um pedido ("não pode demorar tanto"), então cortar é a
+saída certa.
+
+**Cota do ElevenLabs:** 4769 caracteres por geração completa do roteiro. Reserve 3×
+para regeração — e note que esta chave **não tem** `user_read`, então não há como consultar o
+saldo: o primeiro sinal de cota esgotada é um HTTP de erro numa fala qualquer.
+
+## Armadilhas de gravação, medidas
+
+1. **As animações de entrada disparam uma vez.** `seenCardIds`, `S.fantasmaVisto`, `S.desenhado`,
+   `S.batAssin`, o contador que sobe. Toda tomada que precisa de movimento exige **recarga forte**.
+2. **A lente da navegação só viaja entre portas diferentes.** F5 na mesma porta não anima nada — os
+   atos 8, 9 e 11 dependem de navegar, não recarregar.
+3. **SSE repinta colunas inteiras várias vezes por segundo.** Para plano que precise ficar parado,
+   `?static=1`.
+4. **Barra sem histórico é listrada, não percentual.** Nunca mostre número na barra do dossiê
+   incremental: ela tem **zero** amostras medidas.
+5. **`prefers-reduced-motion` mata metade da camada de movimento.** Confira na máquina de gravação.
+6. **O compositor do Upgrade nasce travado em 72 dos 75 fluxos** — sem dossiê não há campo para
+   digitar. O fixture do ato 11 precisa de dossiê verde, senão a cena 11.5 não existe.
