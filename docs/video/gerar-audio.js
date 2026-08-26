@@ -29,11 +29,25 @@ const md = fs.readFileSync(ARQ, "utf8");
 
 /* Cada linha de cena: `| 6.5 | tela | acao | "fala" | 9,7 |`. O id vem da primeira
    célula, que é o que amarra o MP3 ao plano. */
-const cenas = [...md.matchAll(/^\| (\d+\.\d+) \| [^|]*\| [^|]*\| "(.+?)" \| [\d,]+ \|$/gm)]
+/* O id aceita SUFIXO (`11.2b`), e a primeira versão não aceitava: o regex exigia
+   `\d+\.\d+` e a cena 11.2b foi PULADA EM SILÊNCIO — o `contar.js` contava 55 falas
+   e este gerava 54, e nada acusava. */
+const cenas = [...md.matchAll(/^\| (\d+\.\d+[a-z]?) \| [^|]*\| [^|]*\| "(.+?)" \| [\d,]+ \|$/gm)]
   .map(m => ({ id: m[1], fala: m[2] }));
 
 if (!cenas.length) {
   console.error("nenhuma cena encontrada em " + path.basename(ARQ) + " — o formato da tabela mudou?");
+  process.exit(1);
+}
+
+/* A GUARDA QUE FALTAVA, e o defeito que a paga acabou de acontecer: uma fala cujo id
+   este regex não sabe nomear não vira MP3, e o único sintoma é um número diferente em
+   dois scripts que ninguém compara. Compara aqui, e falha alto. */
+const celulas = (md.match(/^\| [^|]*\| [^|]*\| [^|]*\| ".+?" \| [\d,]+ \|$/gm) || []).length;
+if (celulas !== cenas.length) {
+  console.error("DISCORDÂNCIA: " + celulas + " falas na tabela, " + cenas.length
+    + " com id reconhecível. Alguma linha tem id fora do formato `N.N` ou `N.Nx` e seria"
+    + " pulada em silêncio. Conserte o id ou o regex antes de gerar.");
   process.exit(1);
 }
 

@@ -51,20 +51,28 @@ tinha certeza, a cena não entrou.
 
 ---
 
-## ATO 3 — Todos os fluxos, e o filtro (0:52 – 1:20)
+## ATO 3 — O filtro do ao vivo (0:52 – 1:15)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
-| 3.1 | `[ 02 / 05 ] Ao vivo`, zoom no chip | zoom no `todos os fluxos ▾` | "Esse botão é o que abre a instância inteira." | 3,2 |
-| 3.2 | clicar; o modal abre, a página desfoca | clicar **`todos os fluxos ▾`** | "Setenta e cinco fluxos. A grade mostra os onze que estão de pé, e os outros sessenta e quatro só eram alcançáveis colando o id na URL." | 9,7 |
-| 3.3 | digitar no campo de busca | digitar `roberto` | "Busco por nome, ou por projeto." | 2,2 |
-| 3.4 | ↓ ↓ Enter | escolher pelo teclado | "Escolho, e ele abre. Peso, desenho e dossiê são pedidos no clique, não ficam pesando a tela toda hora." | 7,4 |
+| 3.1 | `[ 02 / 05 ] Ao vivo`, zoom no chip do fluxo | zoom no chip `▾` da barra de filtro | "Repara numa coisa no ao vivo: um fluxo sozinho domina o volume." | 4,6 |
+| 3.2 | clicar o chip; abre o modal `[ FLUXO ] Filtrar por fluxo` | clicar | "É sempre assim. Tem um fluxo que roda o tempo todo e enterra todos os outros na lista." | 6,2 |
+| 3.3 | modal aberto, página desfocada | segurar; apontar as linhas | "Então filtrar aqui não é conveniência. É o que faz os outros existirem na tela." | 5,7 |
+| 3.4 | ↓ ↓ Enter | escolher pelo teclado | "Escolho um, e o ao vivo passa a ser só dele." | 3,2 |
 
-**Fixture:** o seletor com os dois grupos — `na vitrine` e `fora da porta`.
+**Fixture:** o seletor de `flows.html` lista **só os fluxos que executaram na janela**, mais a
+linha `Todos os fluxos`. Fluxo sem execução não tem o que filtrar — é desenho, não falta.
+
+> **Nota:** este ato foi reescrito. A primeira versão misturava duas telas numa cena só: a coluna
+> `tela` dizia `Ao vivo` (o `flows.html`) e a ação e a fala eram do `/upgrade` — `todos os
+> fluxos ▾` só existe lá (medido: 1 ocorrência no `upgrade.html`, 0 no `flows.html`), e "peso,
+> desenho e dossiê" é conceito daquela página. Os "75 fluxos, 64 pelo id" foram para o Ato 11, que
+> é onde o `/upgrade` já estava. Achado pela sessão que grava, olhando o quadro renderizado — não
+> pelo fonte.
 
 ---
 
-## ATO 4 — Uma execução que deu certo (1:20 – 1:48)
+## ATO 4 — Uma execução que deu certo (1:15 – 1:44)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -78,22 +86,23 @@ contato, mensagem recebida e mensagem enviada.
 
 ---
 
-## ATO 5 — Uma que deu errado (1:48 – 2:24)
+## ATO 5 — Uma que deu errado (1:44 – 2:37)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
 | 5.1 | clicar no chip `deu erro` | clicar | "Agora o outro lado. Filtro só o que deu errado —" | 3,5 |
 | 5.2 | a lista filtra, banda `NO PALCO` acende | segurar 1s | "— que, sejamos honestos, é a única coisa que você quer ver numa segunda-feira." | 5,7 |
 | 5.3 | rolar até `[ 03 / 05 ] Erros agrupados` | rolar | "As falhas vêm agrupadas por assinatura. O mesmo erro em dois fluxos é **um** defeito, não dois." | 6,9 |
-| 5.4 | zoom no chip `⤷` do sub-fluxo | zoom | "E olha isso. O n8n reporta a falha no fluxo pai, num nó que **não existe** nele. Isso já custou tarde de gente boa." | 8,3 |
-| 5.5 | apontar a frase do cartão | segurar | "O cockpit abre os sub-fluxos, acha onde o nó mora, e te diz: é aqui." | 4,9 |
+| 5.4 | os DOIS cartões no quadro, um sob o outro | zoom out para caber os dois | "E aqui estão os dois lados do mesmo defeito. Mesmo nó, mesma mensagem — mas um cartão é a falha em casa, e o outro é ela reportada no fluxo pai." | 10,4 |
+| 5.5 | zoom no chip `⤷` do segundo cartão | zoom | "Esse chip é o cockpit dizendo: o nó que quebrou não existe no fluxo que você está vendo. Ele abriu os sub-fluxos e achou onde ele mora." | 9,8 |
+| 5.6 | segurar nos dois | segurar | "Sem isso você abre o editor, procura o nó, não acha, e desconfia do painel. Já custou tarde de gente boa." | 7,6 |
 
 **Fixture:** a assinatura de sub-fluxo — o pai reporta um nó que só existe no filho.
 `GET /api/n8n/locate/:id?node=` e `GET /api/n8n/callers`.
 
 ---
 
-## ATO 6 — Clico no cartão e mando pro Claude (2:24 – 3:31)
+## ATO 6 — Clico no cartão e mando pro Claude (2:37 – 3:43)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -114,7 +123,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 7 — Passo de volta pelos fluxos (3:31 – 3:43)
+## ATO 7 — Passo de volta pelos fluxos (3:43 – 3:55)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -125,7 +134,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 8 — O Disco (3:43 – 4:22)
+## ATO 8 — O Disco (3:55 – 4:34)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -141,7 +150,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 9 — O Tester: eu só descrevo (4:22 – 5:27)
+## ATO 9 — O Tester: eu só descrevo (4:34 – 5:38)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -160,7 +169,7 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 10 — Um que já foi construído (5:27 – 5:54)
+## ATO 10 — Um que já foi construído (5:38 – 6:05)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -177,12 +186,13 @@ antes de passar** (a cena 6.6 depende dela), 10 portões passando, diff em 1 nó
 
 ---
 
-## ATO 11 — O Upgrade: mexer num fluxo que já roda (5:54 – 6:51)
+## ATO 11 — O Upgrade: mexer num fluxo que já roda (6:05 – 7:21)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
 | 11.1 | navegar para `/upgrade` | clicar na porta `Upgrade` | "Quarta porta. Essa é para quando o fluxo **já funciona** e você quer que funcione melhor." | 6,4 |
-| 11.2 | zoom na vitrine | zoom na grade | "Os fluxos que estão de pé, com o peso de cada um e quanto custa conversar sobre ele." | 6,1 |
+| 11.2 | zoom na vitrine | zoom na grade | "A grade mostra os onze que estão de pé, com o peso de cada um e quanto custa conversar sobre ele." | 7,0 |
+| 11.2b | clicar `todos os fluxos ▾`, o seletor abre | clicar | "E os outros? Setenta e cinco fluxos na instância. Os sessenta e quatro que não estão na grade só eram alcançáveis colando o id na URL. Agora estão aqui, em dois grupos que dizem por que cada um está onde está." | 15,1 |
 | 11.3 | clicar num cartão | clicar | "Escolho um." | 0,8 |
 | 11.4 | tela do fluxo | zoom no desenho | "Ele abre o fluxo desenhado, e a conversa do lado." | 3,6 |
 | 11.5 | digitar o pedido | digitar de verdade | "E eu peço em português: «no nó que manda a mensagem, corta o texto em quatro mil e quinhentos caracteres, e avisa quando cortar»." | 9,3 |
@@ -199,7 +209,7 @@ comportamento real), a resposta de alvo, e a bateria com as 8 linhas passando.
 
 ---
 
-## ATO 12 — Fecho (6:51 – 7:00)
+## ATO 12 — Fecho (7:21 – 7:30)
 
 | # | tela | ação | fala | ≈s |
 |---|---|---|---|---|
@@ -215,32 +225,32 @@ tempo de cada ato e esta tabela. Ver o cabeçalho deste script para o defeito qu
 | | |
 |---|---|
 | atos | 12 |
-| falas | 53 |
-| caracteres falados | 4769 |
-| narração estimada | **346s** (5:46) |
-| duração alvo | **420s** (7:00) |
-| fala / silêncio | 82% / 18% |
+| falas | 55 |
+| caracteres falados | 5153 |
+| narração estimada | **373s** (6:13) |
+| duração alvo | **450s** (7:30) |
+| fala / silêncio | 83% / 17% |
 
 | ato | fala | janela |
 |---|---|---|
 | 1 | 16s em 2 falas | 0:00 – 0:19 |
 | 2 | 27s em 3 falas | 0:19 – 0:52 |
-| 3 | 23s em 4 falas | 0:52 – 1:20 |
-| 4 | 24s em 4 falas | 1:20 – 1:48 |
-| 5 | 29s em 5 falas | 1:48 – 2:24 |
-| 6 | 55s em 8 falas | 2:24 – 3:31 |
-| 7 | 10s em 1 falas | 3:31 – 3:43 |
-| 8 | 32s em 4 falas | 3:43 – 4:22 |
-| 9 | 53s em 9 falas | 4:22 – 5:27 |
-| 10 | 22s em 4 falas | 5:27 – 5:54 |
-| 11 | 47s em 8 falas | 5:54 – 6:51 |
-| 12 | 8s em 1 falas | 6:51 – 7:00 |
+| 3 | 20s em 4 falas | 0:52 – 1:15 |
+| 4 | 24s em 4 falas | 1:15 – 1:44 |
+| 5 | 44s em 6 falas | 1:44 – 2:37 |
+| 6 | 55s em 8 falas | 2:37 – 3:43 |
+| 7 | 10s em 1 falas | 3:43 – 3:55 |
+| 8 | 32s em 4 falas | 3:55 – 4:34 |
+| 9 | 53s em 9 falas | 4:34 – 5:38 |
+| 10 | 22s em 4 falas | 5:38 – 6:05 |
+| 11 | 63s em 9 falas | 6:05 – 7:21 |
+| 12 | 8s em 1 falas | 7:21 – 7:30 |
 
-**Densidade em 82%, acima do limite.** Acima de 80% cansa. Corte narração ou
+**Densidade em 83%, acima do limite.** Acima de 80% cansa. Corte narração ou
 aumente o alvo — mas o alvo veio de um pedido ("não pode demorar tanto"), então cortar é a
 saída certa.
 
-**Cota do ElevenLabs:** 4769 caracteres por geração completa do roteiro. Reserve 3×
+**Cota do ElevenLabs:** 5153 caracteres por geração completa do roteiro. Reserve 3×
 para regeração — e note que esta chave **não tem** `user_read`, então não há como consultar o
 saldo: o primeiro sinal de cota esgotada é um HTTP de erro numa fala qualquer.
 
