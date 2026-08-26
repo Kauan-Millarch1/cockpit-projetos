@@ -74,6 +74,41 @@ mandar cortar, os atos 6, 9 e 11 têm 8, 9 e 8 falas e aguentam 5, 6 e 6 sem per
 
 ---
 
+## A ordem: ÁUDIO É O MESTRE, imagem se corta nele
+
+Pergunta do Kauan em 26/08, e ela protege o problema certo pela alavanca errada. O medo é a voz
+dizer uma coisa e a tela mostrar outra. A resposta:
+
+**Áudio primeiro, e o motivo é assimetria de elasticidade.** A duração de uma fala é fixa e já
+medida. A duração de um plano é elástica — segura o quadro, arrasta o scroll, alonga o zoom. Cortar
+imagem para o som funciona; o contrário obrigaria a reescrever a narração para caber em durações, e
+narração escrita para bater segundo perde a pausa onde ela importava.
+
+**O que impede o descasamento são três coisas, e não a ordem:**
+
+1. **O id compartilhado.** A cena 6.5 tem fala em `06-6.5.mp3` e o clipe deve ser `06-6.5.webm`.
+   Mesmo id, mesma linha do roteiro, nenhuma tabela intermediária para dessincronizar. Foi por isso
+   que os MP3 receberam o id da cena em vez de `fala-01`.
+2. **A linha do roteiro.** As colunas `ação` e `fala` estão na MESMA linha. Gravar a cena 6.5 é
+   executar a ação daquela linha — não há como cruzar a ação de uma com a fala de outra.
+3. **O plano é preenchido até a duração MEDIDA do áudio**, nunca até um número escolhido. Fala de
+   10,5s, plano de 10,5s, por construção.
+
+### O risco de verdade, e a guarda que você precisa escrever
+
+Não é ordem de produção. É a narração descrever algo que **o fixture não mostra** — a voz diz "olha
+o chip do sub-fluxo" e o fixture não gerou aquela assinatura. Aí o clipe sai bonito e errado, e
+nenhuma ordem protege disso.
+
+**Antes de gravar cada cena, afira que o elemento que a narração cita está na tela.** Se a cena 5.4
+fala do chip `⤷`, o seletor dele tem de existir naquele instante; se não existir, **pare com o nome
+da cena** em vez de gravar. Um clipe errado é pior que gravação interrompida, porque ele só é
+descoberto na montagem — ou pior, depois de publicado.
+
+Sugestão de forma: uma coluna `seletor` no roteiro, ou um mapa `cena -> seletor` ao lado do
+`gravar-lib.js`. Só as cenas que citam um elemento específico precisam de entrada; as que dizem
+"segurar" não citam nada e não têm o que aferir.
+
 ## Armadilhas de gravação — todas medidas, nenhuma suposta
 
 1. **As animações de entrada disparam UMA vez.** `seenCardIds`, `seenErrKeys`, `S.fantasmaVisto`,
