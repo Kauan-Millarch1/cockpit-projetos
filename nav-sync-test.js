@@ -221,6 +221,85 @@ for (const p of PAGINAS) {
   }
 }
 
+/* ── 9. o tema e o modo gravação são UM estado, não um por página ────────────
+ *
+ * O defeito que paga este bloco foi visto na tela: tema claro escolhido nas
+ * outras abas e a Conta abrindo escura sozinha. A causa era uma letra —
+ * `entrar.html` lia `cockpit-tema` e as outras cinco gravam `cockpit-theme`.
+ * Duas chaves para um fato: nada casava, a página caía na
+ * `prefers-color-scheme` do sistema, e a escolha explícita da pessoa não
+ * existia. Exatamente a família do `#tema`/`#theme` que o CLAUDE.md já
+ * registra — divergir num detalhe, num bloco que foi copiado à mão.
+ *
+ * E junto veio um segundo, pior: a gravação era lida DEPOIS do primeiro paint
+ * nessa página. O borrão chegava tarde e a tela piscava e-mail, fila de pedidos
+ * e a lista de quem está dentro — o dado que o modo existe para esconder de uma
+ * filmagem.
+ *
+ * Cinco casos, e cada um recusa um defeito com nome. O quinto é o que carrega o
+ * bloco: uma página que LÊ uma chave e ESCREVE outra é o mesmo bug em miniatura,
+ * e é o que sobra quando alguém conserta metade.
+ *
+ * Medido sobre fonte SEM COMENTÁRIO, que é a lição que o `dossie-tela-test.js`
+ * pagou: o comentário que explica a correção cita a chave errada pelo nome, e um
+ * caso que casa dentro de comentário aprova a ausência da correção. */
+{
+  const SERVIDAS = ["flows.html", "tester.html", "cockpit.html", "upgrade.html",
+                    "integracoes.html", "entrar.html"];
+  const TEMA = "cockpit-theme";
+  const REC = "cockpit-rec";
+  const semComent = t => t.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/<!--[\s\S]*?-->/g, " ");
+
+  for (const arq of SERVIDAS) {
+    const alvo = path.join(__dirname, arq);
+    if (!fs.existsSync(alvo)) { erro(arq + ": arquivo não existe"); continue; }
+    const bruto = fs.readFileSync(alvo, "utf8");
+    const src = semComent(bruto);
+
+    /* 1. lê a chave certa. */
+    const leTema = src.includes('getItem("' + TEMA + '")');
+    if (leTema) ok(arq + ": lê o tema de «" + TEMA + "»");
+    else erro(arq + ": NÃO lê o tema de «" + TEMA + "» — o tema não vai cruzar de aba");
+
+    /* 2. e não usa nenhuma variante. Uma variante não dói até alguém navegar,
+       que é o que a torna capaz de sobreviver a uma revisão. */
+    const variantes = (src.match(/cockpit-(?:tema|theme|Theme|TEMA)\b/g) || [])
+      .filter(v => v !== TEMA);
+    if (!variantes.length) ok(arq + ": nenhuma variante da chave do tema");
+    else erro(arq + ": usa variante(s) da chave do tema: " + [...new Set(variantes)].join(", "));
+
+    /* 3+4. as duas leituras acontecem ANTES do primeiro paint. O índice do
+       `<body` é o marco: depois dele a página já pintou, e um borrão que chega
+       depois é um flash do dado que o modo existe para esconder. */
+    const iBody = src.indexOf("<body");
+    for (const [chave, nome] of [[TEMA, "tema"], [REC, "modo gravação"]]) {
+      const i = src.indexOf('getItem("' + chave + '")');
+      if (i < 0) { erro(arq + ": não lê «" + chave + "» em lugar nenhum"); continue; }
+      if (iBody < 0) { erro(arq + ": não achei o <body> para medir a ordem"); continue; }
+      if (i < iBody) ok(arq + ": lê o " + nome + " antes do primeiro paint");
+      else erro(arq + ": lê o " + nome + " DEPOIS do <body> — a tela pinta e só então corrige");
+
+      /* E APLICA. Ler a preferência e não escrever o atributo é a página lendo o
+         que a pessoa escolheu e ignorando — tema quebrado com o `getItem` no
+         lugar, que é o mutante que passou verde na primeira versão deste caso. */
+      const attr = chave === TEMA ? "data-theme" : "data-rec";
+      const j = src.indexOf('setAttribute("' + attr + '"');
+      if (j < 0) erro(arq + ": lê o " + nome + " e nunca escreve «" + attr + "» — a preferência é lida e ignorada");
+      else if (j < iBody) ok(arq + ": aplica «" + attr + "» antes do primeiro paint");
+      else erro(arq + ": só aplica «" + attr + "» DEPOIS do <body> — a tela pinta errado e corrige na frente da pessoa");
+    }
+
+    /* 5. e a ESCRITA usa a mesma chave da LEITURA. Consertar só a leitura deixa
+       a página lendo o compartilhado e gravando no próprio, então a escolha
+       feita ali é a única que não propaga — o bug de volta, invertido. */
+    const escritas = [...new Set((src.match(/setItem\("(cockpit-[a-zA-Z]+)"/g) || [])
+      .map(m => m.slice(9, -1)))].filter(k => /the?ma?e?$/i.test(k) || k === TEMA);
+    if (!escritas.length) ok(arq + ": não grava tema (não tem o botão, e isso é legítimo)");
+    else if (escritas.length === 1 && escritas[0] === TEMA) ok(arq + ": grava o tema na mesma chave que lê");
+    else erro(arq + ": lê «" + TEMA + "» e grava em " + escritas.join(", "));
+  }
+}
+
 console.log("");
 if (falhas) { console.log("FALHOU: " + falhas + " problema(s)"); process.exit(1); }
 console.log("passou: a navegação é um bloco só, nas páginas testadas");
