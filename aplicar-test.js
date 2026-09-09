@@ -240,6 +240,69 @@ const t = (n, c, x) => {
     })(), JSON.stringify((fund.linhas || []).map(l => l.n)));
   require.cache[require.resolve(mod)].exports = originalMod;
 
+  console.log("\n8. o que a TELA diz que a rodada do patch escreve");
+  /* A seção 5 acima prova que a bateria escreve a cópia inativa. Esta prova que a
+     TELA diz isso — e ela dizia o contrário: "não escreve nada no n8n", numa string
+     que a pessoa lê ANTES de pagar a rodada. Escrita à mão, ficou errada quando o
+     sandbox passou a vir ligado por padrão.
+
+     `escritaDaRodada` é extraída da página em tempo de execução, nunca copiada:
+     reimplementá-la aqui provaria a cópia. */
+  const blocoEsc = /function escritaDaRodada\(cap\) \{[\s\S]*?\r?\n\}/.exec(pagina);
+  t("`escritaDaRodada` existe no bloco de juízo da página", !!blocoEsc);
+  const escritaDaRodada = blocoEsc && new Function(blocoEsc[0] + "; return escritaDaRodada;")();
+
+  if (escritaDaRodada) {
+    const ausente = escritaDaRodada(null);
+    const ligado = escritaDaRodada({ escreve: { fluxoVivo: "apenasAposAprovacao", copiaInativa: true } });
+    const desligado = escritaDaRodada({ escreve: { fluxoVivo: "apenasAposAprovacao", copiaInativa: false } });
+
+    /* O CASO QUE CARREGA O BLOCO, e é a oitava vez que esta base o escreve: campo
+       AUSENTE não cai no galho negativo. Aqui o negativo é "não escreve", e
+       afirmá-lo por causa de uma rota que não respondeu prometeria silêncio sobre
+       uma escrita que vai acontecer. */
+    t("sem resposta, a frase NÃO promete que nada é escrito",
+      !/não escreve nada/i.test(ausente.frase) && !/nenhuma escrita/i.test(ausente.titulo),
+      ausente.frase);
+    t("sem resposta, ela assume que PODE escrever a cópia inativa",
+      /pode gravar/i.test(ausente.frase) && /SANDBOX upgrade/.test(ausente.frase), ausente.frase);
+    t("sem resposta, ela se declara como não conferida",
+      ausente.sabido === false && /não consegui conferir/i.test(ausente.frase), ausente.frase);
+
+    t("com a cópia LIGADA, nomeia a escrita e o fluxo vivo intacto",
+      /SANDBOX upgrade/.test(ligado.frase) && /não toca no fluxo vivo/i.test(ligado.frase)
+        && !/não escreve nada/i.test(ligado.frase), ligado.frase);
+
+    /* Só aqui a frase antiga volta a ser verdade — e tem de dizer que é por
+       CONFIGURAÇÃO, senão quem religar o sandbox lê uma promessa que acabou de
+       deixar de valer sem ninguém tocar no código. */
+    t("com a cópia DESLIGADA, aí sim diz que nada é escrito",
+      /não escreve nada no n8n/i.test(desligado.frase), desligado.frase);
+    t("...e diz que é por configuração, nomeando a variável",
+      /COCKPIT_UPGRADE_SANDBOX=0/.test(desligado.frase), desligado.frase);
+
+    /* TRÊS FRASES DISTINTAS. Duas iguais ensinam a ignorar as duas — a mesma razão
+       pela qual as quatro frases da banda do dossiê são asseridas distintas. */
+    t("as três frases são distintas",
+      new Set([ausente.frase, ligado.frase, desligado.frase]).size === 3);
+    t("e os três títulos do botão também",
+      new Set([ausente.titulo, ligado.titulo, desligado.titulo]).size === 3);
+  }
+
+  /* A FIAÇÃO, medida sobre fonte SEM COMENTÁRIO — a lição que o
+     `dossie-tela-test.js` pagou: um comentário carregando o nome procurado deixou
+     duas asserções verdes sobre código que não existia mais. */
+  const semCom = pagina.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[\s;{}()])\/\/[^\n]*/g, "$1 ");
+  t("a página PEDE `/api/upgrade/capacidades`", /callApi\("\/api\/upgrade\/capacidades"\)/.test(semCom));
+  t("e guarda em `S.cap`, que nasce null", /cap:\s*null/.test(semCom));
+  t("o rodapé do alvo consome a decisão em vez de uma frase literal",
+    /escritaDaRodada\(S\.cap\)/.test(semCom));
+  /* O outro lado: a rota tem de existir. Um `callApi` para rota que o servidor não
+     serve devolve 404, `escritaDaRodada` cairia no galho cauteloso para sempre —
+     funcionaria, e mentiria por omissão. */
+  const srvCap = require("fs").readFileSync(path.join(REPO, "server.js"), "utf8");
+  t("o servidor serve essa rota", /p === "\/api\/upgrade\/capacidades"/.test(srvCap));
+
   console.log("\n" + (bad
     ? "FALHOU: " + bad + " de " + (ok + bad)
     : "passou: " + ok + " casos — o §6 recusa antes de escrever, e cinza nunca vira verde"));

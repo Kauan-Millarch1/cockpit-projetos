@@ -3261,6 +3261,55 @@ function quandoConv(iso) {
   return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
 }
 
+/* O QUE A RODADA DO PATCH ESCREVE, dito na tela ANTES do clique que a paga.
+ *
+ * Esta frase já esteve errada, e errada na direção que baixa a guarda: dizia
+ * "não escreve nada no n8n". MEDIDO em 09/09/2026 — a `checagem7` roda dentro da
+ * bateria da rodada do patch e grava a cópia INATIVA `[SANDBOX upgrade]`, e ela
+ * vem LIGADA por padrão (`SANDBOX_LIGADO` é `!== "0"`). Então a rodada escreve.
+ *
+ * `/api/upgrade/capacidades` existe justamente para a tela saber disso, e não
+ * tinha consumidor nenhum — o mesmo contrato morto que o `escreveNoN8n` já foi
+ * aqui. Agora tem.
+ *
+ * TRÊS GALHOS, e o ausente NÃO cai no negativo. Essa é a regra que esta base
+ * pagou sete vezes (o `docAgentes` acusando o arquivo do Kauan por um processo
+ * velho, o `ingredientes.credenciais` mostrando zero credencial, o cinza do
+ * dossiê que nunca pode ler como vermelho, o `resolucao` ausente que nunca pode
+ * ler como "está tudo no fluxo aberto"). Aqui o galho negativo é "não escreve",
+ * e afirmá-lo por causa de um campo que não chegou seria prometer silêncio sobre
+ * uma escrita que vai acontecer. Sem resposta, a frase assume que escreve. */
+function escritaDaRodada(cap) {
+  if (!cap || typeof cap !== "object" || !cap.escreve || typeof cap.escreve !== "object") {
+    return {
+      frase: "<strong>não toca no fluxo vivo</strong> — e pode gravar uma cópia inativa"
+        + " <code>[SANDBOX upgrade]</code>, que é como o n8n diz se aceita o schema"
+        + " (não consegui conferir se está ligada)",
+      titulo: "monta o patch e mostra o diff — uma rodada de modelo; não toca no fluxo vivo,"
+        + " e pode gravar a cópia inativa [SANDBOX upgrade]",
+      sabido: false
+    };
+  }
+  if (cap.escreve.copiaInativa) {
+    return {
+      frase: "<strong>não toca no fluxo vivo</strong> (grava só uma cópia inativa"
+        + " <code>[SANDBOX upgrade]</code>, para o n8n dizer se aceita o schema)",
+      titulo: "monta o patch e mostra o diff — uma rodada de modelo; não toca no fluxo vivo,"
+        + " grava só a cópia inativa [SANDBOX upgrade]",
+      sabido: true
+    };
+  }
+  /* Só aqui a frase antiga volta a ser verdade, e ela precisa DIZER que é por
+     configuração — senão a próxima pessoa a ligar o sandbox lê uma promessa que
+     acabou de deixar de valer sem ninguém tocar no código. */
+  return {
+    frase: "<strong>não escreve nada no n8n</strong> (a cópia de teste está desligada"
+      + " por <code>COCKPIT_UPGRADE_SANDBOX=0</code>)",
+    titulo: "monta o patch e mostra o diff — uma rodada de modelo, nenhuma escrita no n8n",
+    sabido: true
+  };
+}
+
 /* ═══════════════════════════════ fim do bloco de juízo ═══════════════════════ */
 
 /* `?f=<id>` abre direto na tela de um fluxo, mesma razão do `?s=` do Tester: uma
@@ -3315,6 +3364,10 @@ const LAYOUT = (() => {
  * convite — chega por `TUT().configurar` logo abaixo do `IO().configurar`. */
 
 const S = { fluxos: null, erro: null, sel: fDaUrl, peso: new Map(), convId: null, conv: null, es: null,
+  /* O QUE O SERVIDOR ESCREVE, para a tela poder dizer antes do clique. `null`
+     enquanto não chegou (ou se a rota falhou), e `escritaDaRodada` trata os dois
+     assumindo que ESCREVE — ausência aqui não pode virar promessa de silêncio. */
+  cap: null,
   /* O TUTORIAL não tem campo aqui: o estado dele (a resposta do ledger, o player
      aberto, o `já vi` desta sessão) vive dentro do `/tutorial.js` servido, que é
      igualmente fora do DOM e não obriga três páginas a declarar os mesmos três
@@ -5372,11 +5425,15 @@ function rodapeAlvo() {
       + '<button class="btn" id="corrige-alvo">não, é em outro lugar</button></div>';
   }
 
+  /* A frase sobre o que a rodada escreve vem do JUÍZO, não daqui, e não é literal:
+     ela depende do que o servidor respondeu em `/api/upgrade/capacidades`. Escrita
+     à mão neste lugar ela já ficou errada uma vez — dizia "não escreve nada no
+     n8n" com a cópia de teste ligada por padrão. */
+  const esc0 = escritaDaRodada(S.cap);
   return '<div class="confirma"><span class="cf-tx">Confirma o alvo? Confirmar manda ele <strong>montar o '
-    + "patch</strong> e mostrar o diff aqui — custa uma rodada, e <strong>não toca no fluxo vivo</strong>"
-    + " (grava só uma cópia inativa <code>[SANDBOX upgrade]</code>, para o n8n dizer se aceita o schema)."
+    + "patch</strong> e mostrar o diff aqui — custa uma rodada, e " + esc0.frase + "."
     + onde + "</span>"
-    + '<button class="btn pri" id="confirma-alvo" title="monta o patch e mostra o diff — uma rodada de modelo; não toca no fluxo vivo, grava só a cópia inativa [SANDBOX upgrade]">✓ é isso</button>'
+    + '<button class="btn pri" id="confirma-alvo" title="' + esc(esc0.titulo) + '">✓ é isso</button>'
     + '<button class="btn" id="corrige-alvo">não, é em outro lugar</button></div>';
 }
 
@@ -8447,6 +8504,18 @@ TUT().ligarGestos();
    perdido precisa ver. `TUT().carregar()` chama `render()` sozinho e nunca
    levanta: um tutorial que não carrega não pode derrubar a tela. */
 TUT().carregar();
+
+/* AS CAPACIDADES, pedidas em paralelo e pela mesma razão do tutorial: não dependem
+   do n8n, e pendurá-las na cadeia da vitrine faria uma falha ao ler os fluxos
+   apagar a frase que diz o que a rodada do patch escreve. Nunca levanta — `cap`
+   fica `null` e `escritaDaRodada` assume que ESCREVE, que é o lado seguro de errar.
+   Chama `render()` porque a frase do rodapé do alvo depende disto. */
+async function capacidades() {
+  try { S.cap = await callApi("/api/upgrade/capacidades"); }
+  catch { S.cap = null; }   // 404 num cockpit velho, ou rede caída: os dois assumem escrita
+  render();
+}
+capacidades();
 
 /* ══════════════════════════════════════════════════════ CHROME COMPARTILHADO
    Alternador de tema e modo gravação, EXTRAÍDOS verbatim do flows.html na
