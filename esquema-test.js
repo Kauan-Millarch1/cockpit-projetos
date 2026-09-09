@@ -23,8 +23,16 @@ const verdade = (v, m) => { if (!v) throw new Error(m || "esperava verdadeiro");
 
 const e = esq.lerCache();
 if (!e) {
-  console.log("sem `.cache-esquema.json`. Rode antes:\n  node esquema.js --baixar\n  node esquema.js --construir");
-  process.exitCode = 1;
+  console.log("PULADA: sem `.cache-esquema.json`. Rode antes:\n  node esquema.js --baixar\n  node esquema.js --construir");
+  /* CODIGO 2, nao 1. Esta saida ja fazia a coisa certa — nomeia o arquivo e os dois
+     comandos — e ainda assim pintava o `testar.cmd` de vermelho num checkout novo,
+     onde nao ha nada de errado: o esquema e estado por checkout, gitignorado de
+     proposito. "Faltou estado por checkout" nao e "falhou", e nao e "passou"
+     tambem; e o terceiro estado, e e o `testar.cmd` que o soma.
+     MEDIDO num clone real: era a quarta bateria a fechar a suite em vermelho, e a
+     unica que nao aparecia em nenhum grep por falha, porque ela nunca imprimiu a
+     palavra. */
+  process.exitCode = 2;
   return;
 }
 

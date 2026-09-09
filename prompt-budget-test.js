@@ -15,6 +15,25 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
+
+/* O CATALOGO E ESTADO POR CHECKOUT, e este arquivo dependia dele com um `require`
+   seco. `.cache-catalog.json` e um cache — gitignorado de proposito, destilado dos
+   fluxos vivos e regeneravel num comando — entao num checkout novo ele nao existe e
+   o `require` derrubava a bateria com `Cannot find module`, uma mensagem que parece
+   dependencia faltando num repositorio cuja regra e ter zero dependencia.
+   MEDIDO num clone de verdade do remoto.
+   O pulo sai com codigo 2 e NAO com 0: o prompt aqui e montado A PARTIR do catalogo,
+   entao sem ele nao ha pior caso nenhum para medir, e dizer "passou" sobre uma
+   medicao que nao aconteceu e a unica saida realmente errada. */
+const CAT = path.join(__dirname, ".cache-catalog.json");
+if (!fs.existsSync(CAT)) {
+  console.log("PULADA: sem `.cache-catalog.json` neste checkout (e um cache, gitignorado).");
+  console.log("        O pior caso do prompt e montado a partir do catalogo, entao sem ele");
+  console.log("        nao ha o que medir. Para rodar: node catalog.js --refresh");
+  process.exit(2);
+}
 const cat = require("./.cache-catalog.json");
 const { promptEntender, promptDesenhar, PROMPT_MAX } = require("./tester");
 

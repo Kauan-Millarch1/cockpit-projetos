@@ -144,6 +144,23 @@ t("sem campo do modelo, cai no texto", () => {
 
 secao("os portões de agente");
 
+/* O CATALOGO E ESTADO POR CHECKOUT, e isto era um `require` seco.
+   `.cache-catalog.json` e um cache — gitignorado de proposito, destilado dos fluxos
+   vivos, regeneravel num comando — entao num checkout novo ele nao existe e o
+   `require` derrubava a bateria com `Cannot find module`, mensagem que num
+   repositorio de zero dependencia parece pacote faltando. MEDIDO num clone real.
+   Os portoes daqui para baixo precisam dele; a TRIAGEM acima nao, e ela ja rodou.
+   Entao o pulo e daqui, nao do topo do arquivo: sair no topo custaria as asserções
+   de triagem sem comprar nada. Codigo 2 — "passou com pulos" — porque dizer
+   "passou" sobre portao que nao rodou e a unica saida errada. */
+const CAT = require("path").join(__dirname, ".cache-catalog.json");
+if (!require("fs").existsSync(CAT)) {
+  console.log("  PULADOS os portões de agente — sem `.cache-catalog.json` neste checkout");
+  console.log("          (e um cache, gitignorado). Para rodar: node catalog.js --refresh");
+  console.log("\n" + (falhou ? "FALHOU" : "passou COM PULOS") + ": " + ok + " ok, "
+    + falhou + " falha(s), os portões PULADOS por falta de arquivo gitignorado\n");
+  process.exit(falhou ? 1 : 2);
+}
 const cat = require("./.cache-catalog.json");
 
 /* Um agente mínimo que PASSA. Tudo abaixo é este objeto com um defeito. */

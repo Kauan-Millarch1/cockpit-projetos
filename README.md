@@ -123,15 +123,27 @@ esconder.
 > **Não suba o servidor como tarefa de fundo do Claude Code.** Esses processos morrem quando
 > o harness os recolhe, e o cockpit cai no meio da sessão.
 
-### O portão de parâmetro precisa de dois comandos por checkout
+### Estado por checkout: três coisas que o git não traz
 
-O esquema dos nós vem dos pacotes npm do n8n e é estado por checkout, fora do git. Um clone
-novo não tem nenhum dos dois, e o Tester simplesmente roda sem esse portão:
+Todas são **derivadas e regeneráveis por comando**, então ficam fora do git de propósito.
+Um clone novo funciona sem elas — o que muda é que dois portões não rodam, e o produto diz
+isso em vez de fingir.
 
 ```bash
 node esquema.js --baixar      # minutos: ~26 mil arquivos para descompactar
-node esquema.js --construir
+node esquema.js --construir   # gera .cache-esquema.json (~9,5MB)
+node catalog.js --refresh     # gera .cache-catalog.json, lendo os fluxos da sua instância
 ```
+
+| falta | consequência |
+|---|---|
+| `.n8n-pkgs/` + `.cache-esquema.json` | o Tester roda **sem o portão de parâmetro**. `/api/tester/status` responde em três estados (não baixado / não destilado / pronto), porque "não baixei os pacotes" e "esse nó não existe" levam a decisões opostas. |
+| `.cache-catalog.json` | duas baterias de teste se declaram **PULADAS** (elas montam o pior caso a partir do catálogo). Precisa do `.env` com a chave, porque ele é destilado dos seus fluxos. |
+| `.video/` | uma asserção de `tutorial-test.js` fica **PULADA**. É o pipeline de vídeo, binário e regenerável a partir do roteiro. |
+
+**Pulo não é verde.** O `testar.cmd` fecha em três estados — passou, passou COM PULOS, ou
+falhou — porque dizer "tudo passou" sobre uma bateria que não rodou é a única saída
+realmente errada aqui.
 
 ## Testes
 

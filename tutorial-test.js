@@ -43,7 +43,7 @@ const os = require("os");
 const path = require("path");
 const estatico = require("./estatico");
 
-let ok = 0, bad = 0;
+let ok = 0, bad = 0, pulados = 0;
 const t = (nome, cond) => { if (cond) { ok++; } else { bad++; console.log("  FALHOU: " + nome); } };
 
 /* ─────────────────────────── a rota, extraída de `server.js` ────────────── */
@@ -499,8 +499,22 @@ try {
     /* A GRAVACAO tambem precisa da rota: sem ela os medidores servem uma pagina que
        pede um script que ninguem responde, e o sintoma e uma faixa que nao existe
        numa captura. */
-    const GRAV = fs.readFileSync(path.join(__dirname, ".video", "gravar-lib.js"), "utf8");
-    t("a gravacao registra `/tutorial.js` nos estaticos", /"\/tutorial\.js": "tutorial\.js"/.test(GRAV));
+    /* `.video/` e GITIGNORADO de proposito — e o pipeline de video, binario grande e
+       regeneravel a partir do roteiro. Entao num checkout novo este arquivo nao
+       existe, e um `readFileSync` seco explodia a bateria inteira: MEDIDO num clone
+       de verdade, `EXPLODIU: ENOENT ... .video\gravar-lib.js`, levando com ele as
+       outras 197 asserções deste arquivo. O pulo e NOMEADO e CONTADO — verde
+       silencioso aqui seria pior que o estouro, porque diria que uma asserção que
+       nunca rodou passou. */
+    const pGrav = path.join(__dirname, ".video", "gravar-lib.js");
+    if (fs.existsSync(pGrav)) {
+      const GRAV = fs.readFileSync(pGrav, "utf8");
+      t("a gravacao registra `/tutorial.js` nos estaticos", /"\/tutorial\.js": "tutorial\.js"/.test(GRAV));
+    } else {
+      pulados++;
+      console.log("  PULADO  a gravacao registra `/tutorial.js` nos estaticos"
+        + " — `.video/gravar-lib.js` nao existe neste checkout (a pasta e gitignorada)");
+    }
 
     for (const [pg, h] of Object.entries(PAG)) {
       const tags = [...h.matchAll(/<script[^>]*src="\/tutorial\.js"[^>]*>/g)];
@@ -743,8 +757,15 @@ try {
       /closest\(".tut-trilha"\)[\s\S]{0,120}if \(!tr\) return;/.test(MOD));
   }
 
-  console.log("\n" + (bad ? "FALHOU" : "passou") + ": " + ok + " ok, " + bad + " falha(s)");
+  /* TRES estados, nao dois. Um pulo e uma asserção que NAO RODOU, e imprimir
+     "passou" sobre ela seria exatamente a mentira que este arquivo existe para nao
+     contar. O codigo de saida 2 e o que o `testar.cmd` le para fechar em "passou,
+     com pulos": verde e vermelho nao cobrem "faltou estado por checkout". */
+  console.log("\n" + (bad ? "FALHOU" : pulados ? "passou COM PULOS" : "passou")
+    + ": " + ok + " ok, " + bad + " falha(s)"
+    + (pulados ? ", " + pulados + " PULADO(S) por falta de arquivo gitignorado" : ""));
   if (bad) process.exitCode = 1;
+  else if (pulados) process.exitCode = 2;
 } catch (e) {
   console.error("\nEXPLODIU: " + (e && e.stack || e));
   process.exitCode = 1;
