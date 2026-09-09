@@ -604,6 +604,48 @@ so the first day does not send 40 descriptions into a prompt), **3 kept**, `v3.1
 **US$0.385 and 79s**, `precisaEsquema: true`. The other 38 wait for the next day and the ledger
 reports `fila` — a silent queue is the same as losing the item.
 
+**A `String.replace` with a string argument silently lost 8 paid entries, and the count is what
+proved it.** Measured 2026-09-09. `aplicar()` inserted with
+`corpo.replace("<!-- BLOCO: novidades -->\n", …)` — a **string** needle, which demands an exact
+match. `n8n-novidades.md` was 100% CRLF (62 CRLF, **0 pure LF**), because git converts on checkout
+on Windows and any `git checkout` is enough. Against `-->\r\n` the needle does not match, and
+`String.replace` **with no match returns the original without complaining**. The file was rewritten
+byte-identical and the function returned `escreveu: 4`.
+
+**The damage was not the file failing to change — it was the function claiming it changed.** With
+`escreveu` truthy, `rodada()` bumps the version, writes the on-screen notice saying "4 novidades",
+and marks the `guid`s as **seen** — and the comment right below that call says, literally, *"só
+agora vira visto: julgado E ESCRITO"*. A seen item never comes back. Rounds v3.7 and v3.8 were lost,
+4+4 entries, and the arithmetic is what closes it: the doc held **22** entries and v3.2..v3.6 sum to
+exactly **22**. All 8 were recovered — v3.8 from the live `aviso`, v3.7 from the same field in commit
+`a56ccd6`, because `novidades.json` is tracked.
+
+Three things came out of it, and the second is the fix:
+
+- the anchor is a **regex** (`ANCORA = /<!-- BLOCO: novidades -->\r?\n/`), and the document's own EOL
+  wins when inserting — including inside the entry, because `linhaEntrada` emits a hard `"  \n"`
+  markdown break that would otherwise plant a raw LF in a CRLF file and mix the document;
+- **`aplicar()` no longer has permission to report a count it did not write.** It verifies the
+  insertion, re-reads from disk, and returns `{escreveu: 0, erro}` otherwise; `rodada()` treats that
+  exactly like a failed gate — no version bump, no notice, and **nothing marked as seen**, so the
+  round is repeatable tomorrow. A `historico` row with `ok: false` is still written, because the
+  round *cost* money;
+- a doc that exists **without** the anchor is now refused instead of replaced. The old code fell back
+  to the fresh template and the `replace` then succeeded — on a brand-new document, discarding the 22
+  entries that were in the file. Corruption is not fixed by deleting.
+
+`novidades-test.js` grew 10 cases in pairs on purpose: one proves the line **goes in**, its twin
+proves the function **refuses** when it did not. Only the first would let this exact defect back in,
+because the old bug wrote a perfectly valid file. **4 mutants verified red** — the string needle
+back, the EOL normalisation removed, `linhaEntrada` throwing again, and the template fallback
+restored. The post-replace check is the fifth and **no test reaches it**: the anchor guard above
+makes it unreachable by construction, and that is written in the code rather than left looking
+tested.
+
+**And `historico` was never broken — that was a reading error of mine worth recording.** It uses
+`unshift`, so the newest round is at index **0**; reading `h[h.length - 1]` shows the oldest and
+makes the ledger look frozen weeks in the past. There was one defect here, not two.
+
 **The notice lives outside `#app` and stays until he closes it.** `#app` is rewritten on every SSE
 event, so a notice inside it would blink through an entire build. It is the shared `.aviso`
 vocabulary — type `ok`, because nothing broke and the base got newer; `alerta` is for what needs

@@ -201,8 +201,8 @@ function validar(proposta, itensOferecidos) {
 
 /* ------------------------------------------------------------------- o doc */
 
-function lerDoc() {
-  try { return fs.readFileSync(DOC, "utf8"); } catch { return null; }
+function lerDoc(doc = DOC) {
+  try { return fs.readFileSync(doc, "utf8"); } catch { return null; }
 }
 
 const CABECA = [
@@ -221,37 +221,127 @@ const CABECA = [
 /* Cada entrada é uma linha com fonte. Formato fixo e montado AQUI, nunca pelo
  * modelo — foi por isso que o portão recusa título markdown no texto: quem
  * decide a forma do documento é este arquivo, e o modelo só escreve a frase. */
+/* Devolve `null` quando o item não veio, e isso é o que o `.filter(Boolean)` do
+ * chamador sempre quis dizer. Antes daqui era `item.versao` direto: com um `guid`
+ * que não casa, isto LANÇAVA — e lançar aqui mata uma rodada já paga por causa de
+ * uma linha, quando as outras estavam boas. */
 function linhaEntrada(e, item) {
+  if (!e || !item || !item.link) return null;
   const v = item.versao ? " · " + item.versao : "";
   return "- **" + limpar(item.titulo, MAX_TITULO) + "**" + v + " — " + limpar(e.texto, MAX_TEXTO)
     + "  \n  <" + item.link + ">";
 }
 
-async function aplicar(entradas, itens) {
+/* A ÂNCORA CASA OS DOIS FINS DE LINHA, e a falta disso custou 8 entradas.
+ *
+ * MEDIDO em 09/09/2026: `n8n-novidades.md` estava 100% CRLF (62 CRLF, 0 LF puro),
+ * porque o git converte na saída no Windows — um `git checkout` qualquer basta. O
+ * código fazia `corpo.replace("<!-- BLOCO: novidades -->\n", ...)` com uma STRING,
+ * que exige casamento exato: contra `-->\r\n` não casa, e `String.replace` sem
+ * casamento devolve o original SEM RECLAMAR. O arquivo era reescrito idêntico e a
+ * função retornava `escreveu: 4`.
+ *
+ * O dano não foi o arquivo não mudar. Foi a função AFIRMAR que mudou: com
+ * `escreveu` truthy o `rodada()` sobe a versão, escreve o aviso na tela dizendo
+ * "4 novidades", e marca os `guid` como vistos — e o comentário logo abaixo do
+ * `aplicar` diz, literalmente, "só agora vira visto: julgado E ESCRITO". Item
+ * marcado como visto não volta nunca. Perderam-se as rodadas v3.7 e v3.8, 4+4
+ * entradas, e a conta fecha: o doc tinha 22 entradas e v3.2..v3.6 somam 22.
+ *
+ * Então a correção tem duas metades e a segunda é a que importa: casar `\r?\n`, e
+ * NUNCA devolver um número que não foi escrito. Quem chama decide o que fazer com
+ * o erro; esta função só não tem mais permissão de mentir. */
+const ANCORA = /<!-- BLOCO: novidades -->\r?\n/;
+
+/* `doc` é parâmetro para o teste poder exercitar a função REAL num arquivo
+ * temporário. Sem isso, a única forma de testar era escrever no
+ * `n8n-novidades.md` de verdade — e teste que suja a base que ele testa não roda
+ * duas vezes. Mesmo padrão de `configurado(dir)` no resto desta base. */
+async function aplicar(entradas, itens, doc = DOC) {
   const porGuid = new Map(itens.map(i => [i.guid, i]));
   const linhas = entradas.map(e => linhaEntrada(e, porGuid.get(e.guid))).filter(Boolean);
   if (!linhas.length) return { escreveu: 0 };
 
-  const atual = lerDoc();
-  const corpo = atual && atual.includes("<!-- BLOCO: novidades -->")
-    ? atual
-    : CABECA + "\n<!-- BLOCO: novidades -->\n\n<!-- /BLOCO -->\n";
+  const atual = lerDoc(doc);
+
+  /* DOC AUSENTE nasce do molde; DOC EXISTENTE SEM A ÂNCORA é recusado, e a
+     diferença entre os dois é o que separa "criar" de "destruir". O código antigo
+     tratava os dois igual: caía no molde, e o `replace` então funcionava — em cima
+     de um documento novo, jogando fora as 22 entradas que estavam no arquivo. Um
+     doc que perdeu a âncora está corrompido, e corrompido não se resolve
+     apagando: a rodada falha, o erro nomeia o que procurar, e as entradas ficam
+     onde estão para alguém olhar. */
+  if (atual && atual.trim() && !ANCORA.test(atual)) {
+    return {
+      escreveu: 0,
+      erro: "o `n8n-novidades.md` existe e não tem a âncora `<!-- BLOCO: novidades -->`. "
+        + "Não reescrevi o arquivo para não perder as entradas que já estão nele, e nada "
+        + "foi marcado como visto — devolva a linha da âncora e a próxima rodada escreve."
+    };
+  }
+  const corpo = atual && atual.trim() ? atual : CABECA + "\n<!-- BLOCO: novidades -->\n\n<!-- /BLOCO -->\n";
+
+  /* O fim de linha do documento manda, não o desta máquina: inserir LF num arquivo
+     CRLF deixaria o doc misturado, e a próxima rodada leria um arquivo que não é
+     nem um nem outro. Doc novo nasce em LF, que é o que o `CABECA` acima usa. */
+  const eol = /\r\n/.test(corpo) ? "\r\n" : "\n";
+  const ancora = ANCORA.exec(corpo)[0];
+
+  /* A LINHA TAMBÉM CARREGA UM FIM DE LINHA DENTRO: `linhaEntrada` emite
+     `"  \n  <link>"`, que é a quebra dura do markdown. Sem normalizar, cada
+     entrada enfia um LF cru num arquivo CRLF e o doc sai misturado — o que
+     reabriria este defeito pela porta do lado, já que a âncora da próxima rodada
+     pode cair justamente na parte convertida. */
+  const comEol = linhas.map(l => l.replace(/\r?\n/g, eol));
 
   /* As mais novas em cima: quem lê o doc a partir do topo encontra primeiro o
      que mudou por último, e a sessão de build lê de cima para baixo. */
-  let novo = corpo.replace("<!-- BLOCO: novidades -->\n", "<!-- BLOCO: novidades -->\n\n" + linhas.join("\n") + "\n");
+  let novo = corpo.replace(ancora, ancora + eol + comEol.join(eol) + eol);
 
   // Teto por número de entradas: o doc é lido inteiro em todo build, e um
   // arquivo que cresce para sempre vira um custo fixo crescente no prompt.
-  const marcas = novo.split("\n- **");
+  const marcas = novo.split(eol + "- **");
   if (marcas.length - 1 > MAX_ENTRADAS_DOC) {
-    novo = marcas.slice(0, MAX_ENTRADAS_DOC + 1).join("\n- **")
-      + "\n\n_(entradas mais antigas foram removidas ao chegar em " + MAX_ENTRADAS_DOC + ")_\n<!-- /BLOCO -->\n";
+    novo = marcas.slice(0, MAX_ENTRADAS_DOC + 1).join(eol + "- **")
+      + eol + eol + "_(entradas mais antigas foram removidas ao chegar em " + MAX_ENTRADAS_DOC + ")_"
+      + eol + "<!-- /BLOCO -->" + eol;
   }
 
-  const tmp = DOC + ".tmp";
+  /* A CONFERÊNCIA. Se a inserção não aconteceu, o defeito de cima volta com outra
+     roupa — e o sintoma é sempre o mesmo: um número que ninguém consegue
+     desmentir olhando a tela. Nada é escrito e o erro sobe nomeado, para o
+     `rodada()` tratar como rodada reprovada: sem subir versão, sem aviso, e sem
+     marcar nada como visto.
+
+     ELE É INALCANÇÁVEL HOJE, e isso está escrito aqui para não parecer testado:
+     a guarda da âncora, acima, já devolveu erro em todo caso em que ela falta, e
+     `ancora` vem de `ANCORA.exec(corpo)[0]` — então o `replace` casa sempre.
+     `novidades-test.js` prova os dois lados da guarda de cima; deste `if`,
+     nenhum teste passa. Fica como rede pelo mesmo motivo do ramo offline do
+     `guarda.js`: um contrato só vale se estiver ligado ANTES de alguém precisar
+     dele, e o dia em que a âncora ganhar uma segunda forma é o dia em que este
+     `if` deixa de ser decorativo. */
+  if (novo === corpo || !comEol.every(l => novo.includes(l))) {
+    return {
+      escreveu: 0,
+      erro: "não consegui inserir no `n8n-novidades.md`: a âncora "
+        + "`<!-- BLOCO: novidades -->` não foi encontrada" + (temAncora ? " onde esperava" : "")
+        + ". Nada foi escrito e nada foi marcado como visto."
+    };
+  }
+
+  const tmp = doc + ".tmp";
   await fsp.writeFile(tmp, novo, "utf8");
-  await fsp.rename(tmp, DOC);
+  await fsp.rename(tmp, doc);
+
+  /* Relê do disco antes de responder. `writeFile`+`rename` pode falhar de formas
+     que não lançam aqui (disco cheio que trunca, antivírus que devolve o arquivo
+     velho), e este `escreveu` é o que autoriza marcar item como visto — a leitura
+     é barata e é a única prova que existe de que a linha está no arquivo. */
+  const gravado = lerDoc(doc);
+  if (!gravado || !comEol.every(l => gravado.includes(l))) {
+    return { escreveu: 0, erro: "escrevi o `n8n-novidades.md` e a releitura não achou as linhas: nada foi marcado como visto." };
+  }
   return { escreveu: linhas.length };
 }
 
@@ -423,7 +513,27 @@ async function rodada({ tester, aoDizer = () => {} } = {}) {
   }
 
   const entradas = proposta.entradas || [];
-  const { escreveu } = await aplicar(entradas, rodadaItens);
+  const { escreveu, erro: erroDoc } = await aplicar(entradas, rodadaItens);
+
+  /* A ESCRITA FALHOU: mesmo caminho de uma proposta reprovada, e pelo mesmo
+     motivo. O comentário logo abaixo diz "só agora vira visto: julgado E
+     ESCRITO" — foi essa invariante que o defeito do CRLF quebrou por três
+     semanas, marcando como visto o que nunca entrou no arquivo. Item dado por
+     visto não volta, então aqui não se grava `vistos`, não se sobe versão e não
+     se escreve aviso: a rodada é repetível amanhã. Entra no histórico com
+     `ok: false` porque ela CUSTOU — a sessão rodou e cobrou do plano. */
+  if (erroDoc) {
+    base.ultimoErro = erroDoc;
+    base.historico.unshift({
+      em: agora, ok: false, problemas: [erroDoc], lidos: rodadaItens.length,
+      usd: r.usd || 0, usdDesconhecido: !!r.usdDesconhecido
+    });
+    base.historico = base.historico.slice(0, 60);
+    await gravar(base);
+    aoDizer("não consegui escrever a base: " + erroDoc);
+    return { ok: false, motivo: erroDoc, problemas: [erroDoc] };
+  }
+
   const versao = escreveu ? await bumparVersao(proposta.nota) : null;
 
   // Só agora vira visto: julgado e escrito.
@@ -528,6 +638,6 @@ function bloco() {
 module.exports = {
   agendar, rodada, estado, fecharAviso, bloco,
   // expostos para `novidades-test.js` — portões e formato, sem modelo e sem rede
-  parseFeed, validar, limpar, proximaVersao, linhaEntrada, prompt,
+  parseFeed, validar, limpar, proximaVersao, linhaEntrada, prompt, aplicar, ANCORA,
   FEED, DOC, LEDGER, ITENS_POR_RODADA, MAX_TEXTO
 };

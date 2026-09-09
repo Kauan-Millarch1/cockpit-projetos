@@ -184,5 +184,159 @@ t("o prompt manda deixar de fora na dúvida", () => {
   assert(p.includes("entradas: []"), "não diz que lista vazia é resposta válida");
 });
 
-console.log("\n" + (falhas ? "FALHOU" : "passou") + ": " + ok + " ok, " + falhas + " falha(s)\n");
-process.exit(falhas ? 1 : 0);
+/* ------------------------------------------- aplicar(): a escrita no doc
+ *
+ * Este bloco existe por um defeito MEDIDO que custou 8 entradas de conhecimento
+ * já pagas, e ele é o único aqui que exercita a função que ESCREVE.
+ *
+ * 09/09/2026: `n8n-novidades.md` estava 100% CRLF — o git converte na saída no
+ * Windows, e um `git checkout` qualquer basta. O código casava a âncora com uma
+ * STRING terminada em `\n`, que contra `-->\r\n` não casa; e `String.replace`
+ * sem casamento devolve o original SEM RECLAMAR. O arquivo era reescrito
+ * idêntico e a função retornava `escreveu: 4`.
+ *
+ * O dano não foi o arquivo não mudar: foi a função AFIRMAR que mudou. Com
+ * `escreveu` truthy o `rodada()` sobe a versão, escreve o aviso dizendo "4
+ * novidades" e marca os `guid` como VISTOS — e item visto não volta nunca. As
+ * rodadas v3.7 e v3.8 se perderam, e a conta fecha: o doc tinha 22 entradas e
+ * v3.2..v3.6 somam exatamente 22.
+ *
+ * Por isso os casos vêm em pares: um prova que a linha ENTRA, o outro prova que
+ * a função RECUSA quando não entrou. Só o primeiro deixaria passar de volta
+ * exatamente este defeito, porque o bug antigo escrevia um arquivo válido. */
+
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "novid-test-"));
+const ITENS = [
+  { guid: "g1", titulo: "Slack Node: novo campo", link: "https://github.com/n8n-io/n8n/pull/1", versao: "n8n 2.40" },
+  { guid: "g2", titulo: "Set Node: outro campo", link: "https://github.com/n8n-io/n8n/pull/2", versao: null }
+];
+const ENTRADAS = [{ guid: "g1", texto: "primeiro texto" }, { guid: "g2", texto: "segundo texto" }];
+
+/* O doc de fixture é montado com a âncora e o fim de linha pedidos. `eol`
+   explícito, nunca herdado desta máquina: o defeito É sobre fim de linha, e um
+   fixture que usa o do ambiente testaria o ambiente. */
+function docFixture(eol, comAncora = true) {
+  const l = ["# Novidades", "", comAncora ? "<!-- BLOCO: novidades -->" : "<!-- OUTRA COISA -->", "",
+    "- **Entrada antiga** · n8n 2.30 — texto velho.", "  <https://github.com/n8n-io/n8n/pull/0>",
+    "<!-- /BLOCO -->", ""];
+  return l.join(eol);
+}
+
+let assincronos = 0, assincronasFalhas = 0;
+async function ta(nome, fn) {
+  try { await fn(); console.log("  ok    " + nome); assincronos++; }
+  catch (e) { console.log("  FALHA " + nome + "\n        " + (e && e.message)); assincronasFalhas++; }
+}
+
+(async () => {
+  console.log("\n  --- aplicar(): a escrita no doc");
+
+  /* O CASO QUE CARREGA O ARQUIVO. Com a âncora seguida de `\r\n`, a versão
+     antiga devolvia `escreveu: 2` sem inserir nada. */
+  await ta("insere num doc CRLF — o defeito de 09/09", async () => {
+    const doc = path.join(TMP, "crlf.md");
+    fs.writeFileSync(doc, docFixture("\r\n"), "utf8");
+    const r = await n.aplicar(ENTRADAS, ITENS, doc);
+    assert(r.escreveu === 2, "escreveu " + r.escreveu + ", esperava 2");
+    assert(!r.erro, "não devia ter erro: " + r.erro);
+    const d = fs.readFileSync(doc, "utf8");
+    assert(d.includes("primeiro texto") && d.includes("segundo texto"), "as linhas não entraram no arquivo");
+    assert(d.includes("Entrada antiga"), "a entrada que já existia foi perdida");
+  });
+
+  await ta("e num doc LF, que é o caso que já funcionava", async () => {
+    const doc = path.join(TMP, "lf.md");
+    fs.writeFileSync(doc, docFixture("\n"), "utf8");
+    const r = await n.aplicar(ENTRADAS, ITENS, doc);
+    assert(r.escreveu === 2, "escreveu " + r.escreveu);
+    assert(fs.readFileSync(doc, "utf8").includes("primeiro texto"), "a linha não entrou");
+  });
+
+  /* O FIM DE LINHA DO DOCUMENTO MANDA. Inserir LF num arquivo CRLF deixaria o
+     doc misturado, e a rodada seguinte leria um arquivo que não é nem um nem
+     outro — o defeito voltaria pela porta do lado. */
+  await ta("preserva o CRLF do documento em vez de misturar", async () => {
+    const doc = path.join(TMP, "eol.md");
+    fs.writeFileSync(doc, docFixture("\r\n"), "utf8");
+    await n.aplicar(ENTRADAS, ITENS, doc);
+    const b = fs.readFileSync(doc, "latin1");
+    const crlf = (b.match(/\r\n/g) || []).length, lf = (b.match(/\n/g) || []).length;
+    assert(lf === crlf, "sobraram " + (lf - crlf) + " LF puro(s) num arquivo CRLF");
+  });
+
+  await ta("e o LF de um doc LF, pelo mesmo motivo", async () => {
+    const doc = path.join(TMP, "eol-lf.md");
+    fs.writeFileSync(doc, docFixture("\n"), "utf8");
+    await n.aplicar(ENTRADAS, ITENS, doc);
+    const b = fs.readFileSync(doc, "latin1");
+    assert((b.match(/\r/g) || []).length === 0, "apareceu CR num arquivo LF");
+  });
+
+  /* O OUTRO LADO DO PAR, e é ele que impede o defeito de voltar: sem âncora,
+     `escreveu` é 0, o erro é NOMEADO, e o arquivo não é tocado. A versão antiga
+     devolvia o número cheio aqui. */
+  await ta("sem a âncora: escreveu 0, erro nomeado, e NADA escrito", async () => {
+    const doc = path.join(TMP, "sem-ancora.md");
+    const antes = docFixture("\r\n", false);
+    fs.writeFileSync(doc, antes, "utf8");
+    const r = await n.aplicar(ENTRADAS, ITENS, doc);
+    assert(r.escreveu === 0, "escreveu " + r.escreveu + " sem âncora — é o defeito de volta");
+    assert(r.erro && /âncora/.test(r.erro), "o erro não nomeia a âncora: " + r.erro);
+    assert(/visto/.test(r.erro), "o erro não diz que nada foi marcado como visto: " + r.erro);
+    assert(fs.readFileSync(doc, "utf8") === antes, "o arquivo foi tocado mesmo sem inserir");
+  });
+
+  /* `linhaEntrada` LANÇAVA com `guid` que não casa (`item.versao` sobre
+     `undefined`), então o `.filter(Boolean)` do chamador nunca protegeu nada — e
+     lançar ali mata uma rodada paga inteira por causa de uma linha. */
+  await ta("linhaEntrada devolve null em vez de lançar quando o item não veio", () => {
+    assert(n.linhaEntrada({ guid: "x", texto: "t" }, undefined) === null, "devia ser null");
+    assert(n.linhaEntrada({ guid: "x", texto: "t" }, {}) === null, "item sem link devia ser null");
+    assert(n.linhaEntrada(null, ITENS[0]) === null, "entrada nula devia ser null");
+  });
+
+  await ta("um guid órfão é pulado e as outras entradas ainda entram", async () => {
+    const doc = path.join(TMP, "orfao.md");
+    fs.writeFileSync(doc, docFixture("\r\n"), "utf8");
+    const r = await n.aplicar([...ENTRADAS, { guid: "nao-existe", texto: "fantasma" }], ITENS, doc);
+    assert(r.escreveu === 2, "escreveu " + r.escreveu + ", esperava 2 (o órfão não conta)");
+    const d = fs.readFileSync(doc, "utf8");
+    assert(!d.includes("fantasma"), "o órfão entrou no doc");
+    assert(d.includes("primeiro texto"), "a entrada boa não entrou");
+  });
+
+  await ta("doc ausente nasce com o cabeçalho e a âncora", async () => {
+    const doc = path.join(TMP, "nao-existe.md");
+    const r = await n.aplicar(ENTRADAS, ITENS, doc);
+    assert(r.escreveu === 2, "escreveu " + r.escreveu);
+    const d = fs.readFileSync(doc, "utf8");
+    assert(d.includes("<!-- BLOCO: novidades -->"), "nasceu sem a âncora");
+    assert(d.includes("primeiro texto"), "nasceu sem a entrada");
+  });
+
+  await ta("lista vazia não escreve e não é erro", async () => {
+    const doc = path.join(TMP, "vazio.md");
+    const antes = docFixture("\r\n");
+    fs.writeFileSync(doc, antes, "utf8");
+    const r = await n.aplicar([], ITENS, doc);
+    assert(r.escreveu === 0, "escreveu " + r.escreveu);
+    assert(!r.erro, "lista vazia não é falha: " + r.erro);
+    assert(fs.readFileSync(doc, "utf8") === antes, "tocou o arquivo sem ter o que inserir");
+  });
+
+  /* A ÂNCORA é exportada, então o teste mede a de verdade em vez de uma cópia. */
+  await ta("a âncora casa os dois fins de linha", () => {
+    assert(n.ANCORA.test("<!-- BLOCO: novidades -->\n"), "não casa LF");
+    assert(n.ANCORA.test("<!-- BLOCO: novidades -->\r\n"), "não casa CRLF");
+  });
+
+  try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* melhor deixar lixo que mascarar o erro */ }
+
+  const totalOk = ok + assincronos, totalFalhas = falhas + assincronasFalhas;
+  console.log("\n" + (totalFalhas ? "FALHOU" : "passou") + ": " + totalOk + " ok, " + totalFalhas + " falha(s)\n");
+  process.exit(totalFalhas ? 1 : 0);
+})();

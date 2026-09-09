@@ -10,6 +10,23 @@ no `novidades.json` e o item não volta.
 
 <!-- BLOCO: novidades -->
 
+- **Typeform Node: Allow custom OAuth2 scopes** · n8n 2.37 — A credencial OAuth2 do Typeform ganha um toggle Custom Scopes para editar os escopos além dos três padrão do Trigger, e esses escopos custom passam a persistir ao reconectar a conta.  
+  <https://github.com/n8n-io/n8n/pull/36486>
+- **Microsoft SharePoint Node: Register version 2 and make it the default** · n8n 2.37 — O node Microsoft SharePoint passa a nascer em typeVersion 2 por padrão, usando Graph API com OAuth2 ou Entra service principal e resource locators de site/lista em vez dos parâmetros da v1; workflows existentes em v1 continuam sem mudança.  
+  <https://github.com/n8n-io/n8n/pull/36459>
+- **Deprecate the "Any workflow" caller policy** · n8n 2.37 — A opção 'This workflow can be called by → Any workflow' fica marcada como obsoleta rumo à remoção no n8n v3; evite escolher esse valor para permissão de chamada em sub-workflows novos.  
+  <https://github.com/n8n-io/n8n/pull/36350>
+- **Anthropic Chat Model Node: Add prompt caching support** · n8n 2.37 — O node Anthropic Chat Model (v1.6) ganha campos opcionais de prompt caching (ativar + TTL de 5min ou 1h) para reaproveitar system prompt, tools e histórico entre chamadas; vem desativado por padrão e não afeta workflows existentes.  
+  <https://github.com/n8n-io/n8n/pull/34482>
+- **Confluence Node: Add Page Get Comments operation** · n8n 2.38.1 — O node Confluence ganha, no resource Page, a operação Get Comments (comentários de rodapé), com paginação, Body Format (Storage/Atlas Doc/Plain Text) e Sort By/Direction; dá para trocar chamadas de comentários feitas via HTTP Request por essa operação nativa.  
+  <https://github.com/n8n-io/n8n/pull/37073>
+- **MongoDB Node: Batch update and find-and-update writes with bulkWrite** · n8n 2.38.1 — O MongoDB node ganha a versão 1.5 para Update e Find And Update, que passa a usar bulkWrite em vez de uma requisição por item; o resultado por item continua igual, mas quem escolher essa versão precisa prever que uma falha no meio da gravação pode deixar o banco em um estado parcial diferente do de antes.  
+  <https://github.com/n8n-io/n8n/pull/37035>
+- **Databricks Node: Add user-delegated OAuth2 credential (authorization code + PKCE)** · n8n 2.38.1 — A credencial OAuth2 do Databricks ganha um segundo fluxo, login de usuário via authorization code + PKCE, além do client credentials de service principal, com OAuth scopes customizáveis; workflows que precisam de permissão e auditoria por usuário devem preencher esse modo em vez do de service principal.  
+  <https://github.com/n8n-io/n8n/pull/37007>
+- **Gotify Node: Add Gotify extra notification settings** · n8n 2.38.1 — O node Gotify ganha três campos opcionais nas opções de mensagem — Click URL, Big Image URL e Intent URL (Android) — que só entram no payload quando preenchidos, dando para configurar essas ações de notificação direto no node.  
+  <https://github.com/n8n-io/n8n/pull/23915>
+
 - **Add snapshot option to every browser use interaction tool** · n8n 2.36 — As tools de interação do Browser Use (click, type, select, drag, hover, press, scroll, upload, dialog) ganham o parâmetro opcional snapshot para devolver o snapshot de acessibilidade na própria resposta, dispensando uma chamada separada de snapshot depois de cada ação.  
   <https://github.com/n8n-io/n8n/pull/36111>
 - **MCP Server Trigger Node: Add server instructions option** · n8n 2.36 — O MCP Server Trigger ganha o campo opcional Instructions, enviado a clientes MCP na resposta de initialize; workflows existentes ficam com o campo vazio e sem mudança de comportamento.  
