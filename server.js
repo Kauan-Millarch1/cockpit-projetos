@@ -1212,10 +1212,19 @@ const server = http.createServer(async (req, res) => {
      * A quarta porta. `flows.html` conserta o que quebrou, o Tester cria do
      * zero, e esta evolui um fluxo que já existe e funciona.
      *
-     * Nesta fatia TUDO aqui é leitura: não há caminho de escrita, nem para o
-     * n8n nem para disco. O botão de aplicar (e a bateria que o destrava) só
-     * entra depois dos quatro passos de infraestrutura do PLAN-UPGRADE.md, que
-     * mexem em código já em produção e vão sozinhos.
+     * ELA ESCREVE, e este parágrafo dizia o contrário até 09/09/2026. A frase
+     * antiga — "nesta fatia TUDO aqui é leitura, o botão de aplicar só entra
+     * depois dos quatro passos" — era verdade quando foi escrita e o §5/§6 do
+     * `PLAN-UPGRADE.md` a matou sem que ninguém voltasse aqui. Comentário que
+     * sobrevive ao código é pior que comentário nenhum, e este mentia na pior
+     * direção: baixando a guarda de quem lê sobre o caminho que grava.
+     *
+     * São TRÊS escritas, e duas são de outra natureza que a terceira: a
+     * `checagem7` cria/atualiza a cópia inativa `[SANDBOX upgrade]` — a única
+     * que acontece ANTES de qualquer aprovação —, o `desfazer` restaura um
+     * backup literal, e o `aplicar` escreve o fluxo VIVO. Este último não chama
+     * `putWorkflow` por conta própria: passa por `fix.escreverAprovado`, a
+     * sequência cuja ORDEM é a garantia (portões, backup, `PUT`).
      *
      * FATOS, como o resto do servidor. Quem chega na vitrine, em que ordem, se é
      * caro de conversar e qual nó pintar de vermelho é decidido no bloco de
@@ -1228,10 +1237,14 @@ const server = http.createServer(async (req, res) => {
      * tela), `/api/integracoes` e `/api/pareamento*`. Saíram porque o cockpit
      * deixou de ser produto — sem multi-inquilino não existe "quem é a pessoa",
      * e um cadastro de uma pessoa só é cerimônia sem função.
-     * Consequências que valem escrever: a chave do n8n volta a vir SÓ do `.env`
-     * (o `n8n.js` ainda sabe ler do cofre, mas nada aqui escreve nele), e o
-     * pareamento de origem não tem mais como ser criado — o `guarda` acima
-     * segue lendo o arquivo se ele existir, e sem ele só cliente local escreve. */
+     * Consequências que valem escrever: a chave do n8n vem SÓ do `.env` — o
+     * cofre saiu do `n8n.js` também, `ORDEM_DA_CHAVE` é `["env"]` e não há mais
+     * três fontes, duas. (Esta frase dizia "o `n8n.js` ainda sabe ler do cofre":
+     * era falsa no mesmo commit, escrita por quem mexeu aqui enquanto outro
+     * mexia lá. Divergência entre duas mãos em paralelo é a forma que um
+     * comentário obsoleto assume quando nasce obsoleto.) E o pareamento de
+     * origem não tem mais como ser criado — o `guarda` acima segue lendo o
+     * arquivo se ele existir, e sem ele só cliente local escreve. */
 
     if (p === "/api/upgrade/vitrine") {
       const ov = await n8n.overview();

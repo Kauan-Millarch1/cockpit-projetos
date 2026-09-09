@@ -5333,8 +5333,14 @@ function tarjaTroca(d) {
  * distinção que a copy tem de carregar:
  *
  *   - `confirma-alvo` MONTA O PATCH. Gasta uma rodada de modelo — minutos e
- *     dinheiro — e não escreve nada no n8n.
- *   - `aplicar-remendo`, lá na banda de revisão, ESCREVE NO N8N. Não existe ainda.
+ *     dinheiro — e NÃO TOCA NO FLUXO VIVO. Dizer "não escreve nada no n8n" era
+ *     falso: a `checagem7` da bateria grava a cópia INATIVA e sem credencial
+ *     `[SANDBOX upgrade]`, para o n8n dizer se aceita o schema. É a única escrita
+ *     antes da aprovação, e é LIGADA por padrão (`COCKPIT_UPGRADE_SANDBOX=0`
+ *     desliga).
+ *   - `aplicar-remendo`, lá na banda de revisão, ESCREVE NO FLUXO VIVO. Ele existe
+ *     desde o §5/§6 — o "não existe ainda" ficou aqui depois de deixar de ser
+ *     verdade, no comentário que descreve o clique que grava em produção.
  *
  * Se os dois lerem como "a próxima etapa", ninguém sabe qual clique custa o quê —
  * e o que se aprende é a clicar nos dois sem ler.
@@ -5367,9 +5373,10 @@ function rodapeAlvo() {
   }
 
   return '<div class="confirma"><span class="cf-tx">Confirma o alvo? Confirmar manda ele <strong>montar o '
-    + "patch</strong> e mostrar o diff aqui — custa uma rodada, e <strong>não escreve nada no n8n</strong>."
+    + "patch</strong> e mostrar o diff aqui — custa uma rodada, e <strong>não toca no fluxo vivo</strong>"
+    + " (grava só uma cópia inativa <code>[SANDBOX upgrade]</code>, para o n8n dizer se aceita o schema)."
     + onde + "</span>"
-    + '<button class="btn pri" id="confirma-alvo" title="monta o patch e mostra o diff — uma rodada de modelo, nenhuma escrita no n8n">✓ é isso</button>'
+    + '<button class="btn pri" id="confirma-alvo" title="monta o patch e mostra o diff — uma rodada de modelo; não toca no fluxo vivo, grava só a cópia inativa [SANDBOX upgrade]">✓ é isso</button>'
     + '<button class="btn" id="corrige-alvo">não, é em outro lugar</button></div>';
 }
 
@@ -6409,7 +6416,9 @@ function restaurarInputs(st) {
 
 /* ─────────────────────── os três cliques que saem desta página ─────────────
  *
- * `confirma-alvo` MONTA O PATCH: gasta uma rodada de modelo e não escreve nada.
+ * `confirma-alvo` MONTA O PATCH: gasta uma rodada de modelo e não toca no fluxo
+ * vivo — grava só a cópia inativa `[SANDBOX upgrade]`, que é a única escrita antes
+ * da aprovação e vem ligada por padrão.
  * `aplicar-remendo` e `aplicar-desligado` ESCREVEM NUM FLUXO DE PRODUÇÃO.
  *
  * Os três estavam desenhados e nenhum tinha handler — os botões pintavam e o

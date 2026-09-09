@@ -3749,6 +3749,18 @@ The "Falhas 24h" KPI is unaffected — it counts execution rows, which are never
 
 ## A varredura de segurança de 2026-08-25, e as duas coisas que ela não pode fechar
 
+> **LEIA ISTO PRIMEIRO — esta seção é histórico datado, não o estado de hoje.** Em
+> 2026-09-09 a camada de produtização saiu inteira: `/api/cofre`, `/api/integracoes`,
+> `/api/perfil/*` e `/api/pareamento*` **não existem mais**, nem as telas que as
+> alimentavam, nem o `CONTRATO-PERFIL.md` que o texto abaixo cita. O que ficou é o
+> `guarda.js`, e o inventário do que saiu está em `docs/removido-produtizacao/`.
+>
+> A seção fica porque o RACIOCÍNIO continua valendo — a assimetria entre disponibilidade
+> e privilégio, "dentro da raiz nunca quis dizer inofensivo", o campo ausente caindo no
+> galho negativo — e porque as **duas que ela não pode fechar seguem abertas**: as chaves
+> não foram rotacionadas e as migrations `20260825190000` e `20260826120000` seguem não
+> aplicadas no banco hospedado. Apagar isto perderia o método junto com a lista.
+
 Cinco agentes adversariais sobre a superfície inteira, com a metodologia do
 `anthropics/claude-code-security-review` (o prompt de auditoria dele, não a Action —
 ela é um workflow de PR que pede chave de API; o que vale é o método e o filtro de
