@@ -1,5 +1,5 @@
 {
-  "n": "v3.7",
-  "em": "2026-09-05",
-  "nota": "Confluence: Get Comments; MongoDB bulkWrite (1.5); Databricks OAuth PKCE; Gotify extras (click/imagem/intent)"
+  "n": "v3.8",
+  "em": "2026-09-09",
+  "nota": "Typeform escopo custom, SharePoint v2 padrão, chamada 'qualquer workflow' obsoleta, cache de prompt na Anthropic."
 }

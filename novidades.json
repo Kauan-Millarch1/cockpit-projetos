@@ -1,6 +1,18 @@
 {
   "v": 1,
   "vistos": [
+    "https://github.com/n8n-io/n8n/pull/36539",
+    "https://github.com/n8n-io/n8n/pull/36499",
+    "https://github.com/n8n-io/n8n/pull/36486",
+    "https://github.com/n8n-io/n8n/pull/36476",
+    "https://github.com/n8n-io/n8n/pull/36474",
+    "https://github.com/n8n-io/n8n/pull/36459",
+    "https://github.com/n8n-io/n8n/pull/36458",
+    "https://github.com/n8n-io/n8n/pull/36444",
+    "https://github.com/n8n-io/n8n/pull/36352",
+    "https://github.com/n8n-io/n8n/pull/36350",
+    "https://github.com/n8n-io/n8n/pull/35873",
+    "https://github.com/n8n-io/n8n/pull/34482",
     "https://github.com/n8n-io/n8n/pull/37414",
     "https://github.com/n8n-io/n8n/pull/37315",
     "https://github.com/n8n-io/n8n/pull/37293",
@@ -75,10 +87,20 @@
     "https://github.com/n8n-io/n8n/pull/35018",
     "https://github.com/n8n-io/n8n/pull/34991"
   ],
-  "ultimaChecagem": "2026-09-05T00:59:26.292Z",
+  "ultimaChecagem": "2026-09-09T14:15:31.111Z",
   "ultimoErro": null,
-  "fila": 23,
+  "fila": 11,
   "historico": [
+    {
+      "em": "2026-09-09T14:15:31.111Z",
+      "ok": true,
+      "lidos": 12,
+      "escreveu": 4,
+      "versao": "v3.8",
+      "usd": 0.2806726,
+      "usdDesconhecido": false,
+      "precisaEsquema": true
+    },
     {
       "em": "2026-09-05T00:59:26.292Z",
       "ok": true,
@@ -151,38 +173,38 @@
     }
   ],
   "aviso": {
-    "em": "2026-09-05T00:59:26.292Z",
-    "versao": "v3.7",
+    "em": "2026-09-09T14:15:31.111Z",
+    "versao": "v3.8",
     "quantas": 4,
     "precisaEsquema": true,
     "itens": [
       {
-        "titulo": "Confluence Node: Add Page Get Comments operation",
-        "versao": "n8n 2.38.1",
-        "link": "https://github.com/n8n-io/n8n/pull/37073",
-        "texto": "O node Confluence ganha, no resource Page, a operação Get Comments (comentários de rodapé), com paginação, Body Format (Storage/Atlas Doc/Plain Text) e Sort By/Direction; dá para trocar chamadas de comentários feitas via HTTP Request por essa operação nativa.",
-        "impacto": "no"
-      },
-      {
-        "titulo": "MongoDB Node: Batch update and find-and-update writes with bulkWrite",
-        "versao": "n8n 2.38.1",
-        "link": "https://github.com/n8n-io/n8n/pull/37035",
-        "texto": "O MongoDB node ganha a versão 1.5 para Update e Find And Update, que passa a usar bulkWrite em vez de uma requisição por item; o resultado por item continua igual, mas quem escolher essa versão precisa prever que uma falha no meio da gravação pode deixar o banco em um estado parcial diferente do de antes.",
-        "impacto": "comportamento"
-      },
-      {
-        "titulo": "Databricks Node: Add user-delegated OAuth2 credential (authorization code + PKCE)",
-        "versao": "n8n 2.38.1",
-        "link": "https://github.com/n8n-io/n8n/pull/37007",
-        "texto": "A credencial OAuth2 do Databricks ganha um segundo fluxo, login de usuário via authorization code + PKCE, além do client credentials de service principal, com OAuth scopes customizáveis; workflows que precisam de permissão e auditoria por usuário devem preencher esse modo em vez do de service principal.",
+        "titulo": "Typeform Node: Allow custom OAuth2 scopes",
+        "versao": "n8n 2.37",
+        "link": "https://github.com/n8n-io/n8n/pull/36486",
+        "texto": "A credencial OAuth2 do Typeform ganha um toggle Custom Scopes para editar os escopos além dos três padrão do Trigger, e esses escopos custom passam a persistir ao reconectar a conta.",
         "impacto": "credencial"
       },
       {
-        "titulo": "Gotify Node: Add Gotify extra notification settings",
-        "versao": "n8n 2.38.1",
-        "link": "https://github.com/n8n-io/n8n/pull/23915",
-        "texto": "O node Gotify ganha três campos opcionais nas opções de mensagem — Click URL, Big Image URL e Intent URL (Android) — que só entram no payload quando preenchidos, dando para configurar essas ações de notificação direto no node.",
-        "impacto": "no"
+        "titulo": "Microsoft SharePoint Node: Register version 2 and make it the default",
+        "versao": "n8n 2.37",
+        "link": "https://github.com/n8n-io/n8n/pull/36459",
+        "texto": "O node Microsoft SharePoint passa a nascer em typeVersion 2 por padrão, usando Graph API com OAuth2 ou Entra service principal e resource locators de site/lista em vez dos parâmetros da v1; workflows existentes em v1 continuam sem mudança.",
+        "impacto": "forma"
+      },
+      {
+        "titulo": "Deprecate the \"Any workflow\" caller policy",
+        "versao": "n8n 2.37",
+        "link": "https://github.com/n8n-io/n8n/pull/36350",
+        "texto": "A opção 'This workflow can be called by → Any workflow' fica marcada como obsoleta rumo à remoção no n8n v3; evite escolher esse valor para permissão de chamada em sub-workflows novos.",
+        "impacto": "outro"
+      },
+      {
+        "titulo": "Anthropic Chat Model Node: Add prompt caching support",
+        "versao": "n8n 2.37",
+        "link": "https://github.com/n8n-io/n8n/pull/34482",
+        "texto": "O node Anthropic Chat Model (v1.6) ganha campos opcionais de prompt caching (ativar + TTL de 5min ou 1h) para reaproveitar system prompt, tools e histórico entre chamadas; vem desativado por padrão e não afeta workflows existentes.",
+        "impacto": "forma"
       }
     ]
   }
