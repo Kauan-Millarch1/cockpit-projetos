@@ -21,7 +21,23 @@ cd cockpit-n8n
 cp .env.example .env      # e preencha N8N_BASE_URL e N8N_API_KEY
 ```
 
-Depois, duplo clique em **`start-cockpit.cmd`** ou `node server.js`.
+Depois, duplo clique em **`start-cockpit.cmd`** — ele confere o Node, avisa se falta o
+`.env` e abre o navegador. Pela linha de comando, qualquer um destes:
+
+```bash
+node server.js        # o caminho direto
+npm start             # o mesmo, com npm no meio
+npm run dev           # apelido de `start`, e NÃO é modo watch
+```
+
+**`dev` é apelido de propósito, e não `node --watch`.** A mão vai primeiro em `npm run
+dev`, então o script existe para não devolver `Missing script: "dev"` — mas ele não
+reinicia sozinho ao salvar arquivo, e isso é uma decisão: uma construção do Tester leva
+minutos e uma conversa do Upgrade leva rodadas de modelo pagas, então um `--watch` mataria
+o trabalho em voo no meio no primeiro `Ctrl+S`. O preço é o que o aviso mais abaixo diz —
+**o Node não recarrega o `server.js`**: depois de editá-lo, feche a janela e abra de novo,
+senão o processo velho segue servindo as rotas velhas e o único sintoma é um 404 no que
+você acabou de escrever.
 
 **Clone num caminho curto.** O caminho mais longo do repositório tem 86 caracteres e o
 Windows corta em 260, então uma pasta muito funda faz o `git clone` terminar em
