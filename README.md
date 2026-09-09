@@ -16,17 +16,23 @@ máquina.
 Node 22 ou mais novo, e nada além disso — não há `npm install` porque não há dependência.
 
 ```bash
-git clone <este-repo>
-cd "Cockpit Projetos"
+git clone https://github.com/Ecommerce-Puro/cockpit-n8n.git
+cd cockpit-n8n
 cp .env.example .env      # e preencha N8N_BASE_URL e N8N_API_KEY
 ```
 
 Depois, duplo clique em **`start-cockpit.cmd`** ou `node server.js`.
 
+**Clone num caminho curto.** O caminho mais longo do repositório tem 86 caracteres e o
+Windows corta em 260, então uma pasta muito funda faz o `git clone` terminar em
+`fatal: unable to checkout working tree` — **medido**, num destino de 170 caracteres.
+`C:\Projects\cockpit-n8n` está folgado; `C:\Users\voce\...\Temp\...\algo\muito\fundo` não.
+Se acontecer, `git config --global core.longpaths true` e clone de novo.
+
 **Onde a pasta fica importa para uma tela só.** `/disco` varre a pasta **irmã** do
-cockpit — se ele estiver em `.../Projects/Cockpit Projetos`, a varredura é de
-`.../Projects`. Solto na Área de Trabalho, `/disco` mostra a Área de Trabalho. As outras
-portas não dependem de onde ele está.
+cockpit — clonado em `C:\Projects\cockpit-n8n`, a varredura é de `C:\Projects`. Solto na
+Área de Trabalho, `/disco` mostra a Área de Trabalho. As outras portas não dependem de
+onde ele está.
 
 O `.env` é **opcional para o servidor subir**: sem ele `/disco` funciona, o painel de
 fluxos mostra um estado de erro honesto, e o login se desliga. O boot diz em voz alta o
