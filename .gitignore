@@ -137,3 +137,16 @@ conversas.json.tmp
 # Se algum tutorial futuro passar de ~40 MB depois do reencode, a decisao volta
 # para a mesa — e o caminho e baixar a resolucao, nao ignorar a pasta: um video
 # que existe so na maquina de quem o gerou nao e um tutorial do produto.
+
+# Duas pastas-ponto que estavam FORA desta lista, e uma delas tem o pior nome
+# possivel para isso. Nenhuma tem conteudo hoje e nada escreve nelas — o cofre de
+# verdade mora em `%APPDATA%\Cockpit\n8n.dat`, FORA da pasta do programa, porque o
+# passo a passo de atualizacao promete que trocar de versao nao toca na chave de
+# quem usa. As ocorrencias de `.cofre` em `n8n.js` sao nome de CAMPO
+# (`estadoChave().cofre`), nao este diretorio.
+#
+# Entao isto nao conserta um vazamento: fecha o dia em que alguem der um
+# `git add -A` distraido numa pasta chamada "cofre" ao lado de um recurso de
+# cofre. Custa uma linha e a alternativa custa uma chave.
+.cofre/
+.impeccable/

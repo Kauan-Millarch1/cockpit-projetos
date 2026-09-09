@@ -1,0 +1,14 @@
+{
+  "name": "cockpit",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Painel local para os fluxos n8n: o que rodou, o que quebrou e em qual no. Node 22, zero dependencias, so 127.0.0.1.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
