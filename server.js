@@ -1289,6 +1289,19 @@ const server = http.createServer(async (req, res) => {
      * páginas voltar a declarar o bloco por conta própria. Ele injeta o próprio
      * CSS, então não há uma segunda folha para divergir. */
     if (p === "/entradas.js") return serveFile(req, res, path.join(__dirname, "entradas.js"));
+    /* O vídeo "como usar esta tela" — a faixa de convite e o player — servido às
+     * três páginas que têm tutorial. Ele nasceu dentro do `upgrade.html` já
+     * parametrizado por um `TUT_SLUG` no topo; virou arquivo pelo mesmo motivo do
+     * `aba.js` e do `entradas.js`, e copiá-lo seria a QUINTA cópia de bloco desta
+     * base. `tutorial-test.js` falha no dia em que uma das páginas voltar a
+     * declarar o bloco ou o CSS por conta própria.
+     *
+     * Os BYTES do vídeo não passam por aqui: eles têm rota própria
+     * (`/api/tutorial/<slug>.mp4`, com `Range`), porque `serveFile` lê o arquivo
+     * inteiro com `readFileSync` e o `estatico.negociar` guarda o buffer em cache
+     * por mtime — 25 MB na memória do processo até o restart, e sem `206` a barra
+     * de progresso não busca. */
+    if (p === "/tutorial.js") return serveFile(req, res, path.join(__dirname, "tutorial.js"));
     /* A logo da Ecommerce Puro no topbar das quatro páginas. Rota, e não base64
      * embutido, porque embutir são ~43KB de base64 × 4 páginas ≈ 173KB somados ao
      * HTML — e a passada de fluidez acabou de medir byte no fio e cortar 35% de
@@ -2157,6 +2170,155 @@ const server = http.createServer(async (req, res) => {
       return req.method === "HEAD" ? res.end() : res.end(fs.readFileSync(alvo));
     }
     /* ARQANEXO-FIM */
+
+    /* ═══════════════════════════ OS TUTORIAIS ════════════════════════════
+     *
+     * O vídeo "como usar esta tela", um por aba. Duas rotas: uma diz o que
+     * existe, a outra serve os bytes.
+     *
+     * POR QUE NÃO PASSA PELO `serveFile`. Ele lê o arquivo inteiro com
+     * `readFileSync` e o `estatico.negociar` GUARDA O BUFFER em cache por mtime
+     * — 21 MB de mp4 morando na memória do processo até o restart, e sem
+     * `Range` nenhum. Sem `206 Partial Content` o navegador não busca: arrastar
+     * a barra faria ele baixar tudo de novo desde o começo. Aqui é stream com
+     * faixa.
+     *
+     * A LISTA É UM WHITELIST DO LEDGER, nunca um `path.join` com o que veio na
+     * URL. O slug é validado por regex E procurado no `tutoriais.json`; o nome
+     * do arquivo sai do ledger, não do pedido. Duas camadas independentes, a
+     * disciplina desta casa — e a segunda é a que importa: mesmo que a regex
+     * ficasse frouxa amanhã, um slug fora do ledger não tem arquivo para virar.
+     *
+     * 404 AQUI É UM FATO SOBRE O DISCO, não uma recusa, e o corpo diz qual dos
+     * dois: sem ledger nenhum tutorial foi registrado; com ledger e sem arquivo,
+     * o `.mp4` não está mais lá. As duas frases levam a lugares opostos — uma
+     * manda rodar o registrador, a outra manda procurar o arquivo. */
+    /* TUTORIAL-INI — delimitador lido pelo `tutorial-test.js`, que extrai este
+       bloco e o dirige com um `req`/`res` falsos. `server.js` não é `require`ável
+       (ele dá `listen()` na 4317), e reimplementar as guardas no teste provaria a
+       cópia. Mesma disciplina do `ESTATICO-INI` e do `ARQANEXO-INI`. */
+    if (p === "/api/tutorial" || p.startsWith("/api/tutorial/")) {
+      if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, { error: "só GET" });
+
+      const DIRTUT = path.join(__dirname, "tutoriais");
+      let ledger = null;
+      try { ledger = JSON.parse(fs.readFileSync(path.join(DIRTUT, "tutoriais.json"), "utf8")); }
+      catch { ledger = null; }
+
+      /* A LISTA. Fatos: o que o ledger declara, mais o que o disco confirma.
+         `existe` é medido no `stat` e não herdado do ledger — um `.mp4` apagado
+         com o ledger intacto é exatamente o caso em que a tela precisa dizer a
+         verdade em vez de oferecer um play que não toca. */
+      if (p === "/api/tutorial") {
+        if (!ledger) {
+          return json(res, 200, {
+            tutoriais: [],
+            semLedger: true,
+            detalhe: "nenhum tutorial registrado: `tutoriais/tutoriais.json` não existe. "
+              + "Rode `node .video/tutorial-registrar.js <slug> <arquivo.mp4> \"<titulo>\" \"<subtitulo>\"`."
+          });
+        }
+        const lista = Object.keys(ledger).map(slug => {
+          const t = ledger[slug] || {};
+          let st = null;
+          try { st = fs.statSync(path.join(DIRTUT, String(t.arquivo || ""))); } catch { st = null; }
+          const ok = !!(st && st.isFile());
+          let pst = null;
+          try { pst = fs.statSync(path.join(DIRTUT, String(t.poster || ""))); } catch { pst = null; }
+          return {
+            slug,
+            titulo: String(t.titulo || slug),
+            subtitulo: String(t.subtitulo || ""),
+            segundos: Number(t.segundos) || null,
+            existe: ok,
+            bytes: ok ? st.size : null,
+            poster: !!(pst && pst.isFile()),
+            registradoEm: t.registradoEm || null
+          };
+        });
+        return json(res, 200, { tutoriais: lista });
+      }
+
+      /* OS BYTES. `/api/tutorial/<slug>.mp4` e `/api/tutorial/<slug>.jpg`. */
+      const pedido = decodeURIComponent(p.slice("/api/tutorial/".length));
+      const m = /^([a-z][a-z0-9-]{0,30})\.(mp4|jpg)$/.exec(pedido);
+      if (!m) return json(res, 400, { error: "pedido inválido: use <slug>.mp4 ou <slug>.jpg" });
+      const slug = m[1], tipoPedido = m[2];
+      if (!ledger) return json(res, 404, { error: "nenhum tutorial registrado", semLedger: true });
+      const t = ledger[slug];
+      if (!t) return json(res, 404, { error: "tutorial desconhecido: " + slug });
+
+      /* O NOME VEM DO LEDGER. Se ele trouxesse separador de caminho seria um
+         ledger corrompido, e não um pedido hostil — mas a checagem fica, porque
+         "o arquivo é meu, então é seguro" é a premissa que este repositório já
+         viu falhar. `basename` mais a comparação de igualdade: barato e final. */
+      const nomeArq = String(tipoPedido === "mp4" ? (t.arquivo || "") : (t.poster || ""));
+      if (!nomeArq || path.basename(nomeArq) !== nomeArq) {
+        return json(res, 500, { error: "ledger inválido para " + slug });
+      }
+      const alvo = path.join(DIRTUT, nomeArq);
+      let st;
+      try { st = fs.statSync(alvo); } catch { st = null; }
+      if (!st || !st.isFile()) {
+        return json(res, 404, {
+          error: "o arquivo deste tutorial não está no disco",
+          arquivo: nomeArq,
+          detalhe: "o ledger declara `" + nomeArq + "` em `tutoriais/`, e ele não está lá."
+        });
+      }
+
+      const ctype = tipoPedido === "mp4" ? "video/mp4" : "image/jpeg";
+      const base = {
+        ...estatico.SEGURANCA,
+        "content-type": ctype,
+        /* `accept-ranges` é o que faz o navegador ACREDITAR que pode buscar. Sem
+           ele, alguns players desabilitam a barra de progresso inteira. */
+        "accept-ranges": "bytes",
+        /* Imutável na prática: o registrador reescreve o arquivo com outro
+           conteúdo só quando alguém roda o comando, e aí o `content-length` muda.
+           Uma hora é o meio honesto entre não rebaixar a máquina e não servir um
+           vídeo velho depois de uma reedição. */
+        "cache-control": "public, max-age=3600"
+      };
+
+      /* A FAIXA. `bytes=INICIO-FIM`, com as duas pontas opcionais. Sufixo
+         (`bytes=-N`, os últimos N) também entra: é o que o Safari usa para ler o
+         índice de um mp4 sem `faststart`, e recusá-lo dá um vídeo que não abre
+         num navegador só. */
+      const faixa = String(req.headers.range || "");
+      const fm = /^bytes=(\d*)-(\d*)$/.exec(faixa.trim());
+      if (fm && (fm[1] !== "" || fm[2] !== "")) {
+        let ini, fim;
+        if (fm[1] === "") { const n = Number(fm[2]); ini = Math.max(0, st.size - n); fim = st.size - 1; }
+        else { ini = Number(fm[1]); fim = fm[2] === "" ? st.size - 1 : Math.min(Number(fm[2]), st.size - 1); }
+        /* Faixa impossível é `416` COM o `content-range` do tamanho real — é
+           assim que o cliente descobre o tamanho e refaz o pedido. Um 200 aqui
+           mandaria o arquivo inteiro para quem pediu um pedaço fora dele. */
+        if (!(ini >= 0) || !(fim >= ini) || ini >= st.size) {
+          res.writeHead(416, { ...base, "content-range": "bytes */" + st.size });
+          return res.end();
+        }
+        res.writeHead(206, {
+          ...base,
+          "content-range": "bytes " + ini + "-" + fim + "/" + st.size,
+          "content-length": String(fim - ini + 1)
+        });
+        if (req.method === "HEAD") return res.end();
+        const fluxo = fs.createReadStream(alvo, { start: ini, end: fim });
+        /* O `error` do stream TEM de ser tratado: sem ouvinte, um arquivo que
+           desaparece no meio da leitura vira `uncaughtException` e derruba o
+           processo que serve o cockpit — por causa de um vídeo. */
+        fluxo.on("error", () => res.destroy());
+        return fluxo.pipe(res);
+      }
+
+      res.writeHead(200, { ...base, "content-length": String(st.size) });
+      if (req.method === "HEAD") return res.end();
+      const fluxo = fs.createReadStream(alvo);
+      fluxo.on("error", () => res.destroy());
+      return fluxo.pipe(res);
+    }
+    /* TUTORIAL-FIM */
 
     if (p === "/api/upgrade/sessao" && req.method === "POST") {
       const body = JSON.parse(await readBody(req, 4096) || "{}");

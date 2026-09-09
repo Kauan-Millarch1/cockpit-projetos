@@ -151,6 +151,7 @@ the "Atualizar varredura" button forces `?refresh=1`.
 | `auto-dossie-test.js` | 125 cases on the automatic write after applying an upgrade — Kauan's explicit relaxation of §2.8. Two defects carry the file and they point in opposite directions: **surprise spend** (the default never falls back to the US$4,14 full rewrite; an absent key and an unrecognised value both land on the cheap branch, and green and grey are skipped in every mode) and a **silent ending** (all eight screen sentences are asserted distinct, and the red-skipped one must tie the skip to the locked conversation in a single sentence). The verdict is pure so it is provable with no network; the screen judgement is **extracted from `upgrade.html` at run time**, and the server wiring is read from source **comment-stripped** — the lesson `dossie-tela-test.js` paid, and it earned its keep again here: one mutant turned a guard into `if (false)` and two cases stayed green off the literal in the untouched text. `construir()` is never called. **19 mutants verified red.** Free. `node auto-dossie-test.js`. |
 | `dossies.json` | One line per dossier written: `{wfId, nome, em, nos, nosRegenerados, nosHerdados, modo, automatico, rodadas, ms, usd \| usdDesconhecido}`. `automatico` says whether the write was a click or the automatic one that fires after an apply — **absent is a click**, which is what the three existing rows factually are, same discipline as `modoDe` and `kindOf`. It is the only way to answer *"how much is the automatic costing me per week"*, which is the question a spend that fires by itself creates; `preco()` deliberately does **not** filter by it, because both do the same work and the ruler is `modo`. **It must be tracked in git and it is NOT — measured 2026-08-20, `git status` reports it untracked.** It is the only place the **recurring** spend this tab introduces exists (the `.md` is gitignored), it cannot be regenerated from any API, and `preco()` divides by it to quote the button — so today a `git clean` erases the price of every write ever made here and the screen silently falls back to "I don't know the price". Add it; do not let the sentence above go back to describing a wish. |
 | `.cache-fluxos/`, `.dossie-runs/` | The dossiers and the scratch dir of the session that writes them. Gitignored: derived from n8n, regenerable in one command, and model prose — a stale tracked `.md` looks like a source and is a memory. |
+| `fita-test.js` | 35 casos sobre a reexecução visual, e os dois que carregam o arquivo: a viagem da câmera tem de caber **dentro** do passo (ela durava 320ms contra passos de 300ms e nunca chegava), e o trecho é **transladado, nunca reenquadrado** — asserido contra o `boxFor` REAL extraído da página, porque um `boxFor` de mentira no teste deixou esse mutante verde na primeira rodada. A geometria e o compasso da câmera são extraídos de `flows.html` entre âncoras; a fiação é medida sobre a fonte **sem comentários**. 20 mutantes verificados vermelhos. Grátis — sem navegador, sem rede, sem n8n. `node fita-test.js`. |
 | `mutex-test.js` | 43 cases on the reentrant write queue. The load-bearing one is **the deadlock**: the same owner writing inside a region it already holds (the shape of check 7) must not wait for itself, and the test races a clock so the mutant that removes reentrancy comes back red instead of hanging forever. Seven mutants verified. Blocks 1–5 exercise the real queue with no HTTP at all; block 6 runs two concurrent `putWorkflow`s against a local server using a **byte-identical copy** of `n8n.js` in a directory with no `.env` — asserted identical, because `loadConfig()` would otherwise reach the live instance. `node mutex-test.js`. |
 | `escrever-test.js` | 55 cases on `escreverAprovado()`, and what they prove is the **order**: gates before the backup, backup before the `PUT`, and nothing written when any earlier step refuses. Five mutants verified to fail it, including *backup before the gates* and *`PUT` before the backup* — both of which leave the screen claiming something exists to undo. The n8n client is swapped in `require.cache`, so nothing talks to the instance. `node escrever-test.js`. |
 | `ledger-kind-test.js` | 45 cases on `proposals.json` holding two kinds of row. The load-bearing one: **60 upgrades must not evict the fix history** — the cap used to be global and `writeStore` trims without telling anyone. Five mutants verified to fail it. Writes nothing to the ledger (the cockpit writes there all day), so the cap is proven through pure functions and the disk is only read. `node ledger-kind-test.js`. |
@@ -3193,6 +3194,73 @@ separator to corrupt, and is immune to a node name containing the separator. The
 fails if any control character other than tab/CR/LF appears in `flows.html`, `cockpit.html`,
 `n8n.js`, `server.js` or `claude-fix.js`. **Never hand-concatenate a composite cache key here.**
 
+### A fita saía correndo, e o tamanho do fluxo era o discriminador
+
+Relatado como *"quando clico no fluxo que deu erro a execução sai correndo pulando um monte de nó
+e fica tudo bugado; quando o fluxo é pequeno, roda normal"*. Eram **quatro** defeitos somados,
+nenhum deles com teste, e a metade que parecia "o erro" era na verdade **o tamanho do fluxo**.
+
+Medido num harness offline — a página real servida de disco com toda `/api/**` respondida por
+fixture, nada tocando o n8n:
+
+**1. Um `nodeRun` não é um nó.** Um agente reexecuta o mesmo nó em ciclo: na execução `#207189` do
+`Agente eContrate` os runs 20 a 42 são **seis nós batendo em ciclo** — `Memória1` 6 vezes
+alternando `success`/`error`, `OpenAI Chat Model1` 8, `Think` 3. Numa execução do mesmo fluxo que
+deu certo (`#208923`, 64 runs) nada repete mais que 2 vezes, **e é só por isso que a que falhou
+parecia quebrada**. O elemento SVG é um só em todas as passagens e as classes EMPILHAVAM: `hot`
+entrava sem tirar `ran`/`failed` e `ran` entrava sem tirar `failed`. Medido: 88 de 647 amostras com
+um nó em estado contraditório, e **dois nós marcados como falhos para um erro só**.
+
+**2. `stopReplay` não parava o replay.** Só cancelava os `setTimeout` de primeiro nível; o `hold`
+que troca `hot` por `ran`, os três da aresta, o da seta e o que remove o pulso ficavam de fora.
+Medido: chamei `stopReplay()` e **o desenho ainda mudou 11 vezes nos 4 segundos seguintes**. Numa
+fita que reinicia, a velha continuava pintando por cima da nova. Agora todo temporizador passa por
+`agendar`, e `fita-test.js` conta os `setTimeout` soltos no corpo do replay — tem de ser zero.
+
+**3. A câmera era mais lenta que o passo, e é aqui que o TAMANHO entra.** Três números do
+`Agente Iago Comercial` (179 nós, execução `#208924`, 106 runs) explicam o sintoma inteiro: o
+desenho tem **23.152 unidades** de largura e a janela é `MIN_BOX_W`, 1.500 — o quadro mostra
+**6,5% do fluxo**, contra 22% no `WhatsApp API Oficial` (6.816 un), que é literalmente por que
+fluxo pequeno "roda normal"; a `scale` cai para 0,295 e **96 dos 106 passos batem no piso de
+300ms**; e a viagem da câmera durava **320ms fixos**, mais que o passo. Resultado: **33% das
+animações cortadas no meio por outra**, a câmera andando **48.720 unidades — 2,1× a largura
+inteira do desenho** — em 48s, invertendo de sentido 8 vezes, e **28 nós acendendo fora do quadro
+visível**. Um nó que acende onde ninguém está olhando é o *"pulando um monte de nó"*; a viagem
+cortada e recomeçada para o outro lado é o *"vai de um lado para o outro"*.
+
+Três regras, e as três são sobre TEMPO: a duração da viagem vem do passo (`camDuracao`); **um
+salto acima de `CAM_CORTE` larguras de quadro é corte, não voo** — atravessar meio desenho em
+300ms mostra um borrão, e o borrão é o que se lê como bug; e **a câmera parte com uma viagem
+inteira de antecedência**, para o nó acender com ela já lá.
+
+**A quarta regra é enquadrar o TRECHO e não o nó** (`seguirTrecho`): se os próximos `CAM_JANELA`
+passos cabem juntos num quadro legível, o quadro é deles e a câmera fica parada durante o ciclo do
+agente inteiro. Ela **translada, nunca reenquadra** — `boxFor` recalcula a largura a cada trecho, e
+num palco largo há folga de zoom acima de `MIN_BOX_W`, então o zoom mudando de passo em passo é
+vaivém disfarçado: medido, isso levou as inversões de sentido do Iago de 5 **para 15**.
+
+O que **não** foi mexido: `MIN_BOX_W` e o piso de 300ms são calibragem do Kauan. E abrir a janela
+para mostrar mais do fluxo é impossível sem quebrar a outra ponta — a 22% do Iago o nó renderiza a
+~16px e o rótulo some. `maxBoxW()` já é esse teto.
+
+**4. O poll reiniciava a fita.** `if (mine.length) loadExec(mine[0].id)` não olhava se era a
+execução que já estava no palco nem se havia fita correndo. Medido com a cadência real (delta a
+cada 20s, cartão do `Agente eContrate` aberto, dois minutos): **7 fitas iniciadas, 0 chegaram ao
+fim**. Num fluxo movimentado — `WhatsApp API Oficial` fez 815 execuções em 24h, e é nele que as
+falhas de sub-fluxo aparecem — isso é o tempo todo. **É por isso que "o fluxo que deu erro" e "o
+fluxo grande e movimentado" eram o mesmo fluxo.**
+
+Duas regras: a fita na tela **termina** e só então a nova entra (só a última pendente sobrevive —
+uma fila faria o palco correr atrás do passado); e uma execução **escolhida a dedo** não é trocada
+pelo poll. `selectWorkflow(wfId, execId, fixa)` — a linha do Ao vivo, "Ver falha no fluxo", o
+handoff e o link `?exec=` fixam; **o clique no CARTÃO não fixa**, porque ali se escolheu o fluxo e
+não a execução, e olhando um fluxo o que se quer é vê-lo ao vivo.
+
+Depois: **0 nós fora do quadro** nos três fluxos, **0 amostras com estado contraditório**, **0
+inversões de sentido acima de 200 un**, o ciclo do agente do eContrate caiu de 30 para 16 viagens
+de câmera e de 22.689 para **9.885 unidades** percorridas, e a mesma cadência de 20s que dava 7
+fitas e nenhuma completa passou a dar **6 fitas com 5 percorrendo até o último nó**.
+
 ## The stage speaks n8n
 
 The stage used to be `132×38` rectangles with the node name inside. It is now the editor's own
@@ -4021,10 +4089,17 @@ so below 620px the logo contributes zero and the overflow that remains is not th
 **Two findings that came along and were NOT fixed**, because both are out of this change's scope and
 each is a decision rather than a repair:
 
-- **`testar.cmd` has LF-only line endings, in `HEAD` too, so double-clicking it is broken today.**
-  `cmd.exe` mis-parses the file and reports **"Node nao encontrado no PATH"** with Node 22.18.0
-  installed and on the PATH — a false accusation pointing at the wrong thing, the exact class of
-  defect this file documents elsewhere. The 44 test files were driven directly with `node` instead.
+- **`testar.cmd` was reported here as LF-only and broken. Re-measured 2026-08-27: it is CRLF, in
+  `HEAD` too** — `file` reports `CRLF line terminators` on both the working copy and the output of
+  `git show HEAD:testar.cmd`, so the premise of the old note is gone. The note is kept rather than
+  deleted because the symptom it described is worth recognising: `cmd.exe` mis-parsing a batch file
+  reports **"Node nao encontrado no PATH"** with Node installed and on the PATH — an accusation
+  pointing at the wrong thing, the class of defect this file documents elsewhere. What is **not**
+  known is what produced the old measurement: **all six commits that ever touched `testar.cmd` store
+  it with CRLF** (`git show <sha>:testar.cmd` on each, reading the blob without EOL conversion), so
+  the file was never LF in git and the note was wrong from birth. Which means the cause of that
+  `"Node nao encontrado"` — if it really happened — is still unidentified. If the double-click fails
+  again, measure the line endings before believing this bullet in either direction.
 - **`rajada-test.js` is flaky, and its own comment says why.** The failing case is
   `msRajada < 500`, a bare wall-clock threshold; the authoritative assertion beside it
   (`conta.wf.max === TETO`) passed every time. Measured over 8 clean runs with the server down:
@@ -4091,11 +4166,21 @@ defect that once left the tail of an old block dangling in `flows.html`), each p
 door, every `href` pointing at a route `server.js` actually serves, and the shortcut the chip promises
 actually existing. That test is in `testar.cmd`.
 
-**Known, pre-existing:** at 390px the topbar of `/tester` and `/disco` overflows horizontally —
-measured 32px and 13px. The capsule *reduced* it by 53px (111px against the old 164px) and its
-labels collapse below 620px on purpose, since the wordmark suffix already says which screen you are
-on. What overflows is the rest of the bar: `flows.html` carries a mobile block that wraps it and
-those two never got one.
+**This paragraph used to say the overflow at 390px was "32px and 13px" and pre-existing.
+Re-measured 2026-08-28 in a live DOM: it was 187px on `/tester`, 169px on `/disco` and 39px on
+`/entrar` — and it is now 0 on all six pages.** The old number was stale by an order of magnitude,
+and on `/disco` it was not even the topbar: `.rail` already collapsed to a scrollable strip at
+≤820px and still pushed the document 413px wide, because a grid item is born with its floor at its
+own min-content and the `overflow-x` on it therefore never got a chance to scroll. Three pages
+gained the ≤620px block `upgrade.html` already had (turn off the `min-width: auto` floor, wrap the
+topbar into two rows, raise the controls), `/disco` gained `min-width: 0` on `.shell`/`.rail`, and
+the capsule labels still collapse below 620px on purpose since the wordmark suffix already says
+which screen you are on.
+
+**And the topbar controls were below the floor this file asks for.** The theme toggle measured
+**29×23** on mobile — 23px of height fails even the 24×24 of WCAG 2.5.8, never mind the ≥40px the
+design rules above state. `.topbar .iconbtn, .topbar .btn { min-height: 40px }` inside that same
+block is the fix, and it covers the ⏺ Gravar and ⊘ Avisar buttons `aba.js` injects.
 
 **That sentence used to say the defect was `/tester` and `/disco` only. It was stale: `/upgrade` had
 it too, and worse.** Measured in a live DOM at 390 and 360 with the real CSS and the real markup:

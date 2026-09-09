@@ -168,6 +168,7 @@ node seletor-test.js
 node anexo-bolha-test.js
 node aplicar-test.js
 node remendo-test.js
+node tutorial-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.
@@ -313,6 +314,20 @@ echo ==============================================
 echo  o desenho preservado, e o log que nao custa snapshot
 echo ==============================================
 node desenho-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ==============================================
+echo  a fita do palco: estado do no, camera e o poll
+echo ==============================================
+node fita-test.js
+if errorlevel 1 set FALHOU=1
+
+echo.
+echo ===============================================
+echo  execucao de fluxo apagado no n8n
+echo ===============================================
+node fluxo-apagado-test.js
 if errorlevel 1 set FALHOU=1
 
 echo.

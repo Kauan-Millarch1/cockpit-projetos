@@ -13,6 +13,12 @@
      entradas.configurar() com window.__entradas ainda undefined. Bloquear por um
      arquivo local de 26KB e mais barato que a classe inteira de bug de ordem. -->
 <script src="/entradas.js"></script>
+<!-- O video "como usar esta tela": a faixa e o player, servidos e nao copiados.
+     Ele injeta o proprio CSS. NAO deferido, pela mesma armadilha medida acima: um
+     script inline no fim do body roda ANTES dos deferidos, entao a pagina chamaria
+     tutorial.configurar() com window.__tutorial ainda undefined — e o erro
+     apareceria no clique, lendo como defeito do video em vez de ordem de carga. -->
+<script src="/tutorial.js"></script>
 <script src="/aba.js" defer></script>
 <style>
 
@@ -481,7 +487,7 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion:reduce){ .cfm{animation-duration:1ms;animation-delay:0s} }
 @media (max-width:420px){ .cfm-acts{flex-direction:column-reverse} .cfm-acts .btn{width:100%} }
 .btn.prime{color:#fff;border-color:transparent;font-weight:600;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 96%,#000),color-mix(in srgb,var(--accent) 84%,#000));
   box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
 .btn.prime:hover:not(:disabled){filter:brightness(1.06)}
 /* O único botão vermelho do painel, e ele existe para uma coisa só: apagar.
@@ -955,7 +961,9 @@ main { padding: 22px 26px 90px; min-width: 0; }
 /* -------------------------------------------------------------- error board */
 .errs { display: grid; gap: 10px; }
 .err {
-  border: 1px solid var(--line); border-left: 2px solid var(--risk); border-radius: 10px;
+  /* 1px, mesma razao do `flows.html`: borda lateral colorida grossa e o tell, e
+     aqui ela nao distingue nada — todo cartao deste quadro e falha. */
+  border: 1px solid var(--line); border-left: 1px solid var(--risk); border-radius: 10px;
   background: var(--surface); padding: 12px 14px; display: grid; gap: 6px;
 }
 .err .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -1310,6 +1318,8 @@ summary:focus-visible, .filterchip button:focus-visible {
 }
 .backdrop .gbeam.b2 { top: 61%; animation-duration: 19s; animation-delay: 5s; opacity: .35; }
 @keyframes gbeam { 0% { transform: translateX(0); } 100% { transform: translateX(250%); } }
+/* Quem pediu menos movimento nao quer o feixe. Nenhuma informacao vive nele. */
+@media (prefers-reduced-motion: reduce) { .backdrop .gbeam { animation: none; } }
 
 /* Aparição escalonada dos cartões: --i é o índice, definido no render. */
 .rise { animation: rise .42s cubic-bezier(.2,.8,.25,1) both; animation-delay: calc(var(--i, 0) * 28ms); }
@@ -1785,10 +1795,12 @@ textarea, input { caret-color: var(--accent); }
 .vc-bd { padding: 12px 14px 13px; }
 .vc-nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; }
 .vc-nm .nm { font-weight: 600; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vc-sub { font-size: 11px; color: var(--txt-faint); margin-top: 3px; min-height: 14px; }
+/* `--txt-faint` mede 4,2105 sobre a face do cartao, nos dois temas — mesmo numero
+   que a `.anxnota` do `entradas.js` ja pagou. Sobe um degrau da escada. */
+.vc-sub { font-size: 11px; color: var(--txt-dim); margin-top: 3px; min-height: 14px; }
 .vc-ft { display: flex; align-items: baseline; gap: 6px; margin-top: 11px; }
 .vc-ft .big { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 20px; color: var(--txt); }
-.vc-ft .un { font-size: 11.5px; color: var(--txt-faint); }
+.vc-ft .un { font-size: 11.5px; color: var(--txt-dim); }
 .vc-ft .peso { margin-left: auto; }
 
 /* O selo do dossiê. Linha própria, separada por um traço: é uma pergunta diferente
@@ -2003,7 +2015,11 @@ textarea, input { caret-color: var(--accent); }
 .compositor { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); }
 .cp-in { width: 100%; border: 0; background: transparent; color: var(--txt); font: inherit;
   font-size: 12.5px; padding: 11px 12px; resize: vertical; min-height: 62px; }
+/* `outline: none` sem substituto deixava o campo mais importante desta aba sem
+   indicador de foco. O anel vai no `.compositor`, nunca no fundo: mudar o fundo
+   moveria o contraste do texto que acabou de ser calibrado. */
 .cp-in:focus { outline: none; }
+.compositor:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
 /* `flex-wrap` entrou com a fileira de entradas, e as duas coisas são uma decisão
    só: a `.iobar` tem três pílulas de `flex: 0 0 auto` (elas não encolhem, pelo
    mesmo motivo que os controles do `.panel-hd` do `flows.html` não encolhem — o
@@ -2488,7 +2504,11 @@ textarea, input { caret-color: var(--accent); }
 
 .ver-steps .barra { height: 3px; border-radius: 2px; background: var(--surface-2);
   border: 1px solid var(--line-soft); overflow: hidden; margin-top: 12px; }
-.ver-steps .barra i { display: block; height: 100%; background: var(--accent); transition: width .4s ease-out; }
+/* `scaleX` com origem a esquerda desenha a mesma barra sem reflow — largura
+   animada e propriedade de layout, e esta casa so gasta isso quando o desenho
+   depende dela. Aqui nao depende. */
+.ver-steps .barra i { display: block; height: 100%; width: 100%; background: var(--accent);
+  transform-origin: left center; transform: scaleX(var(--p, 0)); transition: transform .4s ease-out; }
 .ver-steps .nada { font-family: var(--font-num); font-size: 10px; color: var(--txt-faint); margin-top: 7px; }
 
 .ver-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 15px 18px; overflow-y: auto; }
@@ -2696,7 +2716,8 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
 
 .hgv-hd { display: flex; align-items: center; gap: 9px; padding: 13px 14px 10px; }
 .hgv-hd .idx { font-family: var(--font-num); font-size: 10.5px; letter-spacing: .16em; color: var(--brand-txt); }
-.hgv-hd h3 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+/* `h2`: depois do `h1` da topbar, `h3` pula um nivel. */
+.hgv-hd h3, .hgv-hd h2 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
 .hgv-hd .x { margin-left: auto; border: 1px solid var(--line); background: transparent; cursor: pointer;
   width: 26px; height: 26px; border-radius: 8px; color: var(--txt-faint); font-size: 13px; line-height: 1; }
 .hgv-hd .x:hover { color: var(--txt); border-color: var(--accent-line); background: var(--accent-soft); }
@@ -2877,6 +2898,11 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
   /* 4. O dedo. */
   .cam button { height: 34px; min-width: 34px; padding: 0 9px; }
 }
+
+/* O CSS DA FAIXA E DO PLAYER (`.tut-*`) mora no `/tutorial.js` servido e é
+   injetado por ele uma vez por documento, marcado por id — mesma mecânica do
+   `/entradas.js`. Não pode ficar aqui: seriam três folhas para um desenho, e a
+   que divergisse seria a que ninguém olhou. Procurando `.tut-hero`? Está lá. */
 </style>
 <script>
 
@@ -2927,7 +2953,10 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
   <button class="btn beam" id="reload">Recarregar</button>
 </header>
 
-<div class="up-wrap" id="app"></div>
+<!-- `role="main"` e nao um `<main>` de verdade porque este no e o alvo de
+     `innerHTML` do render inteiro: trocar a tag mudaria o seletor `.up-wrap` em
+     dezenas de regras. O marco e o que faltava, e o papel entrega o marco. -->
+<div class="up-wrap" id="app" role="main"></div>
 
 <script>
 "use strict";
@@ -3274,7 +3303,21 @@ const LAYOUT = (() => {
   return LAYOUTS.includes(v) ? v : LAYOUT_PADRAO;
 })();
 
+/* O JUÍZO DO TUTORIAL saiu deste bloco e mora no `/tutorial.js` servido:
+ * `estadoDe` (os quatro estados, PURA), o `já vi` em `localStorage`, o `mm:ss`, o
+ * pulo de 10s e a tabela de atalhos. Ele é julgamento e continua num bloco só —
+ * só que num bloco compartilhado pelas três páginas que têm tutorial, porque três
+ * definições de `o convite pode aparecer?` divergiriam no primeiro conserto feito
+ * de um lado só, e o lado que divergisse ofereceria um play que não toca.
+ *
+ * O que é DESTA tela — o slug, os três marcos do vídeo dela, o fim da frase do
+ * convite — chega por `TUT().configurar` logo abaixo do `IO().configurar`. */
+
 const S = { fluxos: null, erro: null, sel: fDaUrl, peso: new Map(), convId: null, conv: null, es: null,
+  /* O TUTORIAL não tem campo aqui: o estado dele (a resposta do ledger, o player
+     aberto, o `já vi` desta sessão) vive dentro do `/tutorial.js` servido, que é
+     igualmente fora do DOM e não obriga três páginas a declarar os mesmos três
+     campos. Quem pergunta se o player está aberto chama `TUT().aberto()`. */
   // a câmera do desenho, e o observador que a repinta quando a caixa muda de tamanho
   cam: null, camObs: null,
   /* O NÓ DO PALCO, preservado entre repaints — mesma razão da gaveta e do overlay
@@ -3390,6 +3433,10 @@ const curto = t => String(t || "").replace("n8n-nodes-base.", "").replace(/^@n8n
  * deferidos, e `configurar()` receberia `undefined`. `IO()` lê na hora do uso —
  * é assim que o teste injeta o módulo de verdade em vez de uma cópia. */
 const IO = () => window.__entradas;
+/* O tutorial vem pelo mesmo caminho e pela mesma razão. `TUT()` em vez de uma
+   referência guardada: o script dele também não é deferido, e ler na hora do uso
+   é o que permite a um teste trocar o módulo. */
+const TUT = () => window.__tutorial;
 
 /* O que esta página dá ao módulo: o estado, o vocabulário de aviso, o `callApi`
    que já sabe reconhecer um 404 de processo velho, e as ROTAS — que são a única
@@ -3404,6 +3451,22 @@ IO().configurar({
     sessaoRemover: id => "/api/upgrade/sessao/" + encodeURIComponent(id) + "/desanexar"
   },
   aoSnapshot: snap => { S.conv = snap; }
+});
+
+/* O QUE ESTA TELA DÁ AO TUTORIAL. Só o que é dela: o slug, o nome da aba para o
+   rótulo de leitor de tela, os TRÊS MARCOS DESTE vídeo — na ordem em que aparecem
+   nele, e é a informação que decide se vale clicar — e a `cauda`, que é o fim da
+   frase do convite. A frase inteira mora no módulo, numa definição só; cada aba
+   diz apenas onde ela termina, porque três páginas montando a frase inteira é a
+   divergência de sempre. */
+TUT().configurar({
+  slug: "upgrade", aba: "Upgrade", callApi, render,
+  cauda: "do primeiro clique até o botão que escreve",
+  marcos: [
+    ["escolher", "o fluxo que vale mexer, e por quê"],
+    ["pedir", "a melhoria em português, sem tocar em JSON"],
+    ["decidir", "com o diff e as nove conferências na frente"]
+  ]
 });
 
 /* DE ONDE SAEM OS CHIPS, e são duas fontes porque são dois momentos.
@@ -4109,7 +4172,15 @@ function telaVitrine() {
        que chegaram na porta, e a instância tem 75 — os outros 64 só se alcançavam
        colando `?f=<id>` na URL, o que exige saber o id. É por isso que ele diz
        "todos os fluxos" e não "filtrar". */
+    /* A FAIXA DO TUTORIAL VEM ANTES DO CABEÇALHO, e a posição é o pedido: "não pode
+       ser um botão tão discreto". Ela é a primeira coisa da tela para quem chega
+       aqui pela primeira vez, e sai de vez quando ela clicar em "já vi" — o que
+       fica é o `.tut-mini` no cabeçalho, ao lado do seletor. Depois da tira de
+       escrita, porque uma escrita acontecendo agora é o único fato desta tela que
+       muda sozinho e continua sendo o mais urgente. */
+    + TUT().hero()
     + '<div class="up-hd"><span class="ix">[ 01 ]</span><h2>Qual fluxo você quer melhorar</h2>'
+    + TUT().mini()
     + '<button class="btn sm abrir-sel" data-seletor="1" title="Escolher entre todos os '
     + (S.fluxos || []).length + ' fluxos da instância, inclusive os que não estão na grade">'
     /* `▾` e NÃO `⌕`: a lupa em texto (U+2315) sai como um círculo vazio nesta fonte
@@ -5802,7 +5873,7 @@ function overlayVerif() {
         + (x.rot ? '<span class="rot">' + x.rot + "</span>" : "<span></span>")
         + "</li>").join("")
     + "</ol>"
-    + '<div class="barra"><i style="width:' + barra + '%"></i></div>'
+    + '<div class="barra"><i style="--p:' + (barra / 100) + '"></i></div>'
     + '<div class="nada">' + esc(NADA_NO_N8N.toLowerCase()) + "</div>"
     + "</div>";
 
@@ -6145,7 +6216,7 @@ function gaveta(f) {
      mesmo retângulo da `.tela` que ele cobre. */
   return '<div class="hgv-scrim">'
     + '<aside class="hgv' + (vazia ? " vazia" : "") + '" role="dialog" aria-modal="true" aria-labelledby="hgv-t">'
-    + '<div class="hgv-hd"><span class="idx">[ CONVERSAS ]</span><h3 id="hgv-t">deste fluxo</h3>'
+    + '<div class="hgv-hd"><span class="idx">[ CONVERSAS ]</span><h2 id="hgv-t">deste fluxo</h2>'
     + '<button type="button" class="x" data-fecha="1" aria-label="fechar">✕</button></div>'
     + busca
     /* SEM cabeçalho de contagem dentro da lista: a contagem já está no botão que
@@ -6432,6 +6503,13 @@ function ligarDelegacao() {
       if (alvoPg) abrirProgressoDossie(String(alvoPg), pg);
       return;
     }
+    /* O NONO CLIQUE E OS CONTROLES DO PLAYER, todos do módulo servido. Delegados
+       pela mesma razão dos de cima — `data-tut` existe em TRÊS lugares (a
+       miniatura, o botão grande da faixa e o `.tut-mini` do cabeçalho), e um `id`
+       repetido pintaria o segundo e o terceiro sem fazer nada, em silêncio.
+       `cliques()` devolve `true` quando consumiu, que é o mesmo contrato do
+       `teclado()`: quem decide a ordem é esta página, não o módulo. */
+    if (TUT().cliques(ev)) return;
     const bt = ev.target.closest("button[id]");
     if (!bt || bt.disabled) return;
     if (bt.id === "confirma-alvo") { ev.preventDefault(); confirmarAlvo(); return; }
@@ -6445,6 +6523,11 @@ function ligarDelegacao() {
     if (bt.id === "ver-aplicar") { ev.preventDefault(); aplicarRemendo("normal"); return; }
     if (bt.id === "ver-aplicar-desligado") { ev.preventDefault(); aplicarRemendo("desligado"); return; }
   });
+
+  /* O ARRASTO DA TRILHA e as teclas Home/End dela são do módulo servido
+     (`ligarGestos`, chamado no boot): são os únicos ouvintes dele, e todos são
+     guardados pelo player estar aberto E pelo alvo estar dentro de `.tut-trilha`,
+     então nenhum pode consumir uma tecla que é desta página. */
 }
 
 async function confirmarAlvo() {
@@ -7053,6 +7136,16 @@ addEventListener("keydown", e => {
      então na bolha o `.scrim` já não existe mais para ser testado. Ver a nota longa
      em `tecladoGaveta`. */
   if (document.querySelector(".scrim")) return;
+  /* O PLAYER DO TUTORIAL ENTRA AQUI, logo abaixo do `.scrim` e acima do visor,
+     porque é essa a camada dele: 50 o `.scrim`, **48 o player**, 47 o visor, 46 a
+     telinha do dossiê, 45 o seletor, 40 o overlay da verificação. Com ele aberto,
+     Esc FECHA O PLAYER e não para a rodada.
+     O MÓDULO NÃO REGISTRA OUVINTE PRÓPRIO, pela mesma razão de todos os outros
+     desta cadeia — e aqui a razão é mais forte, porque ele consome MAIS que o Esc:
+     espaço, setas, `m` e `f` também são dele enquanto está aberto. Com um `keydown`
+     só dele, um Esc fecharia o player E chamaria o `parar()`, matando uma rodada de
+     modelo já paga; e o espaço rolaria a página por trás do véu. */
+  if (TUT().teclado(e)) return;
   /* O VISOR ENTRA AQUI, logo abaixo do `.scrim` e acima de todo o resto, porque é
      essa a camada dele: 50 o `.scrim`, 47 o visor, 45 o seletor, 40 o overlay da
      verificação. Com ele aberto, Esc FECHA O VISOR e não para a rodada.
@@ -7240,6 +7333,19 @@ function tecladoVisor(e) {
      ordem de tabulação, e o visor tem dois focáveis só. */
   return false;
 }
+
+/* O TUTORIAL — a faixa de convite e o player — mora no `/tutorial.js` SERVIDO.
+ *
+ * Ele saiu daqui e não foi copiado para as outras duas páginas: o Fluxos e o
+ * Tester pediram o mesmo botão, e uma cópia seria a QUINTA desta base (topbar,
+ * `.aviso`, modo gravação, e o `entradas.js` que já foi extraído justamente para
+ * parar essa fila). O precedente certo é `aba.js`/`entradas.js`, e é ele.
+ *
+ * O que ficou nesta página é só o que é DELA: o slug, onde a faixa entra, os três
+ * marcos DESTE vídeo, o fim da frase do convite, e o lugar do módulo nas duas
+ * cadeias (o clique delegado e a captura do teclado). Ver `TUT().configurar` mais
+ * acima e `tutorial-test.js`, que falha no dia em que esta página voltar a
+ * declarar o bloco ou o CSS por conta própria. */
 
 /* ═══════════════ A TELINHA DE PROGRESSO DO DOSSIÊ ═══════════════════════════
  *
@@ -8284,6 +8390,13 @@ document.getElementById("reload").addEventListener("click", () => location.reloa
 ligarDelegacao();
 render();
 carregar();
+TUT().ligarGestos();
+/* O TUTORIAL É PEDIDO EM PARALELO E NÃO DENTRO DO `carregar()`, de propósito: ele
+   não depende da instância nem do n8n, e pendurá-lo na cadeia da vitrine faria uma
+   falha ao ler os fluxos esconder o convite — que é justamente o que alguém
+   perdido precisa ver. `TUT().carregar()` chama `render()` sozinho e nunca
+   levanta: um tutorial que não carrega não pode derrubar a tela. */
+TUT().carregar();
 
 /* ══════════════════════════════════════════════════════ CHROME COMPARTILHADO
    Alternador de tema e modo gravação, EXTRAÍDOS verbatim do flows.html na

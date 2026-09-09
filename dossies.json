@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-25T11:34:56.100Z",
+  "savedAt": "2026-08-28T14:39:53.822Z",
   "dossies": [
     {
       "wfId": "9dGEJcYa7LxTAwAs",
@@ -51,6 +51,48 @@
       "ms": 211491,
       "bytes": 8779,
       "usd": 0.6684
+    },
+    {
+      "wfId": "rDAhgPTc6zYKwNmG",
+      "nome": "[ROBERTO] Tool - Check_Purchase",
+      "em": "2026-08-27T12:15:11.806Z",
+      "nos": 4,
+      "nosRegenerados": 4,
+      "nosHerdados": 0,
+      "modo": "inteiro",
+      "automatico": false,
+      "rodadas": 1,
+      "ms": 49301,
+      "bytes": 2460,
+      "usd": 0.2456
+    },
+    {
+      "wfId": "RJeYVsQLFLCXavoF",
+      "nome": "[ECONTRATE] Hook — Cadastro Lead Formulário",
+      "em": "2026-08-27T12:17:32.105Z",
+      "nos": 10,
+      "nosRegenerados": 10,
+      "nosHerdados": 0,
+      "modo": "inteiro",
+      "automatico": false,
+      "rodadas": 1,
+      "ms": 64910,
+      "bytes": 5400,
+      "usd": 0.2107
+    },
+    {
+      "wfId": "whj5x0keweg3Ffvo",
+      "nome": "[ECONTRATE] Tool - Agendamento Google Calendar",
+      "em": "2026-08-28T14:39:53.528Z",
+      "nos": 21,
+      "nosRegenerados": 21,
+      "nosHerdados": 0,
+      "modo": "inteiro",
+      "automatico": false,
+      "rodadas": 1,
+      "ms": 112213,
+      "bytes": 9647,
+      "usd": 0.4253
     }
   ]
 }

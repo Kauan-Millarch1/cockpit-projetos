@@ -128,7 +128,7 @@ a:hover { color:var(--txt); }
 .btn.ghost { background: transparent padding-box,
   linear-gradient(180deg, var(--line), var(--line-soft)) border-box; box-shadow:none; }
 .btn.prime { color:#fff; border-color:transparent; font-weight:600;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 96%,#000),color-mix(in srgb,var(--accent) 84%,#000));
   box-shadow:0 1px 0 rgba(255,255,255,.18) inset; }
 .btn.ok { color:var(--ok-txt);
   background:linear-gradient(180deg, color-mix(in srgb, var(--ok) 16%, var(--raised)), var(--ok-soft)) padding-box,
@@ -161,7 +161,8 @@ a:hover { color:var(--txt); }
 .eyebrow { display:flex; align-items:center; gap:10px; font-family:var(--font-num);
   font-variant-numeric:tabular-nums; font-size:10.5px; letter-spacing:.16em;
   text-transform:uppercase; color:var(--txt-faint); margin:0 0 12px; }
-.eyebrow .idx { color:var(--brand-txt); white-space:nowrap; }
+/* 4,325 puro no tema claro — reprova AA a 10,5px. */
+.eyebrow .idx { color:color-mix(in srgb, var(--brand-txt) 72%, var(--txt)); white-space:nowrap; }
 .eyebrow .rule { flex:1; height:1px; background:var(--line-soft); }
 
 .lbl { font-family:var(--font-num); font-size:10px; letter-spacing:.13em;
@@ -474,6 +475,21 @@ a:hover { color:var(--txt); }
      o esticão e a varredura. A mola é desligada no JS pela mesma consulta. */
   .nvd .lb,.nvd .ic,.nvd a{transition:none}
   .nvd .lente.varre::after{animation:none}
+}
+
+/* A TOPBAR A 390px. Medido antes: /disco transbordava 169px e /tester 187px —
+   o `upgrade.html` nao transborda porque tem este bloco, e estas nao tinham.
+   O que empurra e o piso de `min-width: auto`: um item de flex nasce com o
+   chao no proprio min-content, entao um rotulo com `nowrap` la dentro estica a
+   barra inteira. Desligar o piso e o que faz `flex-wrap` valer alguma coisa. */
+@media (max-width: 620px) {
+  .topbar, .topbar .brand, .topbar .meta { min-width: 0; }
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 8px;
+    padding: 9px 14px; gap: 10px; }
+  /* O DEDO. O botao de tema media 29x23 — 23px de altura reprova o minimo de
+     24x24 da WCAG 2.5.8, e as regras de desenho desta casa pedem 40. */
+  .topbar .iconbtn, .topbar .btn { min-height: 40px; }
+}
 </style>
 </head>
 <body>

@@ -139,22 +139,52 @@
       "note": "Claude (cockpit) [buscar_linhas_do_estoque]: sem correção possível por patch — a credencial OAuth2 do Google Sheets está sem access token; só atualizei a nota do nó com a causa e o reconnect manual, mantendo a falha alta."
     },
     {
-      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
-      "markedAt": "2026-08-21T14:57:52.757Z",
-      "maxExecIdAtFix": "198886",
-      "note": "Fluxo desligado"
-    },
-    {
       "key": "d6j0bzfZwVJeCnMF|validar_campos_crm|Error",
       "markedAt": "2026-08-21T15:00:30.305Z",
       "maxExecIdAtFix": "198884",
       "note": "Fluxo deletado"
     },
     {
+      "key": "QryGcVbv7DoVCeRV|Memória1|NodeOperationError",
+      "markedAt": "2026-08-28T14:22:57.579Z",
+      "maxExecIdAtFix": "211144",
+      "note": "Já ajustado"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "markedAt": "2026-08-28T14:29:26.340Z",
+      "maxExecIdAtFix": "211385",
+      "note": "Claude (cockpit) [Memória1, Memória1_buffer]: Troquei a memória do AI Agent1 do Redis Chat, que não define inputKey e estoura no saveContext, por um Simple Memory buffer — o mesmo tipo que o AI Agent já usa sem falhar."
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1_buffer|NodeOperationError",
+      "markedAt": "2026-08-28T14:30:00.919Z",
+      "maxExecIdAtFix": "211397",
+      "note": "Ajustado"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-28T14:35:58.705Z",
+      "maxExecIdAtFix": "211398",
+      "note": "."
+    },
+    {
       "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
-      "markedAt": "2026-08-25T12:21:13.968Z",
-      "maxExecIdAtFix": "203591",
-      "note": "Feito"
+      "markedAt": "2026-08-31T18:42:21.505Z",
+      "maxExecIdAtFix": "217771",
+      "note": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a tolerar erro com onError; a correção anterior blindou o valor, que já estava blindado."
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Structured Output Parser|NodeOperationError",
+      "markedAt": "2026-09-03T14:36:13.164Z",
+      "maxExecIdAtFix": "222139",
+      "note": "Claude (cockpit) [Structured Output Parser]: Liguei o autoFix do Structured Output Parser e tirei dados_lead de obrigatório, para que uma resposta fora do schema seja reformatada em vez de derrubar a execução."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Structured Output Parser|NodeOperationError",
+      "markedAt": "2026-09-03T14:36:22.865Z",
+      "maxExecIdAtFix": "222138",
+      "note": "Ja ajustado"
     }
   ],
   "history": [
@@ -416,6 +446,103 @@
       "markedAt": "2026-08-25T12:21:13.968Z",
       "maxExecIdAtFix": "203591",
       "note": "Feito"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-26T17:51:36.471Z",
+      "maxExecIdAtFix": "207190",
+      "note": "Fluxo desligado"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "markedAt": "2026-08-26T18:00:22.448Z",
+      "maxExecIdAtFix": "207189",
+      "note": "Claude (cockpit) [Memória1]: sem resumo no report — 1 nó(s) alterado(s)"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "markedAt": "2026-08-26T18:01:21.375Z",
+      "maxExecIdAtFix": "207233",
+      "note": "Claude corrigiu"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-26T18:01:34.666Z",
+      "maxExecIdAtFix": "207238",
+      "note": "Fluxo desligado",
+      "undoneAt": "2026-08-26T18:28:07.225Z"
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Memória1|NodeOperationError",
+      "markedAt": "2026-08-26T18:01:46.634Z",
+      "maxExecIdAtFix": "207186",
+      "note": "Ja ajustado"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-26T18:29:11.704Z",
+      "maxExecIdAtFix": "207238",
+      "note": "Fluxo desligado"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-28T13:11:25.585Z",
+      "maxExecIdAtFix": "211150",
+      "note": "Fluxo desligado"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "markedAt": "2026-08-28T14:22:34.463Z",
+      "maxExecIdAtFix": "211149",
+      "note": "Claude (cockpit) [AI Agent1, Memória1]: a falha do Memória1 não tem correção por parâmetro; desliguei o retryOnFail do AI Agent1, que triplicava custo e disparo de tools, e registrei a causa raiz nas notas."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Memória1|NodeOperationError",
+      "markedAt": "2026-08-28T14:22:57.579Z",
+      "maxExecIdAtFix": "211144",
+      "note": "Já ajustado"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "markedAt": "2026-08-28T14:29:26.340Z",
+      "maxExecIdAtFix": "211385",
+      "note": "Claude (cockpit) [Memória1, Memória1_buffer]: Troquei a memória do AI Agent1 do Redis Chat, que não define inputKey e estoura no saveContext, por um Simple Memory buffer — o mesmo tipo que o AI Agent já usa sem falhar."
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-28T14:29:48.486Z",
+      "maxExecIdAtFix": "211386",
+      "note": "Ajustado"
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Memória1_buffer|NodeOperationError",
+      "markedAt": "2026-08-28T14:30:00.919Z",
+      "maxExecIdAtFix": "211397",
+      "note": "Ajustado"
+    },
+    {
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "markedAt": "2026-08-28T14:35:58.705Z",
+      "maxExecIdAtFix": "211398",
+      "note": "."
+    },
+    {
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "markedAt": "2026-08-31T18:42:21.505Z",
+      "maxExecIdAtFix": "217771",
+      "note": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a tolerar erro com onError; a correção anterior blindou o valor, que já estava blindado."
+    },
+    {
+      "key": "9dGEJcYa7LxTAwAs|Structured Output Parser|NodeOperationError",
+      "markedAt": "2026-09-03T14:36:13.164Z",
+      "maxExecIdAtFix": "222139",
+      "note": "Claude (cockpit) [Structured Output Parser]: Liguei o autoFix do Structured Output Parser e tirei dados_lead de obrigatório, para que uma resposta fora do schema seja reformatada em vez de derrubar a execução."
+    },
+    {
+      "key": "QryGcVbv7DoVCeRV|Structured Output Parser|NodeOperationError",
+      "markedAt": "2026-09-03T14:36:22.865Z",
+      "maxExecIdAtFix": "222138",
+      "note": "Ja ajustado"
     }
   ]
 }

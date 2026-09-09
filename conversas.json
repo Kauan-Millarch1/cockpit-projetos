@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-25T19:57:31.165Z",
+  "savedAt": "2026-08-28T14:43:02.979Z",
   "conversas": [
     {
       "wfId": "azwM3PgGtSbGTCsn",
@@ -168,6 +168,26 @@
       "rodadas": 1,
       "pedidos": 0,
       "usd": 0.289,
+      "usdDesconhecido": false,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "convId": "umtbhkz07pi6a",
+      "em": "2026-08-27T12:16:03.332Z",
+      "rodadas": 1,
+      "pedidos": 0,
+      "usd": 0,
+      "usdDesconhecido": true,
+      "teveAlvo": false
+    },
+    {
+      "wfId": "whj5x0keweg3Ffvo",
+      "convId": "umtd275mn0a5j",
+      "em": "2026-08-28T14:43:02.967Z",
+      "rodadas": 3,
+      "pedidos": 0,
+      "usd": 0.3242,
       "usdDesconhecido": false,
       "teveAlvo": false
     }

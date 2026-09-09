@@ -1,6 +1,18 @@
 {
   "v": 1,
   "vistos": [
+    "https://github.com/n8n-io/n8n/pull/37414",
+    "https://github.com/n8n-io/n8n/pull/37315",
+    "https://github.com/n8n-io/n8n/pull/37293",
+    "https://github.com/n8n-io/n8n/pull/37143",
+    "https://github.com/n8n-io/n8n/pull/37073",
+    "https://github.com/n8n-io/n8n/pull/37035",
+    "https://github.com/n8n-io/n8n/pull/37007",
+    "https://github.com/n8n-io/n8n/pull/36939",
+    "https://github.com/n8n-io/n8n/pull/23915",
+    "https://github.com/n8n-io/n8n/pull/36795",
+    "https://github.com/n8n-io/n8n/pull/36734",
+    "https://github.com/n8n-io/n8n/pull/36585",
     "https://github.com/n8n-io/n8n/pull/35347",
     "https://github.com/n8n-io/n8n/pull/36316",
     "https://github.com/n8n-io/n8n/pull/36111",
@@ -63,10 +75,20 @@
     "https://github.com/n8n-io/n8n/pull/35018",
     "https://github.com/n8n-io/n8n/pull/34991"
   ],
-  "ultimaChecagem": "2026-08-25T23:29:53.626Z",
+  "ultimaChecagem": "2026-09-05T00:59:26.292Z",
   "ultimoErro": null,
-  "fila": 0,
+  "fila": 23,
   "historico": [
+    {
+      "em": "2026-09-05T00:59:26.292Z",
+      "ok": true,
+      "lidos": 12,
+      "escreveu": 4,
+      "versao": "v3.7",
+      "usd": 0.29007679999999997,
+      "usdDesconhecido": false,
+      "precisaEsquema": true
+    },
     {
       "em": "2026-08-21T23:00:50.411Z",
       "ok": true,
@@ -128,5 +150,40 @@
       "precisaEsquema": true
     }
   ],
-  "aviso": null
+  "aviso": {
+    "em": "2026-09-05T00:59:26.292Z",
+    "versao": "v3.7",
+    "quantas": 4,
+    "precisaEsquema": true,
+    "itens": [
+      {
+        "titulo": "Confluence Node: Add Page Get Comments operation",
+        "versao": "n8n 2.38.1",
+        "link": "https://github.com/n8n-io/n8n/pull/37073",
+        "texto": "O node Confluence ganha, no resource Page, a operação Get Comments (comentários de rodapé), com paginação, Body Format (Storage/Atlas Doc/Plain Text) e Sort By/Direction; dá para trocar chamadas de comentários feitas via HTTP Request por essa operação nativa.",
+        "impacto": "no"
+      },
+      {
+        "titulo": "MongoDB Node: Batch update and find-and-update writes with bulkWrite",
+        "versao": "n8n 2.38.1",
+        "link": "https://github.com/n8n-io/n8n/pull/37035",
+        "texto": "O MongoDB node ganha a versão 1.5 para Update e Find And Update, que passa a usar bulkWrite em vez de uma requisição por item; o resultado por item continua igual, mas quem escolher essa versão precisa prever que uma falha no meio da gravação pode deixar o banco em um estado parcial diferente do de antes.",
+        "impacto": "comportamento"
+      },
+      {
+        "titulo": "Databricks Node: Add user-delegated OAuth2 credential (authorization code + PKCE)",
+        "versao": "n8n 2.38.1",
+        "link": "https://github.com/n8n-io/n8n/pull/37007",
+        "texto": "A credencial OAuth2 do Databricks ganha um segundo fluxo, login de usuário via authorization code + PKCE, além do client credentials de service principal, com OAuth scopes customizáveis; workflows que precisam de permissão e auditoria por usuário devem preencher esse modo em vez do de service principal.",
+        "impacto": "credencial"
+      },
+      {
+        "titulo": "Gotify Node: Add Gotify extra notification settings",
+        "versao": "n8n 2.38.1",
+        "link": "https://github.com/n8n-io/n8n/pull/23915",
+        "texto": "O node Gotify ganha três campos opcionais nas opções de mensagem — Click URL, Big Image URL e Intent URL (Android) — que só entram no payload quando preenchidos, dando para configurar essas ações de notificação direto no node.",
+        "impacto": "no"
+      }
+    ]
+  }
 }

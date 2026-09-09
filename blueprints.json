@@ -650,5 +650,69 @@
     ],
     "custoTotal": 1.899,
     "exportado": true
+  },
+  {
+    "id": "t0526b4b083a2",
+    "ideia": "Precisamos criar isso aqui, hoje temos o fluxo da Gabi, mas precisamos criar um que ela lembre as pessoas 2 horas antes de acontecer a call, então ela entra no calendar vê que a pessoa tem um agendamento, 2 horas antes ela precisa ir la avisar a pessoa desse agendamento",
+    "nivel": "sei o básico",
+    "criadoEm": "2026-08-28T14:47:28.989Z",
+    "terminadoEm": "2026-08-28T16:29:25.141Z",
+    "status": "pronta",
+    "etapaFinal": 7,
+    "ehAgente": false,
+    "rodadasEntrevista": 4,
+    "respostas": 11,
+    "pesquisou": false,
+    "pesquisaDoCache": false,
+    "nos": 14,
+    "gates": {
+      "passou": true,
+      "rodada": 2,
+      "falhas": 0
+    },
+    "sandbox": "ok",
+    "fantasma": "simulou",
+    "custo": [
+      {
+        "sessao": "conversa",
+        "usd": 0.1852706,
+        "ms": 118605,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.1616652,
+        "ms": 88022,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.16329480000000002,
+        "ms": 90923,
+        "comRede": false
+      },
+      {
+        "sessao": "conversa",
+        "usd": 0.185461,
+        "ms": 119203,
+        "comRede": false
+      },
+      {
+        "sessao": "construcao-r1",
+        "usd": 0,
+        "ms": 360064,
+        "comRede": false,
+        "usdDesconhecido": true,
+        "motivo": "a sessão foi interrompida antes de reportar o custo"
+      },
+      {
+        "sessao": "construcao-r2",
+        "usd": 2.1505665,
+        "ms": 332797,
+        "comRede": false
+      }
+    ],
+    "custoTotal": 2.8463,
+    "exportado": true
   }
 ]

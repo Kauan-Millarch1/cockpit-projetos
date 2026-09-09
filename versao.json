@@ -1,5 +1,5 @@
 {
-  "n": "v3.6",
-  "em": "2026-08-20",
-  "nota": "n8n 2.36: novos params em Browser Use, MCP Trigger, MiniMax, Schedule Trigger, Discord e OpenRouter"
+  "n": "v3.7",
+  "em": "2026-09-05",
+  "nota": "Confluence: Get Comments; MongoDB bulkWrite (1.5); Databricks OAuth PKCE; Gotify extras (click/imagem/intent)"
 }

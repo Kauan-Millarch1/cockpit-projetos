@@ -123,3 +123,17 @@ conversas.json.tmp
 # agravante: a lista de origens aqui decide QUEM pode mandar escrever num fluxo
 # de producao. Ver guarda.js.
 .agente/
+
+# tutoriais/ NAO e ignorado, e isso e uma decisao.
+#
+# O `.mp4` de cada tutorial e VERSIONADO de proposito: sem ele, um clone novo
+# serve o botao "assistir a introducao" e nao tem o video — e a tela cai no estado
+# `semArquivo`, que e honesto e inutil. O que permite versionar e o reencode do
+# `.video/tutorial-registrar.js`: MEDIDO, o arquivo que sai do Claude Design tem
+# 190 MB (1440p60 a 14,5 Mbps) e a CRF 24 ele vira 21 MB com PSNR ~45 dB, que e
+# visualmente indistinguivel para animacao de interface. E 21 MB cabe no git;
+# 190 MB nao cabe (o teto por arquivo do GitHub e 100 MB).
+#
+# Se algum tutorial futuro passar de ~40 MB depois do reencode, a decisao volta
+# para a mesa — e o caminho e baixar a resolucao, nao ignorar a pasta: um video
+# que existe so na maquina de quem o gerou nao e um tutorial do produto.

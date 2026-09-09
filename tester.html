@@ -14,6 +14,10 @@
      entradas.configurar() com window.__entradas ainda undefined. Bloquear por um
      arquivo local de 26KB e mais barato que a classe inteira de bug de ordem. -->
 <script src="/entradas.js"></script>
+<!-- O video "como usar esta tela": a faixa de convite e o player, servidos e
+     nao copiados — copiar seria a quinta copia de bloco desta base. Ele injeta o
+     proprio CSS. NAO deferido, pela mesma armadilha da nota acima. -->
+<script src="/tutorial.js"></script>
 <script src="/aba.js" defer></script>
 <style>
 /* Tokens: os mesmos do flows.html. Mudar cor aqui sem mudar lá é como o painel
@@ -111,7 +115,8 @@ button{font:inherit;color:inherit}
    porque é identidade — a versão não é status, e gastar cor de status aqui
    queimaria o alarme antes de alguma coisa quebrar. */
 .brand .ver{font-family:var(--font-num);font-size:10px;letter-spacing:.06em;
-  color:var(--brand-txt);border:1px solid var(--line);border-radius:6px;
+  /* 4,325 puro no tema claro — reprova AA a 10px. */
+  color:color-mix(in srgb, var(--brand-txt) 72%, var(--txt));border:1px solid var(--line);border-radius:6px;
   padding:1px 6px;white-space:nowrap;flex:0 0 auto;cursor:default}
 .brand .ver.velho{color:var(--txt-faint)}
 @media (max-width:700px){.brand .ver{display:none}}
@@ -426,13 +431,20 @@ button{font:inherit;color:inherit}
   background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
   background-size:26px 26px}
 .open-in{width:100%;max-width:700px;text-align:center}
-.open-in h1{font-size:clamp(26px,4.4vw,36px);font-weight:600;letter-spacing:-.025em;margin:0 0 10px}
+/* `.tit` junto do `h1` porque este titulo virou `h2`: dois `h1` na mesma pagina
+   (o wordmark e este) davam duas raizes para o leitor de tela percorrer. */
+.open-in h1,.open-in .tit{font-size:clamp(26px,4.4vw,36px);font-weight:600;letter-spacing:-.025em;margin:0 0 10px}
 .open-in .hint{color:var(--txt-dim);font-size:13.5px;margin:0 auto 28px;max-width:56ch;line-height:1.6}
 .bigbox{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:15px 16px 12px;position:relative;box-shadow:var(--shadow)}
 .bigbox textarea{width:100%;border:none;background:none;resize:none;font:inherit;font-size:14.5px;
   color:var(--txt);line-height:1.6;min-height:56px;outline:none}
 .bigbox textarea::placeholder{color:var(--txt-faint)}
+/* O campo tem `outline:none` e nao tinha substituto: navegando por Tab nao havia
+   como saber que o cursor chegou. O anel vai no INVOLUCRO, como o `.fld` do
+   `entrar.html` ja faz — dentro da caixa ele encostaria no texto. */
+.bigbox:focus-within{border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);}
 .boxfoot{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:11px;
   border-top:1px solid var(--line-soft);flex-wrap:wrap}
 .lvl{font-family:var(--font-num);font-size:9.5px;color:var(--txt-faint);letter-spacing:.05em;margin-right:2px}
@@ -445,7 +457,7 @@ button{font:inherit;color:inherit}
 .btn:hover:not(:disabled){color:var(--txt);border-color:var(--accent-line)}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.prime{color:#fff;border-color:transparent;font-weight:600;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 96%,#000),color-mix(in srgb,var(--accent) 84%,#000));
   box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
 .btn.prime:hover:not(:disabled){filter:brightness(1.06)}
 /* O único botão vermelho do painel, e ele existe para uma coisa só: apagar.
@@ -626,6 +638,8 @@ button{font:inherit;color:inherit}
 .composer textarea{flex:1;border:none;background:none;resize:none;font:inherit;font-size:12.5px;
   color:var(--txt);line-height:1.55;max-height:120px;outline:none;min-height:22px}
 .composer textarea::placeholder{color:var(--txt-faint)}
+.composer:focus-within{border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);}
 
 /* -------------------------------------------------- voz, anexos e a bandeja
    O CSS destas duas entradas mora em `/entradas.js` e é injetado por ele. Ele
@@ -885,8 +899,10 @@ details.jsonbox .inner{padding:0 13px 13px}
 .campo:focus{border-color:var(--accent-line)}
 
 .projs{margin-top:34px;text-align:left}
+/* `--brand-txt` puro mede 4,1017 aqui no tema claro. A marca continua legivel
+   como marca; o que muda e so o quanto ela se aproxima do texto. */
 .projs-h{display:flex;gap:8px;align-items:baseline;font-family:var(--font-num);font-size:9.5px;
-  letter-spacing:.06em;color:var(--brand-txt);margin-bottom:10px}
+  letter-spacing:.06em;color:color-mix(in srgb, var(--brand-txt) 72%, var(--txt));margin-bottom:10px}
 .projs-h span{color:var(--txt-faint)}
 .projs-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
 .proj{display:flex;flex-direction:column;gap:5px;text-align:left;background:var(--surface);
@@ -949,7 +965,7 @@ details.jsonbox .inner{padding:0 13px 13px}
 .lix-h{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-bottom:22px}
 .lix-h-l{flex:1 1 340px;min-width:0}
 .lix-h-l .ix{font-family:var(--font-num);font-size:9.5px;letter-spacing:.07em;color:var(--brand-txt)}
-.lix-h-l h1{font-size:clamp(21px,3vw,27px);font-weight:600;letter-spacing:-.02em;margin:7px 0 9px}
+.lix-h-l h1,.lix-h-l .tit{font-size:clamp(21px,3vw,27px);font-weight:600;letter-spacing:-.02em;margin:7px 0 9px}
 .lix-h-l .hint{margin:0;max-width:62ch;text-align:left}
 .lix-h-r{display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap}
 
@@ -1082,6 +1098,20 @@ details.jsonbox .inner{padding:0 13px 13px}
   *{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
   .nd{opacity:1}
   .edge{stroke-dashoffset:0}
+}
+
+/* A TOPBAR A 390px. Medido antes: /disco transbordava 169px e /tester 187px —
+   o `upgrade.html` nao transborda porque tem este bloco, e estas nao tinham.
+   O que empurra e o piso de `min-width: auto`: um item de flex nasce com o
+   chao no proprio min-content, entao um rotulo com `nowrap` la dentro estica a
+   barra inteira. Desligar o piso e o que faz `flex-wrap` valer alguma coisa. */
+@media (max-width: 620px) {
+  .topbar, .topbar .brand, .topbar .meta { min-width: 0; }
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 8px;
+    padding: 9px 14px; gap: 10px; }
+  /* O DEDO. O botao de tema media 29x23 — 23px de altura reprova o minimo de
+     24x24 da WCAG 2.5.8, e as regras de desenho desta casa pedem 40. */
+  .topbar .iconbtn, .topbar .btn { min-height: 40px; }
 }
 </style>
 <script>
@@ -1337,6 +1367,9 @@ const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desen
    de anexar, onde pareceria defeito do arquivo dela. `IO()` continua lendo na
    hora do uso porque é assim que o teste injeta o módulo de verdade. */
 const IO = () => window.__entradas;
+/* O tutorial vem pelo mesmo caminho e pela mesma razao: o script tambem nao e
+   deferido, e ler na hora do uso e o que permite a um teste trocar o modulo. */
+const TUT = () => window.__tutorial;
 
 /* O que a página dá ao módulo: o estado, o vocabulário de aviso, o `callApi`
    que já sabe reconhecer um 404 de processo velho, e as ROTAS — que são o que
@@ -1357,12 +1390,67 @@ IO().configurar({
   aoSnapshot: snap => { S.snap = snap; }
 });
 
+/* ══════════════════════════════════════════════ O TUTORIAL desta tela
+   O video "como usar esta tela" vive no `/tutorial.js` SERVIDO: o CSS, o juizo dos
+   quatro estados, o player e as duas cadeias. O que e desta pagina esta aqui.
+
+   SEM `marcos`, e isso e medida e nao esquecimento: a faixa nasceu numa tela de
+   largura inteira e a terceira coluna dela pede ~330px depois do poster de 272px.
+   Aqui ela mora dentro do `.open-in`, que tem `max-width: 700px` — as media
+   queries do modulo olham a JANELA, nao o container, entao a 1440px os tres
+   marcos nao sairiam sozinhos e apertariam justamente a frase que convida. Sem
+   eles a faixa desenha em duas colunas (272 + 428), que e exatamente o que a
+   regra de <=1200px ja faz. Inventar aqui uma lista mais curta seria a mesma
+   mentira de um rotulo de botao digitado de memoria.
+
+   `render` NAO e o `pintar()`: ele volta cedo sem `S.snap`, ou seja nao desenha a
+   tela de abertura, que e exatamente onde a faixa vive. `repintarAbertura()` faz
+   as duas coisas e PRESERVA o que esta escrito no campo da ideia — a mesma
+   disciplina do repintar de anexo logo abaixo, e por um motivo real: esconder a
+   faixa nao pode custar a frase que a pessoa estava montando. */
+TUT().configurar({
+  slug: "tester", aba: "Tester", callApi, render: repintarAbertura,
+  cauda: "da ideia escrita em português até o arquivo pronto para importar"
+});
+
+/* `hero()` OU `tira()`: com a faixa na tela a porta grande ja esta aberta; depois
+   de "ja vi" o que fica e a tira. Uma funcao com nome porque ela e chamada de
+   dentro de uma concatenacao de HTML, onde um `+` a mais passa despercebido. */
+function IO_TUT() { return TUT().hero() + TUT().tira(); }
+
+function repintarAbertura() {
+  if (S.snap) { pintar(); return; }
+  const ta = $("#ideia");
+  const texto = ta ? ta.value : "";
+  const foco = !!ta && document.activeElement === ta;
+  const pos = ta ? ta.selectionStart : 0;
+  /* `S.avisoAbertura` e o aviso que a tela ja estava mostrando. Repintar com
+     `null` apagaria em silencio o alerta do boot (o CLI que nao existe, o doc de
+     agentes que falta) — um repintar por causa de um video nao pode engolir o
+     aviso que decide se vale construir. */
+  telaAbertura(S.avisoAbertura);
+  const novo = $("#ideia");
+  if (novo && texto) {
+    novo.value = texto;
+    if (foco) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch { /* fora de faixa */ } }
+  }
+}
+
 /* ---------------------------------------------------------------- abertura */
 
 function telaAbertura(aviso) {
+  /* GUARDADO porque quem repinta esta tela por outro motivo precisa devolver o
+     MESMO aviso — ver `repintarAbertura`. Fica em `S` e nao numa variavel de
+     modulo porque `S` e o estado desta tela. */
+  S.avisoAbertura = aviso || null;
   app.innerHTML =
     '<section class="stage-open"><div class="open-in">' +
-      '<h1>O que vamos construir?</h1>' +
+      /* A FAIXA DO TUTORIAL, primeira coisa da tela. E o pedido literal — "nao
+         pode ser um botao tao discreto" — e aqui vale duas vezes: esta e a tela
+         onde quem chega nao sabe o que digitar. Sai de vez com "ja vi", e o que
+         fica e a tira com o botao pequeno, no MESMO lugar. */
+      IO_TUT() +
+      '<h2 class="tit">O que vamos construir?</h2>' +
       '<p class="hint">Escreve do seu jeito. Não precisa saber n8n — eu pergunto o que faltar.</p>' +
       '<div class="bigbox">' +
         '<textarea id="ideia" rows="2" placeholder="quero ver quantas vendas eu fiz no mercado livre" aria-label="descreva o fluxo que você quer"></textarea>' +
@@ -2901,7 +2989,7 @@ function telaLixeira() {
     '<section class="stage-open"><div class="open-in lix-in">' +
       '<div class="lix-h">' +
         '<div class="lix-h-l"><span class="ix">[ LIXEIRA ]</span>' +
-          '<h1>' + (total ? total + (total === 1 ? " projeto guardado aqui" : " projetos guardados aqui") : "Nada por aqui") + "</h1>" +
+          '<h2 class="tit">' + (total ? total + (total === 1 ? " projeto guardado aqui" : " projetos guardados aqui") : "Nada por aqui") + "</h2>" +
           '<p class="hint">Nada é apagado sozinho e não existe prazo. Restaurar devolve o projeto inteiro — ' +
             "conversa, desenho, simulação e histórico de edições. Apagar de vez é o único caminho sem volta desta tela." +
             (custo ? " O que está aqui custou <strong>US$" + custo.toFixed(2).replace(".", ",") + "</strong> para construir." : "") +
@@ -3579,6 +3667,13 @@ function fecharMenus() {
   document.querySelectorAll(".pop").forEach(x => x.setAttribute("hidden", ""));
   document.querySelectorAll(".dots").forEach(x => x.setAttribute("aria-expanded", "false"));
 }
+/* O CLIQUE DO TUTORIAL, delegado no documento porque `data-tut` existe em mais de
+   um lugar (a miniatura, o botao grande e o botao pequeno da tira), e um `id`
+   repetido pintaria o segundo sem fazer nada, em silencio. Antes do `fecharMenus`
+   porque ele consome o evento quando e dele; `fecharMenus` e barato e nao decide
+   nada, entao a ordem entre os dois nao muda comportamento — o que muda e que o
+   tutorial nao fica pendurado no fim de uma cadeia que nao e dele. */
+document.addEventListener("click", ev => { TUT().cliques(ev); });
 document.addEventListener("click", fecharMenus);
 document.addEventListener("keydown", ev => { if (ev.key === "Escape") fecharMenus(); });
 
@@ -3611,8 +3706,20 @@ function ehCampoDeTexto(el) {
 }
 
 document.addEventListener("keydown", async ev => {
-  if (ev.key !== "Escape") return;
+  /* O `.scrim` PRIMEIRO, e agora antes do teste de Escape: um dialogo aberto e o
+     dono da tecla, sempre — ele e quem decide um gasto. Mover o teste para cima
+     nao muda comportamento nenhum (para as outras teclas esta cadeia ja voltava
+     sem fazer nada); o que ele permite e o player entrar aqui, que precisa de
+     MAIS que o Escape.
+
+     O PLAYER DO TUTORIAL ENTRA AQUI, logo abaixo do `.scrim`. Com ele aberto, Esc
+     FECHA O PLAYER e nao para a construcao — e espaco, setas, `m` e `f` tambem
+     sao dele. O modulo NAO registra ouvinte proprio, pela mesma razao que esta
+     pagina ja escreveu sobre o `parar()`: com um `keydown` so dele, um Esc
+     fecharia o player E mataria uma construcao de minutos e dolares. */
   if (document.querySelector(".scrim")) return;           // diálogo aberto: é dele
+  if (TUT().teclado(ev)) return;
+  if (ev.key !== "Escape") return;
   if (ehCampoDeTexto(document.activeElement)) { document.activeElement.blur(); return; }
   if (!S.snap || S.snap.status !== "correndo") return;
   ev.preventDefault();
@@ -3890,6 +3997,13 @@ $("#voltar").addEventListener("click", inicio);
     }
   }
   telaAbertura(aviso);
+
+  /* O ledger do tutorial e pedido DEPOIS do primeiro desenho e nunca antes: ele
+     nao depende do CLI nem do n8n, e `carregar()` repinta sozinho quando a
+     resposta chega. Pendura-lo no inicio faria uma falha ao ler o status esconder
+     o convite — que e justamente o que alguem perdido precisa ver. */
+  TUT().ligarGestos();
+  TUT().carregar();
 })();
 </script>
 <script>

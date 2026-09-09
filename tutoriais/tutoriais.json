@@ -1,0 +1,29 @@
+{
+  "upgrade": {
+    "arquivo": "upgrade.mp4",
+    "poster": "upgrade.jpg",
+    "segundos": 109.737,
+    "titulo": "Upgrade — como usar esta tela",
+    "subtitulo": "Escolher o fluxo, pedir a melhoria, e decidir se aplica",
+    "posterEm": 5.5,
+    "registradoEm": "2026-08-27T13:28:23.847Z"
+  },
+  "fluxos": {
+    "arquivo": "fluxos.mp4",
+    "poster": "fluxos.jpg",
+    "segundos": 99.5,
+    "titulo": "Fluxos — como usar esta tela",
+    "subtitulo": "Ver o que rodou, o que quebrou, e em qual nó",
+    "posterEm": 75,
+    "registradoEm": "2026-08-27T15:13:22.287Z"
+  },
+  "tester": {
+    "arquivo": "tester.mp4",
+    "poster": "tester.jpg",
+    "segundos": 120.05,
+    "titulo": "Tester — como usar esta tela",
+    "subtitulo": "Descrever a automação em português e sair com o JSON pronto",
+    "posterEm": 80,
+    "registradoEm": "2026-08-27T15:15:23.866Z"
+  }
+}

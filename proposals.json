@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-25T19:57:49.644Z",
+  "savedAt": "2026-09-03T14:36:12.999Z",
   "proposals": [
     {
       "runId": "rmshl8ddd1",
@@ -3091,6 +3091,719 @@
       "appliedAt": null,
       "revertedAt": null,
       "capturedUpdatedAt": "2026-08-24T18:54:50.886Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtae51eh1",
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": null,
+      "fixNote": "Claude (cockpit) [Memória1]: sem resumo no report — 1 nó(s) alterado(s)",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0,
+      "startedAt": "2026-08-26T17:51:49.396Z",
+      "finishedAt": "2026-08-26T17:59:52.990Z",
+      "appliedAt": "2026-08-26T18:00:21.625Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-18T14:19:57.768Z",
+      "retries": [
+        {
+          "execId": "207189",
+          "wfId": "9dGEJcYa7LxTAwAs",
+          "at": "2026-08-26T18:00:23.310Z",
+          "state": "ok",
+          "newExecId": "207233",
+          "error": null
+        }
+      ]
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtafgnsy2",
+      "key": "BpDac30P5uiuebdC|Send a message2|NodeOperationError",
+      "wfId": "BpDac30P5uiuebdC",
+      "wfName": "FLUXO AVISO ERROR",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** invalid_auth vem do token do Slack no nó Send a message2, não do fluxo; o patch só registra o diagnóstico no nó, porque a reautorização da credencial é manual no n8n.\n\n## Causa raiz\n\n`invalid_auth` é resposta **do Slack**, não do n8n. Quer dizer que o n8n mandou um token e o Slack\nrecusou: revogado, expirado, app desinstalado do workspace, ou token de outro workspace. Não existe\nparâmetro em `Send a message2` que produza essa mensagem — o `channelId` (`C0A8REX31SN`), o\n`messageType: block` e o JSON de blocks estão sintaticamente corretos, e um erro deles daria outra\nassinatura (`channel_not_found`, `invalid_blocks`). O nó também nem chega a ser um caso de dado\nausente: as expressões apontam para `Code in JavaScript6`, que executou bem 12ms antes.\n\nComo as credenciais foram removidas do export, não consigo ver qual credencial está anexada. Mas há\numa pista que vale checar em dez segundos na tela: `Send a message2` **não tem** o parâmetro\n`authentication`, ou seja, está no padrão *Access Token* (`slackApi`). O outro nó Slack do fluxo,\n`Send a message` (hoje desativado), tem `authentication: \"oAuth2\"` explícito. É plausível que o nó\nnovo tenha ficado com uma credencial de token legado enquanto a credencial que funciona no workspace\né a de OAuth2. **Não apliquei essa troca**: se não houver credencial OAuth2 anexada a este nó,\ntrocar o parâmetro transforma um `invalid_auth` legível num \"credentials not set\", que é pior. Isso\nvocê confirma abrindo o nó; se for o caso, a troca é de um campo só.\n\n## O que mudei\n\nSó um campo, em `Send a message2`: `notes` (com `notesInFlow: true`), registrando o diagnóstico e a\nação humana direto no canvas. Nenhum parâmetro, nenhuma conexão, nenhum nó novo, nenhuma credencial\ntocada.\n\n## Por que isso resolve\n\n**Não resolve a falha** — e não tem como resolver daqui. Reautorizar credencial do Slack é ação\nhumana no n8n, fora do alcance de um patch de workflow. O que o patch faz é impedir que a próxima\npessoa (ou você daqui a três meses) reabra a investigação do zero: a mensagem do Slack é genérica e\na hipótese da credencial errada não é óbvia olhando o nó.\n\nDuas coisas que valem como alívio, e que confirmei no fluxo:\n\n- `Insert row1` grava a linha em `approvals` com `status: pending` **antes** do Slack. A aprovação\n  não se perde na falha; o que não sai é o aviso. Dá para varrer a tabela por `pending` e reenviar.\n- **Deliberadamente não pus `onError` neste nó.** O reflexo seria `continueRegularOutput` para o\n  fluxo \"sobreviver\", mas este é o fluxo de aviso de erro: se ele engolir a falha, a execução passa\n  a terminar como sucesso, a assinatura some do quadro do cockpit, e os avisos continuam não\n  chegando — sem ninguém saber. Estourar aqui é o comportamento certo. `retryOnFail` também não\n  ajuda: token inválido não vira válido em cinco segundos.\n\n## Risco residual\n\n- O patch é uma nota. Enquanto a credencial não for reconectada, o fluxo continua falhando no mesmo\n  ponto, e cada tentativa queima os ~30,5s de chamada ao `OpenAI Chat Model` antes de morrer no\n  último nó. Se a recorrência aumentar, vale mover o custo do LLM para depois de um teste de envio —\n  mas isso é refatoração, não correção mínima, e não fiz.\n- A hipótese Access Token × OAuth2 é hipótese. Não tenho como verificar sem ver as credenciais.\n- Fora do escopo, mas apareceu na leitura: o fluxo está com `active: false` e `isArchived: true` e\n  mesmo assim executou 2× nas últimas 24h. É o esperado para um workflow de erro (o n8n roda o error\n  workflow mesmo inativo), mas um fluxo **arquivado** ainda designado como tratador de erro de outro\n  fluxo é frágil — vale confirmar se é intencional.\n",
+      "fixNote": "Claude (cockpit) [Send a message2]: invalid_auth vem do token do Slack no nó Send a message2, não do fluxo; o patch só registra o diagnóstico no nó, porque a reautorização da credencial é manual no n8n.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 0.6557295,
+      "startedAt": "2026-08-26T18:28:51.218Z",
+      "finishedAt": "2026-08-26T18:31:39.962Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-06T17:42:59.000Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtcz0dm41",
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "ready",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 1,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 1,
+        "edgesRemoved": 1
+      },
+      "report": "**Resumo:** desliguei a memória Redis do AI Agent1 (o saveContext estoura com 3 chaves por não ter inputKey e nunca gravou nada) e liguei um buffer window, igual ao que já funciona no outro agente.\n\n## Causa raiz\n\nQuem estoura não é o Redis — é o `saveContext` do LangChain, atribuído ao nó `Memória1` porque ele é o\nsub-nó que fornece a memória.\n\nO `AI Agent1` (typeVersion 2.2, `hasOutputParser: true`) invoca a chain com três variáveis:\n`input`, `system_message` e `formatting_instructions`. No fim do turno, a memória recebe esse objeto\ninteiro para gravar e precisa saber qual das chaves é a fala do humano. O nó\n`@n8n/n8n-nodes-langchain.memoryRedisChat` não define `inputKey`, então o LangChain desiste e joga\nexatamente a mensagem da falha: *input values have 3 keys, you must specify an input key or pass only\n1 key as input*.\n\nO controle está dentro do próprio fluxo: o outro agente (`AI Agent`, mesma typeVersion 2.2) usa\n`Simple Memory` (`memoryBufferWindow`), que define `inputKey`, e nunca falhou — mesmo também sendo\ninvocado com mais de uma variável.\n\nDuas consequências que a assinatura esconde:\n\n1. **A memória nunca funcionou.** O `load` completa (os 411ms de ida ao Redis no caminho executado),\n   o `save` falha em 1ms, antes de qualquer I/O. Ou seja: a chave `memoria:<contato>` nunca recebeu\n   um turno sequer. O agente vem rodando sem histórico de conversa.\n2. **A correção anterior não era correção.** O `onError: continueRegularOutput` que já estava no nó é\n   contenção: mantém a execução viva, mas a falha continua sendo registrada e todo turno continua\n   sendo perdido em silêncio. Por isso reincidiu.\n\nA nota que estava no nó apontava para o caminho errado (\"tirar o output parser\"). Sem o parser o\nAgent provavelmente ainda invoca com `input` + `system_message` — cairia de 3 para 2 chaves e\nestouraria igual, porque o problema é a ausência de `inputKey`, não a quantidade. Além disso, tirar o\nparser quebraria todo mundo depois do agente (`$json.output.messages`, `if_tem_perfil`, `Switch`,\n`verificar_status1`...), que dependem da saída estruturada.\n\n## O que mudei\n\n- **Adicionei** `Memoria_buffer1` (`memoryBufferWindow`, typeVersion 1.3 — a mesma que já roda aqui em\n  `Simple Memory`), com a **mesma** `sessionKey` (`memoria:{{ contato-wpp ?? email ?? 'sessao-generica' }}`)\n  e a mesma janela de 20 mensagens do nó antigo.\n- **Liguei** esse nó no `ai_memory` do `AI Agent1`.\n- **Desconectei e desativei** `Memória1`. Ele continua no canvas, com uma nota nova explicando a causa\n  e o que checar antes de religá-lo. Não apaguei nada.\n\nNão toquei em `credentials`, em `active`, nem no `type` de nenhum nó existente. Não mexi no\n`AI Agent1` nem no `Structured Output Parser` — a saída estruturada continua idêntica, então nada\ndepois do agente muda.\n\nDeixei o nó novo **sem** `onError: continueRegularOutput` de propósito: se essa memória falhar algum\ndia, quero que apareça no quadro de erros em vez de sumir. Foi o silêncio que fez a falha anterior\npassar por corrigida.\n\n## Por que isso resolve\n\nO erro vem de um nó de memória sem `inputKey`. O nó novo é do tipo que define `inputKey`, e a prova\nnão é teórica: é o `Simple Memory` do `AI Agent` neste mesmo workflow, na mesma instância, sem uma\núnica ocorrência dessa assinatura.\n\nHonestidade sobre o limite: não tenho como rodar o fluxo daqui (sem Bash, sem rede), então isso é\ndiagnóstico por evidência — mensagem do LangChain + o contraste entre os dois agentes do próprio\nfluxo —, não teste executado. A confirmação é uma execução real: se `Memoria_buffer1` gravar e o\nagente lembrar do turno anterior, fechou.\n\n## Risco residual\n\n- **Perde durabilidade.** O buffer window guarda o histórico na memória do processo do n8n. Restart,\n  deploy ou troca de worker zeram a conversa; o Redis não zeraria. Na prática hoje isso é ganho, não\n  perda, porque o Redis estava gravando zero — mas é uma regressão real em relação ao que o fluxo\n  *pretendia* fazer.\n- **Fila / múltiplos workers.** Se essa instância rodar em queue mode com mais de um worker, dois\n  turnos da mesma pessoa podem cair em processos diferentes e ver históricos diferentes. Não consigo\n  verificar o modo da instância daqui.\n- **O Redis continua sendo o destino certo.** O conserto definitivo é o nó de memória Redis passar a\n  aceitar invoke com múltiplas chaves (versão mais nova do nó/Agent no n8n Cloud) — aí é só religar\n  `Memória1` e desativar o buffer. A alternativa, se durabilidade virar requisito antes disso, é\n  gravar os turnos à mão com os nós Redis que o fluxo já tem, mas isso é obra, não correção mínima.\n- **A janela de 20 mensagens vale por sessão em memória**, então nas primeiras execuções depois do\n  deploy todo lead começa sem histórico. Esperado, e não é pior que hoje.\n",
+      "fixNote": "Claude (cockpit) [Memória1, Memoria_buffer1]: desliguei a memória Redis do AI Agent1 (o saveContext estoura com 3 chaves por não ter inputKey e nunca gravou nada) e liguei um buffer window, igual ao que já funciona no outro agente.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.350198,
+      "startedAt": "2026-08-28T13:11:36.180Z",
+      "finishedAt": "2026-08-28T13:15:53.060Z",
+      "appliedAt": null,
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-26T18:00:21.018Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtd1b2qs1",
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 2,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** a falha do Memória1 não tem correção por parâmetro; desliguei o retryOnFail do AI Agent1, que triplicava custo e disparo de tools, e registrei a causa raiz nas notas.\n\n## Causa raiz\n\nO erro não é do Redis. `input values have 3 keys, you must specify an input key or pass only 1 key as input` é a mensagem do `getInputValue` do LangChain, disparada quando o chain chama `saveContext` da memória com mais de uma variável de entrada e a memória não sabe qual delas é o turno do humano.\n\nO que confirma isso no fluxo:\n\n- O caminho executado mostra `Memória1 · 411ms` (a leitura, que vai ao Redis e funciona) e `Memória1 · 1ms · error` (a gravação, que estoura antes de qualquer I/O). Se fosse Redis, a leitura falharia junto.\n- O `AI Agent` — outro agente, mesma instância, mesmo `typeVersion 2.2`, também com memória (`Simple Memory`) — nunca falha. A diferença dele para o `AI Agent1` é não ter `hasOutputParser: true`.\n- O número na mensagem (**3** chaves) bate com o agente sendo invocado com `input`, `system_message` e `formatting_instructions`, e essa terceira só existe porque há um output parser ligado.\n\n**O que eu não consigo separar com o que tenho aqui:** se a chave decisiva é o output parser (terceira variável) ou o próprio `memoryRedisChat` não declarar `inputKey`, ao contrário do `memoryBufferWindow` do outro agente. Provavelmente são as duas coisas juntas, mas eu não tenho o código do n8n nesta pasta para afirmar. Isso importa porque muda qual das correções estruturais é a certa — e nenhuma das duas hipóteses tem conserto por parâmetro neste nó: o `memoryRedisChat` não expõe `inputKey`, e trocar o tipo do nó é proibido.\n\nDuas consequências que a nota anterior não registrava:\n\n1. **O `onError: continueRegularOutput` do patch anterior não conteve nada.** O erro continua subindo para o `AI Agent1` e derrubando a execução — por isso a falha reincidiu com a mesma assinatura.\n2. **A memória já está morta.** Como o `saveContext` estoura em toda gravação, nada nunca entra no Redis. O histórico carrega vazio a cada turno e a Gabi está sem memória de conversa desde que isso começou.\n\nE há um agravante de custo: o `AI Agent1` está com `retryOnFail: true`. Como a falha é determinística, cada tentativa re-executa o agente inteiro — é o que aparece no caminho, dois ciclos completos `Think → OpenAI Chat Model1 → Structured Output Parser → Memória1 · error` seguidos, dentro dos 37 nós de uma execução só.\n\n## O que mudei\n\nSó campos de nó, nenhum `parameters` tocado:\n\n- **`AI Agent1`** — `retryOnFail: false`, mais uma nota explicando por quê (para ninguém religar sem ler).\n- **`Memória1`** — nota reescrita: a anterior afirmava que o `onError` era contenção, e a reincidência provou que não é. A nova registra que a gravação nunca acontece e quais são as duas correções estruturais possíveis.\n\nO `onError: continueRegularOutput` do `Memória1` ficou como está — não ajuda, mas tirar também não muda nada e seria mexer sem motivo.\n\n## Por que isso resolve\n\n**Não resolve a falha.** Ela vai reaparecer no próximo turno, com a mesma assinatura. Quero ser explícito nisso porque o patch anterior foi marcado como corrigido e não era.\n\nO que o patch resolve é o dano em volta:\n\n- Sem `retryOnFail`, o turno falha uma vez em vez de três. Corta o custo de GPT-5.1 por falha e, mais importante, corta o risco de o agente re-executar tools com efeito colateral no mesmo turno — `enviar_link_agenda` (manda link de agenda no WhatsApp do lead), `clickup_agente` e `resumo_lead`. Um lead recebendo o link três vezes é pior que a execução falhar. Não tenho como provar que isso já aconteceu, só que o caminho de retry permite.\n- Retry transitório de LLM não fica desprotegido: o `OpenAI Chat Model1` já tem `maxRetries: 2` no próprio nó.\n- As notas passam a dizer o que está de fato acontecendo, inclusive que o histórico no Redis está vazio — que é o sintoma silencioso e o que provavelmente mais dói no produto.\n\n## A decisão que é sua\n\nA correção real muda contrato e eu não faço por conta própria:\n\n- **(a) Tirar o `Structured Output Parser` do `AI Agent1`.** Elimina a terceira chave. Mas o `output` do agente vira string em vez de objeto, e seis nós dependem do formato atual (`$('AI Agent1').item.json.output.messages` no `AI Agent`, mais `Code in JavaScript11`, `if_tem_perfil`, `If`, `verificar_status1`, `Switch`, `if_acionar_handoff`). Exigiria um nó de parse e religar tudo — não é patch mínimo.\n- **(b) Mexer no nó de memória.** Atualizar a versão do `memoryRedisChat` (se existir uma acima da 1.5 que declare `inputKey`), ou trocar por um tipo de memória que sabe conviver com output parser — o `memoryBufferWindow`, que é o que o outro agente usa sem falhar. Trocar tipo de nó está fora do que este patch pode fazer.\n\nSe a memória entre turnos não for requisito hoje, existe ainda a saída feia: `disabled: true` no `Memória1`. Para na hora e não perde nada que esteja funcionando, porque nada está sendo gravado — mas é uma decisão de produto, não de correção.\n\n## Risco residual\n\n- **A falha continua.** O quadro de erros vai receber a mesma assinatura no próximo turno. Isso é intencional: prefiro ela visível a mais uma contenção que esconde.\n- **Desligar o retry é uma troca.** Se algum dia o `AI Agent1` falhar por motivo transitório que o `maxRetries` do modelo não pegue (timeout do agente, tool fora do ar), agora não há segunda chance no nível do agente e o turno se perde. Achei o troco justo enquanto a falha determinística está aberta; quando ela for corrigida, vale religar.\n- **Minha leitura de \"dois ciclos = retry\" vem do caminho executado, não do log de tentativas.** É a explicação que melhor encaixa nos 37 nós, mas não é prova. Se a execução 211149 mostrar apenas uma tentativa, o argumento de custo cai — o resto do diagnóstico não muda.\n- Não sei dizer quando a memória parou de gravar, nem quantas conversas rodaram sem histórico. Dá para checar pelo Redis, olhando se existe alguma chave `memoria:<contato-wpp>` com conteúdo.\n",
+      "fixNote": "Claude (cockpit) [AI Agent1, Memória1]: a falha do Memória1 não tem correção por parâmetro; desliguei o retryOnFail do AI Agent1, que triplicava custo e disparo de tools, e registrei a causa raiz nas notas.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.1465715,
+      "startedAt": "2026-08-28T14:15:54.542Z",
+      "finishedAt": "2026-08-28T14:20:35.614Z",
+      "appliedAt": "2026-08-28T14:22:34.393Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-26T18:00:21.018Z",
+      "retries": [
+        {
+          "execId": "211149",
+          "wfId": "9dGEJcYa7LxTAwAs",
+          "at": "2026-08-28T14:22:34.772Z",
+          "state": "ok",
+          "newExecId": "211385",
+          "error": null
+        }
+      ]
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtd1kyuf2",
+      "key": "9dGEJcYa7LxTAwAs|Memória1|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 1,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 1,
+        "edgesRemoved": 1
+      },
+      "report": "**Resumo:** Troquei a memória do AI Agent1 do Redis Chat, que não define inputKey e estoura no saveContext, por um Simple Memory buffer — o mesmo tipo que o AI Agent já usa sem falhar.\n\n## Causa raiz\n\nQuem estoura é o `saveContext` do LangChain dentro do `Memória1`, não o Redis.\n\nO `AI Agent1` é um agent `typeVersion 2.2`. Esse agent invoca a chain com **três** variáveis\nsempre: `input`, `system_message` e `formatting_instructions`. Quando a chain termina, ela chama\n`memory.saveContext(inputValues, outputValues)`. O `getInputValue` do LangChain só sabe qual das\nchaves é a entrada se a memória tiver `inputKey` definido; sem isso, e com mais de uma chave, ele\nlança exatamente a mensagem observada: *input values have 3 keys, you must specify an input key or\npass only 1 key as input*.\n\nO `BufferMemory` que o nó Redis Chat Memory monta não define `inputKey`, e o nó **não expõe esse\ncampo como parâmetro** — por isso a falha é determinística e não tem correção de parâmetro dentro\ndo `Memória1`.\n\nO número **3** da mensagem é o que fecha o diagnóstico e corrige a hipótese da rodada anterior:\n\n- A nota antiga apontava o `Structured Output Parser` como possível culpado, porque o `AI Agent`\n  (sem parser) não falha. Mas o `AI Agent` é o **mesmo** `typeVersion 2.2`, também tem\n  `options.systemMessage`, e recebe as mesmas 3 variáveis. Ele não falha porque a memória dele é um\n  `memoryBufferWindow` (Simple Memory), que **define** `inputKey`.\n- Ou seja: as duas diferenças entre os agentes estavam confundidas (parser + tipo de memória), e a\n  variável que decide é o tipo de memória. Tirar o output parser provavelmente **não** teria\n  resolvido — sobrariam `input` + `system_message` = 2 chaves, e 2 já é > 1, então o erro voltaria\n  como \"2 keys\".\n\nConsequência hoje: o `saveContext` nunca grava (o histórico no Redis está vazio, a Gabi já está sem\nmemória entre turnos) **e** o erro sobe para o `AI Agent1` e derruba a execução — o lead não recebe\nresposta nenhuma. O `onError: continueRegularOutput` do sub-nó não contém isso, como a reincidência\nmostrou.\n\n## O que mudei\n\n1. **Adicionei `Memória1_buffer`** (`@n8n/n8n-nodes-langchain.memoryBufferWindow`, `typeVersion 1.3`)\n   com o `sessionKey` e o `contextWindowLength: 20` copiados literalmente do `Memória1`.\n2. **Religuei** o `ai_memory` do `AI Agent1` para esse nó novo e **desconectei** o `Memória1`\n   (a porta `ai_memory` do agent aceita uma memória só).\n3. **`Memória1` com `disabled: true`** e nota explicando a causa raiz e o porquê de não religar.\n   Não apaguei nada: o nó, o `sessionKey` e as credenciais dele continuam ali se você quiser voltar.\n\nNão toquei no `AI Agent1`, no `Structured Output Parser` nem em nenhum nó a jusante — o contrato de\nsaída do agente (`output.messages`, `acionar_audio`, `status_crm`, …) fica idêntico.\n\n## Por que isso resolve\n\nO `memoryBufferWindow` define `inputKey`, então o `getInputValue` para de ter que adivinhar entre as\n3 chaves e o `saveContext` grava. Isso ataca a causa real (memória sem `inputKey`) em vez de tentar\nconter o sintoma, e a prova de que funciona está no próprio fluxo: o `AI Agent`, com o mesmo agent\n`2.2` e o mesmo trio de variáveis, roda com esse tipo de memória sem nunca ter falhado.\n\nEfeito colateral bom: além de parar de derrubar a execução, a Gabi passa a **ter** memória entre\nturnos, que é algo que hoje não acontece.\n\n## Risco residual\n\n- **O maior:** o Simple Memory guarda o histórico na memória da instância. Ele sobrevive entre\n  execuções, mas **some em restart/deploy do n8n** e **não é compartilhado entre workers** em modo\n  fila. É uma troca de durabilidade (Redis) por funcionamento. Se você quiser persistência de\n  verdade, o caminho é um Postgres Chat Memory — só que eu **não consigo verificar daqui** se esse\n  nó define `inputKey`; se não definir, ele cai no mesmo erro. Não coloquei no patch por isso.\n- O histórico já gravado no Redis sob `memoria:*` fica órfão. Pelo diagnóstico ele está vazio, mas\n  se houver conversa antiga de antes do output parser entrar, ela não será lida.\n- Não rodei nada: não tenho Bash, rede nem acesso à instância. A cadeia de raciocínio acima é\n  consistente com a mensagem, com a contagem de 3 chaves e com o contraste entre os dois agentes,\n  mas a confirmação é a primeira execução do `AI Agent1` depois de aplicar.\n- Se, aplicado, o erro voltar com \"**2 keys**\" em vez de 3, a leitura acima está errada em algum\n  ponto e o problema é do lado do agent, não da memória — nesse caso o próximo passo é o output\n  parser, não a memória.\n",
+      "fixNote": "Claude (cockpit) [Memória1, Memória1_buffer]: Troquei a memória do AI Agent1 do Redis Chat, que não define inputKey e estoura no saveContext, por um Simple Memory buffer — o mesmo tipo que o AI Agent já usa sem falhar.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.139557,
+      "startedAt": "2026-08-28T14:23:36.048Z",
+      "finishedAt": "2026-08-28T14:28:01.134Z",
+      "appliedAt": "2026-08-28T14:29:26.285Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-28T14:22:34.186Z",
+      "retries": [
+        {
+          "execId": "211385",
+          "wfId": "9dGEJcYa7LxTAwAs",
+          "at": "2026-08-28T14:29:26.740Z",
+          "state": "ok",
+          "newExecId": "211397",
+          "error": null
+        }
+      ]
+    },
+    {
+      "kind": "fix",
+      "runId": "rmthkw0ln1",
+      "key": "azwM3PgGtSbGTCsn|Redis_SET_lock|NodeOperationError",
+      "wfId": "azwM3PgGtSbGTCsn",
+      "wfName": "Agente Iago Comercial",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a tolerar erro com onError; a correção anterior blindou o valor, que já estava blindado.\n\n## Causa raiz\n\n`Invalid argument type` é a mensagem exata que o cliente Redis (node-redis v4) levanta ao serializar\num comando cujo argumento não é `string` nem `Buffer`. O n8n embrulha isso como `NodeOperationError`\nno nó que fez a chamada.\n\nNo nó Redis do n8n, a operação `set` faz três coisas com os parâmetros da tela:\n\n- o **valor** vai para o cliente já com `.toString()` aplicado;\n- o **ttl** vai para o cliente já com `.toString()` aplicado;\n- a **chave** vai crua, sem nenhuma coerção.\n\nOu seja: dentro dessa operação, a chave é o único argumento capaz de chegar não-string ao cliente.\nA tentativa de 25/08 atacou o valor (`String($executionId ?? $now.toMillis())`) — um argumento que o\npróprio nó já coagia. Foi por isso que a falha reincidiu: o patch anterior não tocou no argumento que\npodia quebrar.\n\nOlhando a chave, o `Redis_SET_lock` era o único nó do trio do lock que lia de uma fonte diferente:\n\n| nó | origem da chave |\n|---|---|\n| `Redis_GET_lock` | `$(\"parametros\").first().json[\"contato-wpp\"]` |\n| `Redis_DEL_lock` | `$('parametros').first().json['contato-wpp']` |\n| `Redis_SET_lock` | `$json[\"contato-wpp\"]` ← o item que vem de `Code_verificar_lock` → `If_lock` |\n\n`Code_verificar_lock` reconstrói o item com `{...$(\"parametros\").first().json, lock_ativo}`, então em\nexecução normal os dois caminhos coincidem. Mas é a única leitura do lock que depende do que sobrou no\nitem em trânsito em vez de ler direto do nó de origem — e é justamente a que estoura.\n\n**O que eu não consigo provar com o que tenho aqui:** não dá para reconstruir, a partir do JSON\nestático, qual valor exato `$json[\"contato-wpp\"]` assumiu na execução 217771 a ponto de a chave sair\nnão-string. Uma concatenação `'processing:' + x` devolve string para qualquer primitivo. Para fechar\nisso de verdade seria preciso abrir o input do nó na execução 217771 no editor. O que eu afirmo com\nsegurança é o mecanismo (a chave é o argumento não coagido) e que a correção anterior mirou o\nargumento errado.\n\n## O que mudei\n\nSó o nó `Redis_SET_lock`, nada mais:\n\n1. **Chave** — de `={{ \"processing:\" + $json[\"contato-wpp\"] }}` para\n   `={{ 'processing:' + String($('parametros').first().json['contato-wpp']) }}`.\n   Mesma fonte de `Redis_GET_lock` e `Redis_DEL_lock`, com coerção explícita a string.\n2. **`onError: \"continueRegularOutput\"`** — que `Redis_GET_lock` e `Redis_DEL_lock` já têm e este não\n   tinha.\n3. **`notes`** — a nota antiga afirmava que a causa era o valor; ficou desatualizada e enganosa.\n\nMantive `value`, `keyType: \"string\"`, `expire` e `ttl: 30` como estavam. `keyType: \"string\"` continua\nsendo o certo: força o caminho seguro do nó em vez da detecção automática de tipo.\n\n## Por que isso resolve\n\nPara o modo de falha reportado: a chave deixa de depender do item em trânsito e passa por `String()`,\nentão não há mais como chegar não-string ao cliente Redis.\n\nE resolve um segundo problema que estava embutido: se `$json[\"contato-wpp\"]` divergisse do valor em\n`parametros`, o lock seria **escrito numa chave que ninguém lê nem apaga** — `Redis_GET_lock` nunca o\nveria e `Redis_DEL_lock` nunca o limparia. Agora os três nós escrevem, leem e apagam exatamente a mesma\nchave.\n\nO `onError` é a parte que sobrevive à falha: o lock é best-effort (os outros dois nós do trio já\ntoleram erro), e uma falha nele derrubava o atendimento inteiro do lead. Com a mudança, o fluxo segue\npara `verificar_lead_supabase` — que lê de `$('parametros')` e não depende do `$json` deste nó.\n\n## Risco residual\n\n- **Não tenho certeza de que isto encerra a falha.** Se ela reincidir com a chave já coagida, o\n  próximo passo é abrir o input de `Redis_SET_lock` numa execução com erro: aí o argumento problemático\n  aparece. Com `onError` no lugar, a próxima ocorrência fica registrada sem matar a execução.\n- **`onError` esconde a falha do lock.** Duas execuções simultâneas do mesmo contato podem passar juntas\n  se o Redis estiver fora. Foi trocar \"lead sem resposta\" por \"risco de resposta duplicada\"; se você\n  preferir o contrário, é só tirar essa linha do patch.\n- **Bug que eu deliberadamente NÃO corrigi:** `Verificação_numero` pode devolver\n  `phone_normalizado: null`, e `parametros` propaga isso para `contato-wpp`. A chave vira\n  `processing:null` e todos os leads sem telefone válido compartilham um único lock — um bloqueia o\n  outro. Isso é real, mas é outra falha, e consertar só aqui dessincronizaria a chave de\n  `Redis_GET_lock`/`Redis_DEL_lock`. O conserto certo é uma guarda depois de `Verificação_numero`\n  (`phone_valido === false` não deveria seguir para o lock), e vale uma rodada própria.\n- Nenhum bloco `credentials` foi tocado. Não há indício de credencial revogada aqui — o\n  `Redis_GET_lock` rodou com sucesso (574ms) na mesma execução, então a conexão com o Redis estava boa.\n",
+      "fixNote": "Claude (cockpit) [Redis_SET_lock]: Redis_SET_lock passou a montar a chave a partir de $('parametros'), igual ao GET/DEL, e a tolerar erro com onError; a correção anterior blindou o valor, que já estava blindado.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.745562,
+      "startedAt": "2026-08-31T18:35:08.955Z",
+      "finishedAt": "2026-08-31T18:41:41.711Z",
+      "appliedAt": "2026-08-31T18:42:21.159Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-24T18:54:50.886Z",
+      "retries": []
+    },
+    {
+      "kind": "fix",
+      "runId": "rmtlmf2ge2",
+      "key": "9dGEJcYa7LxTAwAs|Structured Output Parser|NodeOperationError",
+      "wfId": "9dGEJcYa7LxTAwAs",
+      "wfName": "Agente eContrate",
+      "redirected": null,
+      "status": "applied",
+      "gates": [
+        {
+          "id": "json",
+          "label": "a proposta montada tem nodes[] e connections{}",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-kept",
+          "label": "nenhum nó removido",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "types-kept",
+          "label": "nenhum nó existente trocou de tipo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "credentials-untouched",
+          "label": "nenhuma credencial alterada",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "names-unique",
+          "label": "nomes de nó únicos",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "connections-valid",
+          "label": "toda conexão aponta para nó existente",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "nodes-shaped",
+          "label": "todo nó tem name, type e position [x,y]",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "active-untouched",
+          "label": "não tenta ativar/desativar o fluxo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-secret-literals",
+          "label": "nenhum segredo literal em parâmetro alterado",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "no-new-network-destination",
+          "label": "não manda dado para endereço novo",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "id": "changed",
+          "label": "a proposta muda alguma coisa",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "summary": {
+        "added": 0,
+        "modified": 1,
+        "removed": 0,
+        "edgesAdded": 0,
+        "edgesRemoved": 0
+      },
+      "report": "**Resumo:** Liguei o autoFix do Structured Output Parser e tirei dados_lead de obrigatório, para que uma resposta fora do schema seja reformatada em vez de derrubar a execução.\n\n## Causa raiz\n\nO que o erro diz é literal: o GPT-5.1 devolveu, naquele turno, um JSON que não passou pelo schema do `Structured Output Parser`. O que faz isso ser uma falha **fatal** e recorrente é o desenho em volta:\n\n1. **O contrato de formato é só de prompt.** O `AI Agent1` é agent v2.2 e o n8n injeta as instruções de formato como uma variável da chain (`formatting_instructions` — as mesmas três variáveis já documentadas na nota do `Memória1`), não como structured output nativo da OpenAI. Não existe garantia estrutural: a conformidade depende de o modelo obedecer texto, o que é probabilístico. Daí o padrão \"1× em 24h\" em vez de falha determinística.\n2. **Não havia rede de proteção nenhuma.** O parser (typeVersion 1.3) estava com `autoFix` desligado, o `AI Agent1` não tem `onError`, e `retryOnFail` foi desligado de propósito na rodada anterior. Resultado: um único desvio de formato mata a execução inteira e o lead não recebe resposta.\n3. **Um campo obrigatório que o prompt nunca ensina.** O schema exige nove campos. O system message (43 KB) descreve `messages`, `acionar_audio`, `acionar_handoff`, `acionar_agendamento`, `status_crm`, `qualificacao_lead` e `motivo_desqualificacao` — e **nunca menciona** `intencao_detectada`, `objecao_detectada` nem `dados_lead`. Pior: `dados_lead` era obrigatório e não aceitava `null`, embora todos os seus subcampos aceitem. Ou seja, a representação natural de \"ainda não coletei nada\" (`\"dados_lead\": null`) era rejeitada pelo próprio schema.\n\n**Não confirmado:** o payload da execução 222139 não veio no material que recebi, então eu não sei qual campo o modelo errou de fato. Os itens 1 e 2 eu leio direto do JSON do fluxo; o item 3 é a classe de rejeição mais provável, não um fato verificado.\n\nUma observação sobre o caminho executado: nenhuma tool aparece nos últimos 10 nós, só uma passada pelo `OpenAI Chat Model1`. O modelo foi direto para a resposta final sem chamar o `Think`, apesar de a Seção 1 do prompt exigir isso \"antes de toda resposta\".\n\n## O que mudei\n\nUm nó só, `Structured Output Parser`:\n\n- **`autoFix: true`.** O n8n passa a envolver o parser num output-fixing parser: quando a validação falha, ele volta ao modelo com o erro e o schema e pede **só a reformatação**. É diferente de `retryOnFail` — não re-executa o agente nem re-dispara tools com efeito colateral (`enviar_link_agenda`, `clickup_agente`, `resumo_lead`), que foi exatamente o motivo de a rodada anterior desligar o retry no `AI Agent1`.\n- **`dados_lead` saiu de `required` e passou a aceitar `null`** (`oneOf` com o objeto ou `null`, no mesmo estilo dos outros campos anuláveis do schema). Conferi por `Grep`: nenhum nó a jusante lê `dados_lead` — os consumidores usam `output.acionar_audio`, `output.acionar_handoff`, `output.acionar_agendamento`, `output.messages`, `output.status_crm` e `output.perfil_comportamental`. Relaxar esse campo não quebra ninguém.\n- **Descrição nova em `objecao_detectada`** dizendo para usar `\"nenhuma\"` em vez de omitir o campo. Entra nas formatting_instructions e custa zero.\n- **Nota no nó** com o diagnóstico, para a próxima vez que isso voltar.\n\nTudo o mais do schema ficou como estava: os outros oito campos seguem obrigatórios, os enums e os tipos intactos. Não toquei em `credentials`, em `active`, em tipo de nó, nem removi/religuei nada.\n\n## Por que isso resolve\n\nO `autoFix` ataca a causa que eu consigo provar: como o formato não é garantido estruturalmente, o fluxo precisa de um caminho de recuperação, e agora tem um — barato (uma chamada extra de reformatação), local (não sobe pelo agente) e sem risco de efeito colateral duplicado.\n\nA mudança no `dados_lead` elimina uma classe inteira de rejeição que existia por defeito do schema, não do modelo: um campo obrigatório, não anulável, que o prompt nunca ensina a preencher e que ninguém consome.\n\nO que **não** resolvo: se a resposta rejeitada foi prosa em vez de JSON porque o agente se perdeu (por exemplo tentando chamar tool que não existe), o `autoFix` conserta o formato mas não o conteúdo — o turno sai sem ter passado pelo ciclo THINK obrigatório.\n\n## Risco residual\n\n- **Custo e latência.** Todo turno que falhar a validação passa a custar uma chamada extra de GPT-5.1 e alguns segundos a mais no WhatsApp. Só nos turnos que hoje já morriam.\n- **`autoFix` depende de resolver um modelo.** O parser usa o modelo ligado ao nó raiz (`OpenAI Chat Model1`). Se a sua versão do n8n não resolver essa conexão, o nó vai reclamar de modelo ausente — aparece no primeiro turno de teste, não silenciosamente.\n- **`oneOf` com objeto dentro.** Os campos anuláveis do schema já usam `oneOf` e funcionam; o `dados_lead` agora tem um objeto dentro do `oneOf`, o que não estava exercitado neste fluxo. Vale um turno de teste olhando se `dados_lead` chega preenchido.\n- **O buraco maior continua aberto (fora do escopo deste patch).** O system message manda chamar `pegar_crm`, `salvar_resumo` e `handoff_humano` — **não existe nó com esses nomes** — e `enviar_link_agenda`, que existe como nó `toolWorkflow` mas **não está ligado como `ai_tool` ao `AI Agent1`** (não tem entrada nenhuma em `connections`). Na prática: a Sacred Rule 5 e o Stage 7 mandam a Gabi chamar uma tool inalcançável para converter, e o Stage 7 manda cair em `handoff_humano` quando ela falha — outra tool inalcançável. Isso é evento de conversão perdido e, plausivelmente, uma fonte de respostas malformadas. Corrigir é decisão sua: ligar `enviar_link_agenda` ao agente e decidir se `pegar_crm`/`salvar_resumo`/`handoff_humano` são os nós existentes com outro nome (`resumo_lead`? `clickup_agente`? `supabase_marcar_handoff`?) ou se o prompt tem que ser reescrito. Não chutei isso aqui.\n- **Frequência baixa.** 1 ocorrência em 24h significa que a confirmação vai demorar. Se voltar, o registro está na nota do nó.\n",
+      "fixNote": "Claude (cockpit) [Structured Output Parser]: Liguei o autoFix do Structured Output Parser e tirei dados_lead de obrigatório, para que uma resposta fora do schema seja reformatada em vez de derrubar a execução.",
+      "sandbox": {
+        "ok": null,
+        "skipped": true
+      },
+      "error": null,
+      "cost": 1.921217,
+      "startedAt": "2026-09-03T14:29:02.137Z",
+      "finishedAt": "2026-09-03T14:35:44.504Z",
+      "appliedAt": "2026-09-03T14:36:12.985Z",
+      "revertedAt": null,
+      "capturedUpdatedAt": "2026-08-28T14:29:26.113Z",
       "retries": []
     }
   ]
