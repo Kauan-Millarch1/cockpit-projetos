@@ -1369,7 +1369,47 @@ const S = { snap: null, es: null, nivel: "sei o básico", enviando: false, desen
 const IO = () => window.__entradas;
 /* O tutorial vem pelo mesmo caminho e pela mesma razao: o script tambem nao e
    deferido, e ler na hora do uso e o que permite a um teste trocar o modulo. */
-const TUT = () => window.__tutorial;
+/* O COTO. O modulo do tutorial e SERVIDO (`/tutorial.js`), e arquivo servido pode
+   FALTAR: checkout sem ele, `git clean`, pasta baixada por zip em vez de clone, ou
+   um cockpit que subiu antes da rota existir — o Node nao recarrega `server.js`.
+
+   Antes disto `TUT()` devolvia `undefined` e a PRIMEIRA chamada — `TUT().configurar`,
+   no topo do script — lancava `TypeError`. Um `throw` no topo de um `<script>` mata
+   TODO o resto do arquivo, e aqui o resto inclui o `boot()`. MEDIDO num clone montado
+   por `git ls-files`: `/tutorial.js` respondia 404 e a porta da frente do produto
+   abria em branco, por causa de um video.
+
+   Guardar com `?.` em cada sitio seria a mesma decisao repetida 19 vezes, e o
+   vigesimo sitio a esquece. Pior: `hero()` num `+` de string viraria `NaN` DENTRO
+   de um `innerHTML`, que e uma falha mais silenciosa que a atual. Entao a forma e
+   preservada aqui, uma vez so: o que devolve texto devolve "", o que responde
+   pergunta responde `false`, o que age nao faz nada. O tutorial desaparece; a tela
+   inteira continua de pe.
+
+   NAO cobre a superficie toda de `tutorial.js` de proposito — cobre o que as
+   paginas chamam. `tutorial-test.js` falha no dia em que uma pagina chamar um
+   membro que o coto nao tem, que e a unica coisa que impede isto de envelhecer. */
+const TUT_AUSENTE = {
+  ausente: true,
+  configurar() {}, carregar() {}, ligarGestos() {},
+  hero: () => "", tira: () => "", mini: () => "",
+  cliques: () => false, teclado: () => false, aberto: () => false
+};
+let TUT_AVISADO = false;
+const TUT = () => {
+  const t = window.__tutorial;
+  if (t) return t;
+  /* Uma vez por pagina, e nomeando as DUAS causas: elas levam a decisoes opostas.
+     Faltar no checkout se resolve com `git pull`; cockpit velho se resolve fechando
+     a janela e abrindo de novo. Afirmar so uma manda procurar no lugar errado. */
+  if (!TUT_AVISADO) {
+    TUT_AVISADO = true;
+    console.warn("tutorial: /tutorial.js nao carregou, entao o convite nao aparece e o"
+      + " resto da tela segue normal. Ou o arquivo nao esta neste checkout, ou o cockpit"
+      + " que respondeu subiu antes da rota existir (o Node nao recarrega server.js).");
+  }
+  return TUT_AUSENTE;
+};
 
 /* O que a página dá ao módulo: o estado, o vocabulário de aviso, o `callApi`
    que já sabe reconhecer um 404 de processo velho, e as ROTAS — que são o que

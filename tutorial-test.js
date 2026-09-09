@@ -542,7 +542,30 @@ try {
       t(pg + ".html: liga o teclado na cadeia dela", /TUT\(\)\.teclado\(/.test(js));
       /* `TUT()` e FUNCAO e nao referencia guardada, pela mesma razao do `IO()`: ler
          na hora do uso e o que permite a um teste trocar o modulo por um duble. */
-      t(pg + ".html: le o modulo na hora do uso", /const TUT = \(\) => window\.__tutorial;/.test(js));
+      t(pg + ".html: le o modulo na hora do uso",
+        /const TUT = \(\) => \{[\s\S]{0,400}?window\.__tutorial/.test(js));
+      /* O COTO, e o defeito que ele fecha foi MEDIDO num clone montado por
+         `git ls-files`: `/tutorial.js` respondia 404 porque nunca entrou no indice,
+         `TUT()` devolvia `undefined`, e a PRIMEIRA chamada — `TUT().configurar`, no
+         topo do script — lancava `TypeError`. Um `throw` no topo de um `<script>`
+         mata todo o resto do arquivo, e aqui o resto inclui o `boot()`: a porta da
+         frente do produto abria EM BRANCO por causa de um video ausente.
+         Esta asserção e o que impede a linha de voltar a ser `=> window.__tutorial`. */
+      t(pg + ".html: cai num coto quando o modulo falta, em vez de `undefined`",
+        /const TUT_AUSENTE = \{/.test(js) && /return TUT_AUSENTE;/.test(js));
+      /* A COBERTURA DO COTO — a unica coisa que impede isto de envelhecer. O coto
+         cobre o que as PAGINAS chamam e nao a superficie toda de `tutorial.js`, o que
+         e deliberado e tem um preco: uma pagina que passe a chamar um decimo membro
+         volta a receber `undefined` naquele ponto. Entao no dia em que isso acontecer,
+         isto falha NOMEANDO o membro, em vez de a tela abrir em branco outra vez.
+         Medido sobre fonte sem comentario de proposito: `upgrade.html` cita
+         `TUT().configurar` e `TUT().aberto()` em PROSA, e contar aquilo pediria coto
+         para uma chamada que nao existe. */
+      const chamados = [...new Set([...js.matchAll(/TUT\(\)\.([a-zA-Z_$]+)/g)].map(m => m[1]))];
+      const coto = js.slice(js.indexOf("const TUT_AUSENTE = {"), js.indexOf("let TUT_AVISADO"));
+      const semCoto = chamados.filter(k => !new RegExp("(^|[\\s,{])" + k + "\\s*[:(]").test(coto));
+      t(pg + ".html: o coto cobre os " + chamados.length + " membros que a pagina chama"
+        + (semCoto.length ? " — FALTA: " + semCoto.join(", ") : ""), semCoto.length === 0);
     }
 
     /* AS CADEIAS DE TECLA, uma por pagina, porque cada uma tem a sua. O que nao
