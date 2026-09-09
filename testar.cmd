@@ -11,7 +11,7 @@ if errorlevel 1 (
 
 REM Os testes que nao gastam nada: sem modelo, sem rede, sem escrever no n8n.
 REM O que gasta de verdade e o tester-smoke.js, que roda uma construcao inteira
-REM e cobra do plano — ele fica de fora daqui de proposito.
+REM e cobra do plano -- ele fica de fora daqui de proposito.
 
 set FALHOU=0
 set PULOU=0
@@ -94,19 +94,8 @@ if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
-echo  cofre: a chave do n8n cifrada pelo Windows
+echo  cabecalhos de seguranca nas respostas de API
 echo ==============================================
-node cofre-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
-node cofre-n8n-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
-
-echo.
-echo ==============================================
-echo  integracoes: fato no modulo, juizo na tela
-echo ==============================================
-node integracoes-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 node cabecalhos-api-test.js
 if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 
@@ -142,10 +131,6 @@ echo.
 echo ==============================================
 echo  navegacao: um bloco so, nas tres paginas
 echo ==============================================
-node cofre-tela-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
-node perfil-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 node nav-sync-test.js
 if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 
@@ -382,10 +367,6 @@ echo  guarda na porta do agente (CORS, token, dono)
 echo ==============================================
 node guarda-test.js
 if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
-node pareamento-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
-node pareamento-tela-test.js
-if errorlevel 2 (set PULOU=1) else if errorlevel 1 set FALHOU=1
 
 echo.
 echo ==============================================
@@ -405,7 +386,7 @@ if "%FALHOU%"=="1" (
   echo RESULTADO: tudo passou.
 )
 echo.
-echo Para provar o que importa de verdade — o fluxo que sai da ponta — rode:
+echo Para provar o que importa de verdade -- o fluxo que sai da ponta -- rode:
 echo   node tester-smoke.js "a sua ideia" --rodadas 3
 echo Esse gasta cota do plano.
 echo.

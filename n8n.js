@@ -10,8 +10,8 @@
 // FACTS ONLY. Nothing here decides a flow is healthy, stale or risky.
 // All judgement lives in flows.html.
 //
-// A CHAVE tem três fontes (cofre → `.env` → nada) e NENHUMA delas é resolvida
-// no `require`: ver o bloco "DE ONDE VEM A CHAVE" logo abaixo de `loadConfig`.
+// A CHAVE tem duas fontes (`.env` → nada) e NENHUMA delas é resolvida no
+// `require`: ver o bloco "DE ONDE VEM A CHAVE" logo abaixo de `loadConfig`.
 // Ela nunca sai daqui — nem em retorno, nem em erro, nem truncada.
 
 const fs = require("node:fs");
@@ -49,17 +49,16 @@ const EXEC_CACHE_FILE = path.join(__dirname, ".cache-n8n-exec.json");
 
 /* `loadConfig()` lê os arquivos `.env`/`.env.local` DESTE diretório e eles
    VENCEM `process.env`. Isso é medido, é contrato, e não pode ser invertido por
-   acidente: `mutex-test.js` e `cofre-n8n-test.js` copiam este arquivo para uma
-   pasta SEM `.env` justamente porque, dentro da pasta do projeto, cravar
-   `N8N_BASE_URL` em `process.env` não isola nada — a leitura iria para a
-   instância de produção do dono. Inverter a precedência quebraria esses testes
-   do pior jeito possível: eles continuariam VERDES, falando com o n8n de
-   verdade.
+   acidente: `mutex-test.js` copia este arquivo para uma pasta SEM `.env`
+   justamente porque, dentro da pasta do projeto, cravar `N8N_BASE_URL` em
+   `process.env` não isola nada — a leitura iria para a instância de produção do
+   dono. Inverter a precedência quebraria esse teste do pior jeito possível: ele
+   continuaria VERDE, falando com o n8n de verdade.
 
    `deArquivo` viaja porque "a chave está em texto puro num arquivo ao lado do
-   `server.js`" e "a chave veio do ambiente do processo" são fatos diferentes, e
-   só o primeiro é o que o cofre existe para tirar da frente. Quem desenha a
-   tela precisa poder dizer qual dos dois é. */
+   `server.js`" e "a chave veio do ambiente do processo" são fatos diferentes: o
+   primeiro é o que entra num zip, num backup e num commit por engano, e o
+   segundo não. Quem desenha a tela precisa poder dizer qual dos dois é. */
 function loadConfig() {
   const env = { ...process.env };
   const deArquivo = new Set();
@@ -81,69 +80,41 @@ function loadConfig() {
 
 /* ══════════════════════ DE ONDE VEM A CHAVE ═══════════════════════════════
  *
- * TRÊS FONTES, nesta ORDEM, e a ordem é declarada aqui e VIAJA em
+ * DUAS FONTES, nesta ORDEM, e a ordem é declarada aqui e VIAJA em
  * `estadoChave()` — nunca implícita, nunca deduzível só lendo o efeito:
  *
- *   1. COFRE  — a chave cifrada pelo DPAPI em `%APPDATA%\Cockpit\n8n.dat`,
- *               FORA da pasta do projeto. Vale se ela existir E ABRIR.
- *               O teto dessa proteção está escrito no cabeçalho de `cofre.js`
- *               e não é repetido aqui: ele protege a cópia que VIAJA (pasta
- *               zipada, backup, commit por engano), não protege contra outro
- *               processo rodando na mesma conta do Windows.
- *   2. `.env` — o caminho do dono HOJE, e ele não pode quebrar. Um cockpit que
- *               parasse de ler o `.env` no dia em que o cofre entrou seria uma
- *               migração forçada disfarçada de melhoria.
- *   3. nada configurado.
+ *   1. `.env` — `N8N_API_KEY` nos arquivos `CFG_FILES` deste diretório, ou em
+ *               `process.env`. Os arquivos VENCEM o ambiente (ver `loadConfig`),
+ *               e `deArquivo` diz qual dos dois respondeu.
+ *   2. nada configurado.
  *
  * ───────────────────────── ANTES ISTO ERA CONGELADO NO `require`
  *
  * `const cfg = loadConfig()` e `const configured = ...` liam UMA vez, no
- * carregamento do módulo. Enquanto a única fonte era um arquivo que a pessoa
- * editava e depois reiniciava o programa, isso era honesto. Com uma tela que
- * cola a chave em cima, deixa de ser: a chave entraria no cofre e este processo
- * continuaria dizendo "não configurado" até alguém fechar a janela — que é
- * exatamente a fricção que o cofre veio remover. Por isso `configured` e
- * `instance` são GETTERS, e toda leitura acontece na hora do uso.
+ * carregamento do módulo, e ficavam presos ao que existia naquele instante. Com
+ * a leitura na hora do uso, editar o `.env` e recarregar a página basta: o
+ * processo não precisa mais ser fechado para deixar de dizer "não configurado".
+ * Por isso `configured` e `instance` são GETTERS, e o `.env` é relido com memo
+ * por mtime+tamanho (ver `envAtual`) em vez de por TTL — um TTL faria a tela
+ * dizer "não configurado" por N segundos DEPOIS de a chave entrar.
  *
- * ───────────────────────── TRÊS ESTADOS, NUNCA DOIS
+ * ───────────────────────── O QUE ESTA CAMADA NÃO RESPONDE
  *
- * "não tem chave" e "tem chave e ela não abre" mandam a pessoa para lugares
- * OPOSTOS. A primeira convida a colar uma; a segunda diz que o arquivo existe e
- * não decifra NESTA conta do Windows — o que acontece de propósito quando o
- * cofre veio de outra máquina, e onde colar de novo resolve por outro motivo,
- * sem sugerir que a chave dela foi revogada.
- *
- * Então FALHA AO ABRIR O COFRE NÃO É `configured: false`. Existe chave
- * configurada, `configured` continua verdadeiro, a requisição falha com um erro
- * que NOMEIA o cofre, e o motivo viaja em `estadoChave().cofre`.
- *
- * Este repositório já escreveu essa regra sete vezes — `docAgentes` acusando um
- * arquivo de 48KB de não existir, `ingredientes.credenciais` dizendo "você não
- * tem credencial", o cinza do dossiê que não pode ler como vermelho, `resolucao`
- * ausente que não pode ler como "está tudo no fluxo aberto", `d.incremental`,
- * `escreveNoN8n` e a trava do compositor. As sete foram no mesmo sentido: o
- * campo ausente NUNCA cai no ramo negativo. Esta é a oitava.
+ * Ela responde "existe chave configurada?" e "de onde ela veio?". Ela NÃO
+ * responde se a chave VALE — quem diz isso é o n8n, com um 401. As duas
+ * perguntas mandam a pessoa para lugares diferentes, e nenhuma das duas finge
+ * ser a outra: `faltaChave()` só fala quando não há o que mandar.
  */
 
-/* O `require` é guardado porque este arquivo é COPIADO para fora da pasta do
-   projeto por teste (o `mutex-test.js` leva `n8n.js` e `simulate.js`, e mais
-   nada), e um `Cannot find module` ali derrubaria o cliente inteiro por causa de
-   um módulo que serve a UMA das três fontes. O preço está declarado: um erro de
-   sintaxe em `cofre.js` viraria "cofre indisponível" em vez de barulho — e é
-   por isso que o motivo VIAJA em `estadoChave().cofre.porque` em vez de ser
-   engolido. Cofre que não carregou tem de dar para ler na tela. */
-let cofre = null, cofreNaoCarregou = null;
-try { cofre = require("./cofre.js"); }
-catch (err) { cofreNaoCarregou = String((err && err.message) || err); }
-
-const ORDEM_DA_CHAVE = ["cofre", "env"];
+const ORDEM_DA_CHAVE = ["env"];
 
 /* A chave nunca aparece — nem inteira, nem truncada. Truncada é PIOR que nada:
    um prefixo publicado deixa conferir um palpite, e o painel vira um oráculo de
    credencial. Duas varreduras porque elas pegam coisas diferentes: o valor
    literal (quando existe um para comparar) e a FORMA de JWT (quando não existe,
-   ou quando o que vazou foi outra chave — a de outro serviço, a antiga). Mesma
-   ideia do `pareceChave()` do `cofre.js`, aplicada na saída em vez da entrada. */
+   ou quando o que vazou foi outra chave — a de outro serviço, a antiga). A
+   varredura de FORMA é a que sobrevive à troca da chave: ela não depende de
+   haver um valor conhecido para comparar. */
 const FORMA_JWT = /eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}(?:\.[A-Za-z0-9_-]+)?/g;
 
 function semSegredo(txt, ...valores) {
@@ -185,108 +156,17 @@ function envAtual() {
   return envMemo.cfg;
 }
 
-/* ── cache da leitura do cofre, INCLUSIVE DA FALHA ────────────────────────
- *
- * `cofre.ler()` abre um PowerShell: ~800ms MEDIDO, e está escrito no cabeçalho
- * do `cofre.js`. `request()` é chamado a cada GET — a rajada do boot dispara
- * até `MAX_INFLIGHT` de uma vez e o poll bate a cada 20s. Uma leitura por
- * requisição seria absurda, e é a primeira coisa que alguém tentaria fazer ao
- * ligar o cofre aqui.
- *
- * `cofre.js` já guarda o valor decifrado em memória, então o SUCESSO já sairia
- * barato de graça. O que ele NÃO guarda é a FALHA: um blob corrompido faz
- * `ler()` abrir um PowerShell NOVO a cada chamada, e o painel passaria a gastar
- * 800ms por requisição para receber o mesmo erro — com o poll de 20s isso é um
- * processo aberto por requisição, para sempre. Quem tem de guardar as duas
- * pontas é aqui.
- *
- * POR QUE O CACHE É SEGURO — e isto é uma frase verificável, não uma esperança:
- *
- *   - a única coisa que muda a resposta é a chave ser TROCADA, e trocar passa
- *     por `esquecerChave()`, que zera as DUAS memórias (a daqui e a do
- *     `cofre.js`). É invalidação explícita, e é a rota de troca que a chama;
- *   - e para o caso em que ninguém chamou — um segundo cockpit aberto, um
- *     restore de backup, a pessoa apagando o arquivo na mão — o `mtimeMs` e o
- *     tamanho do arquivo do cofre entram na assinatura. DIVERGÊNCIA DECIDE,
- *     nunca o relógio: mesma disciplina do semáforo do dossiê e do cache do
- *     esquema, e o oposto de um TTL, que aqui só teria dois efeitos — pagar
- *     800ms de PowerShell de novo e fazer a tela mudar de estado sem nada ter
- *     mudado no mundo.
- *
- * A leitura EM VOO é compartilhada porque o cache só existe depois da primeira
- * volta: sem isso, a rajada do boot abriria quatro PowerShells para ler o mesmo
- * arquivo, que é justamente o custo que este bloco existe para não pagar. */
-let cofreMemo = null, cofreVoo = null;
+/* Invalidação EXPLÍCITA do memo do `.env`, para quem trocar a chave e não puder
+   esperar a próxima leitura.
 
-function assinaturaCofre() {
-  const p = cofre && cofre.ARQUIVO;
-  if (!p) return "sem-modulo";
-  try { const st = fs.statSync(p); return "ha@" + st.mtimeMs + "#" + st.size; }
-  catch (err) { return (err && err.code) === "ENOENT" ? "ausente" : "ilegivel"; }
-}
-
-/* Fato sobre a FORMA, síncrono, sem abrir processo nenhum: existe cofre nesta
-   máquina e há algo guardado nele? Quem diz se aquilo DECIFRA é `lerCofre()`, e
-   quem diz se a chave VALE é o n8n. Nenhuma das três respostas finge ser outra. */
-function estadoCofre() {
-  if (cofreNaoCarregou) {
-    return { disponivel: false, porque: semSegredo("o módulo do cofre não carregou: " + cofreNaoCarregou),
-      temChave: false, onde: null };
-  }
-  try {
-    const st = cofre.estado();
-    return {
-      disponivel: !!(st && st.disponivel), porque: (st && st.porque) || null,
-      temChave: !!(st && st.temChave), onde: (st && st.onde) || null
-    };
-  } catch (err) {
-    return { disponivel: false, porque: semSegredo("o cofre não respondeu: " + ((err && err.message) || err)),
-      temChave: false, onde: null };
-  }
-}
-
-function lerCofre() {
-  const assin = assinaturaCofre();
-  if (cofreMemo && cofreMemo.assin === assin) return Promise.resolve(cofreMemo);
-  if (cofreVoo && cofreVoo.assin === assin) return cofreVoo.p;
-
-  const p = (async () => {
-    const est = estadoCofre();
-    if (!est.disponivel || !est.temChave) {
-      return { assin, chave: null, erro: null, abriu: null, est };
-    }
-    try {
-      const chave = await cofre.ler();
-      /* `ler()` devolve `null` quando o arquivo existe e está vazio. Isso é
-         "não tem chave", não "não abriu" — e a diferença é a razão de este
-         bloco existir, então ela não pode ser apagada aqui. */
-      return { assin, chave: chave || null, erro: null, abriu: chave ? true : null, est };
-    } catch (err) {
-      /* EXISTE cofre e ele NÃO abriu. Terceiro estado. */
-      return { assin, chave: null, erro: semSegredo((err && err.message) || err), abriu: false, est };
-    }
-  })().then(r => {
-    if (cofreVoo && cofreVoo.p === p) cofreVoo = null;
-    cofreMemo = r;
-    return r;
-  }, err => {
-    if (cofreVoo && cofreVoo.p === p) cofreVoo = null;
-    throw err;
-  });
-
-  cofreVoo = { assin, p };
-  return p;
-}
-
-/* A porta de troca da chave. Quem grava uma chave nova CHAMA ISTO — é a
-   invalidação explícita de que o cache acima depende para poder existir. Zera
-   também a memória do próprio `cofre.js`, senão um arquivo trocado por fora
-   continuaria a devolver o valor antigo por lá. */
+   Com uma fonte só ela é uma rede, não o caminho: `assinaturaEnv()` já compara
+   mtime+tamanho dos arquivos e o valor de `process.env`, então uma troca por
+   fora é vista sozinha na leitura seguinte. NENHUM chamador no repositório hoje
+   — quem chamava era a rota de troca de chave, que saiu com a camada de
+   integrações. Fica exportada porque é a porta certa para quem escrever outra,
+   e porque ela não afirma nada que o código não faça. */
 function esquecerChave() {
-  envMemo = null; cofreMemo = null; cofreVoo = null;
-  if (cofre && typeof cofre.esquecer === "function") {
-    try { cofre.esquecer(); } catch { /* módulo estranho: o resto já foi zerado */ }
-  }
+  envMemo = null;
 }
 
 /* Porta de teste, e ela é declarada em vez de tolerada. `entradas-test.js`
@@ -299,60 +179,42 @@ let configuradoForcado = null;
 
 function configuradoAgora() {
   if (typeof configuradoForcado === "boolean") return configuradoForcado;
+  /* SÍNCRONO, e isso é contrato: `configured` é lido como PROPRIEDADE em
+     dezenas de lugares (`if (!n8n.configured) return 503`), inclusive fora
+     deste módulo. Transformá-lo em `await` mudaria a forma de todos eles. */
   const env = envAtual();
-  if (!env.baseUrl) return false;
-  if (env.apiKey) return true;
-  if (cofreMemo && cofreMemo.chave) return true;
-  /* SÍNCRONO de propósito. `configured` é lido como PROPRIEDADE em dezenas de
-     lugares (`if (!n8n.configured) return 503`), e transformá-lo em `await`
-     mudaria a forma de todos eles — inclusive dos que estão fora deste módulo e
-     que este trabalho não pode tocar. Então a pergunta aqui é a que dá para
-     responder sem abrir o cofre: EXISTE chave configurada? `cofre.estado()` é
-     um `statSync`.
-     A consequência é deliberada e está no bloco lá em cima: um cofre com chave
-     que NÃO ABRE responde `true`. Responder `false` mandaria a pessoa editar um
-     `.env` que ela não usa, para um problema que não é esse. */
-  const est = estadoCofre();
-  return !!(est.disponivel && est.temChave);
+  return !!(env.baseUrl && env.apiKey);
 }
 
-/* A resolução de verdade, com a PROCEDÊNCIA junto. O cofre ganha do `.env`, mas
-   só quando ele abre: cofre quebrado com `.env` bom continua funcionando pelo
-   `.env`, e o motivo do cofre continua viajando para a tela poder dizer as duas
-   coisas ao mesmo tempo. */
+/* A resolução de verdade, com a PROCEDÊNCIA junto.
+
+   É `async` e continua `async` de propósito: `request()` e `estadoChave()` já a
+   esperam, e a assinatura é o que sobra de estável se algum dia entrar uma
+   segunda fonte que precise de I/O. Tirar o `async` hoje seria trocar duas
+   linhas por um contrato mais estreito, sem ganho nenhum medido. */
 async function configAtual() {
   const env = envAtual();
-  const cf = await lerCofre();
-  if (cf.chave) return { baseUrl: env.baseUrl, chave: cf.chave, fonte: "cofre", env, cofre: cf };
   return {
     baseUrl: env.baseUrl,
     chave: env.apiKey || "",
     fonte: env.apiKey ? "env" : null,
-    env, cofre: cf
+    env
   };
 }
 
-/* A recusa nomeia a fonte, porque "cole uma chave" e "a chave que está aqui não
-   abre" são duas telas. E nenhuma das frases carrega valor nenhum. */
+/* A recusa nomeia O QUE FALTA — a URL e a chave são duas telas diferentes. E
+   nenhuma das frases carrega valor nenhum. */
 function faltaChave(c) {
   if (!c.baseUrl) return "n8n não configurado: falta N8N_BASE_URL (em `.env`).";
-  if (c.cofre && c.cofre.erro) {
-    return "há uma chave guardada no cofre e ela NÃO abriu: " + c.cofre.erro
-      + ". Isso não é o mesmo que não ter chave — se este cofre veio de outra máquina ou de"
-      + " outra conta do Windows ele não decifra aqui, por desenho; cole a chave de novo.";
-  }
-  return "n8n não configurado: falta N8N_API_KEY — cole a chave na tela, ou ponha em `.env`.";
+  return "n8n não configurado: falta N8N_API_KEY (em `.env`).";
 }
 
 /* FATO, nunca juízo, e a ordem de precedência sai junto em vez de ficar
-   implícita no efeito. É `async` porque a pergunta que a tela faz é "a chave
-   abre?", e responder isso é abrir o cofre — o que fica em cache, então a
-   segunda pergunta é de graça. Nada aqui devolve a chave, nem pedaço dela.
+   implícita no efeito. Nada aqui devolve a chave, nem pedaço dela.
 
-   `abriu` tem TRÊS valores e é o campo que decide a tela:
-     `null`  — não havia o que abrir (sem cofre, ou cofre vazio);
-     `true`  — abriu, e é dela que a chave está vindo;
-     `false` — existe cofre e ele NÃO abriu. Nunca confundir com "não tem". */
+   `fonte` tem DOIS valores e é o campo que decide a tela:
+     `"env"` — há chave, e é dela que está vindo;
+     `null`  — não há chave configurada. */
 async function estadoChave() {
   const c = await configAtual();
   return {
@@ -364,14 +226,6 @@ async function estadoChave() {
       temChave: !!c.env.apiKey,
       deArquivo: !!c.env.deArquivo,
       arquivos: CFG_FILES.slice()
-    },
-    cofre: {
-      disponivel: c.cofre.est.disponivel,
-      porque: c.cofre.est.porque,
-      temChave: c.cofre.est.temChave,
-      onde: c.cofre.est.onde,
-      abriu: c.cofre.abriu,
-      erro: c.cofre.erro
     },
     forcado: typeof configuradoForcado === "boolean" ? configuradoForcado : null
   };
@@ -390,9 +244,9 @@ async function api(pathname, params = {}) {
 // re-tentado: repetir uma escrita que talvez tenha chegado é pior que devolver
 // o erro — só GET entra no laço de retry.
 async function request(method, pathname, { params = {}, body = null } = {}) {
-  /* Resolvido na HORA, e ANTES do portão de `inFlight`: abrir o cofre não pode
-     ocupar um dos quatro slots de rede, e a primeira leitura pode custar os
-     ~800ms do PowerShell (uma vez por processo — ver o bloco do cache). */
+  /* Resolvido na HORA, e ANTES do portão de `inFlight`: resolver de onde vem a
+     chave não é rede e não pode ocupar um dos quatro slots. E na hora, não no
+     `require`, porque o `.env` pode ter mudado desde o boot. */
   const conf = await configAtual();
   if (!conf.baseUrl || !conf.chave) throw new Error(faltaChave(conf));
 
@@ -1877,7 +1731,7 @@ module.exports = {
   /* GETTERS, e não valores. Estas duas linhas eram o congelamento: `configured`
      e `instance` eram resolvidos no `require` e ficavam presos ao que existia
      naquele instante. Todo consumidor de fora (`server.js`, `tester.js`,
-     `upgrade.js`, `catalog.js`, `licoes.js`, `integracoes.js`) já lia
+     `upgrade.js`, `catalog.js`, `licoes.js`) já lia
      `n8n.configured` DENTRO da função que precisa — então virar getter conserta
      todos eles de uma vez, sem tocar em nenhum.
      A exceção medida é `claude-fix.js:81`, `const configured = n8n.configured`,
@@ -1887,7 +1741,7 @@ module.exports = {
   get configured() { return configuradoAgora(); },
   set configured(v) { configuradoForcado = typeof v === "boolean" ? v : null; },
   get instance() { return envAtual().baseUrl; },
-  /* A chave: de onde vem, se abriu, e a invalidação explícita do cache.
+  /* A chave: de onde vem, e a invalidação explícita do memo do `.env`.
      `estadoChave` é fato — a tela decide o que dizer com ele. Nenhum dos dois
      devolve a chave, nem pedaço dela. */
   estadoChave, esquecerChave, ORDEM_DA_CHAVE,

@@ -1,21 +1,27 @@
-/* aplicar-nav.js — instala a cápsula com lente de vidro nas TRÊS páginas.
+/* aplicar-nav.js — instala a cápsula com lente de vidro nas QUATRO páginas.
  *
  * Existe por um motivo só: o CSS, o HTML e o JS da navegação têm que ser
- * IDÊNTICOS em flows.html, tester.html e cockpit.html, e nenhuma das três tem
- * build. Aplicar à mão é como as cópias divergem — o CLAUDE.md documenta isso
- * como dívida desde que o topbar foi unificado. Aqui o texto é gerado UMA vez e
- * escrito nos três arquivos, e `nav-sync-test.js` falha no dia em que alguém
- * editar uma só.
+ * IDÊNTICOS em flows.html, tester.html, cockpit.html e upgrade.html, e nenhuma
+ * das quatro tem build. Aplicar à mão é como as cópias divergem — o CLAUDE.md
+ * documenta isso como dívida desde que o topbar foi unificado. Aqui o texto é
+ * gerado UMA vez e escrito nos quatro arquivos, e `nav-sync-test.js` falha no
+ * dia em que alguém editar uma só.
  *
- * Os ícones vêm de nav-comum.js, o mesmo arquivo que alimentou os previews — o
- * que foi aprovado na tela é o que entra na página.
+ * As PORTAS são quatro e vêm de nav-comum.js, o mesmo arquivo que alimentou os
+ * previews — o que foi aprovado na tela é o que entra na página. As portas de
+ * login e de integrações saíram em 09/09/2026, quando o dono decidiu não
+ * produtizar: `/conta`, `/entrar` e `/integracoes` não existem mais, nem como
+ * rota nem como ícone aqui.
  *
  * Não é código de produção e não é servido. Roda uma vez:
  *   node preview/aplicar-nav.js
  *
- * ANTES DE EDITAR: nenhum backtick nos template literals dos blocos — eles
- * carregam CSS e JS, e um backtick fecha a string com erro que aponta para a
- * linha errada.
+ * ANTES DE EDITAR: todo backtick dentro dos template literals dos blocos tem
+ * que vir ESCAPADO (\`). Eles carregam CSS e JS, e um backtick solto fecha a
+ * string com um erro que aponta para a linha errada — foi exatamente o que
+ * aconteceu: quatro comentários do bloco JS citavam identificadores entre
+ * backticks e este arquivo ficou impossível de carregar, sem ninguém notar,
+ * porque `nav-sync-test.js` o lê como TEXTO e nunca o `require`.
  */
 
 "use strict";
@@ -27,7 +33,7 @@ const { ico, PORTAS } = require("./nav-comum.js");
 const RAIZ = path.join(__dirname, "..");
 
 /* ═══════════════════════════════════════════════════════════════════ o CSS */
-const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
+const CSS = `/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -68,7 +74,7 @@ const CSS = `/* ═════════════════════�
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+4 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -178,10 +184,10 @@ const marcacao = atual => '<nav class="nvd" aria-label="telas do cockpit">\n'
 /* ════════════════════════════════════════════════════════════════════ o JS */
 const JS = `<script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -223,7 +229,7 @@ const JS = `<script>
     /* Ímã: com o cursor sobre uma porta inativa a lente se inclina para ela.
        4px lê como intenção e é pouco para não parecer erro. */
     var h = nav.querySelector("a:hover");
-    /* `ax` JÁ é `a.offsetLeft`: ler de novo aqui era uma quarta leitura de
+    /* \`ax\` JÁ é \`a.offsetLeft\`: ler de novo aqui era uma quarta leitura de
        geometria por quadro, e cada uma força layout do documento inteiro. */
     if (h && h !== a) ax += (h.offsetLeft > ax ? 1 : -1) * 4;
     return { x: ax, w: aw };
@@ -281,13 +287,13 @@ const JS = `<script>
   var origem = de && de !== aqui ? nav.querySelector('[data-porta="' + de + '"]') : null;
 
   /* A PARTIDA RODA DEPOIS DA PRIMEIRA PINTURA, e isto é medição, não gosto.
-     Ler `offsetLeft` durante a execução do script ANTECIPA o primeiro layout do
-     documento e o torna síncrono: 209 ms de thread bloqueada no `/disco` e 126 ms
-     no `/tester` (as duas funções nº 1 de JS no boot dessas telas). O `/upgrade`,
+     Ler \`offsetLeft\` durante a execução do script ANTECIPA o primeiro layout do
+     documento e o torna síncrono: 209 ms de thread bloqueada no \`/disco\` e 126 ms
+     no \`/tester\` (as duas funções nº 1 de JS no boot dessas telas). O \`/upgrade\`,
      com o dobro do CSS, custa 0 ms no mesmo ponto — a diferença é só QUANDO o
      script corre em relação ao layout já estar limpo.
      Dois quadros: o primeiro deixa o navegador fazer o layout dele, o segundo lê
-     uma árvore que já existe. A lente fica invisível (`opacity:0`) até estar
+     uma árvore que já existe. A lente fica invisível (\`opacity:0\`) até estar
      posicionada, então o adiamento não vira flash no lugar errado. */
   function partir() {
     if (origem && !reduzir()) {
@@ -311,7 +317,7 @@ const JS = `<script>
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "12345".indexOf(ev.key);
+    var i = "1234".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;

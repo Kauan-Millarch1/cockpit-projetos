@@ -527,35 +527,37 @@ globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ke
    * basta para ela". */
   const nPost = (limpo.match(/req\.method === "POST"/g) || []).length;
   const nDel = (limpo.match(/req\.method === "DELETE"/g) || []).length;
-  /* 45 -> 54, e o arame TROPEÇOU: 2026-08-25, com a auditoria de segurança em
-     cima. As 11 portas novas, e o que foi decidido sobre cada uma:
+  /* 45 -> 54 -> 41, e a terceira mudança é a primeira PARA BAIXO — o que vale
+     escrever, porque um arame que só pega crescimento deixaria passar em silêncio
+     justamente o que aconteceu aqui.
 
-       POST /api/perfil/entrar/google · entrar/email · sair · decidir
-       POST /api/perfil/equipe/convidar · organizacoes · convite
-       POST /api/pareamento/iniciar · confirmar · cancelar
-       DELETE /api/pareamento
+     2026-09-09: o dono decidiu NÃO produtizar o cockpit, e a camada de
+     login/multi-inquilino saiu inteira. As 13 checagens que sumiram (11 rotas
+     nomeadas, mais o POST e o DELETE que moravam dentro do `/api/cofre`):
 
-     · As sete de PERFIL: o guarda basta como fence de origem, e elas trazem a
-       sua própria autorização — PKCE com o verifier só no servidor, `state`
-       carregado no `redirect_to`, uso único com TTL de 10min, id de sessão de 24
-       bytes aleatórios, cookie `HttpOnly; SameSite=Lax`, callback para um
-       `/entrar` fixo (sem redirect aberto), e o papel RE-DERIVADO do banco a cada
-       pedido, nunca aceito do corpo. `cabecalhosCors` só emite
-       `Allow-Origin`/`Allow-Credentials` para `propria`/`pareada`, então o cookie
-       novo não é legível de fora.
+       POST   /api/perfil/entrar/google · entrar/email · sair · decidir
+       POST   /api/perfil/equipe/convidar · organizacoes · convite
+       POST   /api/pareamento/iniciar · confirmar · cancelar
+       POST   /api/cofre    DELETE /api/cofre    DELETE /api/pareamento
 
-     · As quatro de PAREAMENTO: o guarda NÃO bastava, e foi o que este arame
-       serviu para descobrir. Elas são o motor de `/integracoes`, que já exigia
-       admin — e não exigiam nada: zero chamadas de `quemEsta`, ao contrário de
-       `/api/cofre` e `/api/integracoes`. Quem não podia ABRIR a tela dirigia a
-       API dela. Ganharam o portão de admin (bloco `p.startsWith("/api/pareamento")`
-       em `server.js`), cumulativo com a confirmação humana no console — que segue
-       sendo a camada que separa "a pessoa quis" de "algo na máquina dela quis".
+     O raciocínio de segurança sobre cada uma delas — PKCE com o verifier só no
+     servidor, uso único com TTL, o papel re-derivado do banco a cada pedido, e o
+     portão de admin que as quatro de PAREAMENTO ganharam depois de este arame
+     descobrir que elas não exigiam nada — não foi perdido: vive na tag
+     `arquivo/produtizacao-20260909` e em `docs/removido-produtizacao/README.md`.
+     Aqui ele não cabe mais, porque comentário que descreve rota inexistente é a
+     prosa sobrevivendo ao código, que esta base trata como pior que silêncio.
 
-     O número volta a ser o que ele sempre foi: um arame, não a garantia. A
-     garantia continua estrutural, nos casos acima — bloco antes da primeira rota
-     e agnóstico de caminho. */
-  const ROTAS_MUTANTES = 54;
+     Um detalhe que fecha o círculo: o comentário DENTRO do bloco do guarda, no
+     `server.js`, diz "são 39 POST e 2 DELETE hoje". Ele foi escrito antes das 11
+     portas entrarem, ficou obsoleto por duas semanas, e voltou a ser exatamente
+     verdade com a remoção. Não é sorte — é o mesmo número medido dos dois lados.
+
+     O que o arame É continua igual, e está no comentário acima: não é a garantia,
+     é o que obriga uma PESSOA a olhar quando a superfície mutante muda de
+     tamanho. A garantia é estrutural — bloco antes da primeira rota, agnóstico de
+     caminho. */
+  const ROTAS_MUTANTES = 41;
   t(`as ${ROTAS_MUTANTES} rotas mutantes seguem ${ROTAS_MUTANTES} (medido: ${nPost} POST + ${nDel} DELETE)`,
     nPost + nDel === ROTAS_MUTANTES);
 

@@ -17,30 +17,20 @@ const conversas = require("./conversas");
 const dossie = require("./dossie");
 const novidades = require("./novidades");
 const anexos = require("./anexos");
-/* O estado das três conexões, para a tela `/integracoes`. Emite fato e nada
-   mais: quem decide que `respondeu:false` significa "quebrou" é a página. As
-   dependências dele entram por parâmetro na rota, não por `require` interno —
-   é o que torna o módulo testável com dublês. */
-const integracoes = require("./integracoes");
-/* Quem é a pessoa, e se ela foi aprovada. FATO — `entrar.html` é quem julga.
-   Ver `CONTRATO-PERFIL.md`, e em especial o §0: isto é identidade, não cadeado. */
-const perfil = require("./perfil");
-/* O cofre da chave do n8n (DPAPI do Windows). Ele existia e ninguém o chamava —
-   o `n8n.js` já sabia LER dele, e não havia como escrever. Ver o bloco da rota
-   `/api/cofre`. Aqui o `require` é direto (e não guardado como no `n8n.js`)
-   porque este arquivo nunca é copiado para fora da pasta do projeto. */
-const cofre = require("./cofre");
 /* A negociação de UMA resposta estática, como função pura. Fica fora daqui
    porque este arquivo abre porta e conexão SSE: um teste que exercitasse o
    handler não seria de graça. Ver o comentário de `serveFile` abaixo. */
 const estatico = require("./estatico");
+/* As três camadas na porta: classifica a requisição por origem, responde
+   preflight e RECUSA escrita vinda de outro site. Ele NÃO é login — o cockpit
+   não tem mais login, e mesmo quando tinha, o portão de página e este bloco
+   respondiam a perguntas diferentes. Ele fica porque é o que protege
+   `/api/claude/run/:id/approve`, que escreve em fluxo de produção.
+   `guarda.lerPareamento(__dirname)` lê `.agente/pareamento.json` com try/catch
+   e devolve `null` quando o arquivo não existe, então o bloco continua
+   funcionando sem a cerimônia que escrevia esse arquivo (`pareamento.js`, que
+   saiu junto com a camada de login). Sem pareamento, só cliente local entra. */
 const guarda = require("./guarda");
-/* A cerimonia que ESCREVE o `.agente/pareamento.json` que o `guarda` acima so LE.
- * Fatos: quem decide o que a tela mostra e a tela.
- *
- * O CODIGO DE CONFIRMACAO NAO PASSA POR ROTA NENHUMA, e isso e estrutural e nao
- * prosa -- ver o cabecalho de `pareamento.js`. */
-const pareamento = require("./pareamento");
 
 const execFileAsync = promisify(execFile);
 
@@ -48,56 +38,6 @@ const ROOT = path.resolve(__dirname, "..");          // Desktop\Projects
 const SELF = path.basename(__dirname);               // "Cockpit Projetos"
 const PORT = Number(process.env.PORT || 4317);
 
-/* O portão de login das PÁGINAS. Ligado por padrão; `COCKPIT_LOGIN=0` desliga.
- * Um valor irreconhecível cai no LIGADO — numa permissão, o silêncio é "sim,
- * exija", que é o lado seguro de errar. Ver o bloco do portão lá embaixo. */
-const LOGIN_EXIGIDO = !/^(0|nao|não|off|false)$/i.test(String(process.env.COCKPIT_LOGIN || "").trim());
-
-/* Quem está pedindo esta página. FATO: tem sessão, está aprovado, é admin.
- * Ele NUNCA decide o que a tela mostra — só responde as três perguntas que o
- * portão faz. Fail-open quando o Supabase não está configurado, porque exigir
- * login onde login é impossível é recusa sem saída. */
-async function quemEsta(req) {
-  const cfg = perfil.configurado();
-  if (!cfg.ok) return { sessao: true, aprovado: true, admin: true, semSupabase: true };
-  const bruto = (req.headers && req.headers.cookie) || "";
-  const m = /(?:^|;\s*)cockpit_sessao=([A-Za-z0-9_-]{1,64})(?:;|$)/.exec(bruto);
-  if (!m) return { sessao: false, aprovado: false, admin: false };
-  try {
-    const t = await perfil.tokenValido(cfg, m[1]);
-    if (!t.ok) return { sessao: false, aprovado: false, admin: false };
-    const r = await perfil.perfilDe(cfg, t.access, t.sub);
-    const pf = r.ok ? r.perfil : null;
-    if (!pf) {
-      /* Sessão boa e perfil ilegível é problema NOSSO, e trancar por causa dele
-         seria acusar a conta da pessoa por uma falha nossa — o mesmo erro que o
-         `docAgentes` cometeu ao dizer que o arquivo não existia. Deixa passar
-         para a tela de conta, que sabe dizer que não conferiu. */
-      return { sessao: true, aprovado: false, admin: false, ilegivel: true };
-    }
-    return {
-      sessao: true,
-      aprovado: pf.status === "aprovado",
-      admin: pf.super_admin === true ||
-        (pf.papel === "admin" && pf.status === "aprovado" && !!pf.organizacao_id)
-    };
-  } catch {
-    /* Supabase fora do ar não pode trancar o painel: o cockpit trabalha contra o
-       n8n, não contra o Supabase, e derrubar tudo por causa de um terceiro seria
-       transformar indisponibilidade dele em indisponibilidade nossa. */
-    /* MAS `admin` NAO ACOMPANHA, e a assimetria e a correcao: DISPONIBILIDADE erra
-       para o lado aberto, PRIVILEGIO erra para o lado fechado. Enquanto os dois
-       vinham `true` do mesmo objeto, um operador aprovado — ou uma conta `pendente`
-       com cookie vivo — mandava `POST /api/cofre` durante uma queda do Supabase (ou
-       so estourando o `AbortController` de 15s sob carga) e sobrescrevia a chave do
-       n8n. `perfil.chamar()` tem `try/finally` SEM `catch`, entao a rejeicao do
-       `fetch` chega aqui inteira: o galho nao e hipotetico, e o galho normal de
-       indisponibilidade. `semResposta` viaja para quem precisa dizer "nao consegui
-       conferir quem voce e" — frase diferente de "voce nao e admin", e as duas
-       mandam a pessoa para lugares opostos. */
-    return { sessao: true, aprovado: true, admin: false, semResposta: true };
-  }
-}
 const CACHE_FILE = path.join(__dirname, ".cache-scan.json");
 // O mesmo diretório que o `tester.js` usa. As bandejas de anexo moram debaixo
 // dele (`_bandejas/`), então o caminho tem que ser um só — duas verdades sobre
@@ -583,10 +523,6 @@ function revealFolder(target) {
 const FIXES_FILE = path.join(__dirname, "fixes.json");
 const FIX_BODY_CAP = 8 * 1024;
 
-/* O corpo maior do pareamento e o `iniciar`: quatro URLs e um identificador de
-   conta. 4 KB e folga de sobra, e barra um corpo trocado por lixo ANTES de
-   qualquer `JSON.parse` -- que e o que o `readBody` sem teto deixava passar. */
-const PAREAMENTO_BODY_CAP = 4 * 1024;
 const HISTORY_CAP = 500;
 
 /* Um anexo por requisição, e o corpo dele é o único grande deste servidor.
@@ -1222,53 +1158,11 @@ const server = http.createServer(async (req, res) => {
   /* GUARDA-FIM */
 
   try {
-    /* ─────────────────────────────────── O PORTÃO: sem sessão, só a tela de conta
-     *
-     * Pedido do Kauan: entrar no cockpit tem que mostrar o login PRIMEIRO. Isto
-     * é o que transforma "só o admin mexe em integração" de contrato de tela em
-     * recusa de rota — antes disto, gatar só o operador logado o deixaria mais
-     * restrito que um anônimo, que abria `/integracoes` direto.
-     *
-     * FALHA ABERTO EM DOIS CASOS, e os dois são deliberados:
-     *
-     *   - `COCKPIT_LOGIN=0` desliga. É a saída de emergência, e ela existe por
-     *     um motivo concreto: as sessões vivem na MEMÓRIA deste processo, então
-     *     reiniciar o cockpit desloga de tudo. Sem esta válvula, um erro de
-     *     configuração do Supabase trancaria o dono para fora do próprio painel
-     *     sem caminho de volta pela tela.
-     *   - sem `SUPABASE_URL`/`SUPABASE_ANON_KEY` não existe login possível, e
-     *     exigir o que não pode ser feito é a recusa sem saída que este
-     *     repositório recusa em três outros lugares.
-     *
-     * O QUE ELE NÃO É, e a tela diz: cadeado. Quem tem a máquina alcança tudo
-     * por fora do navegador — `guarda.decidir()` libera cliente local sem origem
-     * de propósito. Isto fecha a porta da frente, não a casa.
-     *
-     * Só PÁGINA passa por aqui. As rotas de API seguem como estavam: o painel
-     * inteiro depende delas, e fechá-las junto seria uma mudança de outro
-     * tamanho, com o SSE no meio. Fica nomeado como dívida, não como pronto. */
-    const PAGINAS_COM_LOGIN = new Set(["/", "/index.html", "/disco", "/tester", "/upgrade", "/integracoes"]);
-    if (LOGIN_EXIGIDO && PAGINAS_COM_LOGIN.has(p)) {
-      const g = await quemEsta(req);
-      if (!g.sessao) {
-        res.writeHead(302, { location: "/conta?volta=" + encodeURIComponent(p), "cache-control": "no-store" });
-        return res.end();
-      }
-      if (!g.aprovado) {
-        /* Pendente e recusado NÃO podem cair na mesma frase — a tela de conta é
-           quem diz qual dos dois é, e ela já tem as duas. Aqui só se manda para lá. */
-        res.writeHead(302, { location: "/conta", "cache-control": "no-store" });
-        return res.end();
-      }
-      /* Chave de API e conexão com o n8n são do admin. Decisão do Kauan. */
-      if (p === "/integracoes" && !g.admin) {
-        res.writeHead(302, {
-          location: "/conta?erro=" + encodeURIComponent("integrações é do admin da equipe — você entrou como operador"),
-          "cache-control": "no-store"
-        });
-        return res.end();
-      }
-    }
+    /* NÃO HÁ PORTÃO DE LOGIN AQUI, e a ausência é a decisão. O cockpit deixou de
+     * ser produto: as quatro abas são de uma pessoa, nesta máquina. O que
+     * protege o painel é o `127.0.0.1` do `listen` lá embaixo mais o bloco do
+     * guarda acima, que é o que ele sempre foi — a página nunca foi o cadeado,
+     * e agora não existe nem a página de conta para onde redirecionar. */
 
     if (p === "/" || p === "/index.html") return serveFile(req, res, path.join(__dirname, "flows.html"));
     if (p === "/disco") return serveFile(req, res, path.join(__dirname, "cockpit.html"));
@@ -1328,581 +1222,16 @@ const server = http.createServer(async (req, res) => {
      * juízo do `upgrade.html`. */
     if (p === "/upgrade") return serveFile(req, res, path.join(__dirname, "upgrade.html"));
 
-    /* ══════════════════════════════════ INTEGRAÇÕES — somente leitura ═══════
-     * Fatia 1: a tela mostra o que o cockpit JÁ sabe responder hoje — n8n
-     * configurado e respondendo, CLI do Claude achada nesta máquina, e o Codex
-     * que ele ainda não sabe chamar.
-     *
-     * Ela NÃO autentica ninguém, NÃO guarda chave e NÃO escreve em lugar
-     * nenhum. O que protege o painel continua sendo o `127.0.0.1` do `listen`
-     * lá embaixo, e a chave do n8n continua vindo do `.env`, uma só, do
-     * processo inteiro — não existe noção de pessoa neste código. A página diz
-     * isso no rodapé em vez de deixar implícito, porque uma tela de
-     * "integrações" é exatamente onde alguém supõe que já existe login.
-     *
-     * Fato aqui, juízo no `integracoes.html`: o módulo devolve `respondeu` e
-     * `httpStatus`; quem traduz isso para "a chave foi revogada" é a página.
-     * Essa é a parte que o Kauan mais ajusta, e no servidor cada ajuste exigiria
-     * reiniciar o processo. */
-    if (p === "/integracoes") return serveFile(req, res, path.join(__dirname, "integracoes.html"));
-
-    /* ───────────────────────────────────────────── PERFIL, ENTRADA E SUPER ADMIN
-     *
-     * Contrato: `CONTRATO-PERFIL.md`. `perfil.js` emite fato; `entrar.html`
-     * julga. As rotas aqui são costura — elas não decidem se a conta "pode
-     * entrar", elas devolvem o que o banco respondeu.
-     *
-     * NENHUMA PORTA NOVA NA CÁPSULA DE NAVEGAÇÃO. As quatro estão travadas por
-     * `nav-sync-test.js`, e mexer nelas é outra fatia — é a mesma decisão que o
-     * `/integracoes` já tomou.
-     *
-     * O TETO, repetido aqui porque é aqui que alguém vai querer confiar demais:
-     * isto NÃO tranca o painel. `guarda.decidir()` libera cliente local sem
-     * origem de propósito, e quem tem a máquina alcança tudo por fora. O que
-     * estas rotas fazem é dizer quem é a pessoa e se ela foi aprovada. */
-    /* `/conta` é a porta da cápsula; `/entrar` é o mesmo arquivo pelo nome que a
-     * pessoa deslogada procura. Um arquivo, dois endereços — a página já decide
-     * sozinha o que mostrar a partir do estado da conta, então uma segunda cópia
-     * seria uma cópia para divergir. */
-    if (p === "/conta" || p === "/entrar") return serveFile(req, res, path.join(__dirname, "entrar.html"));
-
-    if (p.startsWith("/api/perfil/")) {
-      const cfg = perfil.configurado();
-      if (!cfg.ok) {
-        return json(res, 503, {
-          erro: "o cockpit está sem SUPABASE_URL ou SUPABASE_ANON_KEY no .env — sem isso não existe login"
-        });
-      }
-
-      /* O id da sessão é opaco e mora num cookie `HttpOnly`. Ele nunca é lido
-       * por JavaScript, e o token do Supabase nunca sai deste processo. */
-      const bruto = req.headers.cookie || "";
-      const achado = /(?:^|;\s*)cockpit_sessao=([A-Za-z0-9_-]{1,64})(?:;|$)/.exec(bruto);
-      const sid = achado ? achado[1] : null;
-
-      const base = `http://127.0.0.1:${PORT}`;
-      const volta = `${base}/api/perfil/callback`;
-
-      /* FATO: quem está conectado e o que o banco diz do perfil dele. Nunca
-       * token, nunca refresh, nunca a chave. A tela é quem chama isso de
-       * "aprovado" ou "travado". */
-      if (p === "/api/perfil/eu" && req.method === "GET") {
-        if (!sid) return json(res, 200, { sessao: false, perfil: null });
-        const t = await perfil.tokenValido(cfg, sid);
-        if (!t.ok) return json(res, 200, { sessao: false, perfil: null, motivo: t.motivo });
-        /* `perfilDe` e não `eu`: um super admin enxerga TODAS as linhas pela RLS,
-         * então pegar a primeira devolveria o perfil de outra pessoa como se
-         * fosse o dele. Filtra pelo `sub` do próprio token. */
-        const r = await perfil.perfilDe(cfg, t.access, t.sub);
-        if (!r.ok) return json(res, 200, { sessao: true, perfil: null, erro: r.erro });
-        /* A organização viaja junto porque a tela precisa dela para TODOS os
-         * cargos: o admin vê as vagas, o operador vê de qual empresa ele é. Ler
-         * numa segunda chamada faria a tela pintar sem a org e depois com — e o
-         * segundo repintar é o que lê como defeito. */
-        /* Presença, com estrangulamento de 1h. Sem ele isto seria um `PATCH` por
-         * carregamento de página, e esta rota é chamada em toda abertura de
-         * qualquer aba. Uma hora é folgado para o número que ele responde —
-         * "quantas pessoas usaram nos últimos 7 dias" — e a diferença entre
-         * marcar agora ou daqui a 59 minutos não muda resposta nenhuma.
-         * Sem `await`: ver o comentário de `marcarPresenca`. */
-        if (r.perfil) {
-          const v = r.perfil.visto_em ? Date.parse(r.perfil.visto_em) : 0;
-          if (!(Date.now() - v < 3600 * 1000)) perfil.marcarPresenca(cfg, t.access, t.sub);
-        }
-        const o = r.perfil && r.perfil.organizacao_id
-          ? await perfil.organizacao(cfg, t.access, r.perfil.organizacao_id)
-          : { ok: true, org: null };
-        return json(res, 200, {
-          sessao: true,
-          perfil: r.perfil,
-          org: o.ok ? o.org : null,
-          /* Falhar ao ler a organização é problema NOSSO, e é diferente de a
-             pessoa não ter organização. As duas levam a telas diferentes. */
-          orgErro: o.ok ? null : o.erro
-        });
-      }
-
-      if (p === "/api/perfil/entrar/google" && req.method === "POST") {
-        const { url: destino } = perfil.comecarGoogle(cfg, volta);
-        return json(res, 200, { url: destino });
-      }
-
-      if (p === "/api/perfil/entrar/email" && req.method === "POST") {
-        const corpo = JSON.parse((await readBody(req, 4096)) || "{}");
-        const email = String(corpo.email || "").trim();
-        if (!email || email.length > 320 || !email.includes("@")) {
-          return json(res, 400, { erro: "e-mail inválido" });
-        }
-        const r = await perfil.comecarEmail(cfg, email, volta);
-        /* A RESPOSTA É A MESMA para e-mail que existe e que não existe, e o
-         * `ok: true` aqui não afirma que o link saiu — afirma que o pedido foi
-         * aceito. Respostas diferentes transformariam a tela de login num
-         * oráculo de "esta pessoa tem conta aqui", que é vazamento sobre
-         * terceiro. Um 4xx/5xx real do Supabase (cota de e-mail, projeto
-         * pausado) ainda atravessa, porque isso é defeito NOSSO e esconder
-         * deixaria a pessoa esperando um link que nunca vem. */
-        if (!r.ok && r.status >= 500) return json(res, 502, { erro: r.erro });
-        if (!r.ok && r.status === 429) {
-          /* Os dois 429 do Supabase têm saídas OPOSTAS e não podem ler igual.
-           * MEDIDO em 25/08/2026: `over_email_send_rate_limit` é o teto do
-           * serviço de e-mail EMBUTIDO — poucos por hora, e do PROJETO inteiro,
-           * não da pessoa. Esperar não resolve para quem é a terceira pessoa da
-           * hora; o que resolve é um SMTP próprio. Dizer "espere um minuto" ali
-           * é mandar a pessoa esperar por algo que não vai chegar. */
-          const doProjeto = r.codigo === "over_email_send_rate_limit";
-          return json(res, 429, {
-            erro: doProjeto
-              ? "o serviço de e-mail embutido do Supabase bateu no teto da hora — ele é para teste e o limite vale para o projeto inteiro, não só para você. Entre pelo Google, ou peça para configurarem um SMTP próprio."
-              : "muitos pedidos seguidos para este endereço. Espere alguns segundos e tente de novo.",
-            codigo: r.codigo || null,
-            /* A tela usa isto para decidir se oferece o Google em destaque: com o
-               e-mail no teto, insistir no botão do e-mail é insistir no que não
-               vai funcionar. */
-            usarGoogle: doProjeto
-          });
-        }
-        return json(res, 200, { ok: true });
-      }
-
-      /* A volta do Google e do link por e-mail. Redireciona SEMPRE para
-       * `/entrar`, nunca imprime token na barra de endereços, e a mensagem de
-       * erro viaja como texto já varrido. */
-      if (p === "/api/perfil/callback" && req.method === "GET") {
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("s");
-        const erroUp = url.searchParams.get("error_description") || url.searchParams.get("error");
-
-        function volta_(q) {
-          res.writeHead(302, { location: "/entrar" + q, "cache-control": "no-store" });
-          res.end();
-        }
-        if (erroUp) return volta_("?erro=" + encodeURIComponent(perfil.varrer(erroUp)));
-        if (!code || !state) return volta_("?erro=" + encodeURIComponent("a volta do login chegou sem código"));
-
-        const r = await perfil.trocarCodigo(cfg, code, state);
-        if (!r.ok) return volta_("?erro=" + encodeURIComponent(r.erro));
-
-        res.writeHead(302, {
-          location: "/entrar?ok=1",
-          "cache-control": "no-store",
-          /* `HttpOnly` fecha o XSS; `SameSite=Lax` deixa a volta do redirect
-             funcionar e barra POST cruzado. Sem `Secure`: isto é http no
-             loopback, e `Secure` faria o cookie ser DESCARTADO em silêncio — o
-             login pareceria funcionar e a sessão nunca existiria. */
-          "set-cookie": `cockpit_sessao=${r.id}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(perfil.SESSAO_VIDA_MS / 1000)}`
-        });
-        return res.end();
-      }
-
-      if (p === "/api/perfil/sair" && req.method === "POST") {
-        if (sid) perfil.encerrar(sid);
-        res.writeHead(200, {
-          ...estatico.SEGURANCA,
-          "content-type": "application/json; charset=utf-8",
-          "cache-control": "no-store",
-          "set-cookie": "cockpit_sessao=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
-        });
-        return res.end(JSON.stringify({ ok: true }));
-      }
-
-      /* ─────────────────────────────── daqui para baixo exige cargo
-       *
-       * A checagem é feita AQUI, contra o banco, e não contra o que a página
-       * afirmou. A RLS é a terceira camada e recusaria de qualquer jeito — as
-       * três existem de verdade, e a tela esconder o botão é a mais fraca. */
-      const t = sid ? await perfil.tokenValido(cfg, sid) : { ok: false };
-      if (!t.ok) return json(res, 401, { erro: "entre antes" });
-      const meu = await perfil.perfilDe(cfg, t.access, t.sub);
-      if (!meu.ok || !meu.perfil) return json(res, 403, { erro: "não consegui ler o seu perfil" });
-      const EU = meu.perfil;
-      const SUPER = EU.super_admin === true;
-      /* Admin de verdade: cargo `admin`, APROVADO e com organização. Um admin
-       * recusado, ou sem empresa, não gerencia ninguém — é a mesma condição que
-       * `private.eh_admin()` cobra no banco, e as duas têm que casar. */
-      const ADMIN = SUPER || (EU.papel === "admin" && EU.status === "aprovado" && !!EU.organizacao_id);
-      const soSuper = () => json(res, 403, { erro: "esta parte é do super admin" });
-      const soAdmin = () => json(res, 403, { erro: "esta parte é de quem administra a equipe" });
-
-      /* ── a equipe: do ADMIN, sobre a organização DELE ────────────────────── */
-
-      if (p === "/api/perfil/equipe" && req.method === "GET") {
-        if (!ADMIN) return soAdmin();
-        const orgId = EU.organizacao_id;
-        const [time, org, convs] = await Promise.all([
-          perfil.equipe(cfg, t.access, orgId),
-          perfil.organizacao(cfg, t.access, orgId),
-          perfil.convites(cfg, t.access)
-        ]);
-        if (!time.ok) return json(res, 502, { erro: time.erro });
-        return json(res, 200, {
-          linhas: time.linhas,
-          org: org.ok ? org.org : null,
-          /* Os convites da org que ainda não viraram pessoa. Sem eles a tela
-             contaria só quem já entrou e a conta das vagas não fecharia — o teto
-             consome no CONVITE, não na entrada. */
-          convites: convs.ok ? (convs.linhas || []).filter(c => !c.usado_em) : []
-        });
-      }
-
-      if (p === "/api/perfil/equipe/convidar" && req.method === "POST") {
-        if (!ADMIN) return soAdmin();
-        if (!EU.organizacao_id) {
-          return json(res, 400, { erro: "você ainda não está numa organização — peça ao super admin" });
-        }
-        const corpo = JSON.parse((await readBody(req, 4096)) || "{}");
-        const email = String(corpo.email || "").trim().toLowerCase();
-        if (!email || email.length > 320 || !email.includes("@")) {
-          return json(res, 400, { erro: "e-mail inválido" });
-        }
-        /* `papel` NÃO vem do corpo: um admin só emite operador. Aceitar do corpo
-           deixaria o teto de 3 vazar numa linha — promove um a admin e ele
-           convida mais 3. Criar admin é ato do super admin. */
-        const r = await perfil.convidarComCargo(cfg, t.access, {
-          email, papel: "operador", orgId: EU.organizacao_id, porQuem: t.sub
-        });
-        if (!r.ok) return json(res, r.status === 409 ? 409 : 502, { erro: r.erro, semVaga: !!r.semVaga });
-        return json(res, 200, { ok: true, convite: r.convite });
-      }
-
-      /* ── organizações e cargos: só o super admin ─────────────────────────── */
-
-      if (p === "/api/perfil/organizacoes" && req.method === "GET") {
-        if (!SUPER) return soSuper();
-        const r = await perfil.organizacoes(cfg, t.access);
-        if (!r.ok) return json(res, 502, { erro: r.erro });
-        return json(res, 200, { linhas: r.linhas });
-      }
-
-      if (p === "/api/perfil/organizacoes" && req.method === "POST") {
-        if (!SUPER) return soSuper();
-        const corpo = JSON.parse((await readBody(req, 4096)) || "{}");
-        const nome = String(corpo.nome || "").trim().slice(0, 120);
-        if (!nome) return json(res, 400, { erro: "a organização precisa de um nome" });
-        const r = await perfil.criarOrganizacao(cfg, t.access, { nome, porQuem: t.sub });
-        if (!r.ok) return json(res, 502, { erro: r.erro });
-        return json(res, 200, { ok: true, org: r.org });
-      }
-
-      if (!SUPER) return soSuper();
-
-      if (p === "/api/perfil/pedidos" && req.method === "GET") {
-        const [fila, convs, orgs, tudo] = await Promise.all([
-          perfil.pedidos(cfg, t.access),
-          perfil.convites(cfg, t.access),
-          perfil.organizacoes(cfg, t.access),
-          perfil.todos(cfg, t.access)
-        ]);
-        if (!fila.ok) return json(res, 502, { erro: fila.erro });
-        return json(res, 200, {
-          linhas: fila.linhas,
-          convites: convs.ok ? convs.linhas : [],
-          organizacoes: orgs.ok ? orgs.linhas : [],
-          todos: tudo.ok ? tudo.linhas : [],
-          /* Ler os convites pode falhar sozinho, e a fila continua válida. Dizer
-             que falhou é diferente de dizer que não há nenhum. */
-          convitesErro: convs.ok ? null : convs.erro
-        });
-      }
-
-      if (p === "/api/perfil/decidir" && req.method === "POST") {
-        const corpo = JSON.parse((await readBody(req, 4096)) || "{}");
-        const alvo = String(corpo.id || "");
-        if (!/^[0-9a-fA-F-]{36}$/.test(alvo)) return json(res, 400, { erro: "id inválido" });
-        if (typeof corpo.aprovar !== "boolean") return json(res, 400, { erro: "aprovar tem que ser true ou false" });
-        /* Recusar a si mesmo tiraria o único super admin e deixaria o painel sem
-           quem aprove ninguém — sem caminho de volta pela tela. */
-        if (alvo === t.sub) return json(res, 400, { erro: "você não pode decidir sobre a sua própria conta" });
-        const motivo = corpo.motivo == null ? null : String(corpo.motivo).slice(0, 300);
-
-        /* CARGO SÓ DO SUPER ADMIN, e a omissão é deliberada: `undefined` diz
-         * "não mexa", `null` diria "apague o cargo". Um admin tirando alguém da
-         * equipe não pode apagar o cargo dessa pessoa sem ter pedido — e o
-         * gatilho do banco recusaria de qualquer jeito, mas depender disso
-         * transformaria uma regra em um erro de 500 na tela. */
-        let papel; let orgId;
-        if (SUPER && corpo.aprovar) {
-          if (corpo.papel !== undefined) {
-            const v = corpo.papel === null ? null : String(corpo.papel);
-            if (v !== null && v !== "admin" && v !== "operador") {
-              return json(res, 400, { erro: "cargo tem que ser admin, operador, ou nenhum" });
-            }
-            papel = v;
-          }
-          if (corpo.organizacao_id !== undefined) {
-            const o = corpo.organizacao_id === null ? null : String(corpo.organizacao_id);
-            if (o !== null && !/^[0-9a-fA-F-]{36}$/.test(o)) {
-              return json(res, 400, { erro: "organização inválida" });
-            }
-            orgId = o;
-          }
-          if (papel && orgId === null) return json(res, 400, { erro: "escolha a organização deste cargo" });
-          if (papel && orgId === undefined) return json(res, 400, { erro: "escolha a organização deste cargo" });
-        }
-
-        const r = await perfil.decidir(cfg, t.access, {
-          id: alvo, aprovar: corpo.aprovar, motivo, porQuem: t.sub, papel, orgId
-        });
-        if (!r.ok) {
-          return json(res, r.status === 409 ? 409 : (r.status === 403 ? 403 : 502),
-            { erro: r.erro, semVaga: !!r.semVaga });
-        }
-        return json(res, 200, { ok: true, perfil: r.perfil });
-      }
-
-      if (p === "/api/perfil/convite" && req.method === "POST") {
-        const corpo = JSON.parse((await readBody(req, 4096)) || "{}");
-        const email = String(corpo.email || "").trim().toLowerCase();
-        if (!email || email.length > 320 || !email.includes("@")) {
-          return json(res, 400, { erro: "e-mail inválido" });
-        }
-        /* `super_admin` NÃO é aceito do corpo, em nenhuma forma. Criar outro
-           super admin é ato de banco, deliberadamente — ver a nota de privilégio
-           de coluna na migration. */
-        const papel = corpo.papel == null ? null : String(corpo.papel);
-        if (papel !== null && papel !== "admin" && papel !== "operador") {
-          return json(res, 400, { erro: "cargo tem que ser admin, operador, ou nenhum" });
-        }
-        const orgId = corpo.organizacao_id == null ? null : String(corpo.organizacao_id);
-        if (orgId !== null && !/^[0-9a-fA-F-]{36}$/.test(orgId)) {
-          return json(res, 400, { erro: "organização inválida" });
-        }
-        /* Cargo sem organização não é um estado útil e é fácil de criar sem
-           querer: um admin sem empresa não gerencia ninguém e um operador sem
-           empresa não pertence a lugar nenhum. Recusa nomeando o que falta, em
-           vez de gravar uma linha que a tela depois não sabe explicar. */
-        if (papel && !orgId) return json(res, 400, { erro: "escolha a organização deste cargo" });
-        const r = await perfil.convidarComCargo(cfg, t.access, {
-          email, papel, orgId, porQuem: t.sub
-        });
-        if (!r.ok) return json(res, r.status === 409 ? 409 : 502, { erro: r.erro, semVaga: !!r.semVaga });
-        return json(res, 200, { ok: true, convite: r.convite });
-      }
-
-      return json(res, 404, { erro: "rota de perfil desconhecida" });
-    }
-
-    /* Pergunta ao CLI se ele está logado, e por qual rota. `claude auth status
-     * --json` devolve `{loggedIn, authMethod, subscriptionType, email, orgName}`
-     * — medido nesta máquina, ~670ms por chamada, e é por isso que a resposta
-     * inteira do `/api/integracoes` tem cache de 30s.
-     *
-     * A pergunta vai para o CLI, NUNCA para o `~/.claude/.credentials.json`.
-     * Ler o arquivo de credencial de alguém para saber se ele está logado é
-     * atravessar uma fronteira que este painel não atravessa nem no n8n: a
-     * resposta oficial existe, então usa-se a resposta oficial.
-     *
-     * `timeout` obrigatório: um CLI que pendura sem ele penduraria a rota, e a
-     * tela ficaria "conferindo" para sempre — que é justo o estado que a gente
-     * separou de "não está logada". */
-    async function autenticarClaude() {
-      const { stdout } = await execFileAsync(claudeFix.claudeBin,
-        ["auth", "status", "--json"],
-        { timeout: 15000, windowsHide: true, maxBuffer: 256 * 1024 });
-      return JSON.parse(stdout);
-    }
-
-    /* ─────────────────────────────────────── O COFRE DA CHAVE DO n8n
-     *
-     * Até 25/08/2026 o `cofre.js` existia, passava nos próprios testes, e
-     * NINGUÉM o chamava — medido por grep: zero chamadas a `cofre.guardar` fora
-     * dos testes dele. O `n8n.js` já sabia LER (`ORDEM_DA_CHAVE = ["cofre",
-     * "env"]`), então a chave podia vir do cofre e não havia como colocá-la lá.
-     * Trocar a chave era abrir o `.env` num editor e reiniciar o processo — a
-     * fricção exata que o passo a passo de download promete não existir.
-     *
-     * TRÊS ROTAS, e a de escrita é a única do cockpit que recebe um SEGREDO no
-     * corpo. Consequências que valem para ela e para nenhuma outra:
-     *
-     *   - o valor NUNCA volta na resposta, nem truncado. Prefixo publicado deixa
-     *     conferir um palpite, e o painel viraria oráculo de credencial.
-     *   - o valor NUNCA entra em log. Este arquivo não imprime corpo de requisição
-     *     em lugar nenhum, e esta rota não pode ser a primeira.
-     *   - o corpo é pequeno de propósito (2KB): uma chave do n8n é um JWT de
-     *     algumas centenas de bytes, e um teto folgado aqui só serve para
-     *     alguém empurrar outra coisa.
-     *   - depois de gravar, `n8n.esquecerChave()` zera o memo do cliente. Sem
-     *     isso o processo seguiria usando a chave anterior até reiniciar, e a
-     *     tela diria "guardada" enquanto o n8n continuaria recusando.
-     *
-     * SÓ ADMIN, como o resto de integrações — decisão do Kauan. E vale o mesmo
-     * teto de sempre: numa máquina que é da própria pessoa, isso impede o
-     * acidente e não o determinado. */
-    if (p === "/api/cofre") {
-      if (LOGIN_EXIGIDO) {
-        const g = await quemEsta(req);
-        if (g.semResposta) return json(res, 503, { erro: "nao consegui conferir quem voce e: o Supabase nao respondeu. Isto nao e uma recusa — tenta de novo em instantes." });
-        if (!g.admin) return json(res, 403, { erro: "a chave do n8n é do admin da equipe" });
-      }
-
-      if (req.method === "GET") {
-        /* FATO. `estadoChave()` não devolve a chave nem pedaço dela — devolve de
-           onde ela vem, se o cofre abriu, e o motivo quando não abriu. Quem
-           traduz isso para português é a página. */
-        return json(res, 200, await n8n.estadoChave());
-      }
-
-      if (req.method === "POST") {
-        let corpo;
-        try { corpo = JSON.parse((await readBody(req, 2048)) || "{}"); }
-        catch { return json(res, 400, { erro: "corpo inválido" }); }
-
-        /* `cofre.guardar` recusa não-string, vazio e branco no meio, cada um com
-           a frase dele. Repassar a mensagem dele é melhor que inventar outra:
-           ele é quem sabe qual das três recusas foi, e as três mandam a pessoa
-           fazer coisas diferentes. */
-        try {
-          /* O valor vai CRU para o cofre, e não normalizado para `null` antes.
-             Ele checa `typeof` e nomeia o tipo que chegou — normalizar aqui
-             fazia um objeto ser reportado como "veio null", que manda quem lê
-             procurar um campo ausente onde havia um campo com o tipo errado. */
-          const r = await cofre.guardar(corpo.chave);
-          n8n.esquecerChave();
-          return json(res, 200, {
-            ok: true,
-            onde: r.onde,
-            /* `forma` é AVISO, nunca recusa — o cofre guarda mesmo quando não
-               parece um JWT, porque recusar por forma travaria a pessoa fora da
-               instância no dia em que o formato mudasse. */
-            forma: r.forma,
-            /* Este campo existe para a obrigação deixar de ser prosa: o cabeçalho
-               do `cofre.js` diz que a tela TEM que avisar que a chave antiga
-               continua ativa no n8n. Como campo do contrato, a ausência do
-               consumidor é aferível por teste. */
-            revogacaoManual: r.revogacaoManual === true
-          });
-        } catch (err) {
-          /* A mensagem do cofre nunca cita o valor — está escrito e testado lá.
-             Ainda assim ela passa pela varredura, porque esta é a rota onde um
-             segredo existe e o custo de errar é publicá-lo. */
-          return json(res, 400, { erro: perfil.varrer(String((err && err.message) || err)) });
-        }
-      }
-
-      if (req.method === "DELETE") {
-        try {
-          const tinha = await cofre.apagar();
-          n8n.esquecerChave();
-          /* `tinha: false` não é erro: apagar o que não existe é o resultado
-             pedido. A tela diz "não havia nada guardado" em vez de reclamar. */
-          return json(res, 200, { ok: true, tinha });
-        } catch (err) {
-          return json(res, 500, { erro: perfil.varrer(String((err && err.message) || err)) });
-        }
-      }
-
-      return json(res, 405, { erro: "método não aceito nesta rota" });
-    }
-
-    if (p === "/api/integracoes") {
-      /* A rota, não só a tela. Esconder a porta impede o acidente; recusar aqui
-       * é o que impede o `curl`. Esta resposta carrega o host do n8n e o e-mail
-       * da conta Claude — não é uma tela vazia que se está protegendo.
-       * Só vale com o portão ligado: com ele desligado não existe noção de
-       * pessoa, e recusar por cargo seria recusar por um cargo que ninguém tem. */
-      if (LOGIN_EXIGIDO) {
-        const g = await quemEsta(req);
-        if (g.semResposta) return json(res, 503, { erro: "nao consegui conferir quem voce e: o Supabase nao respondeu. Isto nao e uma recusa — tenta de novo em instantes." });
-        if (!g.admin) return json(res, 403, { erro: "integrações é do admin da equipe" });
-      }
-      /* As dependências entram por parâmetro em vez de `require` dentro do
-       * módulo: é o que deixa o `integracoes-test.js` exercitar a lógica de
-       * verdade com dublês, sem a cirurgia no `require.cache` que os testes
-       * mais antigos daqui precisaram fazer. */
-      try {
-        /* `?refazer=1` é o clique em "Conferir de novo". Sem ele o cache de 30s
-         * responderia o mesmo, e um botão que devolve o que já estava na tela é
-         * um botão que não faz nada — pior que não ter botão. O caminho
-         * automático (a primeira pintura da página) NÃO passa isso, senão o
-         * cache não serve para nada. */
-        const refazer = url.searchParams.get("refazer") === "1";
-        return json(res, 200, await integracoes.colher({
-          n8n, fix: claudeFix, refazer, autenticar: autenticarClaude,
-          /* O adaptador de provedor, como FATO. A tela mostrava isto transcrito a
-             mao -- segunda copia de um fato que decide qual IA a pessoa usa e quem
-             paga a conta dela. `capacidades()` e puro: sem rede, sem disco. */
-          ia: require("./ia.js")
-        }));
-      } catch (err) {
-        /* A mensagem crua NÃO volta para o navegador. `colher` varre o que
-         * emite (contrato §4), mas uma exceção inesperada escapa por fora dessa
-         * varredura, e é justo por aí que a chave sairia. O bruto fica no
-         * console, que é onde ela já mora de qualquer forma. */
-        console.error("[integracoes] colheita falhou:", err);
-        return json(res, 500, { error: "não consegui colher o estado das integrações — veja o console do cockpit" });
-      }
-    }
-
-    /* ═══════════════════════════════════════ pareamento do agente local ═════
-     *
-     * A cerimonia que decide QUAL SITE pode mandar este agente escrever num fluxo
-     * de producao (`/approve`) e disparar `/retry`, que manda mensagem real para
-     * um lead e nao tem desfazer. `pareamento.js` emite fatos; o juizo e da tela.
-     *
-     * O CODIGO DE CONFIRMACAO NAO SAI POR AQUI, e nao sai de proposito: `iniciar`
-     * so o entrega ao console do agente. Nenhuma rota consegue obte-lo, entao
-     * nenhuma rota pode vaza-lo. NAO acrescente um parametro que devolva o codigo
-     * na resposta -- isso transforma a confirmacao humana em enfeite, porque quem
-     * pediu a cerimonia passa a poder fecha-la sozinho, e a confirmacao humana e a
-     * unica camada que separa "a pessoa quis" de "algo na maquina dela quis".
-     *
-     * Um site hospedado ainda NAO pareado nao alcanca nada disto: `guarda.decidir`
-     * classifica origem desconhecida como `estranha` e recusa toda mutante com 403.
-     * A cerimonia e conduzida do painel local, e essa direcao foi medida contra o
-     * `guarda`, nao escolhida. */
-    /* O PORTAO DE ADMIN, E ELE FALTAVA. A pagina /integracoes ja exige admin
-     * (bloco do portao, mais acima), e estas quatro rotas — que sao o motor dela —
-     * nao exigiam nada: zero chamadas de `quemEsta` neste bloco, ao contrario de
-     * /api/cofre e /api/integracoes. Quem nao pode ABRIR a tela nao pode dirigir a
-     * API dela; a assimetria era a porta.
-     * Ela e cumulativa com a cerimonia, nao substituta: a confirmacao humana no
-     * console segue sendo a camada que separa "a pessoa quis" de "algo na maquina
-     * dela quis". Esta aqui fecha o degrau anterior — quem consegue ABRIR uma
-     * cerimonia.
-     * O GET entra junto porque ele devolve `origens`, `iss` e `dono`, que e o
-     * inventario de quem manda neste agente.
-     * Sem Supabase configurado `quemEsta` devolve `admin: true` e o pareamento
-     * local segue funcionando — que e o modo em que ele normalmente acontece. */
-    if (p.startsWith("/api/pareamento")) {
-      const g = await quemEsta(req);
-      if (g.semResposta) return json(res, 503, { erro: "nao consegui conferir quem voce e: o Supabase nao respondeu. Isto nao e uma recusa — tenta de novo em instantes." });
-      if (!g.admin) return json(res, 403, { erro: "o pareamento do agente e do admin da equipe" });
-    }
-
-    if (p === "/api/pareamento" && req.method === "GET") {
-      return json(res, 200, pareamento.estado(__dirname));
-    }
-
-    if (p === "/api/pareamento" && req.method === "DELETE") {
-      const r = pareamento.desparear(__dirname);
-      return json(res, r.ok ? 200 : 500, r);
-    }
-
-    if (p === "/api/pareamento/iniciar" && req.method === "POST") {
-      const b = JSON.parse(await readBody(req, PAREAMENTO_BODY_CAP) || "{}");
-      const r = pareamento.iniciar({
-        dir: __dirname,
-        origem: b.origem, origens: b.origens,
-        iss: b.iss, jwks: b.jwks, dono: b.dono
-      });
-      /* Recusa de entrada e 400 carregando `categoria`, como o `/api/tester/anexo`
-         ja faz -- e o que deixa a tela agrupar e dizer a frase certa em vez de
-         "deu erro". 202 no sucesso: a cerimonia comecou e NADA foi gravado ainda. */
-      return json(res, r.ok ? 202 : 400, r);
-    }
-
-    if (p === "/api/pareamento/confirmar" && req.method === "POST") {
-      const b = JSON.parse(await readBody(req, PAREAMENTO_BODY_CAP) || "{}");
-      const r = pareamento.confirmar({ dir: __dirname, desafio: b.desafio, codigo: b.codigo });
-      /* "erre outra vez" e "comece de novo" sao duas historias, e a tela precisa
-         distinguir sem ter de ler a frase: 400 enquanto ainda da para tentar, 410
-         quando a cerimonia acabou (teto de tentativa, prazo, ou nao existe mais). */
-      const acabou = r.categoria === "teto" || r.categoria === "prazo" || r.categoria === "desafio";
-      return json(res, r.ok ? 200 : (acabou ? 410 : 400), r);
-    }
-
-    if (p === "/api/pareamento/cancelar" && req.method === "POST") {
-      return json(res, 200, { ok: true, havia: pareamento.esquecerCerimonia() });
-    }
+    /* SÃO QUATRO PORTAS, E SÓ QUATRO. Aqui moravam `/conta`, `/entrar` e
+     * `/integracoes`, mais as rotas que as alimentavam: `/api/perfil/*` (login,
+     * equipe, convite, organização), `/api/cofre` (a chave do n8n gravada pela
+     * tela), `/api/integracoes` e `/api/pareamento*`. Saíram porque o cockpit
+     * deixou de ser produto — sem multi-inquilino não existe "quem é a pessoa",
+     * e um cadastro de uma pessoa só é cerimônia sem função.
+     * Consequências que valem escrever: a chave do n8n volta a vir SÓ do `.env`
+     * (o `n8n.js` ainda sabe ler do cofre, mas nada aqui escreve nele), e o
+     * pareamento de origem não tem mais como ser criado — o `guarda` acima
+     * segue lendo o arquivo se ele existir, e sem ele só cliente local escreve. */
 
     if (p === "/api/upgrade/vitrine") {
       const ov = await n8n.overview();
@@ -2138,10 +1467,14 @@ const server = http.createServer(async (req, res) => {
          inofensivo. Servir e outra coisa: `estatico.tipoDe(".html")` devolve
          `text/html`, e com `content-disposition: inline` um clique no chip abre o
          arquivo do cliente como DOCUMENTO DE PRIMEIRA PARTE em `localhost:4317` —
-         com o cookie `cockpit_sessao` junto e `guarda.classificar` dizendo
-         `propria`. Dali o script chama `POST /api/claude/run/:id/approve` (escreve
-         em fluxo de producao), `.../retry` (mensagem real para um lead, sem
-         desfazer) e `POST /api/cofre` (a chave do n8n). O vetor e a rotina que o
+         com `guarda.classificar` dizendo `propria`, que e a classe que pode
+         escrever. Dali o script chama `POST /api/claude/run/:id/approve` (escreve
+         em fluxo de producao) e `.../retry` (mensagem real para um lead, sem
+         desfazer). O `POST /api/cofre` citado aqui antes era um terceiro alvo e
+         saiu com a camada de login: hoje a chave do n8n so vem do `.env`, e
+         nao ha cookie de sessao para o documento carregar — o que NAO diminui
+         nada, porque as duas rotas que sobraram sao as irreversiveis. O vetor e
+         a rotina que o
          `CLAUDE.md` documenta: "arraste a pasta descompactada" — uma pasta de
          projeto com um `index.html` dentro.
          `nosniff` nao ajuda quando o tipo DECLARADO ja e executavel, e o CSP de
@@ -3071,17 +2404,10 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Cockpit em http://localhost:${PORT}`);
-  /* O estado do portão é dito em voz alta no boot, e os três casos são
-     distintos. Um painel que redireciona tudo para o login sem explicar manda
-     quem lê procurar defeito no lugar errado — e a sessão morre com o processo,
-     então "reiniciei e perdi o login" vai acontecer e precisa ser reconhecível. */
-  if (!perfil.configurado().ok) {
-    console.log("login: DESLIGADO — falta SUPABASE_URL/SUPABASE_ANON_KEY no .env");
-  } else if (!LOGIN_EXIGIDO) {
-    console.log("login: DESLIGADO por COCKPIT_LOGIN=0 — as páginas abrem sem sessão");
-  } else {
-    console.log("login: exigido nas páginas. A sessão vive neste processo — reiniciar desloga.");
-  }
+  /* O boot não fala mais do estado do login, e não fala porque não há login: as
+     três frases que ficavam aqui existiam para que "o painel me redirecionou
+     para a tela de conta" fosse reconhecível. Sem portão, uma linha sobre ele
+     seria pior que o silêncio — mandaria procurar uma tela que não existe. */
   console.log(`Raiz: ${ROOT}`);
 
   /* O job diário das novidades do n8n.

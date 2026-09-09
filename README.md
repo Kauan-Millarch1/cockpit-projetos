@@ -34,10 +34,10 @@ cockpit — clonado em `C:\Projects\cockpit-n8n`, a varredura é de `C:\Projects
 Área de Trabalho, `/disco` mostra a Área de Trabalho. As outras portas não dependem de
 onde ele está.
 
-O `.env` é **opcional para o servidor subir**: sem ele `/disco` funciona, o painel de
-fluxos mostra um estado de erro honesto, e o login se desliga. O boot diz em voz alta o
-estado das três coisas — n8n, login e o CLI do Claude — em vez de deixar a ausência
-parecer defeito.
+O `.env` é **opcional para o servidor subir**: sem ele `/disco` funciona e o painel de
+fluxos mostra um estado de erro honesto. O boot diz em voz alta se o n8n está
+configurado, em vez de deixar a ausência parecer defeito; o estado do CLI do Claude é a
+tela que responde, em `/api/claude/status`, porque ele só importa no clique.
 
 ---
 
@@ -49,8 +49,16 @@ parecer defeito.
 | **Tester** | `/tester` | "Como construo o fluxo que está na minha cabeça?" Você descreve em português; ele entrevista, desenha, valida e devolve o JSON. |
 | **Upgrade** | `/upgrade` | "Como mexo num fluxo que já existe?" Conversa sobre um fluxo vivo, resolve em qual workflow o nó realmente mora, e termina num diff. |
 | **Disco** | `/disco` | A varredura em disco de todos os projetos: o que está vivo e o que está apodrecendo. |
-| **Conta** | `/conta` · `/entrar` | Login e aprovação de quem entra. **Só existe se você configurar um Supabase** — sem ele, esta porta não é exigida por ninguém. |
-| **Integrações** | `/integracoes` | A chave da API e a conexão com o n8n. Do admin da equipe, quando há login. |
+
+**Quatro portas, e não há login.** O cockpit é de uma pessoa, na máquina dela, em
+`127.0.0.1` — quem tem o computador já alcança tudo por fora do navegador, então uma
+tela de sessão fecharia a porta da frente e não a casa. A camada de login, aprovação e
+cofre de chave por tela existiu até 09/09/2026 e saiu inteira; o motivo, o inventário e
+como voltar estão em [`docs/removido-produtizacao/`](docs/removido-produtizacao/).
+
+O que **não** saiu é o `guarda.js`, e ele não é login: é quem classifica de onde veio a
+requisição, e é o que protege o único clique que escreve em fluxo de produção de ser
+disparado por outro site.
 
 ### Fluxos — do erro até o diff
 
@@ -104,21 +112,18 @@ A chave sai de **Settings → n8n API → Create an API key** na sua instância.
 desta máquina: nenhuma rota a serve, e o processo filho que roda o Claude tem
 `N8N_API_KEY` numa lista de **negação** — ele não a vê.
 
+**Ela vem do `.env`, e só.** `n8n.js` lê `.env` e `.env.local` deste diretório, e o
+arquivo **vence** `process.env` — a ordem é declarada em `ORDEM_DA_CHAVE` e viaja em
+`estadoChave()`, nunca fica implícita. A releitura é memoizada por mtime e tamanho, não
+por TTL: editar o `.env` e recarregar a página basta, e um TTL faria a tela dizer "não
+configurado" por alguns segundos **depois** de a chave entrar.
+
+Essa camada responde "existe chave configurada?" e "de onde ela veio?". Ela **não**
+responde se a chave vale — quem diz isso é o n8n, com um 401, e as duas perguntas mandam
+você para lugares diferentes.
+
 Sem o CLI do Claude, a correção degrada para a cópia manual do briefing — **e diz por
 quê**, nunca finge que uma sessão rodou.
-
-### Login é opcional, e o que ele é
-
-Configurando `SUPABASE_URL` e `SUPABASE_ANON_KEY`, as páginas passam a exigir sessão.
-**Faltando as duas, o login se desliga e diz no boot** — exigir o que não pode ser feito
-seria recusa sem saída. Para ligar, é preciso um projeto Supabase seu com as migrations de
-`supabase/migrations/` aplicadas; a `service_role` não entra neste repositório em lugar
-nenhum.
-
-**Ele diz quem a pessoa é; ele não tranca a máquina.** Quem tem o computador alcança o
-painel por fora do navegador, e o guarda permite isso de propósito para não travar
-automação local. Isto fecha a porta da frente, não a casa — e a tela diz isso em vez de
-esconder.
 
 > **Não suba o servidor como tarefa de fundo do Claude Code.** Esses processos morrem quando
 > o harness os recolhe, e o cockpit cai no meio da sessão.
@@ -148,13 +153,15 @@ realmente errada aqui.
 ## Testes
 
 ```bash
-testar.cmd            # duplo clique: 66 invocações, nenhuma custa nada
+testar.cmd            # duplo clique: 59 invocações, nenhuma custa nada
 ```
 
-**Medido:** 66 invocações — os **65** arquivos `*-test.js` do disco, todos eles, mais
-`simulate.js`, que roda como demonstração e não como teste. Nenhum chama modelo, toca a
-rede ou gasta cota. `tester-smoke.js` fica de fora de propósito: esse conduz uma
-construção inteira e cobra do plano.
+**Medido em 09/09/2026:** 59 invocações — os **58** arquivos `*-test.js` do disco, todos
+eles, e são os mesmos 58 rastreados no git, mais `simulate.js`, que roda como
+demonstração e não como teste. Nenhum chama modelo, toca a rede ou gasta cota.
+`tester-smoke.js` fica de fora de propósito: esse conduz uma construção inteira e cobra
+do plano. Sete baterias saíram com a camada de login em 09/09/2026 — estão listadas, uma
+linha cada, em [`docs/removido-produtizacao/`](docs/removido-produtizacao/).
 
 Ele termina com `pause`, então rodar por script (em vez de duplo clique) precisa de stdin
 fechado — e o `cmd` não acha um `.cmd` do diretório atual sem o `.\`:
@@ -202,11 +209,11 @@ máquina, e uma delas não tem desfazer.**
 - **Não executa um fluxo do zero.** Aí a API pública realmente não tem endpoint — não é
   escolha de escopo.
 - **Não altera código de projeto e não faz deploy.** `/disco` só lê.
-- **Guarda um segredo só, cifrado, e não é credencial de nó.** A chave da API do n8n pode
-  morar num cofre em `%APPDATA%\Cockpit\n8n.dat`, cifrada pelo DPAPI do Windows — atada à
-  **conta de Windows** de quem cifrou, então copiada para outra máquina não abre. Criar
-  credencial continua sendo no n8n: **7 dos 16 tipos** usados na conta medida são OAuth, que
-  não se resolve colando um valor.
+- **Não guarda segredo nenhum.** A chave da API do n8n vem do `.env` e fica lá; não há
+  cofre, não há tela para colá-la e nenhuma rota a devolve — nem truncada, porque um
+  prefixo publicado deixa conferir um palpite e o painel viraria oráculo de credencial.
+  Criar credencial continua sendo no n8n, e não só por segurança: **7 dos 16 tipos**
+  usados na conta medida são OAuth, que não se resolve colando um valor.
 - **Não anexa credencial que exija escolha.** Uma única candidata sem ambiguidade sai
   ligada no JSON exportado; com duas, ele pergunta em vez de chutar — chutar decidiria de
   qual conta a mensagem sai, e isso importa sem avisar.
@@ -224,9 +231,7 @@ máquina, e uma delas não tem desfazer.**
 | `flows.html` · `cockpit.html` · `tester.html` · `upgrade.html` | As telas. **Todo o julgamento vive nelas**, num bloco marcado no topo de cada script. |
 | `claude-fix.js` | Roda o Claude CLI headless, aplica o patch, roda os portões, monta o diff — e é dono da única sequência que escreve um fluxo aprovado. |
 | `upgrade.js` · `dossie.js` | A conversa sobre um fluxo vivo que termina num diff; e o dossiê em prosa que substitui ler 291KB de JSON (**~81k tokens medidos** no maior fluxo). |
-| `entrar.html` · `perfil.js` | Login e aprovação. Opcional: sem Supabase, o portão se desliga. |
-| `integracoes.html` · `integracoes.js` · `cofre.js` | A chave da API por tela, e o cofre cifrado pelo DPAPI que evita ela morar em texto puro. |
-| `guarda.js` · `pareamento.js` | Quem pode mandar este agente local escrever, e a cerimônia que autoriza — a chave privada dele fica fora do git. |
+| `guarda.js` | A porta: origem, preflight e CORS em toda requisição. **Não é login** — é o que impede outro site de disparar o clique que escreve num fluxo de produção. Sem `.agente/pareamento.json` (a cerimônia que o escrevia saiu junto com o login), a lista de origens fica vazia e só cliente local entra, que é o desejado num painel de `127.0.0.1`. |
 | `tutorial.js` · `tutoriais/` | O vídeo "como usar esta tela", servido às três páginas. Os `.mp4` **são versionados** de propósito; sem eles a tela cai num estado honesto e inútil. |
 | `estatico.js` | Compressão por mtime e cabeçalhos. **Comprimir por requisição é PERDA no loopback** — medido: 7,6ms viraram 24,0ms. |
 | `tester.js` · `simulate.js` · `agentes.js` | A máquina de etapas do Tester, o fantasma e o que só vale para agente. |
@@ -249,9 +254,11 @@ máquina, e uma delas não tem desfazer.**
   revisão adversarial dela.
 - **`00-research.md`** — a pesquisa que produziu as regras de layout.
 - **`PLAN-CONHECIMENTO.md`** — por que o catálogo não bastava e o que o esquema resolveu.
-- **`CONTRATO-PERFIL.md`** — o contrato do login: cargos, aprovação, e o que ele
-  deliberadamente **não** garante.
-- **`docs/ENTREGA-ANDRE.md`** — o que falta no login e depende de autorização de painel
-  (SMTP, DNS, publicar o app no Google). Nada disso é código.
+- **`docs/removido-produtizacao/`** — a camada de login, aprovação, cofre e pareamento
+  que saiu em 09/09/2026: por que saiu, o inventário com o que cada arquivo fazia, as
+  rotas que deixaram de existir, e como voltar pela tag `arquivo/produtizacao-20260909`.
+  **Leia o aviso de segurança dele antes de restaurar qualquer coisa** — naquele ponto do
+  histórico há segredo em texto puro e uma escalada a super admin aberta no banco
+  hospedado.
 - **`docs/n8n-kb/`** — a base de n8n em formato portátil, já como skill do Claude Code,
   para usar em outro projeto.

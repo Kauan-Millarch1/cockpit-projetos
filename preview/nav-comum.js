@@ -1,7 +1,7 @@
 /* nav-comum.js — o que os geradores de preview da navegação compartilham.
  *
  * Existe porque a segunda tela (a da variante D, escolhida) precisava dos mesmos
- * ícones e das mesmas três portas. Copiar era garantir que um dia o ícone do
+ * ícones e das mesmas quatro portas. Copiar era garantir que um dia o ícone do
  * Tester seria um no comparativo e outro na tela aprovada.
  *
  * Não é código de produção: nada aqui é servido. É a matéria-prima dos previews.
@@ -12,7 +12,7 @@
 /* Ícones das portas. Mesma linguagem do ICONS de flows.html: viewBox 24, traço
    1.9, ponta redonda, DESENHADO — sem emoji e sem logo de terceiro. A diferença
    é que aqui a cor é currentColor: no canvas a cor do ícone é o serviço; na
-   navegação não há serviço nenhum, e três matizes arbitrários na barra seriam
+   navegação não há serviço nenhum, e quatro matizes arbitrários na barra seriam
    cor gasta sem informação. */
 const ICONES = {
   fluxos: ["M3.5 5.5h4.2v4.2H3.5z", "M16.3 14.3h4.2v4.2h-4.2z",
@@ -43,9 +43,14 @@ const ico = (k, s = 15) =>
       + ' stroke-linecap="round" stroke-linejoin="round"/>').join("")
   + "</svg>";
 
-/* As três portas. `fato` e `sinal` são AMOSTRA, e cada preview que os mostrar
-   tem que dizer isso na tela: eles provam que a barra aguenta a informação, não
-   afirmam o estado de agora. */
+/* As quatro portas, e são todas as que existem: em 09/09/2026 o dono decidiu não
+   produtizar, e as portas de login e de integrações saíram junto com as rotas
+   `/conta`, `/entrar` e `/integracoes`. As teclas são contíguas de propósito —
+   um chip prometendo `alt 5` sem quinta porta é rótulo que mente.
+
+   `fato` e `sinal` são AMOSTRA, e cada preview que os mostrar tem que dizer isso
+   na tela: eles provam que a barra aguenta a informação, não afirmam o estado de
+   agora. */
 const PORTAS = [
   { id: "fluxos", href: "#fluxos", rot: "Fluxos", sufixo: "fluxos n8n",
     desc: "o que rodou, o que quebrou e em qual nó",

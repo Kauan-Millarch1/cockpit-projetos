@@ -187,10 +187,12 @@ button { font-family: inherit; }
 .brand .wm b { color: var(--txt); }
 .brand .wm span { color: var(--txt-faint); font-weight: 500; }
 
-/* As três portas de entrada. Antes disto cada tela só era alcançável digitando
+/* As QUATRO portas de entrada. Antes disto cada tela só era alcançável digitando
    a URL, então quem abria o painel de fluxos não tinha como saber que o Tester
-   existia. Nunca encolhe: o nome do fluxo selecionado ao lado é longo e um flex
-   comum espremeria a navegação até quebrar. */
+   existia. A regra em si (nunca encolher: o nome do fluxo selecionado ao lado é
+   longo e um flex comum espremeria a navegação até quebrar) mora no `flex:0 0 auto`
+   do `.nvd`, no bloco NAV compartilhado — este comentário sobrou aqui da migração
+   que aposentou a classe antiga da navegação. */
 /* ------------------------------------------------------- a logo da empresa
    Vem ANTES da chama, com um `.sep` entre as duas, para a leitura ser
    "empresa | produto": a Ecommerce Puro é dona do cockpit, o cockpit não é dono
@@ -268,7 +270,7 @@ button { font-family: inherit; }
    estouro, só muda quem cede primeiro. */
 .topbar .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
-/* ═══════════════════════════════════════════════════════ NAV — as cinco portas
+/* ═══════════════════════════════════════════════════════ NAV — as quatro portas
    BLOCO COMPARTILHADO. Este CSS é IDÊNTICO em flows.html, tester.html,
    cockpit.html e upgrade.html — gerado por preview/aplicar-nav.js e travado por
    nav-sync-test.js. Ao mudar, rode o gerador de novo; NÃO edite uma página só,
@@ -309,7 +311,7 @@ button { font-family: inherit; }
 .nvd a:hover .lb,.nvd a:focus-visible .lb,.nvd a[aria-current="page"] .lb{
   max-width:130px;opacity:1;margin-left:7px}
 /* O atalho é anunciado no lugar onde é usado. O chip só se paga porque o atalho
-   EXISTE (alt+1 a alt+5 navega): um rótulo prometendo tecla que não faz nada é pior
+   EXISTE (alt+1 a alt+4 navega): um rótulo prometendo tecla que não faz nada é pior
    que nenhum rótulo. */
 .nvd kbd{font-family:var(--font-num);font-size:9px;letter-spacing:.02em;
   color:color-mix(in srgb,var(--txt-faint) 58%,var(--txt));
@@ -2941,7 +2943,6 @@ kbd { font-family: var(--font-num); font-size: 9.5px; border: 1px solid var(--li
     <a href="/disco" data-porta="disco"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2 8.6 8.6 0 0 0 0-17.2z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.7a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.3 7.2l-3.6 3.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Disco</span><kbd>alt 2</kbd></span></a>
     <a href="/tester" data-porta="tester"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.3 3.8h5.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.8v5.1l-3.9 7.6a2.1 2.1 0 0 0 1.9 3.1h7.2a2.1 2.1 0 0 0 1.9-3.1l-3.9-7.6V3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 14.6h8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Tester</span><kbd>alt 3</kbd></span></a>
     <a href="/upgrade" data-porta="upgrade" aria-current="page"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.6 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.2 17.4h4v3.2h-4z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.6 19h2.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.6 14.2V4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7.8l3.6-3.6 3.6 3.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Upgrade</span><kbd>alt 4</kbd></span></a>
-      <a href="/conta" data-porta="conta"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.9a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 20.1a7.4 7.4 0 0 1 14.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="lb"><span>Conta</span><kbd>alt 5</kbd></span></a>
   </nav>
   <div class="sep"></div>
   <div class="meta sens" id="instance">—</div>
@@ -8498,10 +8499,10 @@ recPaint();
 </script>
 <script>
 /* ═══════════════════════════════════════════════════ NAV — a lente de vidro
-   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html, upgrade.html e entrar.html,
+   BLOCO COMPARTILHADO. Idêntico em flows.html, tester.html, cockpit.html e upgrade.html,
    gerado por preview/aplicar-nav.js e travado por nav-sync-test.js.
 
-   As cinco portas são navegação DE VERDADE: clicar recarrega a página. Então a
+   As quatro portas são navegação DE VERDADE: clicar recarrega a página. Então a
    lente nunca seria vista viajando — cada página nasceria com ela parada no
    lugar. Ela parte da porta DE ONDE VOCÊ VEIO, guardada em sessionStorage, e
    voa até a atual no carregamento. Mesma disciplina do resto do painel: só
@@ -8631,7 +8632,7 @@ recPaint();
      em campo de texto, então não precisa de guarda contra o compositor. */
   addEventListener("keydown", function (ev) {
     if (!ev.altKey || ev.ctrlKey || ev.metaKey) return;
-    var i = "12345".indexOf(ev.key);
+    var i = "1234".indexOf(ev.key);
     if (i < 0) return;
     var a = nav.querySelectorAll("a")[i];
     if (!a || a.getAttribute("aria-current") === "page") return;
