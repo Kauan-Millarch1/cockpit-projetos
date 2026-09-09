@@ -13,6 +13,10 @@ máquina.
 
 ## Instalar
 
+**Instalando pela primeira vez, leia [`INSTALAR.md`](INSTALAR.md)** — são os quatro passos na
+ordem, cada um com o que aparece quando dá certo e qual é o sintoma quando falha. Este README
+explica o que cada aba faz e por quê; aquele põe de pé.
+
 Node 22 ou mais novo, e nada além disso — não há `npm install` porque não há dependência.
 
 ```bash
